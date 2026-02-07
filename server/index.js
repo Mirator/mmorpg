@@ -2,11 +2,16 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import http from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
-import { stepPlayer } from './server/logic/movement.js';
+import { stepPlayer } from './logic/movement.js';
 
 const app = express();
 app.disable('x-powered-by');
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CLIENT_DIR = path.resolve(__dirname, '../client');
 
 const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3000;
 const TRUST_PROXY = process.env.TRUST_PROXY === 'true';
@@ -47,7 +52,7 @@ app.use(
     legacyHeaders: false,
   })
 );
-app.use(express.static('public'));
+app.use(express.static(CLIENT_DIR));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({
