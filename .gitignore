@@ -23,6 +23,15 @@ coverage/
 .next/
 out/
 
+# Playwright / E2E artifacts
+output/
+playwright-report/
+test-results/
+.playwright/
+
+# Local progress log
+progress.md
+
 .DS_Store
 Thumbs.db
 

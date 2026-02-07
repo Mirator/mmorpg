@@ -1,12 +1,19 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import { initWorld, updateResources, updateMobs, animateWorld } from './world.js';
+import {
+  setStatus,
+  updateHud,
+  updateScoreboard,
+  showPrompt,
+  clearPrompt,
+  showEvent,
+  flashDamage,
+} from './ui.js';
 
 const app = document.getElementById('app');
-const statusEl = document.getElementById('status');
 const fpsEl = document.getElementById('fps');
 const coordsEl = document.getElementById('coords');
 
-const MAP_SIZE = 8000;
-const GRID_DIVS = 400;
 const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
 const MAX_SNAPSHOTS = 60;
@@ -50,16 +57,6 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
 dirLight.position.set(10, 20, 5);
 scene.add(dirLight);
 
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE),
-  new THREE.MeshStandardMaterial({ color: 0x2a3b2f, roughness: 1 })
-);
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
-
-const grid = new THREE.GridHelper(MAP_SIZE, GRID_DIVS, 0x2b3b52, 0x1a2636);
-scene.add(grid);
-
 const targetMarker = new THREE.Mesh(
   new THREE.SphereGeometry(0.25, 16, 16),
   new THREE.MeshStandardMaterial({ color: 0xffcc00 })
@@ -69,6 +66,31 @@ scene.add(targetMarker);
 
 const playerMeshes = new Map();
 let myId = null;
+let worldState = null;
+let worldConfig = null;
+
+let latestPlayers = {};
+let latestResources = [];
+let latestMobs = [];
+
+const lastStats = {
+  hp: null,
+  inv: null,
+  score: null,
+};
+
+let manualStepping = false;
+let virtualNow = performance.now();
+
+function setWorld(config) {
+  if (worldState?.group) {
+    scene.remove(worldState.group);
+  }
+  worldConfig = config ?? null;
+  worldState = initWorld(scene, worldConfig);
+}
+
+setWorld(null);
 
 function createPlayerMesh(isLocal) {
   const geometry = new THREE.BoxGeometry(1, 2, 1);
@@ -150,8 +172,9 @@ function syncPlayers(players) {
 }
 
 function pushSnapshot(players) {
-  const t = performance.now();
+  const t = manualStepping ? virtualNow : performance.now();
   snapshots.push({ t, players });
+  latestPlayers = players;
   syncPlayers(players);
 
   while (snapshots.length > MAX_SNAPSHOTS) {
@@ -249,13 +272,57 @@ function send(msg) {
 }
 
 ws.addEventListener('open', () => {
-  statusEl.textContent = 'connected';
+  setStatus('connected');
   send({ type: 'hello' });
 });
 
 ws.addEventListener('close', () => {
-  statusEl.textContent = 'disconnected';
+  setStatus('disconnected');
 });
+
+function handleStateMessage(msg) {
+  if (msg.world) {
+    if (!worldConfig || worldConfig.mapSize !== msg.world.mapSize) {
+      setWorld(msg.world);
+    }
+  }
+
+  if (msg.players) {
+    pushSnapshot(msg.players);
+    updateScoreboard(msg.players, myId);
+    const me = msg.players[myId];
+    if (me) {
+      updateHud(me, Date.now());
+      if (lastStats.hp !== null && me.hp < lastStats.hp) {
+        flashDamage();
+      }
+      if (lastStats.inv !== null && me.inv > lastStats.inv) {
+        showEvent('Harvested +1');
+      }
+      if (lastStats.score !== null && me.score > lastStats.score) {
+        showEvent(`Deposited +${me.score - lastStats.score}`);
+      }
+      lastStats.hp = me.hp;
+      lastStats.inv = me.inv;
+      lastStats.score = me.score;
+    } else {
+      updateHud(null, Date.now());
+      lastStats.hp = null;
+      lastStats.inv = null;
+      lastStats.score = null;
+    }
+  }
+
+  if (msg.resources) {
+    latestResources = msg.resources;
+    updateResources(worldState, latestResources);
+  }
+
+  if (msg.mobs) {
+    latestMobs = msg.mobs;
+    updateMobs(worldState, msg.mobs);
+  }
+}
 
 ws.addEventListener('message', (event) => {
   let msg;
@@ -267,14 +334,14 @@ ws.addEventListener('message', (event) => {
 
   if (msg.type === 'welcome') {
     myId = msg.id;
-    if (msg.snapshot?.players) {
-      pushSnapshot(msg.snapshot.players);
+    if (msg.snapshot) {
+      handleStateMessage(msg.snapshot);
     }
     return;
   }
 
-  if (msg.type === 'state' && msg.players) {
-    pushSnapshot(msg.players);
+  if (msg.type === 'state') {
+    handleStateMessage(msg);
   }
 });
 
@@ -283,6 +350,11 @@ const keys = { w: false, a: false, s: false, d: false };
 function sendInput() {
   seq += 1;
   send({ type: 'input', keys: { ...keys }, seq });
+}
+
+function sendInteract() {
+  seq += 1;
+  send({ type: 'action', kind: 'interact', seq });
 }
 
 function handleKey(event, isDown) {
@@ -297,7 +369,26 @@ function handleKey(event, isDown) {
   sendInput();
 }
 
-window.addEventListener('keydown', (event) => handleKey(event, true));
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    renderer.domElement.requestFullscreen?.().catch(() => {});
+  } else {
+    document.exitFullscreen?.().catch(() => {});
+  }
+}
+
+window.addEventListener('keydown', (event) => {
+  const key = event.key.toLowerCase();
+  if (key === 'f' && !event.repeat) {
+    toggleFullscreen();
+    return;
+  }
+  if (key === 'e' && !event.repeat) {
+    sendInteract();
+    return;
+  }
+  handleKey(event, true);
+});
 window.addEventListener('keyup', (event) => handleKey(event, false));
 
 const raycaster = new THREE.Raycaster();
@@ -323,13 +414,16 @@ let lastFrameTime = performance.now();
 let fpsLastTime = lastFrameTime;
 let fpsFrameCount = 0;
 
-function animate() {
-  const now = performance.now();
-  const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
-  lastFrameTime = now;
-
+function stepFrame(dt, now) {
   const serverLocalPos = renderInterpolatedPlayers(now);
-  const predictedPos = updateLocalPrediction(dt, serverLocalPos, keys);
+  const localState = latestPlayers?.[myId];
+  if (localState?.dead && serverLocalPos) {
+    predictedLocalPos = { x: serverLocalPos.x, z: serverLocalPos.z };
+  }
+  const canPredict = !localState?.dead;
+  const predictedPos = canPredict
+    ? updateLocalPrediction(dt, serverLocalPos, keys)
+    : serverLocalPos;
   const viewPos = predictedPos ?? serverLocalPos;
 
   if (predictedPos && myId) {
@@ -356,6 +450,35 @@ function animate() {
     coordsEl.textContent = '--, --';
   }
 
+  if (worldState) {
+    animateWorld(worldState, now);
+  }
+
+  if (viewPos && latestResources.length) {
+    const radius = worldConfig?.harvestRadius ?? 2;
+    const invCap = localState?.invCap ?? 5;
+    const inv = localState?.inv ?? 0;
+    let near = false;
+    if (!localState?.dead && inv < invCap) {
+      for (const resource of latestResources) {
+        if (!resource.available) continue;
+        const dx = resource.x - viewPos.x;
+        const dz = resource.z - viewPos.z;
+        if (dx * dx + dz * dz <= radius * radius) {
+          near = true;
+          break;
+        }
+      }
+    }
+    if (near) {
+      showPrompt('Press E to harvest');
+    } else {
+      clearPrompt();
+    }
+  } else {
+    clearPrompt();
+  }
+
   fpsFrameCount += 1;
   if (now - fpsLastTime >= 1000) {
     const fps = (fpsFrameCount * 1000) / (now - fpsLastTime);
@@ -367,7 +490,97 @@ function animate() {
   }
 
   renderer.render(scene, camera);
+}
+
+function animate() {
+  if (manualStepping) {
+    requestAnimationFrame(animate);
+    return;
+  }
+  const now = performance.now();
+  const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
+  lastFrameTime = now;
+  stepFrame(dt, now);
   requestAnimationFrame(animate);
 }
 
 animate();
+
+window.advanceTime = (ms) => {
+  manualStepping = true;
+  const stepMs = 1000 / 60;
+  const steps = Math.max(1, Math.round(ms / stepMs));
+  for (let i = 0; i < steps; i += 1) {
+    virtualNow += stepMs;
+    stepFrame(stepMs / 1000, virtualNow);
+  }
+  return Promise.resolve();
+};
+
+function buildTextState() {
+  const me = latestPlayers?.[myId] ?? null;
+  const base = worldConfig?.base ?? worldState?.base ?? null;
+  const obstacles = worldConfig?.obstacles ?? worldState?.obstacles ?? [];
+  const mapSize = worldConfig?.mapSize ?? worldState?.mapSize ?? 0;
+  const harvestRadius = worldConfig?.harvestRadius ?? 2;
+  return {
+    mode: 'play',
+    coordSystem: {
+      origin: 'map center',
+      axes: { x: 'right', z: 'down', y: 'up' },
+      units: 'world units',
+    },
+    world: {
+      mapSize,
+      base,
+      harvestRadius,
+      obstacles: obstacles.map((o) => ({ x: o.x, z: o.z, r: o.r })),
+    },
+    player: me
+      ? {
+          id: myId,
+          x: me.x,
+          z: me.z,
+          hp: me.hp,
+          maxHp: me.maxHp,
+          inv: me.inv,
+          invCap: me.invCap,
+          score: me.score,
+          dead: me.dead,
+          respawnAt: me.respawnAt ?? 0,
+        }
+      : null,
+    resources: latestResources.map((r) => ({
+      id: r.id,
+      x: r.x,
+      z: r.z,
+      available: r.available,
+      respawnAt: r.respawnAt ?? 0,
+    })),
+    mobs: latestMobs.map((m) => ({
+      id: m.id,
+      x: m.x,
+      z: m.z,
+      state: m.state,
+      targetId: m.targetId ?? null,
+    })),
+  };
+}
+
+window.render_game_to_text = () => JSON.stringify(buildTextState());
+
+window.__game = {
+  moveTo: (x, z) => {
+    seq += 1;
+    send({ type: 'moveTarget', x, z, seq });
+  },
+  clearInput: () => {
+    seq += 1;
+    send({ type: 'input', keys: { w: false, a: false, s: false, d: false }, seq });
+  },
+  interact: () => {
+    seq += 1;
+    send({ type: 'action', kind: 'interact', seq });
+  },
+  getState: () => buildTextState(),
+};

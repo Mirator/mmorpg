@@ -6,6 +6,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
 import { stepPlayer } from './logic/movement.js';
+import { createWorld, worldSnapshot } from './logic/world.js';
+import { applyCollisions } from './logic/collision.js';
+import { createResources, stepResources, tryHarvest } from './logic/resources.js';
+import { createMobs, stepMobs } from './logic/mobs.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -64,17 +68,113 @@ const wss = new WebSocketServer({
 const players = new Map();
 const connectionsByIp = new Map();
 let nextId = 1;
+let nextSpawnIndex = 0;
 
 const TICK_HZ = 60;
 const DT = 1 / TICK_HZ;
+const BROADCAST_HZ = 20;
+const BROADCAST_INTERVAL_MS = 1000 / BROADCAST_HZ;
 const CONFIG = { speed: 3, targetEpsilon: 0.1 };
 
-function snapshotPlayers() {
+const PLAYER_RADIUS = 0.6;
+const RESPAWN_MS = 5000;
+const E2E_TEST = process.env.E2E_TEST === 'true';
+
+const world = createWorld();
+const resources = createResources(world.resourceNodes);
+const mobs = createMobs(world.mobCount, world);
+
+const resourceConfig = {
+  harvestRadius: world.harvestRadius,
+  respawnMs: world.resourceRespawnMs,
+};
+
+const mobConfig = {
+  mobRadius: 0.8,
+};
+
+if (E2E_TEST) {
+  const testResource = {
+    id: 'r-test',
+    x: world.base.x + world.base.radius + 2,
+    z: world.base.z,
+  };
+  resources.unshift({
+    id: testResource.id,
+    x: testResource.x,
+    z: testResource.z,
+    available: true,
+    respawnAt: 0,
+  });
+  const testMob = {
+    id: 'm-test',
+    pos: {
+      x: world.base.x + world.base.radius + 6,
+      y: 0,
+      z: world.base.z,
+    },
+    state: 'idle',
+    targetId: null,
+    nextDecisionAt: 0,
+    dir: { x: 1, z: 0 },
+    attackCooldownUntil: 0,
+  };
+  mobs.unshift(testMob);
+}
+
+function getSpawnPoint() {
+  const point = world.spawnPoints[nextSpawnIndex % world.spawnPoints.length];
+  nextSpawnIndex += 1;
+  return { x: point.x, z: point.z };
+}
+
+function serializePlayers() {
   const out = {};
   for (const [id, p] of players.entries()) {
-    out[id] = { x: p.pos.x, y: p.pos.y, z: p.pos.z };
+    out[id] = {
+      x: p.pos.x,
+      y: p.pos.y,
+      z: p.pos.z,
+      hp: p.hp,
+      maxHp: p.maxHp,
+      inv: p.inv,
+      invCap: p.invCap,
+      score: p.score,
+      dead: p.dead,
+      respawnAt: p.respawnAt ?? 0,
+    };
   }
   return out;
+}
+
+function serializeResources() {
+  return resources.map((r) => ({
+    id: r.id,
+    x: r.x,
+    z: r.z,
+    available: r.available,
+    respawnAt: r.respawnAt,
+  }));
+}
+
+function serializeMobs() {
+  return mobs.map((m) => ({
+    id: m.id,
+    x: m.pos.x,
+    z: m.pos.z,
+    state: m.state,
+    targetId: m.targetId,
+  }));
+}
+
+function buildState(now) {
+  return {
+    type: 'state',
+    t: now,
+    players: serializePlayers(),
+    resources: serializeResources(),
+    mobs: serializeMobs(),
+  };
 }
 
 function safeSend(ws, msg) {
@@ -159,6 +259,23 @@ function createMessageLimiter(max, intervalMs) {
   };
 }
 
+function killPlayer(player, now) {
+  if (player.dead) return;
+  player.dead = true;
+  player.respawnAt = now + RESPAWN_MS;
+  player.inv = 0;
+  player.target = null;
+  player.keys = { w: false, a: false, s: false, d: false };
+}
+
+function respawnPlayer(player) {
+  const spawn = getSpawnPoint();
+  player.pos = { x: spawn.x, y: 0, z: spawn.z };
+  player.hp = player.maxHp;
+  player.dead = false;
+  player.respawnAt = 0;
+}
+
 server.on('upgrade', (req, socket, head) => {
   const origin = req.headers.origin;
   if (!isAllowedOrigin(origin)) {
@@ -191,17 +308,34 @@ wss.on('connection', (ws, req) => {
   const allowMessage = createMessageLimiter(MSG_RATE_MAX, MSG_RATE_INTERVAL_MS);
 
   const id = `p${nextId++}`;
+  const spawn = getSpawnPoint();
   const player = {
     id,
     ws,
-    pos: { x: 0, y: 0, z: 0 },
+    pos: { x: spawn.x, y: 0, z: spawn.z },
     target: null,
     keys: { w: false, a: false, s: false, d: false },
     lastInputSeq: 0,
+    hp: world.playerMaxHp,
+    maxHp: world.playerMaxHp,
+    inv: 0,
+    invCap: world.playerInvCap,
+    score: 0,
+    dead: false,
+    respawnAt: 0,
   };
 
   players.set(id, player);
-  safeSend(ws, { type: 'welcome', id, snapshot: { players: snapshotPlayers() } });
+  safeSend(ws, {
+    type: 'welcome',
+    id,
+    snapshot: {
+      world: worldSnapshot(world),
+      players: serializePlayers(),
+      resources: serializeResources(),
+      mobs: serializeMobs(),
+    },
+  });
 
   ws.on('message', (data) => {
     if (!allowMessage()) {
@@ -230,6 +364,8 @@ wss.on('connection', (ws, req) => {
       player.lastInputSeq = msg.seq;
     }
 
+    if (player.dead) return;
+
     if (msg.type === 'input') {
       player.keys = sanitizeKeys(msg.keys);
       return;
@@ -242,6 +378,14 @@ wss.on('connection', (ws, req) => {
         player.target = { x, z };
       }
       return;
+    }
+
+    if (msg.type === 'action' && msg.kind === 'interact') {
+      tryHarvest(resources, player, Date.now(), {
+        harvestRadius: resourceConfig.harvestRadius,
+        respawnMs: resourceConfig.respawnMs,
+        invCap: player.invCap,
+      });
     }
   });
 
@@ -269,27 +413,50 @@ const heartbeat = setInterval(() => {
 heartbeat.unref?.();
 
 setInterval(() => {
+  const now = Date.now();
+
   for (const player of players.values()) {
+    if (player.dead) {
+      if (player.respawnAt && now >= player.respawnAt) {
+        respawnPlayer(player);
+      }
+      continue;
+    }
+
     const result = stepPlayer(
       { pos: player.pos, target: player.target },
       { keys: player.keys },
       DT,
       CONFIG
     );
-    player.pos = result.pos;
+    player.pos = applyCollisions(result.pos, world, PLAYER_RADIUS);
     player.target = result.target;
+
+    const dx = player.pos.x - world.base.x;
+    const dz = player.pos.z - world.base.z;
+    if (player.inv > 0 && Math.hypot(dx, dz) <= world.base.radius) {
+      player.score += player.inv;
+      player.inv = 0;
+    }
   }
 
-  const state = {
-    type: 'state',
-    t: Date.now(),
-    players: snapshotPlayers(),
-  };
+  stepResources(resources, now);
+  stepMobs(mobs, Array.from(players.values()), world, DT, now, mobConfig);
 
+  for (const player of players.values()) {
+    if (!player.dead && player.hp <= 0) {
+      killPlayer(player, now);
+    }
+  }
+}, DT * 1000);
+
+setInterval(() => {
+  if (players.size === 0) return;
+  const state = buildState(Date.now());
   for (const player of players.values()) {
     safeSend(player.ws, state);
   }
-}, DT * 1000);
+}, BROADCAST_INTERVAL_MS);
 
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);

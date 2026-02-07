@@ -3,20 +3,31 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MMORPG PoC</title>
+    <title>MMORPG MVP</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <div id="app"></div>
     <div id="overlay">
-      <div class="title">MMORPG PoC</div>
-      <div>WASD to move · Click to move · Open multiple tabs</div>
+      <div class="title">MMORPG MVP</div>
+      <div>WASD to move · Click to move · E to harvest</div>
       <div>Status: <span id="status">connecting...</span></div>
     </div>
     <div id="hud">
+      <div>HP: <span id="hud-hp">--</span></div>
+      <div>Inv: <span id="hud-inv">0</span></div>
+      <div>Score: <span id="hud-score">0</span></div>
+      <div>Respawn: <span id="hud-respawn">--</span></div>
       <div>FPS: <span id="fps">0</span></div>
       <div>X/Z: <span id="coords">0.0, 0.0</span></div>
     </div>
+    <div id="scoreboard">
+      <div class="title">Top Scavengers</div>
+      <div id="scoreboard-list"></div>
+    </div>
+    <div id="prompt">Press E to harvest</div>
+    <div id="event"></div>
+    <div id="damage-flash"></div>
     <script type="module" src="./client.js"></script>
   </body>
 </html>

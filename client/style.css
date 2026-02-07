@@ -6,6 +6,7 @@
   --text: #e6edf3;
   --muted: #9fb0c2;
   --accent: #4da3ff;
+  --danger: #ff4d4d;
 }
 
 * {
@@ -43,13 +44,16 @@ canvas {
   backdrop-filter: blur(6px);
 }
 
-#overlay .title {
+#overlay .title,
+#scoreboard .title {
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 4px;
 }
 
-#overlay span {
+#overlay span,
+#hud span,
+#scoreboard span {
   color: var(--accent);
 }
 
@@ -68,6 +72,99 @@ canvas {
   backdrop-filter: blur(6px);
 }
 
-#hud span {
-  color: var(--accent);
+#scoreboard {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid rgba(77, 163, 255, 0.3);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  letter-spacing: 0.2px;
+  min-width: 180px;
+  backdrop-filter: blur(6px);
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+#prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(14, 24, 34, 0.8);
+  border: 1px solid rgba(77, 163, 255, 0.4);
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+#prompt.visible {
+  opacity: 1;
+}
+
+#event {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: rgba(6, 12, 18, 0.8);
+  border: 1px solid rgba(94, 242, 194, 0.4);
+  color: #c6fff0;
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#event.show {
+  animation: pop 1.2s ease;
+}
+
+#damage-flash {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 77, 77, 0.22);
+  opacity: 0;
+  pointer-events: none;
+}
+
+#damage-flash.flash {
+  animation: flash 0.6s ease;
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -10px) scale(0.9);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -10px) scale(0.98);
+  }
+}
+
+@keyframes flash {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
