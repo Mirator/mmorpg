@@ -87,7 +87,7 @@ export function stepPlayer(state, input, dt, config = {}) {
         y: pos.y,
         z: pos.z + dir.z * speed * dt,
       },
-      target,
+      target: null,
     };
   }
 

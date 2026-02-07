@@ -52,3 +52,22 @@ canvas {
 #overlay span {
   color: var(--accent);
 }
+
+#hud {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid rgba(77, 163, 255, 0.3);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  letter-spacing: 0.2px;
+  text-align: right;
+  backdrop-filter: blur(6px);
+}
+
+#hud span {
+  color: var(--accent);
+}

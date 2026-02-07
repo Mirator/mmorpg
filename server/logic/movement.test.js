@@ -31,11 +31,11 @@ describe('movement', () => {
     expect(result.target).toEqual(target);
   });
 
-  it('WASD overrides target for that tick', () => {
+  it('WASD clears target', () => {
     const state = { pos: { x: 0, y: 0, z: 0 }, target: { x: 10, z: 0 } };
     const result = stepPlayer(state, { keys: { w: true } }, 1, { speed: 1 });
     expect(result.pos.z).toBeCloseTo(-1, 5);
-    expect(result.target).toEqual({ x: 10, z: 0 });
+    expect(result.target).toBeNull();
   });
 
   it('no input and no target yields no movement', () => {

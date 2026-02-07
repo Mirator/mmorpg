@@ -2,6 +2,13 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.m
 
 const app = document.getElementById('app');
 const statusEl = document.getElementById('status');
+const fpsEl = document.getElementById('fps');
+const coordsEl = document.getElementById('coords');
+
+const MAP_SIZE = 8000;
+const GRID_DIVS = 400;
+const INTERP_DELAY_MS = 100;
+const CAMERA_LERP_SPEED = 5;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0f14);
@@ -12,6 +19,9 @@ app.appendChild(renderer.domElement);
 
 const frustumSize = 24;
 let camera;
+const cameraOffset = new THREE.Vector3(20, 20, 20);
+const cameraTarget = new THREE.Vector3();
+const cameraDesired = new THREE.Vector3();
 
 function createCamera() {
   const aspect = window.innerWidth / window.innerHeight;
@@ -21,9 +31,9 @@ function createCamera() {
     frustumSize / 2,
     -frustumSize / 2,
     0.1,
-    1000
+    10000
   );
-  camera.position.set(20, 20, 20);
+  camera.position.copy(cameraOffset);
   camera.zoom = 1.4;
   camera.lookAt(0, 0, 0);
   camera.updateProjectionMatrix();
@@ -38,13 +48,13 @@ dirLight.position.set(10, 20, 5);
 scene.add(dirLight);
 
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(80, 80),
+  new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE),
   new THREE.MeshStandardMaterial({ color: 0x2a3b2f, roughness: 1 })
 );
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-const grid = new THREE.GridHelper(80, 40, 0x2b3b52, 0x1a2636);
+const grid = new THREE.GridHelper(MAP_SIZE, GRID_DIVS, 0x2b3b52, 0x1a2636);
 scene.add(grid);
 
 const targetMarker = new THREE.Mesh(
@@ -83,11 +93,14 @@ function setLocalPlayerVisual() {
   }
 }
 
-function applySnapshot(players) {
+let previousSnapshot = null;
+let latestSnapshot = null;
+let hasServerTime = false;
+
+function syncPlayers(players) {
   const seen = new Set(Object.keys(players));
-  for (const [id, p] of Object.entries(players)) {
-    const mesh = ensurePlayerMesh(id);
-    mesh.position.set(p.x, 1, p.z);
+  for (const id of seen) {
+    ensurePlayerMesh(id);
   }
   for (const id of playerMeshes.keys()) {
     if (!seen.has(id)) {
@@ -97,6 +110,48 @@ function applySnapshot(players) {
     }
   }
   setLocalPlayerVisual();
+}
+
+function setSnapshot(players, t, isServerTime) {
+  const snapshot = { t, players };
+  if (!latestSnapshot || (!hasServerTime && isServerTime)) {
+    previousSnapshot = snapshot;
+    latestSnapshot = snapshot;
+  } else {
+    previousSnapshot = latestSnapshot;
+    latestSnapshot = snapshot;
+  }
+  if (isServerTime) {
+    hasServerTime = true;
+  }
+  syncPlayers(players);
+}
+
+function renderInterpolatedPlayers() {
+  if (!latestSnapshot) return null;
+  const renderTime = Date.now() - INTERP_DELAY_MS;
+  const prev = previousSnapshot ?? latestSnapshot;
+  const prevT = prev.t;
+  const nextT = latestSnapshot.t;
+  let alpha = 1;
+  if (nextT > prevT) {
+    alpha = (renderTime - prevT) / (nextT - prevT);
+  }
+  alpha = Math.max(0, Math.min(1, alpha));
+
+  let localPos = null;
+  for (const [id, nextPos] of Object.entries(latestSnapshot.players)) {
+    const mesh = ensurePlayerMesh(id);
+    const prevPos = prev.players?.[id];
+    const x = prevPos ? prevPos.x + (nextPos.x - prevPos.x) * alpha : nextPos.x;
+    const z = prevPos ? prevPos.z + (nextPos.z - prevPos.z) * alpha : nextPos.z;
+    mesh.position.set(x, 1, z);
+    if (id === myId) {
+      localPos = { x, z };
+    }
+  }
+
+  return localPos;
 }
 
 function resize() {
@@ -142,13 +197,14 @@ ws.addEventListener('message', (event) => {
   if (msg.type === 'welcome') {
     myId = msg.id;
     if (msg.snapshot?.players) {
-      applySnapshot(msg.snapshot.players);
+      setSnapshot(msg.snapshot.players, Date.now(), false);
     }
     return;
   }
 
   if (msg.type === 'state' && msg.players) {
-    applySnapshot(msg.players);
+    const t = Number.isFinite(msg.t) ? msg.t : Date.now();
+    setSnapshot(msg.players, t, true);
   }
 });
 
@@ -165,6 +221,9 @@ function handleKey(event, isDown) {
   if (event.repeat) return;
   if (keys[key] === isDown) return;
   keys[key] = isDown;
+  if (isDown) {
+    targetMarker.visible = false;
+  }
   sendInput();
 }
 
@@ -190,7 +249,44 @@ renderer.domElement.addEventListener('click', (event) => {
   }
 });
 
+let lastFrameTime = performance.now();
+let fpsLastTime = lastFrameTime;
+let fpsFrameCount = 0;
+
 function animate() {
+  const now = performance.now();
+  const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
+  lastFrameTime = now;
+
+  const localPos = renderInterpolatedPlayers();
+
+  if (localPos) {
+    cameraDesired.set(
+      localPos.x + cameraOffset.x,
+      cameraOffset.y,
+      localPos.z + cameraOffset.z
+    );
+    const lerpFactor = 1 - Math.exp(-CAMERA_LERP_SPEED * dt);
+    camera.position.lerp(cameraDesired, lerpFactor);
+    cameraTarget.set(localPos.x, 0, localPos.z);
+    camera.lookAt(cameraTarget);
+    if (coordsEl) {
+      coordsEl.textContent = `${localPos.x.toFixed(1)}, ${localPos.z.toFixed(1)}`;
+    }
+  } else if (coordsEl) {
+    coordsEl.textContent = '--, --';
+  }
+
+  fpsFrameCount += 1;
+  if (now - fpsLastTime >= 1000) {
+    const fps = (fpsFrameCount * 1000) / (now - fpsLastTime);
+    if (fpsEl) {
+      fpsEl.textContent = fps.toFixed(0);
+    }
+    fpsFrameCount = 0;
+    fpsLastTime = now;
+  }
+
   renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
