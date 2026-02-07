@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MMORPG Admin</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="header">
+        <div class="title">MMORPG Admin</div>
+        <div class="subtitle">Live world overview</div>
+      </header>
+
+      <section class="panel auth">
+        <form id="auth-form">
+          <label for="admin-pass">Admin password</label>
+          <div class="auth-row">
+            <input
+              id="admin-pass"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Enter password"
+              required
+            />
+            <button type="submit">Unlock</button>
+          </div>
+          <div id="auth-hint">Stored for this session only.</div>
+        </form>
+        <div id="status" class="status neutral">Status: idle</div>
+      </section>
+
+      <section class="panel summary">
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="label">Players</div>
+            <div id="count-players" class="value">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Resources</div>
+            <div id="count-resources" class="value">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Enemies</div>
+            <div id="count-mobs" class="value">0</div>
+          </div>
+          <div class="summary-card">
+            <div class="label">Last Update</div>
+            <div id="last-update" class="value">--</div>
+          </div>
+        </div>
+        <div class="world-summary">
+          <div>
+            Map size: <span id="world-map">--</span> · Harvest radius:
+            <span id="world-harvest">--</span>
+          </div>
+          <div>
+            Base: <span id="world-base">--</span> · Obstacles:
+            <span id="world-obstacles">--</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">Players</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>X</th>
+                <th>Y</th>
+                <th>Z</th>
+                <th>HP</th>
+                <th>Inv</th>
+                <th>Score</th>
+                <th>Dead</th>
+                <th>Respawn</th>
+              </tr>
+            </thead>
+            <tbody id="players-body"></tbody>
+          </table>
+        </div>
+        <div class="table-controls">
+          <div class="pager">
+            <button id="players-prev" type="button">Prev</button>
+            <span id="players-page-info">0-0 of 0</span>
+            <button id="players-next" type="button">Next</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">Resources (Nodes)</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>X</th>
+                <th>Z</th>
+                <th>Available</th>
+                <th>Respawn</th>
+              </tr>
+            </thead>
+            <tbody id="resources-body"></tbody>
+          </table>
+        </div>
+        <div class="table-controls">
+          <div class="pager">
+            <button id="resources-prev" type="button">Prev</button>
+            <span id="resources-page-info">0-0 of 0</span>
+            <button id="resources-next" type="button">Next</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">Enemies (Mobs)</div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>X</th>
+                <th>Z</th>
+                <th>State</th>
+                <th>Target</th>
+              </tr>
+            </thead>
+            <tbody id="mobs-body"></tbody>
+          </table>
+        </div>
+        <div class="table-controls">
+          <div class="pager">
+            <button id="mobs-prev" type="button">Prev</button>
+            <span id="mobs-page-info">0-0 of 0</span>
+            <button id="mobs-next" type="button">Next</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="/admin/admin.js"></script>
+  </body>
+</html>

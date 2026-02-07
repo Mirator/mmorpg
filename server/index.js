@@ -10,14 +10,23 @@ import { createWorld, worldSnapshot } from './logic/world.js';
 import { applyCollisions } from './logic/collision.js';
 import { createResources, stepResources, tryHarvest } from './logic/resources.js';
 import { createMobs, stepMobs } from './logic/mobs.js';
+import {
+  createAdminStateHandler,
+  resolveAdminPassword,
+  serializePlayers,
+  serializeResources,
+  serializeMobs,
+} from './admin.js';
 
 const app = express();
 app.disable('x-powered-by');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = path.resolve(__dirname, '../client');
+const ADMIN_DIR = path.resolve(__dirname, '../admin');
 
 const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3000;
+const HOST = process.env.HOST ?? '127.0.0.1';
 const TRUST_PROXY = process.env.TRUST_PROXY === 'true';
 if (TRUST_PROXY) {
   app.set('trust proxy', 1);
@@ -33,6 +42,7 @@ const MSG_RATE_INTERVAL_MS =
 const HEARTBEAT_INTERVAL_MS =
   Number.parseInt(process.env.HEARTBEAT_INTERVAL_MS ?? '', 10) || 30_000;
 const ALLOW_NO_ORIGIN = process.env.ALLOW_NO_ORIGIN === 'true';
+const ADMIN_PASSWORD = resolveAdminPassword();
 
 const defaultOrigins = new Set([
   `http://localhost:${PORT}`,
@@ -56,6 +66,11 @@ app.use(
     legacyHeaders: false,
   })
 );
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(ADMIN_DIR, 'index.html'));
+});
+app.use('/admin', express.static(ADMIN_DIR));
 app.use(express.static(CLIENT_DIR));
 
 const server = http.createServer(app);
@@ -93,6 +108,17 @@ const mobConfig = {
   mobRadius: 0.8,
 };
 
+app.get(
+  '/admin/state',
+  createAdminStateHandler({
+    password: ADMIN_PASSWORD,
+    world,
+    players,
+    resources,
+    mobs,
+  })
+);
+
 if (E2E_TEST) {
   const testResource = {
     id: 'r-test',
@@ -128,52 +154,13 @@ function getSpawnPoint() {
   return { x: point.x, z: point.z };
 }
 
-function serializePlayers() {
-  const out = {};
-  for (const [id, p] of players.entries()) {
-    out[id] = {
-      x: p.pos.x,
-      y: p.pos.y,
-      z: p.pos.z,
-      hp: p.hp,
-      maxHp: p.maxHp,
-      inv: p.inv,
-      invCap: p.invCap,
-      score: p.score,
-      dead: p.dead,
-      respawnAt: p.respawnAt ?? 0,
-    };
-  }
-  return out;
-}
-
-function serializeResources() {
-  return resources.map((r) => ({
-    id: r.id,
-    x: r.x,
-    z: r.z,
-    available: r.available,
-    respawnAt: r.respawnAt,
-  }));
-}
-
-function serializeMobs() {
-  return mobs.map((m) => ({
-    id: m.id,
-    x: m.pos.x,
-    z: m.pos.z,
-    state: m.state,
-    targetId: m.targetId,
-  }));
-}
-
 function buildState(now) {
   return {
     type: 'state',
     t: now,
-    players: serializePlayers(),
-    resources: serializeResources(),
-    mobs: serializeMobs(),
+    players: serializePlayers(players),
+    resources: serializeResources(resources),
+    mobs: serializeMobs(mobs),
   };
 }
 
@@ -331,9 +318,9 @@ wss.on('connection', (ws, req) => {
     id,
     snapshot: {
       world: worldSnapshot(world),
-      players: serializePlayers(),
-      resources: serializeResources(),
-      mobs: serializeMobs(),
+      players: serializePlayers(players),
+      resources: serializeResources(resources),
+      mobs: serializeMobs(mobs),
     },
   });
 
@@ -458,6 +445,17 @@ setInterval(() => {
   }
 }, BROADCAST_INTERVAL_MS);
 
-server.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+server.on('error', (err) => {
+  if (err?.code === 'EACCES' || err?.code === 'EPERM') {
+    console.error(
+      `Failed to bind http://${HOST}:${PORT}. ` +
+        'Permission denied; try a different HOST/PORT or check sandbox restrictions.'
+    );
+    return;
+  }
+  console.error('Server error:', err);
+});
+
+server.listen(PORT, HOST, () => {
+  console.log(`Server running at http://${HOST}:${PORT}`);
 });
