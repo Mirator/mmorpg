@@ -8,7 +8,10 @@ const coordsEl = document.getElementById('coords');
 const MAP_SIZE = 8000;
 const GRID_DIVS = 400;
 const INTERP_DELAY_MS = 100;
+const MAX_SNAPSHOT_AGE_MS = 2000;
+const MAX_SNAPSHOTS = 60;
 const CAMERA_LERP_SPEED = 5;
+const CLIENT_SPEED = 3;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0f14);
@@ -93,9 +96,43 @@ function setLocalPlayerVisual() {
   }
 }
 
-let previousSnapshot = null;
-let latestSnapshot = null;
-let hasServerTime = false;
+function normalize2(x, z) {
+  const len = Math.hypot(x, z);
+  if (len === 0) return { x: 0, z: 0 };
+  return { x: x / len, z: z / len };
+}
+
+function applyWASD(input = {}) {
+  const forward = normalize2(-1, -1);
+  const right = normalize2(1, -1);
+
+  let x = 0;
+  let z = 0;
+
+  if (input.w) {
+    x += forward.x;
+    z += forward.z;
+  }
+  if (input.s) {
+    x -= forward.x;
+    z -= forward.z;
+  }
+  if (input.d) {
+    x += right.x;
+    z += right.z;
+  }
+  if (input.a) {
+    x -= right.x;
+    z -= right.z;
+  }
+
+  return normalize2(x, z);
+}
+
+const snapshots = [];
+let predictedLocalPos = null;
+const correction = 0.1;
+const snapThreshold = 5;
 
 function syncPlayers(players) {
   const seen = new Set(Object.keys(players));
@@ -112,39 +149,46 @@ function syncPlayers(players) {
   setLocalPlayerVisual();
 }
 
-function setSnapshot(players, t, isServerTime) {
-  const snapshot = { t, players };
-  if (!latestSnapshot || (!hasServerTime && isServerTime)) {
-    previousSnapshot = snapshot;
-    latestSnapshot = snapshot;
-  } else {
-    previousSnapshot = latestSnapshot;
-    latestSnapshot = snapshot;
-  }
-  if (isServerTime) {
-    hasServerTime = true;
-  }
+function pushSnapshot(players) {
+  const t = performance.now();
+  snapshots.push({ t, players });
   syncPlayers(players);
+
+  while (snapshots.length > MAX_SNAPSHOTS) {
+    snapshots.shift();
+  }
+  while (snapshots.length > 2 && t - snapshots[0].t > MAX_SNAPSHOT_AGE_MS) {
+    snapshots.shift();
+  }
 }
 
-function renderInterpolatedPlayers() {
-  if (!latestSnapshot) return null;
-  const renderTime = Date.now() - INTERP_DELAY_MS;
-  const prev = previousSnapshot ?? latestSnapshot;
-  const prevT = prev.t;
-  const nextT = latestSnapshot.t;
-  let alpha = 1;
-  if (nextT > prevT) {
-    alpha = (renderTime - prevT) / (nextT - prevT);
+function renderInterpolatedPlayers(now) {
+  if (snapshots.length === 0) return null;
+
+  const renderTime = now - INTERP_DELAY_MS;
+  while (snapshots.length >= 2 && snapshots[1].t <= renderTime) {
+    snapshots.shift();
+  }
+
+  const older = snapshots[0];
+  const newer = snapshots[1] ?? snapshots[0];
+  const span = newer.t - older.t;
+  let alpha = 0;
+  if (span > 0) {
+    alpha = (renderTime - older.t) / span;
   }
   alpha = Math.max(0, Math.min(1, alpha));
 
   let localPos = null;
-  for (const [id, nextPos] of Object.entries(latestSnapshot.players)) {
+  for (const [id, newerPos] of Object.entries(newer.players)) {
     const mesh = ensurePlayerMesh(id);
-    const prevPos = prev.players?.[id];
-    const x = prevPos ? prevPos.x + (nextPos.x - prevPos.x) * alpha : nextPos.x;
-    const z = prevPos ? prevPos.z + (nextPos.z - prevPos.z) * alpha : nextPos.z;
+    const olderPos = older.players?.[id];
+    const x = olderPos
+      ? olderPos.x + (newerPos.x - olderPos.x) * alpha
+      : newerPos.x;
+    const z = olderPos
+      ? olderPos.z + (newerPos.z - olderPos.z) * alpha
+      : newerPos.z;
     mesh.position.set(x, 1, z);
     if (id === myId) {
       localPos = { x, z };
@@ -152,6 +196,33 @@ function renderInterpolatedPlayers() {
   }
 
   return localPos;
+}
+
+function updateLocalPrediction(dt, serverPos, input) {
+  if (!serverPos) return null;
+
+  if (!predictedLocalPos) {
+    predictedLocalPos = { x: serverPos.x, z: serverPos.z };
+  } else {
+    const errorX = serverPos.x - predictedLocalPos.x;
+    const errorZ = serverPos.z - predictedLocalPos.z;
+    const errorDist = Math.hypot(errorX, errorZ);
+    if (errorDist > snapThreshold) {
+      predictedLocalPos.x = serverPos.x;
+      predictedLocalPos.z = serverPos.z;
+    } else {
+      predictedLocalPos.x += errorX * correction;
+      predictedLocalPos.z += errorZ * correction;
+    }
+  }
+
+  const dir = applyWASD(input);
+  if (dir.x !== 0 || dir.z !== 0) {
+    predictedLocalPos.x += dir.x * CLIENT_SPEED * dt;
+    predictedLocalPos.z += dir.z * CLIENT_SPEED * dt;
+  }
+
+  return predictedLocalPos;
 }
 
 function resize() {
@@ -197,14 +268,13 @@ ws.addEventListener('message', (event) => {
   if (msg.type === 'welcome') {
     myId = msg.id;
     if (msg.snapshot?.players) {
-      setSnapshot(msg.snapshot.players, Date.now(), false);
+      pushSnapshot(msg.snapshot.players);
     }
     return;
   }
 
   if (msg.type === 'state' && msg.players) {
-    const t = Number.isFinite(msg.t) ? msg.t : Date.now();
-    setSnapshot(msg.players, t, true);
+    pushSnapshot(msg.players);
   }
 });
 
@@ -258,20 +328,29 @@ function animate() {
   const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
   lastFrameTime = now;
 
-  const localPos = renderInterpolatedPlayers();
+  const serverLocalPos = renderInterpolatedPlayers(now);
+  const predictedPos = updateLocalPrediction(dt, serverLocalPos, keys);
+  const viewPos = predictedPos ?? serverLocalPos;
 
-  if (localPos) {
+  if (predictedPos && myId) {
+    const mesh = playerMeshes.get(myId);
+    if (mesh) {
+      mesh.position.set(predictedPos.x, 1, predictedPos.z);
+    }
+  }
+
+  if (viewPos) {
     cameraDesired.set(
-      localPos.x + cameraOffset.x,
+      viewPos.x + cameraOffset.x,
       cameraOffset.y,
-      localPos.z + cameraOffset.z
+      viewPos.z + cameraOffset.z
     );
     const lerpFactor = 1 - Math.exp(-CAMERA_LERP_SPEED * dt);
     camera.position.lerp(cameraDesired, lerpFactor);
-    cameraTarget.set(localPos.x, 0, localPos.z);
+    cameraTarget.set(viewPos.x, 0, viewPos.z);
     camera.lookAt(cameraTarget);
     if (coordsEl) {
-      coordsEl.textContent = `${localPos.x.toFixed(1)}, ${localPos.z.toFixed(1)}`;
+      coordsEl.textContent = `${viewPos.x.toFixed(1)}, ${viewPos.z.toFixed(1)}`;
     }
   } else if (coordsEl) {
     coordsEl.textContent = '--, --';

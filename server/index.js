@@ -65,7 +65,7 @@ const players = new Map();
 const connectionsByIp = new Map();
 let nextId = 1;
 
-const TICK_HZ = 20;
+const TICK_HZ = 60;
 const DT = 1 / TICK_HZ;
 const CONFIG = { speed: 3, targetEpsilon: 0.1 };
 
