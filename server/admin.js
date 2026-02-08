@@ -26,6 +26,34 @@ export function serializePlayers(players) {
   return out;
 }
 
+export function serializePlayersPublic(players) {
+  const out = {};
+  for (const [id, p] of players.entries()) {
+    out[id] = {
+      x: p.pos.x,
+      y: p.pos.y,
+      z: p.pos.z,
+      hp: p.hp,
+      maxHp: p.maxHp,
+      inv: p.inv,
+      score: p.score,
+      dead: p.dead,
+    };
+  }
+  return out;
+}
+
+export function serializePlayerPrivate(player) {
+  if (!player) return null;
+  return {
+    invCap: player.invCap,
+    invSlots: player.invSlots,
+    invStackMax: player.invStackMax,
+    inventory: player.inventory,
+    respawnAt: player.respawnAt ?? 0,
+  };
+}
+
 export function serializeResources(resources) {
   return resources.map((r) => ({
     id: r.id,

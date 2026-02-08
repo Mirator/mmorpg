@@ -15,28 +15,30 @@ function distance2(a, b) {
   return dx * dx + dz * dz;
 }
 
+function isSpawnValid(x, z, world) {
+  const distFromBase = Math.hypot(x - world.base.x, z - world.base.z);
+  if (distFromBase < world.base.radius + 8) return false;
+  for (const obs of world.obstacles) {
+    const dist = Math.hypot(x - obs.x, z - obs.z);
+    if (dist < obs.r + 6) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function createMobs(count, world, options = {}) {
   const rand = options.random ?? Math.random;
   const mobs = [];
   const half = world.mapSize / 2 - 10;
-  const maxTries = count * 30;
+  const maxTries = count * 60;
   let tries = 0;
 
   while (mobs.length < count && tries < maxTries) {
     tries += 1;
     const x = randomRange(rand, -half, half);
     const z = randomRange(rand, -half, half);
-    const distFromBase = Math.hypot(x - world.base.x, z - world.base.z);
-    if (distFromBase < world.base.radius + 8) continue;
-    let blocked = false;
-    for (const obs of world.obstacles) {
-      const dist = Math.hypot(x - obs.x, z - obs.z);
-      if (dist < obs.r + 6) {
-        blocked = true;
-        break;
-      }
-    }
-    if (blocked) continue;
+    if (!isSpawnValid(x, z, world)) continue;
     mobs.push({
       id: `m${mobs.length + 1}`,
       pos: { x, y: 0, z },
@@ -48,18 +50,11 @@ export function createMobs(count, world, options = {}) {
     });
   }
 
-  while (mobs.length < count) {
-    const x = randomRange(rand, -half, half);
-    const z = randomRange(rand, -half, half);
-    mobs.push({
-      id: `m${mobs.length + 1}`,
-      pos: { x, y: 0, z },
-      state: 'idle',
-      targetId: null,
-      nextDecisionAt: 0,
-      dir: randomDirection(rand),
-      attackCooldownUntil: 0,
-    });
+  if (mobs.length < count) {
+    console.warn(
+      `Mob spawn: placed ${mobs.length}/${count} mobs without overlap; ` +
+        'map may be too dense for requested count.'
+    );
   }
 
   return mobs;

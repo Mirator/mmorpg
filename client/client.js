@@ -1,5 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { initWorld, updateResources, updateMobs, animateWorld } from './world.js';
+import { applyWASD } from '/shared/math.js';
 import {
   setStatus,
   updateHud,
@@ -23,7 +24,7 @@ const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
 const MAX_SNAPSHOTS = 60;
 const CAMERA_LERP_SPEED = 5;
-const CLIENT_SPEED = 3;
+const DEFAULT_PLAYER_SPEED = 3;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0f14);
@@ -75,6 +76,7 @@ let worldState = null;
 let worldConfig = null;
 
 let latestPlayers = {};
+let latestMe = null;
 let latestResources = [];
 let latestMobs = [];
 
@@ -86,6 +88,9 @@ const lastStats = {
 
 let manualStepping = false;
 let virtualNow = performance.now();
+let serverTimeOffsetMs = 0;
+let hasServerTime = false;
+let lastServerTimestamp = null;
 
 function setWorld(config) {
   if (worldState?.group) {
@@ -121,39 +126,6 @@ function setLocalPlayerVisual() {
   if (mesh) {
     mesh.material.color.set(0x4da3ff);
   }
-}
-
-function normalize2(x, z) {
-  const len = Math.hypot(x, z);
-  if (len === 0) return { x: 0, z: 0 };
-  return { x: x / len, z: z / len };
-}
-
-function applyWASD(input = {}) {
-  const forward = normalize2(-1, -1);
-  const right = normalize2(1, -1);
-
-  let x = 0;
-  let z = 0;
-
-  if (input.w) {
-    x += forward.x;
-    z += forward.z;
-  }
-  if (input.s) {
-    x -= forward.x;
-    z -= forward.z;
-  }
-  if (input.d) {
-    x += right.x;
-    z += right.z;
-  }
-  if (input.a) {
-    x -= right.x;
-    z -= right.z;
-  }
-
-  return normalize2(x, z);
 }
 
 const snapshots = [];
@@ -226,8 +198,30 @@ function renderInterpolatedPlayers(now) {
   return localPos;
 }
 
+function updateServerTime(serverNow) {
+  if (!Number.isFinite(serverNow)) return;
+  serverTimeOffsetMs = serverNow - Date.now();
+  hasServerTime = true;
+  lastServerTimestamp = serverNow;
+}
+
+function getServerNow() {
+  return hasServerTime ? Date.now() + serverTimeOffsetMs : Date.now();
+}
+
+function getLocalPlayer() {
+  const publicPlayer = latestPlayers?.[myId];
+  if (!publicPlayer) return null;
+  if (latestMe && latestMe.id && latestMe.id !== myId) {
+    return publicPlayer;
+  }
+  return { ...publicPlayer, ...(latestMe ?? {}) };
+}
+
 function updateLocalPrediction(dt, serverPos, input) {
   if (!serverPos) return null;
+
+  const speed = worldConfig?.playerSpeed ?? DEFAULT_PLAYER_SPEED;
 
   if (!predictedLocalPos) {
     predictedLocalPos = { x: serverPos.x, z: serverPos.z };
@@ -246,8 +240,8 @@ function updateLocalPrediction(dt, serverPos, input) {
 
   const dir = applyWASD(input);
   if (dir.x !== 0 || dir.z !== 0) {
-    predictedLocalPos.x += dir.x * CLIENT_SPEED * dt;
-    predictedLocalPos.z += dir.z * CLIENT_SPEED * dt;
+    predictedLocalPos.x += dir.x * speed * dt;
+    predictedLocalPos.z += dir.z * speed * dt;
   }
 
   return predictedLocalPos;
@@ -298,6 +292,9 @@ ws.addEventListener('close', () => {
 });
 
 function handleStateMessage(msg) {
+  if (Number.isFinite(msg.t)) {
+    updateServerTime(msg.t);
+  }
   if (msg.world) {
     if (!worldConfig || worldConfig.mapSize !== msg.world.mapSize) {
       setWorld(msg.world);
@@ -307,39 +304,7 @@ function handleStateMessage(msg) {
   if (msg.players) {
     pushSnapshot(msg.players);
     updateScoreboard(msg.players, myId);
-    const me = msg.players[myId];
-    if (me) {
-      updateHud(me, Date.now());
-      if (inventoryUI) {
-        inventoryUI.setInventory(me.inventory ?? [], {
-          slots: me.invSlots ?? worldConfig?.playerInvSlots ?? me.inventory?.length ?? 0,
-          stackMax: me.invStackMax ?? worldConfig?.playerInvStackMax ?? 1,
-        });
-      }
-      if (lastStats.hp !== null && me.hp < lastStats.hp) {
-        flashDamage();
-      }
-      if (lastStats.inv !== null && me.inv > lastStats.inv) {
-        showEvent('Harvested +1');
-      }
-      if (lastStats.score !== null && me.score > lastStats.score) {
-        showEvent(`Deposited +${me.score - lastStats.score}`);
-      }
-      lastStats.hp = me.hp;
-      lastStats.inv = me.inv;
-      lastStats.score = me.score;
-    } else {
-      updateHud(null, Date.now());
-      if (inventoryUI) {
-        inventoryUI.setInventory([], {
-          slots: worldConfig?.playerInvSlots ?? 0,
-          stackMax: worldConfig?.playerInvStackMax ?? 1,
-        });
-      }
-      lastStats.hp = null;
-      lastStats.inv = null;
-      lastStats.score = null;
-    }
+    updateLocalUi();
   }
 
   if (msg.resources) {
@@ -350,6 +315,43 @@ function handleStateMessage(msg) {
   if (msg.mobs) {
     latestMobs = msg.mobs;
     updateMobs(worldState, msg.mobs);
+  }
+}
+
+function updateLocalUi() {
+  const me = getLocalPlayer();
+  const serverNow = getServerNow();
+  if (me) {
+    updateHud(me, serverNow);
+    if (inventoryUI) {
+      inventoryUI.setInventory(me.inventory ?? [], {
+        slots: me.invSlots ?? worldConfig?.playerInvSlots ?? me.inventory?.length ?? 0,
+        stackMax: me.invStackMax ?? worldConfig?.playerInvStackMax ?? 1,
+      });
+    }
+    if (lastStats.hp !== null && me.hp < lastStats.hp) {
+      flashDamage();
+    }
+    if (lastStats.inv !== null && me.inv > lastStats.inv) {
+      showEvent('Harvested +1');
+    }
+    if (lastStats.score !== null && me.score > lastStats.score) {
+      showEvent(`Deposited +${me.score - lastStats.score}`);
+    }
+    lastStats.hp = me.hp;
+    lastStats.inv = me.inv;
+    lastStats.score = me.score;
+  } else {
+    updateHud(null, serverNow);
+    if (inventoryUI) {
+      inventoryUI.setInventory([], {
+        slots: worldConfig?.playerInvSlots ?? 0,
+        stackMax: worldConfig?.playerInvStackMax ?? 1,
+      });
+    }
+    lastStats.hp = null;
+    lastStats.inv = null;
+    lastStats.score = null;
   }
 }
 
@@ -371,6 +373,14 @@ ws.addEventListener('message', (event) => {
 
   if (msg.type === 'state') {
     handleStateMessage(msg);
+  }
+
+  if (msg.type === 'me') {
+    if (Number.isFinite(msg.t)) {
+      updateServerTime(msg.t);
+    }
+    latestMe = msg.data ?? null;
+    updateLocalUi();
   }
 });
 
@@ -477,7 +487,7 @@ let fpsFrameCount = 0;
 
 function stepFrame(dt, now) {
   const serverLocalPos = renderInterpolatedPlayers(now);
-  const localState = latestPlayers?.[myId];
+  const localState = getLocalPlayer();
   if (localState?.dead && serverLocalPos) {
     predictedLocalPos = { x: serverLocalPos.x, z: serverLocalPos.z };
   }
@@ -585,7 +595,7 @@ window.advanceTime = (ms) => {
 };
 
 function buildTextState() {
-  const me = latestPlayers?.[myId] ?? null;
+  const me = getLocalPlayer();
   const base = worldConfig?.base ?? worldState?.base ?? null;
   const obstacles = worldConfig?.obstacles ?? worldState?.obstacles ?? [];
   const mapSize = worldConfig?.mapSize ?? worldState?.mapSize ?? 0;
@@ -609,6 +619,7 @@ function buildTextState() {
       harvestRadius,
       obstacles: obstacles.map((o) => ({ x: o.x, z: o.z, r: o.r })),
     },
+    serverTime: lastServerTimestamp,
     player: me
       ? {
           id: myId,

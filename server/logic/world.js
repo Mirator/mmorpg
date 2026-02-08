@@ -10,6 +10,7 @@ const HARVEST_RADIUS = 2.2;
 const RESOURCE_RESPAWN_MS = 15_000;
 
 const PLAYER_MAX_HP = 100;
+const PLAYER_SPEED = 3;
 const PLAYER_INV_SLOTS = 20;
 const PLAYER_INV_STACK_MAX = 20;
 const PLAYER_INV_CAP = PLAYER_INV_SLOTS * PLAYER_INV_STACK_MAX;
@@ -112,6 +113,7 @@ export function createWorld() {
     harvestRadius: HARVEST_RADIUS,
     resourceRespawnMs: RESOURCE_RESPAWN_MS,
     playerMaxHp: PLAYER_MAX_HP,
+    playerSpeed: PLAYER_SPEED,
     playerInvCap: PLAYER_INV_CAP,
     playerInvSlots: PLAYER_INV_SLOTS,
     playerInvStackMax: PLAYER_INV_STACK_MAX,
@@ -124,6 +126,7 @@ export function worldSnapshot(world) {
     base: world.base,
     obstacles: world.obstacles,
     harvestRadius: world.harvestRadius,
+    playerSpeed: world.playerSpeed,
     playerInvSlots: world.playerInvSlots,
     playerInvStackMax: world.playerInvStackMax,
   };

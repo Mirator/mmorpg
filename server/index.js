@@ -18,7 +18,8 @@ import {
 import {
   createAdminStateHandler,
   resolveAdminPassword,
-  serializePlayers,
+  serializePlayersPublic,
+  serializePlayerPrivate,
   serializeResources,
   serializeMobs,
 } from './admin.js';
@@ -29,6 +30,7 @@ app.disable('x-powered-by');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = path.resolve(__dirname, '../client');
 const ADMIN_DIR = path.resolve(__dirname, '../admin');
+const SHARED_DIR = path.resolve(__dirname, '../shared');
 
 const PORT = Number.parseInt(process.env.PORT ?? '', 10) || 3000;
 const HOST = process.env.HOST ?? '127.0.0.1';
@@ -76,6 +78,7 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(ADMIN_DIR, 'index.html'));
 });
 app.use('/admin', express.static(ADMIN_DIR));
+app.use('/shared', express.static(SHARED_DIR));
 app.use(express.static(CLIENT_DIR));
 
 const server = http.createServer(app);
@@ -95,7 +98,6 @@ const TICK_HZ = 60;
 const DT = 1 / TICK_HZ;
 const BROADCAST_HZ = 20;
 const BROADCAST_INTERVAL_MS = 1000 / BROADCAST_HZ;
-const CONFIG = { speed: 3, targetEpsilon: 0.1 };
 
 const PLAYER_RADIUS = 0.6;
 const RESPAWN_MS = 5000;
@@ -104,6 +106,7 @@ const E2E_TEST = process.env.E2E_TEST === 'true';
 const world = createWorld();
 const resources = createResources(world.resourceNodes);
 const mobs = createMobs(world.mobCount, world);
+const CONFIG = { speed: world.playerSpeed, targetEpsilon: 0.1 };
 
 const resourceConfig = {
   harvestRadius: world.harvestRadius,
@@ -160,11 +163,11 @@ function getSpawnPoint() {
   return { x: point.x, z: point.z };
 }
 
-function buildState(now) {
+function buildPublicState(now) {
   return {
     type: 'state',
     t: now,
-    players: serializePlayers(players),
+    players: serializePlayersPublic(players),
     resources: serializeResources(resources),
     mobs: serializeMobs(mobs),
   };
@@ -177,6 +180,24 @@ function safeSend(ws, msg) {
   } catch {
     // Ignore send errors for closing sockets.
   }
+}
+
+function safeSendRaw(ws, data) {
+  if (ws.readyState !== ws.OPEN) return;
+  try {
+    ws.send(data);
+  } catch {
+    // Ignore send errors for closing sockets.
+  }
+}
+
+function sendPrivateState(ws, player, now) {
+  safeSend(ws, {
+    type: 'me',
+    t: now,
+    data: serializePlayerPrivate(player),
+    id: player.id,
+  });
 }
 
 function sanitizeKeys(raw) {
@@ -323,16 +344,19 @@ wss.on('connection', (ws, req) => {
   };
 
   players.set(id, player);
+  const now = Date.now();
   safeSend(ws, {
     type: 'welcome',
     id,
     snapshot: {
+      t: now,
       world: worldSnapshot(world),
-      players: serializePlayers(players),
+      players: serializePlayersPublic(players),
       resources: serializeResources(resources),
       mobs: serializeMobs(mobs),
     },
   });
+  sendPrivateState(ws, player, now);
 
   ws.on('message', (data) => {
     if (!allowMessage()) {
@@ -468,9 +492,12 @@ setInterval(() => {
 
 setInterval(() => {
   if (players.size === 0) return;
-  const state = buildState(Date.now());
+  const now = Date.now();
+  const state = buildPublicState(now);
+  const stateString = JSON.stringify(state);
   for (const player of players.values()) {
-    safeSend(player.ws, state);
+    safeSendRaw(player.ws, stateString);
+    sendPrivateState(player.ws, player, now);
   }
 }, BROADCAST_INTERVAL_MS);
 

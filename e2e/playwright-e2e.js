@@ -6,6 +6,7 @@ const PORT = Number.parseInt(process.env.E2E_PORT ?? '', 10) || 3001;
 const BASE_URL = `http://localhost:${PORT}`;
 const SERVER_START_TIMEOUT_MS = 8000;
 const TEST_TIMEOUT_MS = 20000;
+const DEATH_TIMEOUT_MS = 30000;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -384,6 +385,28 @@ async function run() {
       TEST_TIMEOUT_MS,
       'mob damage'
     );
+
+    state = await waitForCondition(
+      page,
+      (s) => s.player && s.player.dead,
+      DEATH_TIMEOUT_MS,
+      'player death'
+    );
+
+    const respawnText = await page.locator('#hud-respawn').innerText();
+    const respawnSeconds = Number.parseInt(respawnText.replace('s', ''), 10);
+    if (!Number.isFinite(respawnSeconds)) {
+      throw new Error(`Respawn HUD not numeric: "${respawnText}"`);
+    }
+    const serverTime = state.serverTime ?? state.t ?? Date.now();
+    const expectedRespawn = Math.ceil(
+      Math.max(0, (state.player.respawnAt - serverTime) / 1000)
+    );
+    if (Math.abs(respawnSeconds - expectedRespawn) > 1) {
+      throw new Error(
+        `Respawn HUD mismatch. Expected ~${expectedRespawn}s, got ${respawnSeconds}s`
+      );
+    }
 
     if (consoleErrors.length) {
       throw new Error(`Console errors: ${consoleErrors.join('\n')}`);

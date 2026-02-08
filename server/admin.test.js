@@ -5,6 +5,8 @@ import {
   createAdminStateHandler,
   serializeMobs,
   serializePlayers,
+  serializePlayersPublic,
+  serializePlayerPrivate,
   serializeResources,
 } from './admin.js';
 
@@ -91,6 +93,60 @@ describe('admin state serialization', () => {
     expect(serializeMobs(mobs)).toEqual([
       { id: 'm1', x: -3, z: 4, state: 'idle', targetId: null },
     ]);
+  });
+
+  it('serializes public player state without private fields', () => {
+    const players = new Map([
+      [
+        'p1',
+        {
+          pos: { x: 2, y: 0, z: 3 },
+          hp: 50,
+          maxHp: 100,
+          inv: 4,
+          invCap: 10,
+          invSlots: 2,
+          invStackMax: 5,
+          inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }],
+          score: 9,
+          dead: true,
+          respawnAt: 12345,
+        },
+      ],
+    ]);
+
+    expect(serializePlayersPublic(players)).toEqual({
+      p1: {
+        x: 2,
+        y: 0,
+        z: 3,
+        hp: 50,
+        maxHp: 100,
+        inv: 4,
+        score: 9,
+        dead: true,
+      },
+    });
+  });
+
+  it('serializes private player fields for local client', () => {
+    const player = {
+      invCap: 10,
+      invSlots: 2,
+      invStackMax: 5,
+      inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }],
+      respawnAt: 12345,
+      hp: 50,
+      score: 9,
+    };
+
+    expect(serializePlayerPrivate(player)).toEqual({
+      invCap: 10,
+      invSlots: 2,
+      invStackMax: 5,
+      inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }],
+      respawnAt: 12345,
+    });
   });
 
   it('builds admin state with world snapshot', () => {
