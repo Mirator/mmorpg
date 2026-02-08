@@ -11,10 +11,12 @@ import { applyCollisions } from './logic/collision.js';
 import { createResources, stepResources, tryHarvest } from './logic/resources.js';
 import { createMobs, stepMobs } from './logic/mobs.js';
 import {
+  countInventory,
   clearInventory,
   createInventory,
   swapInventorySlots,
 } from './logic/inventory.js';
+import { getSellPriceCopper } from '../shared/economy.js';
 import {
   createAdminStateHandler,
   resolveAdminPassword,
@@ -338,7 +340,7 @@ wss.on('connection', (ws, req) => {
     invSlots: world.playerInvSlots,
     invStackMax: world.playerInvStackMax,
     inventory: createInventory(world.playerInvSlots),
-    score: 0,
+    currencyCopper: 0,
     dead: false,
     respawnAt: 0,
   };
@@ -426,6 +428,27 @@ wss.on('connection', (ws, req) => {
       }
       return;
     }
+
+    if (msg.type === 'vendorSell') {
+      const slot = Number(msg.slot);
+      const vendorId = typeof msg.vendorId === 'string' ? msg.vendorId : '';
+      const vendor = world.vendors?.find((v) => v.id === vendorId);
+      if (!vendor) return;
+      if (!Number.isInteger(slot) || slot < 0 || slot >= player.inventory.length) return;
+      const item = player.inventory[slot];
+      if (!item) return;
+      const dist = Math.hypot(player.pos.x - vendor.x, player.pos.z - vendor.z);
+      const maxDist = world.vendorInteractRadius ?? 2.5;
+      if (dist > maxDist) return;
+      const unitPrice = getSellPriceCopper(item.kind);
+      if (!Number.isFinite(unitPrice) || unitPrice <= 0) return;
+      const count = Math.max(1, Number(item.count) || 1);
+      const total = Math.floor(unitPrice * count);
+      player.inventory[slot] = null;
+      player.inv = countInventory(player.inventory);
+      player.currencyCopper = (player.currencyCopper ?? 0) + total;
+      return;
+    }
   });
 
   ws.on('error', () => {
@@ -471,13 +494,6 @@ setInterval(() => {
     player.pos = applyCollisions(result.pos, world, PLAYER_RADIUS);
     player.target = result.target;
 
-    const dx = player.pos.x - world.base.x;
-    const dz = player.pos.z - world.base.z;
-    if (player.inv > 0 && Math.hypot(dx, dz) <= world.base.radius) {
-      player.score += player.inv;
-      player.inv = 0;
-      clearInventory(player.inventory);
-    }
   }
 
   stepResources(resources, now);

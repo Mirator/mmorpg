@@ -123,7 +123,7 @@ async function waitForCondition(page, condition, timeoutMs, label) {
         z: Number(lastState.player.z?.toFixed?.(2) ?? lastState.player.z),
         hp: lastState.player.hp,
         inv: lastState.player.inv,
-        score: lastState.player.score,
+        currencyCopper: lastState.player.currencyCopper,
         dead: lastState.player.dead,
       }
     : null;
@@ -134,7 +134,7 @@ async function waitForCondition(page, condition, timeoutMs, label) {
 
 async function run() {
   const server = spawn('node', ['server/index.js'], {
-    env: { ...process.env, PORT: String(PORT), E2E_TEST: 'true' },
+    env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', E2E_TEST: 'true' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
@@ -206,7 +206,7 @@ async function run() {
       );
       state = await waitForCondition(
         page,
-        (s) => s.player && distance(s.player, testResource) <= harvestRadius + 0.05,
+        (s) => s.player && distance(s.player, testResource) <= harvestRadius - 0.05,
         TEST_TIMEOUT_MS,
         'reach test resource'
       );
@@ -252,7 +252,7 @@ async function run() {
         continue;
       }
 
-      if (distance(reached.player, candidate) <= harvestRadius + 0.05) {
+      if (distance(reached.player, candidate) <= harvestRadius - 0.05) {
         resource = candidate;
         state = reached;
         break;
@@ -344,26 +344,76 @@ async function run() {
       'inventory closed'
     );
 
-    const scoreBefore = state.player.score;
-    await page.evaluate(() => window.__game?.moveTo(0, 0));
-    const distToBase = distance(state.player, { x: 0, z: 0 });
-    const baseTimeoutMs = Math.max(
-      TEST_TIMEOUT_MS,
-      Math.ceil((distToBase / 3) * 1000 + 3000)
+    const vendor = state.world?.vendors?.[0];
+    if (!vendor) {
+      throw new Error('No vendor found in world snapshot');
+    }
+    await page.evaluate(
+      ({ x, z }) => window.__game?.moveTo(x, z),
+      { x: vendor.x, z: vendor.z }
     );
     state = await waitForCondition(
       page,
-      (s) => s.player && distance(s.player, { x: 0, z: 0 }) <= (s.world?.base?.radius ?? 8) + 1,
-      baseTimeoutMs,
-      'reach base'
+      (s) =>
+        s.player &&
+        distance(s.player, vendor) <= (s.world?.vendorInteractRadius ?? 2.5) - 0.05,
+      TEST_TIMEOUT_MS,
+      'reach vendor'
     );
+
+    await page.keyboard.press('e');
+    await page.waitForSelector('#vendor-dialog.open');
+    await page.click('#vendor-trade-btn');
+    await page.waitForSelector('#vendor-panel.open');
+
+    await page.click('.vendor-tab[data-tab=\"sell\"]');
+    await page.waitForFunction(() => {
+      const sell = document.querySelector('.vendor-sell');
+      return sell?.classList.contains('active');
+    });
+
+    state = await getState(page);
+    const sellItems = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
+    if (sellItems.length === 0) {
+      throw new Error('No inventory items available to sell');
+    }
+    const sellSlot = sellItems[0].slot;
+    const sellCount = sellItems[0].count ?? 1;
+    const currencyBefore = state.player?.currencyCopper ?? 0;
+
+    const sellBox = await page
+      .locator(`.inventory-slot[data-index=\"${sellSlot}\"]`)
+      .boundingBox();
+    const dropBox = await page.locator('.vendor-dropzone').boundingBox();
+    if (!sellBox || !dropBox) {
+      throw new Error('Vendor dropzone or inventory slot not found');
+    }
+
+    await page.mouse.move(sellBox.x + sellBox.width / 2, sellBox.y + sellBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(dropBox.x + dropBox.width / 2, dropBox.y + dropBox.height / 2, {
+      steps: 6,
+    });
+    await page.mouse.up();
 
     state = await waitForCondition(
       page,
-      (s) => s.player && s.player.inv === 0 && s.player.score > scoreBefore,
+      (s) =>
+        (s.player?.currencyCopper ?? 0) > currencyBefore &&
+        !s.inventory?.items?.some((item) => item.slot === sellSlot),
       TEST_TIMEOUT_MS,
-      'deposit'
+      'vendor sell'
     );
+    const currencyAfter = state.player?.currencyCopper ?? 0;
+    const expectedIncrease = sellCount * 10;
+    if (currencyAfter - currencyBefore !== expectedIncrease) {
+      throw new Error(
+        `Currency mismatch. Expected +${expectedIncrease}, got +${currencyAfter - currencyBefore}`
+      );
+    }
+
+    await page.click('#vendor-panel-close');
+    await page.waitForFunction(() => !document.querySelector('#vendor-panel')?.classList.contains('open'));
 
     const testMob = state.mobs.find((m) => m.id === 'm-test');
     const mob = testMob

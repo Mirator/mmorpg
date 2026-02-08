@@ -14,6 +14,7 @@ const PLAYER_SPEED = 3;
 const PLAYER_INV_SLOTS = 20;
 const PLAYER_INV_STACK_MAX = 20;
 const PLAYER_INV_CAP = PLAYER_INV_SLOTS * PLAYER_INV_STACK_MAX;
+const VENDOR_INTERACT_RADIUS = 2.5;
 
 function mulberry32(seed) {
   let t = seed >>> 0;
@@ -102,10 +103,19 @@ export function createWorld() {
   const obstacles = generateObstacles(rng);
   const resourceNodes = generateResourceNodes(rng, obstacles);
   const spawnPoints = generateSpawnPoints();
+  const base = { x: 0, z: 0, radius: BASE_RADIUS };
+  const vendors = [
+    {
+      id: 'vendor-1',
+      name: 'General Vendor',
+      x: base.x + base.radius + 4,
+      z: base.z - 2,
+    },
+  ];
 
   return {
     mapSize: MAP_SIZE,
-    base: { x: 0, z: 0, radius: BASE_RADIUS },
+    base,
     obstacles,
     resourceNodes,
     spawnPoints,
@@ -117,6 +127,8 @@ export function createWorld() {
     playerInvCap: PLAYER_INV_CAP,
     playerInvSlots: PLAYER_INV_SLOTS,
     playerInvStackMax: PLAYER_INV_STACK_MAX,
+    vendors,
+    vendorInteractRadius: VENDOR_INTERACT_RADIUS,
   };
 }
 
@@ -129,5 +141,7 @@ export function worldSnapshot(world) {
     playerSpeed: world.playerSpeed,
     playerInvSlots: world.playerInvSlots,
     playerInvStackMax: world.playerInvStackMax,
+    vendors: world.vendors ?? [],
+    vendorInteractRadius: world.vendorInteractRadius ?? VENDOR_INTERACT_RADIUS,
   };
 }

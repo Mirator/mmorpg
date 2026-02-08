@@ -18,7 +18,7 @@ export function serializePlayers(players) {
       invSlots: p.invSlots,
       invStackMax: p.invStackMax,
       inventory: p.inventory,
-      score: p.score,
+      currencyCopper: p.currencyCopper ?? 0,
       dead: p.dead,
       respawnAt: p.respawnAt ?? 0,
     };
@@ -36,7 +36,7 @@ export function serializePlayersPublic(players) {
       hp: p.hp,
       maxHp: p.maxHp,
       inv: p.inv,
-      score: p.score,
+      currencyCopper: p.currencyCopper ?? 0,
       dead: p.dead,
     };
   }
@@ -50,6 +50,7 @@ export function serializePlayerPrivate(player) {
     invSlots: player.invSlots,
     invStackMax: player.invStackMax,
     inventory: player.inventory,
+    currencyCopper: player.currencyCopper ?? 0,
     respawnAt: player.respawnAt ?? 0,
   };
 }

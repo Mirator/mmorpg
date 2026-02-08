@@ -16,7 +16,7 @@ function makeItemLabel(item) {
   return name.slice(0, 1).toUpperCase();
 }
 
-export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap }) {
+export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap, onDropExternal }) {
   let open = false;
   let slots = [];
   let slotCount = 0;
@@ -159,6 +159,15 @@ export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap }) 
   function onPointerUp(event) {
     if (!drag) return;
     const target = document.elementFromPoint(event.clientX, event.clientY);
+    const item = slots[drag.index];
+    if (item && typeof onDropExternal === 'function') {
+      const handled = onDropExternal({ slot: drag.index, item, target, event });
+      if (handled) {
+        cancelDrag();
+        return;
+      }
+    }
+
     const slotEl = target?.closest?.('.inventory-slot');
     const toIndex = slotEl ? Number(slotEl.dataset.index) : null;
     if (Number.isInteger(toIndex) && toIndex !== drag.index) {

@@ -10,27 +10,53 @@
     <div id="app"></div>
     <div id="overlay">
       <div class="title">MMORPG MVP</div>
-      <div>WASD to move · Click to move · E to harvest · I for inventory</div>
+      <div>WASD to move · Click to move · E to interact · I for inventory</div>
       <div>Status: <span id="status">connecting...</span></div>
     </div>
     <div id="hud">
       <div>HP: <span id="hud-hp">--</span></div>
       <div>Inv: <span id="hud-inv">0</span></div>
-      <div>Score: <span id="hud-score">0</span></div>
+      <div>Coins: <span id="hud-coins">0g 0s 0c</span></div>
       <div>Respawn: <span id="hud-respawn">--</span></div>
       <div>FPS: <span id="fps">0</span></div>
       <div>X/Z: <span id="coords">0.0, 0.0</span></div>
     </div>
-    <div id="scoreboard">
-      <div class="title">Top Scavengers</div>
-      <div id="scoreboard-list"></div>
-    </div>
     <div id="inventory-panel">
       <div class="inventory-header">
         <div class="inventory-title">Inventory</div>
-        <div class="inventory-hint">Drag to swap · I to close</div>
+        <div class="inventory-meta">
+          <div class="inventory-coins">Coins: <span id="inventory-coins">0g 0s 0c</span></div>
+          <div class="inventory-hint">Drag to swap · I to close</div>
+        </div>
       </div>
       <div id="inventory-grid" class="inventory-grid"></div>
+    </div>
+    <div id="vendor-dialog" class="vendor-dialog">
+      <div class="vendor-title" id="vendor-dialog-name">General Vendor</div>
+      <div class="vendor-actions">
+        <button id="vendor-trade-btn" class="vendor-btn">Trade</button>
+        <button id="vendor-close-btn" class="vendor-btn ghost">Close</button>
+      </div>
+    </div>
+    <div id="vendor-panel" class="vendor-panel">
+      <div class="vendor-header">
+        <div class="vendor-title" id="vendor-panel-name">General Vendor</div>
+        <div class="vendor-tabs">
+          <button class="vendor-tab active" data-tab="buy">Buy</button>
+          <button class="vendor-tab" data-tab="sell">Sell</button>
+        </div>
+      </div>
+      <div class="vendor-body">
+        <div class="vendor-view vendor-buy active">
+          <div class="vendor-empty">No items available.</div>
+        </div>
+        <div class="vendor-view vendor-sell">
+          <div id="vendor-sell-prices" class="vendor-prices"></div>
+          <div class="vendor-dropzone">Drop items here to sell.</div>
+        </div>
+      </div>
+      <div class="vendor-footer">Drag items from your inventory to sell.</div>
+      <button id="vendor-panel-close" class="vendor-btn ghost">Close</button>
     </div>
     <div id="prompt">Press E to harvest</div>
     <div id="event"></div>

@@ -1,24 +1,35 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { initWorld, updateResources, updateMobs, animateWorld } from './world.js';
 import { applyWASD } from '/shared/math.js';
+import { formatCurrency, splitCurrency, VENDOR_SELL_PRICES } from '/shared/economy.js';
 import {
   setStatus,
   updateHud,
-  updateScoreboard,
   showPrompt,
   clearPrompt,
   showEvent,
   flashDamage,
 } from './ui.js';
 import { createInventoryUI } from './inventory.js';
+import { createVendorUI } from './vendor.js';
 
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
 const coordsEl = document.getElementById('coords');
 const inventoryPanel = document.getElementById('inventory-panel');
 const inventoryGrid = document.getElementById('inventory-grid');
+const vendorDialog = document.getElementById('vendor-dialog');
+const vendorPanel = document.getElementById('vendor-panel');
+const vendorDialogName = document.getElementById('vendor-dialog-name');
+const vendorPanelName = document.getElementById('vendor-panel-name');
+const vendorTradeBtn = document.getElementById('vendor-trade-btn');
+const vendorCloseBtn = document.getElementById('vendor-close-btn');
+const vendorPanelCloseBtn = document.getElementById('vendor-panel-close');
+const vendorPricesEl = document.getElementById('vendor-sell-prices');
+const inventoryCoinsEl = document.getElementById('inventory-coins');
 
 let inventoryUI = null;
+let vendorUI = null;
 
 const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
@@ -79,11 +90,44 @@ let latestPlayers = {};
 let latestMe = null;
 let latestResources = [];
 let latestMobs = [];
+let nearestVendor = null;
+let inVendorRange = false;
+
+function formatItemName(kind) {
+  if (!kind) return 'Item';
+  return kind
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function renderVendorPrices() {
+  if (!vendorPricesEl) return;
+  vendorPricesEl.innerHTML = '';
+  const entries = Object.entries(VENDOR_SELL_PRICES ?? {});
+  if (entries.length === 0) {
+    vendorPricesEl.textContent = 'No items can be sold right now.';
+    return;
+  }
+  for (const [kind, price] of entries) {
+    const row = document.createElement('div');
+    row.className = 'vendor-price-row';
+    const name = document.createElement('div');
+    name.className = 'vendor-price-name';
+    name.textContent = formatItemName(kind);
+    const value = document.createElement('div');
+    value.className = 'vendor-price-value';
+    value.textContent = formatCurrency(price);
+    row.appendChild(name);
+    row.appendChild(value);
+    vendorPricesEl.appendChild(row);
+  }
+}
 
 const lastStats = {
   hp: null,
   inv: null,
-  score: null,
+  currencyCopper: null,
 };
 
 let manualStepping = false;
@@ -279,8 +323,40 @@ if (inventoryPanel && inventoryGrid) {
       seq += 1;
       send({ type: 'inventorySwap', from, to, seq });
     },
+    onDropExternal: ({ slot, target }) => {
+      if (!vendorUI || !vendorUI.isTradeOpen()) return false;
+      const dropzone = target?.closest?.('.vendor-dropzone');
+      if (!dropzone) return false;
+      const vendor = vendorUI.getVendor();
+      if (!vendor?.id) return false;
+      seq += 1;
+      send({ type: 'vendorSell', slot, vendorId: vendor.id, seq });
+      return true;
+    },
   });
 }
+
+if (vendorDialog && vendorPanel) {
+  vendorUI = createVendorUI({
+    dialog: vendorDialog,
+    panel: vendorPanel,
+    dialogName: vendorDialogName,
+    panelName: vendorPanelName,
+    tradeButton: vendorTradeBtn,
+    closeButton: vendorCloseBtn,
+    panelCloseButton: vendorPanelCloseBtn,
+  });
+  vendorTradeBtn?.addEventListener('click', () => {
+    setInventoryOpen(true);
+  });
+  const closeTrade = () => {
+    setInventoryOpen(false);
+  };
+  vendorCloseBtn?.addEventListener('click', closeTrade);
+  vendorPanelCloseBtn?.addEventListener('click', closeTrade);
+}
+
+renderVendorPrices();
 
 ws.addEventListener('open', () => {
   setStatus('connected');
@@ -303,7 +379,6 @@ function handleStateMessage(msg) {
 
   if (msg.players) {
     pushSnapshot(msg.players);
-    updateScoreboard(msg.players, myId);
     updateLocalUi();
   }
 
@@ -329,18 +404,25 @@ function updateLocalUi() {
         stackMax: me.invStackMax ?? worldConfig?.playerInvStackMax ?? 1,
       });
     }
+    if (inventoryCoinsEl) {
+      inventoryCoinsEl.textContent = formatCurrency(me.currencyCopper ?? 0);
+    }
     if (lastStats.hp !== null && me.hp < lastStats.hp) {
       flashDamage();
     }
     if (lastStats.inv !== null && me.inv > lastStats.inv) {
       showEvent('Harvested +1');
     }
-    if (lastStats.score !== null && me.score > lastStats.score) {
-      showEvent(`Deposited +${me.score - lastStats.score}`);
+    if (
+      lastStats.currencyCopper !== null &&
+      (me.currencyCopper ?? 0) > lastStats.currencyCopper
+    ) {
+      const diff = (me.currencyCopper ?? 0) - lastStats.currencyCopper;
+      showEvent(`Sold +${formatCurrency(diff)}`);
     }
     lastStats.hp = me.hp;
     lastStats.inv = me.inv;
-    lastStats.score = me.score;
+    lastStats.currencyCopper = me.currencyCopper ?? 0;
   } else {
     updateHud(null, serverNow);
     if (inventoryUI) {
@@ -349,9 +431,12 @@ function updateLocalUi() {
         stackMax: worldConfig?.playerInvStackMax ?? 1,
       });
     }
+    if (inventoryCoinsEl) {
+      inventoryCoinsEl.textContent = '--';
+    }
     lastStats.hp = null;
     lastStats.inv = null;
-    lastStats.score = null;
+    lastStats.currencyCopper = null;
   }
 }
 
@@ -396,8 +481,38 @@ function sendInteract() {
   send({ type: 'action', kind: 'interact', seq });
 }
 
+function getNearestVendor(pos) {
+  if (!pos || !Array.isArray(worldConfig?.vendors)) {
+    return { vendor: null, distance: Infinity };
+  }
+  let bestVendor = null;
+  let bestDist = Infinity;
+  for (const vendor of worldConfig.vendors) {
+    const dx = vendor.x - pos.x;
+    const dz = vendor.z - pos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestVendor = vendor;
+    }
+  }
+  return { vendor: bestVendor, distance: bestDist };
+}
+
 function isInventoryOpen() {
   return inventoryUI?.isOpen?.() ?? false;
+}
+
+function isDialogOpen() {
+  return vendorUI?.isDialogOpen?.() ?? false;
+}
+
+function isTradeOpen() {
+  return vendorUI?.isTradeOpen?.() ?? false;
+}
+
+function isUiBlocking() {
+  return isInventoryOpen() || isDialogOpen() || isTradeOpen();
 }
 
 function setInventoryOpen(next) {
@@ -415,11 +530,12 @@ function setInventoryOpen(next) {
 }
 
 function toggleInventory() {
+  if (isTradeOpen() || isDialogOpen()) return;
   setInventoryOpen(!isInventoryOpen());
 }
 
 function handleKey(event, isDown) {
-  if (isInventoryOpen()) return;
+  if (isUiBlocking()) return;
   const key = event.key.toLowerCase();
   if (!['w', 'a', 's', 'd'].includes(key)) return;
   if (event.repeat) return;
@@ -449,15 +565,37 @@ window.addEventListener('keydown', (event) => {
     toggleInventory();
     return;
   }
-  if (isInventoryOpen()) return;
+  if ((key === 'b' || key === 's') && isTradeOpen() && vendorUI && !event.repeat) {
+    vendorUI.setTab(key === 'b' ? 'buy' : 'sell');
+    return;
+  }
   if (key === 'e' && !event.repeat) {
+    if (isTradeOpen()) return;
+    if (isDialogOpen() && vendorUI) {
+      vendorUI.openTrade();
+      setInventoryOpen(true);
+      return;
+    }
+    if (isInventoryOpen()) return;
+    const me = getLocalPlayer();
+    const pos = me ? { x: me.x, z: me.z } : null;
+    const { vendor, distance } = pos ? getNearestVendor(pos) : { vendor: null, distance: Infinity };
+    const maxDist = worldConfig?.vendorInteractRadius ?? 2.5;
+    const targetVendor = vendor ?? nearestVendor;
+    const inRange = vendor ? distance <= maxDist : inVendorRange;
+    if (inRange && targetVendor && vendorUI) {
+      vendorUI.openDialog(targetVendor);
+      clearPrompt();
+      return;
+    }
     sendInteract();
     return;
   }
+  if (isUiBlocking()) return;
   handleKey(event, true);
 });
 window.addEventListener('keyup', (event) => {
-  if (isInventoryOpen()) return;
+  if (isUiBlocking()) return;
   handleKey(event, false);
 });
 
@@ -466,7 +604,7 @@ const mouse = new THREE.Vector2();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 renderer.domElement.addEventListener('click', (event) => {
-  if (isInventoryOpen()) return;
+  if (isUiBlocking()) return;
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -525,8 +663,21 @@ function stepFrame(dt, now) {
     animateWorld(worldState, now);
   }
 
-  if (isInventoryOpen()) {
+  nearestVendor = null;
+  inVendorRange = false;
+  if (viewPos) {
+    const { vendor, distance } = getNearestVendor(viewPos);
+    const maxDist = worldConfig?.vendorInteractRadius ?? 2.5;
+    nearestVendor = vendor;
+    if (vendor && distance <= maxDist) {
+      inVendorRange = true;
+    }
+  }
+
+  if (isUiBlocking()) {
     clearPrompt();
+  } else if (inVendorRange && nearestVendor) {
+    showPrompt(`Press E to talk to ${nearestVendor.name ?? 'Vendor'}`);
   } else if (viewPos && latestResources.length) {
     const radius = worldConfig?.harvestRadius ?? 2;
     const invCap =
@@ -602,6 +753,11 @@ function buildTextState() {
   const harvestRadius = worldConfig?.harvestRadius ?? 2;
   const inventorySlots = Array.isArray(me?.inventory) ? me.inventory : [];
   const inventoryOpen = isInventoryOpen();
+  const tradeOpen = isTradeOpen();
+  const dialogOpen = isDialogOpen();
+  const vendor = vendorUI?.getVendor?.() ?? null;
+  const tradeTab = tradeOpen ? vendorUI?.getTab?.() ?? null : null;
+  const currencyCopper = me?.currencyCopper ?? 0;
   const inventorySlotCount =
     me?.invSlots ?? worldConfig?.playerInvSlots ?? inventorySlots.length;
   const inventoryStackMax =
@@ -617,6 +773,8 @@ function buildTextState() {
       mapSize,
       base,
       harvestRadius,
+      vendors: worldConfig?.vendors ?? [],
+      vendorInteractRadius: worldConfig?.vendorInteractRadius ?? 2.5,
       obstacles: obstacles.map((o) => ({ x: o.x, z: o.z, r: o.r })),
     },
     serverTime: lastServerTimestamp,
@@ -631,11 +789,18 @@ function buildTextState() {
           invCap: me.invCap,
           invSlots: me.invSlots,
           invStackMax: me.invStackMax,
-          score: me.score,
+          currencyCopper,
+          currency: splitCurrency(currencyCopper),
           dead: me.dead,
           respawnAt: me.respawnAt ?? 0,
         }
       : null,
+    trade: {
+      dialogOpen,
+      tradeOpen,
+      tab: tradeTab,
+      vendorId: vendor?.id ?? null,
+    },
     inventory: {
       open: inventoryOpen,
       slots: inventorySlotCount,

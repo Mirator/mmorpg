@@ -1,0 +1,12 @@
+{
+  "steps": [
+    { "game": { "action": "moveTo", "x": 13, "z": -2 }, "frames": 420 },
+    { "buttons": [], "frames": 120 },
+    { "buttons": ["e"], "frames": 2 },
+    { "buttons": [], "frames": 20 },
+    { "buttons": ["e"], "frames": 2 },
+    { "buttons": [], "frames": 20 },
+    { "buttons": ["s"], "frames": 2 },
+    { "buttons": [], "frames": 40 }
+  ]
+}

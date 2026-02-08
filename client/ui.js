@@ -1,11 +1,12 @@
+import { formatCurrency } from '/shared/economy.js';
+
 const statusEl = document.getElementById('status');
 const hpEl = document.getElementById('hud-hp');
 const invEl = document.getElementById('hud-inv');
-const scoreEl = document.getElementById('hud-score');
+const coinsEl = document.getElementById('hud-coins');
 const respawnEl = document.getElementById('hud-respawn');
 const promptEl = document.getElementById('prompt');
 const eventEl = document.getElementById('event');
-const scoreboardEl = document.getElementById('scoreboard-list');
 const damageFlashEl = document.getElementById('damage-flash');
 
 let eventTimeout = null;
@@ -18,7 +19,7 @@ export function updateHud(player, now) {
   if (!player) {
     if (hpEl) hpEl.textContent = '--';
     if (invEl) invEl.textContent = '--';
-    if (scoreEl) scoreEl.textContent = '--';
+    if (coinsEl) coinsEl.textContent = '--';
     if (respawnEl) respawnEl.textContent = '--';
     return;
   }
@@ -29,7 +30,7 @@ export function updateHud(player, now) {
     const slots = Number.isFinite(player.invSlots) ? player.invSlots : null;
     invEl.textContent = slots ? `${inv}/${slots}` : `${inv}`;
   }
-  if (scoreEl) scoreEl.textContent = `${player.score ?? 0}`;
+  if (coinsEl) coinsEl.textContent = formatCurrency(player.currencyCopper ?? 0);
 
   if (respawnEl) {
     if (player.dead && player.respawnAt) {
@@ -38,22 +39,6 @@ export function updateHud(player, now) {
     } else {
       respawnEl.textContent = '--';
     }
-  }
-}
-
-export function updateScoreboard(players, myId) {
-  if (!scoreboardEl) return;
-  const entries = Object.entries(players)
-    .map(([id, p]) => ({ id, score: p.score ?? 0 }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-
-  scoreboardEl.innerHTML = '';
-  for (const entry of entries) {
-    const row = document.createElement('div');
-    row.className = 'score-row';
-    row.textContent = `${entry.id}${entry.id === myId ? ' (you)' : ''}: ${entry.score}`;
-    scoreboardEl.appendChild(row);
   }
 }
 

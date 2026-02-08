@@ -5,10 +5,13 @@ const COLORS = {
   tile: 0x2a3b30,
   tileBorder: 0x465a4d,
   base: 0x4da3ff,
+  village: 0xd8b880,
+  villageShadow: 0x7b5f3e,
   resource: 0x5ef2c2,
   resourceDim: 0x1b2a28,
   mob: 0xff4d4d,
   obstacle: 0x3a3f44,
+  vendor: 0xffd54f,
 };
 
 function buildTileTexture() {
@@ -55,20 +58,63 @@ function buildGround(mapSize) {
   return ground;
 }
 
-function buildBase(base) {
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(base.radius * 0.7, base.radius, 32),
+function buildVillage(base) {
+  const village = new THREE.Group();
+
+  const plaza = new THREE.Mesh(
+    new THREE.CircleGeometry(base.radius * 0.9, 32),
+    new THREE.MeshStandardMaterial({
+      color: COLORS.village,
+      emissive: COLORS.villageShadow,
+      emissiveIntensity: 0.25,
+      roughness: 0.9,
+    })
+  );
+  plaza.rotation.x = -Math.PI / 2;
+  plaza.position.y = 0.03;
+  village.add(plaza);
+
+  const hutCount = 6;
+  const hutRadius = base.radius * 0.65;
+  for (let i = 0; i < hutCount; i += 1) {
+    const angle = (i / hutCount) * Math.PI * 2;
+    const hx = Math.cos(angle) * hutRadius;
+    const hz = Math.sin(angle) * hutRadius;
+    const hut = new THREE.Group();
+    const walls = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.1, 1.1, 1.6, 8),
+      new THREE.MeshStandardMaterial({
+        color: 0x6d5841,
+        roughness: 1,
+      })
+    );
+    walls.position.y = 0.8;
+    const roof = new THREE.Mesh(
+      new THREE.ConeGeometry(1.4, 1.2, 8),
+      new THREE.MeshStandardMaterial({
+        color: 0x8c3f2d,
+        roughness: 0.7,
+      })
+    );
+    roof.position.y = 2;
+    hut.add(walls, roof);
+    hut.position.set(hx, 0, hz);
+    village.add(hut);
+  }
+
+  const totem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.4, 0.5, 1.6, 10),
     new THREE.MeshStandardMaterial({
       color: COLORS.base,
       emissive: COLORS.base,
-      emissiveIntensity: 0.35,
-      transparent: true,
-      opacity: 0.5,
+      emissiveIntensity: 0.2,
     })
   );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.set(base.x, 0.05, base.z);
-  return ring;
+  totem.position.y = 0.8;
+  village.add(totem);
+
+  village.position.set(base.x, 0, base.z);
+  return village;
 }
 
 function buildObstacleMesh(obstacle) {
@@ -112,14 +158,70 @@ function buildMobMesh() {
   return mesh;
 }
 
+function makeNameSprite(text) {
+  const canvas = document.createElement('canvas');
+  const size = 256;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.fillRect(0, size * 0.35, size, size * 0.3);
+  ctx.fillStyle = '#ffe9a8';
+  ctx.font = 'bold 40px Rajdhani, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, size / 2, size / 2);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(4, 2, 1);
+  sprite.position.y = 3.6;
+  return sprite;
+}
+
+function buildVendorMesh(vendor) {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.6, 0.75, 1.6, 8),
+    new THREE.MeshStandardMaterial({
+      color: COLORS.vendor,
+      emissive: 0x6a4b00,
+      emissiveIntensity: 0.2,
+      roughness: 0.6,
+    })
+  );
+  body.position.y = 0.8;
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.45, 12, 12),
+    new THREE.MeshStandardMaterial({
+      color: 0xffe0b2,
+      roughness: 0.5,
+    })
+  );
+  head.position.y = 1.8;
+  const name = makeNameSprite(vendor?.name ?? 'Vendor');
+  group.add(body, head, name);
+  group.position.set(vendor.x, 0, vendor.z);
+  group.userData.vendorId = vendor.id;
+  return group;
+}
+
 export function initWorld(scene, world) {
   const mapSize = world?.mapSize ?? 400;
   const base = world?.base ?? { x: 0, z: 0, radius: 8 };
 
   const group = new THREE.Group();
   const ground = buildGround(mapSize);
-  const baseMesh = buildBase(base);
+  const baseMesh = buildVillage(base);
   const obstacleMeshes = (world?.obstacles ?? []).map(buildObstacleMesh);
+  const vendorMeshes = new Map();
+  for (const vendor of world?.vendors ?? []) {
+    const vendorMesh = buildVendorMesh(vendor);
+    vendorMeshes.set(vendor.id, vendorMesh);
+    group.add(vendorMesh);
+  }
 
   group.add(ground, baseMesh, ...obstacleMeshes);
   scene.add(group);
@@ -134,6 +236,7 @@ export function initWorld(scene, world) {
     obstacleMeshes,
     resourceMeshes: new Map(),
     mobMeshes: new Map(),
+    vendorMeshes,
     lastResources: [],
     lastMobs: [],
   };

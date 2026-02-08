@@ -52,7 +52,7 @@ describe('admin state serialization', () => {
             { id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 },
             null,
           ],
-          score: 7,
+          currencyCopper: 120,
           dead: false,
           respawnAt: 0,
         },
@@ -82,7 +82,7 @@ describe('admin state serialization', () => {
         invSlots: 2,
         invStackMax: 10,
         inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }, null],
-        score: 7,
+        currencyCopper: 120,
         dead: false,
         respawnAt: 0,
       },
@@ -108,7 +108,7 @@ describe('admin state serialization', () => {
           invSlots: 2,
           invStackMax: 5,
           inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }],
-          score: 9,
+          currencyCopper: 55,
           dead: true,
           respawnAt: 12345,
         },
@@ -123,7 +123,7 @@ describe('admin state serialization', () => {
         hp: 50,
         maxHp: 100,
         inv: 4,
-        score: 9,
+        currencyCopper: 55,
         dead: true,
       },
     });
@@ -137,7 +137,7 @@ describe('admin state serialization', () => {
       inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }],
       respawnAt: 12345,
       hp: 50,
-      score: 9,
+      currencyCopper: 55,
     };
 
     expect(serializePlayerPrivate(player)).toEqual({
@@ -145,6 +145,7 @@ describe('admin state serialization', () => {
       invSlots: 2,
       invStackMax: 5,
       inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }],
+      currencyCopper: 55,
       respawnAt: 12345,
     });
   });
@@ -159,6 +160,7 @@ describe('admin state serialization', () => {
     expect(state.t).toBe(now);
     expect(state.world.mapSize).toBe(world.mapSize);
     expect(state.world.base).toEqual(world.base);
+    expect(Array.isArray(state.world.vendors)).toBe(true);
     expect(state.players).toEqual({});
   });
 });
