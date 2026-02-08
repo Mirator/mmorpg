@@ -11,6 +11,11 @@ import { applyCollisions } from './logic/collision.js';
 import { createResources, stepResources, tryHarvest } from './logic/resources.js';
 import { createMobs, stepMobs } from './logic/mobs.js';
 import {
+  clearInventory,
+  createInventory,
+  swapInventorySlots,
+} from './logic/inventory.js';
+import {
   createAdminStateHandler,
   resolveAdminPassword,
   serializePlayers,
@@ -84,6 +89,7 @@ const players = new Map();
 const connectionsByIp = new Map();
 let nextId = 1;
 let nextSpawnIndex = 0;
+let nextItemId = 1;
 
 const TICK_HZ = 60;
 const DT = 1 / TICK_HZ;
@@ -122,7 +128,7 @@ app.get(
 if (E2E_TEST) {
   const testResource = {
     id: 'r-test',
-    x: world.base.x + world.base.radius + 2,
+    x: world.base.x + world.base.radius + 6,
     z: world.base.z,
   };
   resources.unshift({
@@ -135,7 +141,7 @@ if (E2E_TEST) {
   const testMob = {
     id: 'm-test',
     pos: {
-      x: world.base.x + world.base.radius + 6,
+      x: world.base.x + world.base.radius + 30,
       y: 0,
       z: world.base.z,
     },
@@ -251,6 +257,7 @@ function killPlayer(player, now) {
   player.dead = true;
   player.respawnAt = now + RESPAWN_MS;
   player.inv = 0;
+  clearInventory(player.inventory);
   player.target = null;
   player.keys = { w: false, a: false, s: false, d: false };
 }
@@ -307,6 +314,9 @@ wss.on('connection', (ws, req) => {
     maxHp: world.playerMaxHp,
     inv: 0,
     invCap: world.playerInvCap,
+    invSlots: world.playerInvSlots,
+    invStackMax: world.playerInvStackMax,
+    inventory: createInventory(world.playerInvSlots),
     score: 0,
     dead: false,
     respawnAt: 0,
@@ -371,8 +381,26 @@ wss.on('connection', (ws, req) => {
       tryHarvest(resources, player, Date.now(), {
         harvestRadius: resourceConfig.harvestRadius,
         respawnMs: resourceConfig.respawnMs,
-        invCap: player.invCap,
+        stackMax: player.invStackMax,
+        itemKind: 'crystal',
+        itemName: 'Crystal',
+        makeItem: () => ({
+          id: `i${nextItemId++}`,
+          kind: 'crystal',
+          name: 'Crystal',
+          count: 1,
+        }),
       });
+      return;
+    }
+
+    if (msg.type === 'inventorySwap') {
+      const from = Number(msg.from);
+      const to = Number(msg.to);
+      if (Number.isInteger(from) && Number.isInteger(to)) {
+        swapInventorySlots(player.inventory, from, to);
+      }
+      return;
     }
   });
 
@@ -424,6 +452,7 @@ setInterval(() => {
     if (player.inv > 0 && Math.hypot(dx, dz) <= world.base.radius) {
       player.score += player.inv;
       player.inv = 0;
+      clearInventory(player.inventory);
     }
   }
 

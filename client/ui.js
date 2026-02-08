@@ -24,7 +24,11 @@ export function updateHud(player, now) {
   }
 
   if (hpEl) hpEl.textContent = `${player.hp ?? 0}`;
-  if (invEl) invEl.textContent = `${player.inv ?? 0}`;
+  if (invEl) {
+    const inv = player.inv ?? 0;
+    const slots = Number.isFinite(player.invSlots) ? player.invSlots : null;
+    invEl.textContent = slots ? `${inv}/${slots}` : `${inv}`;
+  }
   if (scoreEl) scoreEl.textContent = `${player.score ?? 0}`;
 
   if (respawnEl) {

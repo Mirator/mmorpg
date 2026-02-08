@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 
-const PORT = 3100;
+const PORT = Number.parseInt(process.env.E2E_PORT ?? '', 10) || 3001;
 const BASE_URL = `http://localhost:${PORT}`;
 const SERVER_START_TIMEOUT_MS = 8000;
 const TEST_TIMEOUT_MS = 20000;
@@ -281,6 +281,67 @@ async function run() {
     if (!updatedResource || updatedResource.available) {
       throw new Error('Resource did not become unavailable after harvest');
     }
+
+    await page.keyboard.press('i');
+    state = await waitForCondition(
+      page,
+      (s) => s.inventory?.open,
+      TEST_TIMEOUT_MS,
+      'inventory open'
+    );
+
+    const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
+    if (items.length === 0) {
+      throw new Error('No inventory items after harvest');
+    }
+    const fromSlot = items[0].slot;
+    const slotCount = state.inventory?.slots ?? 0;
+    const occupied = new Set(items.map((item) => item.slot));
+    let toSlot = null;
+    for (let i = 0; i < slotCount; i += 1) {
+      if (!occupied.has(i)) {
+        toSlot = i;
+        break;
+      }
+    }
+    if (toSlot === null) {
+      throw new Error('No empty inventory slot for swap test');
+    }
+
+    const fromBox = await page
+      .locator(`.inventory-slot[data-index="${fromSlot}"]`)
+      .boundingBox();
+    const toBox = await page
+      .locator(`.inventory-slot[data-index="${toSlot}"]`)
+      .boundingBox();
+    if (!fromBox || !toBox) {
+      throw new Error('Inventory slots not found for drag test');
+    }
+
+    await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, {
+      steps: 6,
+    });
+    await page.mouse.up();
+
+    state = await waitForCondition(
+      page,
+      (s) =>
+        Array.isArray(s.inventory?.items) &&
+        s.inventory.items.some((item) => item.slot === toSlot) &&
+        !s.inventory.items.some((item) => item.slot === fromSlot),
+      TEST_TIMEOUT_MS,
+      'inventory swap'
+    );
+
+    await page.keyboard.press('i');
+    state = await waitForCondition(
+      page,
+      (s) => !s.inventory?.open,
+      TEST_TIMEOUT_MS,
+      'inventory closed'
+    );
 
     const scoreBefore = state.player.score;
     await page.evaluate(() => window.__game?.moveTo(0, 0));

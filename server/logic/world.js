@@ -10,7 +10,9 @@ const HARVEST_RADIUS = 2.2;
 const RESOURCE_RESPAWN_MS = 15_000;
 
 const PLAYER_MAX_HP = 100;
-const PLAYER_INV_CAP = 5;
+const PLAYER_INV_SLOTS = 20;
+const PLAYER_INV_STACK_MAX = 20;
+const PLAYER_INV_CAP = PLAYER_INV_SLOTS * PLAYER_INV_STACK_MAX;
 
 function mulberry32(seed) {
   let t = seed >>> 0;
@@ -111,6 +113,8 @@ export function createWorld() {
     resourceRespawnMs: RESOURCE_RESPAWN_MS,
     playerMaxHp: PLAYER_MAX_HP,
     playerInvCap: PLAYER_INV_CAP,
+    playerInvSlots: PLAYER_INV_SLOTS,
+    playerInvStackMax: PLAYER_INV_STACK_MAX,
   };
 }
 
@@ -120,5 +124,7 @@ export function worldSnapshot(world) {
     base: world.base,
     obstacles: world.obstacles,
     harvestRadius: world.harvestRadius,
+    playerInvSlots: world.playerInvSlots,
+    playerInvStackMax: world.playerInvStackMax,
   };
 }

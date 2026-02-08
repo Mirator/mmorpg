@@ -9,10 +9,15 @@ import {
   showEvent,
   flashDamage,
 } from './ui.js';
+import { createInventoryUI } from './inventory.js';
 
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
 const coordsEl = document.getElementById('coords');
+const inventoryPanel = document.getElementById('inventory-panel');
+const inventoryGrid = document.getElementById('inventory-grid');
+
+let inventoryUI = null;
 
 const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
@@ -271,6 +276,18 @@ function send(msg) {
   }
 }
 
+if (inventoryPanel && inventoryGrid) {
+  inventoryUI = createInventoryUI({
+    panel: inventoryPanel,
+    grid: inventoryGrid,
+    cols: 5,
+    onSwap: (from, to) => {
+      seq += 1;
+      send({ type: 'inventorySwap', from, to, seq });
+    },
+  });
+}
+
 ws.addEventListener('open', () => {
   setStatus('connected');
   send({ type: 'hello' });
@@ -293,6 +310,12 @@ function handleStateMessage(msg) {
     const me = msg.players[myId];
     if (me) {
       updateHud(me, Date.now());
+      if (inventoryUI) {
+        inventoryUI.setInventory(me.inventory ?? [], {
+          slots: me.invSlots ?? worldConfig?.playerInvSlots ?? me.inventory?.length ?? 0,
+          stackMax: me.invStackMax ?? worldConfig?.playerInvStackMax ?? 1,
+        });
+      }
       if (lastStats.hp !== null && me.hp < lastStats.hp) {
         flashDamage();
       }
@@ -307,6 +330,12 @@ function handleStateMessage(msg) {
       lastStats.score = me.score;
     } else {
       updateHud(null, Date.now());
+      if (inventoryUI) {
+        inventoryUI.setInventory([], {
+          slots: worldConfig?.playerInvSlots ?? 0,
+          stackMax: worldConfig?.playerInvStackMax ?? 1,
+        });
+      }
       lastStats.hp = null;
       lastStats.inv = null;
       lastStats.score = null;
@@ -357,7 +386,30 @@ function sendInteract() {
   send({ type: 'action', kind: 'interact', seq });
 }
 
+function isInventoryOpen() {
+  return inventoryUI?.isOpen?.() ?? false;
+}
+
+function setInventoryOpen(next) {
+  if (!inventoryUI) return;
+  const open = !!next;
+  inventoryUI.setOpen(open);
+  if (open) {
+    keys.w = false;
+    keys.a = false;
+    keys.s = false;
+    keys.d = false;
+    sendInput();
+    clearPrompt();
+  }
+}
+
+function toggleInventory() {
+  setInventoryOpen(!isInventoryOpen());
+}
+
 function handleKey(event, isDown) {
+  if (isInventoryOpen()) return;
   const key = event.key.toLowerCase();
   if (!['w', 'a', 's', 'd'].includes(key)) return;
   if (event.repeat) return;
@@ -383,19 +435,28 @@ window.addEventListener('keydown', (event) => {
     toggleFullscreen();
     return;
   }
+  if (key === 'i' && !event.repeat) {
+    toggleInventory();
+    return;
+  }
+  if (isInventoryOpen()) return;
   if (key === 'e' && !event.repeat) {
     sendInteract();
     return;
   }
   handleKey(event, true);
 });
-window.addEventListener('keyup', (event) => handleKey(event, false));
+window.addEventListener('keyup', (event) => {
+  if (isInventoryOpen()) return;
+  handleKey(event, false);
+});
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 renderer.domElement.addEventListener('click', (event) => {
+  if (isInventoryOpen()) return;
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -454,9 +515,15 @@ function stepFrame(dt, now) {
     animateWorld(worldState, now);
   }
 
-  if (viewPos && latestResources.length) {
+  if (isInventoryOpen()) {
+    clearPrompt();
+  } else if (viewPos && latestResources.length) {
     const radius = worldConfig?.harvestRadius ?? 2;
-    const invCap = localState?.invCap ?? 5;
+    const invCap =
+      localState?.invCap ??
+      (worldConfig?.playerInvSlots && worldConfig?.playerInvStackMax
+        ? worldConfig.playerInvSlots * worldConfig.playerInvStackMax
+        : 5);
     const inv = localState?.inv ?? 0;
     let near = false;
     if (!localState?.dead && inv < invCap) {
@@ -523,6 +590,12 @@ function buildTextState() {
   const obstacles = worldConfig?.obstacles ?? worldState?.obstacles ?? [];
   const mapSize = worldConfig?.mapSize ?? worldState?.mapSize ?? 0;
   const harvestRadius = worldConfig?.harvestRadius ?? 2;
+  const inventorySlots = Array.isArray(me?.inventory) ? me.inventory : [];
+  const inventoryOpen = isInventoryOpen();
+  const inventorySlotCount =
+    me?.invSlots ?? worldConfig?.playerInvSlots ?? inventorySlots.length;
+  const inventoryStackMax =
+    me?.invStackMax ?? worldConfig?.playerInvStackMax ?? 0;
   return {
     mode: 'play',
     coordSystem: {
@@ -545,11 +618,31 @@ function buildTextState() {
           maxHp: me.maxHp,
           inv: me.inv,
           invCap: me.invCap,
+          invSlots: me.invSlots,
+          invStackMax: me.invStackMax,
           score: me.score,
           dead: me.dead,
           respawnAt: me.respawnAt ?? 0,
         }
       : null,
+    inventory: {
+      open: inventoryOpen,
+      slots: inventorySlotCount,
+      stackMax: inventoryStackMax,
+      items: inventorySlots
+        .map((item, index) =>
+          item
+            ? {
+                slot: index,
+                id: item.id ?? null,
+                kind: item.kind ?? null,
+                name: item.name ?? null,
+                count: item.count ?? 0,
+              }
+            : null
+        )
+        .filter(Boolean),
+    },
     resources: latestResources.map((r) => ({
       id: r.id,
       x: r.x,

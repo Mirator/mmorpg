@@ -1,3 +1,5 @@
+import { addItem, canAddItem, countInventory } from './inventory.js';
+
 function distance2(a, b) {
   const dx = a.x - b.x;
   const dz = a.z - b.z;
@@ -26,9 +28,21 @@ export function stepResources(resources, now) {
 export function tryHarvest(resources, player, now, config) {
   const harvestRadius = config.harvestRadius ?? 2;
   const respawnMs = config.respawnMs ?? 15_000;
-  const invCap = config.invCap ?? player.invCap ?? 5;
+  const stackMax = config.stackMax ?? player.invStackMax ?? 20;
+  const itemKind = config.itemKind ?? 'crystal';
+  const itemName = config.itemName ?? 'Crystal';
+  const makeItem =
+    config.makeItem ??
+    (() => ({
+      id: `item-${now}-${Math.random().toString(16).slice(2)}`,
+      kind: itemKind,
+      name: itemName,
+      count: 1,
+    }));
 
-  if (player.inv >= invCap) return null;
+  if (!player.inventory || !canAddItem(player.inventory, itemKind, stackMax)) {
+    return null;
+  }
 
   let closest = null;
   let closestDist2 = harvestRadius * harvestRadius;
@@ -44,8 +58,11 @@ export function tryHarvest(resources, player, now, config) {
 
   if (!closest) return null;
 
+  const item = makeItem();
+  if (!addItem(player.inventory, item, stackMax)) return null;
+
   closest.available = false;
   closest.respawnAt = now + respawnMs;
-  player.inv += 1;
+  player.inv = countInventory(player.inventory);
   return closest;
 }

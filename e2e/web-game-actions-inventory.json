@@ -1,0 +1,17 @@
+{
+  "steps": [
+    { "game": { "action": "moveTo", "x": 15, "z": 0 }, "frames": 1 },
+    { "buttons": [], "frames": 240 },
+    { "game": { "action": "interact" }, "frames": 12 },
+    { "buttons": ["i"], "frames": 6 },
+    {
+      "buttons": ["left_mouse_button"],
+      "mouse_x": 430,
+      "mouse_y": 220,
+      "mouse_to_x": 540,
+      "mouse_to_y": 220,
+      "frames": 12
+    },
+    { "buttons": [], "frames": 24 }
+  ]
+}
