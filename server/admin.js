@@ -104,9 +104,7 @@ export function buildAdminState({ world, players, resources, mobs, now = Date.no
 
 export function getProvidedAdminPassword(req) {
   const headerPass = typeof req.get === 'function' ? req.get('x-admin-pass') : '';
-  const queryPass =
-    typeof req.query?.password === 'string' ? req.query.password : '';
-  return headerPass || queryPass || '';
+  return headerPass || '';
 }
 
 export function createAdminStateHandler({ password, world, players, resources, mobs }) {

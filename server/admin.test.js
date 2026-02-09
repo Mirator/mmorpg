@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createWorld } from './logic/world.js';
+import { createWorldFromConfig } from './logic/world.js';
 import { xpToNext } from '../shared/progression.js';
 import {
   buildAdminState,
@@ -26,13 +26,13 @@ function createResponse() {
   };
 }
 
-function createRequest({ headerPass, queryPass } = {}) {
+function createRequest({ headerPass } = {}) {
   return {
     get(name) {
       if (name.toLowerCase() !== 'x-admin-pass') return undefined;
       return headerPass;
     },
-    query: queryPass ? { password: queryPass } : {},
+    query: {},
   };
 }
 
@@ -184,7 +184,16 @@ describe('admin state serialization', () => {
   });
 
   it('builds admin state with world snapshot', () => {
-    const world = createWorld();
+    const world = createWorldFromConfig({
+      version: 1,
+      mapSize: 40,
+      base: { x: 0, z: 0, radius: 4 },
+      spawnPoints: [{ x: 0, z: 0 }],
+      obstacles: [],
+      resourceNodes: [],
+      vendors: [],
+      mobSpawns: [],
+    });
     const players = new Map();
     const resources = [];
     const mobs = [];
@@ -199,7 +208,16 @@ describe('admin state serialization', () => {
 });
 
 describe('admin endpoint handler', () => {
-  const world = createWorld();
+  const world = createWorldFromConfig({
+    version: 1,
+    mapSize: 40,
+    base: { x: 0, z: 0, radius: 4 },
+    spawnPoints: [{ x: 0, z: 0 }],
+    obstacles: [],
+    resourceNodes: [],
+    vendors: [],
+    mobSpawns: [],
+  });
   const players = new Map();
   const resources = [];
   const mobs = [];
@@ -234,10 +252,11 @@ describe('admin endpoint handler', () => {
     expect(res.body.world.mapSize).toBe(world.mapSize);
   });
 
-  it('accepts query password fallback', () => {
-    const req = createRequest({ queryPass: 'secret' });
+  it('does not accept query password fallback', () => {
+    const req = createRequest({ headerPass: undefined });
+    req.query = { password: 'secret' };
     const res = createResponse();
     handler(req, res);
-    expect(res.statusCode).toBe(200);
+    expect(res.statusCode).toBe(401);
   });
 });

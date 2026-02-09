@@ -12,7 +12,7 @@ Open `http://localhost:3000` in your browser. Open multiple tabs to see multipla
 ## Admin
 
 Visit `http://localhost:3000/admin` for the admin dashboard. Provide the admin password via header
-`x-admin-pass` or `?password=` query param. Default password is `1234` (override with `ADMIN_PASSWORD`).
+`x-admin-pass`. Default password is `1234` (override with `ADMIN_PASSWORD`).
 
 ## Database (Postgres + Prisma)
 
@@ -44,6 +44,7 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 - `ALLOWED_ORIGINS` (comma-separated)
 - `TRUST_PROXY` (`true` to trust `x-forwarded-for`)
 - `ALLOW_NO_ORIGIN` (`true` to allow missing Origin header)
+- `ALLOW_NO_ORIGIN_REMOTE` (`true` to allow missing Origin header on non-localhost hosts)
 - `MAX_CONNECTIONS_PER_IP` (default `5`)
 - `MAX_PAYLOAD_BYTES` (default `16384`)
 - `MSG_RATE_MAX` (default `60`)
@@ -54,6 +55,10 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 - `PERSIST_POS_EPS` (default `0.6`)
 - `E2E_TEST` (`true` to spawn stable test mob/resource)
 - `E2E_PORT` (default `3001` for e2e runner)
+- `SESSION_COOKIE_NAME` (default `mmorpg_session`)
+- `SESSION_COOKIE_SAMESITE` (`lax`, `strict`, or `none`; default `lax`)
+- `SESSION_COOKIE_SECURE` (`true` to force Secure cookies; default `true` in production)
+- `EXPOSE_AUTH_TOKEN` (`true` to include auth token in login/signup JSON response; default `false`)
 
 ## Structure
 
@@ -87,12 +92,14 @@ unique (case-insensitive). The client uses HTTP auth endpoints before opening a 
 
 ### Auth endpoints
 
-- `POST /api/auth/signup` `{ username, password }` → `{ token, account }`
-- `POST /api/auth/login` `{ username, password }` → `{ token, account }`
-- `POST /api/auth/logout` (Bearer token) → `{ ok: true }`
-- `GET /api/characters` (Bearer token) → `{ characters }`
-- `POST /api/characters` (Bearer token) `{ name, classId }` → `{ character }`
-- `DELETE /api/characters/:id` (Bearer token) → `{ ok: true }`
+- `POST /api/auth/signup` `{ username, password }` → `{ account }` (token optional via `EXPOSE_AUTH_TOKEN`)
+- `POST /api/auth/login` `{ username, password }` → `{ account }` (token optional via `EXPOSE_AUTH_TOKEN`)
+- `POST /api/auth/logout` (session cookie or Bearer token) → `{ ok: true }`
+- `GET /api/characters` (session cookie or Bearer token) → `{ characters }`
+- `POST /api/characters` (session cookie or Bearer token) `{ name, classId }` → `{ character }`
+- `DELETE /api/characters/:id` (session cookie or Bearer token) → `{ ok: true }`
+
+Auth endpoints also set an HttpOnly session cookie; browsers should send cookies on same-origin requests.
 
 ### WebSocket
 

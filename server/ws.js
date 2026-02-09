@@ -74,6 +74,23 @@ function normalizeId(raw) {
   return trimmed;
 }
 
+function getCookieValue(req, name) {
+  const header = req?.headers?.cookie;
+  if (!header || typeof header !== 'string') return null;
+  const parts = header.split(';');
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (key !== name) continue;
+    const value = trimmed.slice(eq + 1).trim();
+    return value ? decodeURIComponent(value) : '';
+  }
+  return null;
+}
+
 function generatePlayerId() {
   if (typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -84,12 +101,11 @@ function generatePlayerId() {
 function parseConnectionParams(req) {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    const token = normalizeId(url.searchParams.get('token'));
     const characterId = normalizeId(url.searchParams.get('characterId'));
     const guest = url.searchParams.get('guest') === '1';
-    return { token, characterId, guest };
+    return { characterId, guest };
   } catch {
-    return { token: null, characterId: null, guest: false };
+    return { characterId: null, guest: false };
   }
 }
 
@@ -113,7 +129,10 @@ export function createWebSocketServer({
   let nextItemId = 1;
 
   function isAllowedOrigin(origin) {
-    if (!origin) return config.allowNoOrigin;
+    if (!origin) {
+      if (!config.allowNoOrigin) return false;
+      return config.allowNoOriginRemote || config.isLocalhost;
+    }
     return config.allowedOrigins.has(origin);
   }
 
@@ -214,7 +233,8 @@ export function createWebSocketServer({
     });
 
     (async () => {
-      const { token, characterId, guest } = parseConnectionParams(req);
+      const { characterId, guest } = parseConnectionParams(req);
+      const token = normalizeId(getCookieValue(req, config.sessionCookieName));
       const spawn = spawner.getSpawnPoint();
 
       let stored = null;

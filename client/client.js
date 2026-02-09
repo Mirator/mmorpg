@@ -37,7 +37,6 @@ let inVendorRange = false;
 let closingNet = null;
 let inputHandler = null;
 
-const AUTH_TOKEN_KEY = 'mmorpg_auth_token';
 const ACCOUNT_KEY = 'mmorpg_account';
 const LAST_CHARACTER_PREFIX = 'mmorpg_last_character_';
 
@@ -70,23 +69,13 @@ const menu = createMenu({
 const urlParams = new URLSearchParams(window.location.search);
 const isGuestSession = urlParams.get('guest') === '1';
 
-let authToken = loadAuthToken();
+let authToken = null;
 let currentAccount = null;
 let currentCharacter = null;
 let lastCharacterId = null;
 
-function loadAuthToken() {
-  return localStorage.getItem(AUTH_TOKEN_KEY);
-}
-
 function saveAuthToken(token) {
-  if (token) {
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
-  }
-}
-
-function clearAuthToken() {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
+  authToken = token ?? null;
 }
 
 function loadStoredAccount() {
@@ -151,18 +140,19 @@ function clearSessionState() {
   updateOverlayLabels();
 }
 
-async function apiFetch(path, { method = 'GET', body, token } = {}) {
+async function apiFetch(path, { method = 'GET', body } = {}) {
   const headers = {};
   if (body) {
     headers['Content-Type'] = 'application/json';
   }
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
   }
   const res = await fetch(path, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: 'same-origin',
   });
   let payload = null;
   try {
@@ -177,8 +167,7 @@ async function apiFetch(path, { method = 'GET', body, token } = {}) {
 }
 
 async function loadCharacters() {
-  if (!authToken) return;
-  const data = await apiFetch('/api/characters', { token: authToken });
+  const data = await apiFetch('/api/characters');
   menu.setCharacters(data.characters ?? []);
   lastCharacterId = loadLastCharacterId();
   menu.setSelectedCharacterId(lastCharacterId);
@@ -196,8 +185,7 @@ async function handleSignIn({ username, password }) {
       method: 'POST',
       body: { username, password },
     });
-    authToken = data.token;
-    saveAuthToken(authToken);
+    saveAuthToken(data.token ?? null);
     currentAccount = data.account ?? null;
     saveStoredAccount(currentAccount);
     menu.setAccount(currentAccount);
@@ -217,8 +205,7 @@ async function handleSignUp({ username, password }) {
       method: 'POST',
       body: { username, password },
     });
-    authToken = data.token;
-    saveAuthToken(authToken);
+    saveAuthToken(data.token ?? null);
     currentAccount = data.account ?? null;
     saveStoredAccount(currentAccount);
     menu.setAccount(currentAccount);
@@ -231,13 +218,11 @@ async function handleSignUp({ username, password }) {
 }
 
 async function handleCreateCharacter({ name, classId }) {
-  if (!authToken) return;
   menu.setLoading(true);
   menu.setError('create', '');
   try {
     const data = await apiFetch('/api/characters', {
       method: 'POST',
-      token: authToken,
       body: { name, classId },
     });
     const character = data.character;
@@ -257,15 +242,12 @@ async function handleCreateCharacter({ name, classId }) {
 async function handleSignOut() {
   menu.setLoading(true);
   try {
-    if (authToken) {
-      await apiFetch('/api/auth/logout', { method: 'POST', token: authToken });
-    }
+    await apiFetch('/api/auth/logout', { method: 'POST' });
   } catch {
     // ignore
   }
-  clearAuthToken();
+  saveAuthToken(null);
   clearStoredAccount();
-  authToken = null;
   lastCharacterId = null;
   clearSessionState();
   disconnect();
@@ -280,13 +262,13 @@ async function handleSignOut() {
 }
 
 async function handleDeleteCharacter(character) {
-  if (!authToken || !character?.id) return;
+  if (!character?.id) return;
   const confirmDelete = window.confirm(`Delete ${character.name ?? 'this character'}? This cannot be undone.`);
   if (!confirmDelete) return;
   menu.setLoading(true);
   menu.setError('characters', '');
   try {
-    await apiFetch(`/api/characters/${character.id}`, { method: 'DELETE', token: authToken });
+    await apiFetch(`/api/characters/${character.id}`, { method: 'DELETE' });
     if (lastCharacterId === character.id) {
       clearLastCharacterId();
       lastCharacterId = null;
@@ -301,7 +283,7 @@ async function handleDeleteCharacter(character) {
 }
 
 async function connectCharacter(character) {
-  if (!authToken || !character?.id) return;
+  if (!character?.id) return;
   menu.setLoading(true);
   menu.setError('characters', '');
   try {
@@ -325,7 +307,6 @@ function buildWsUrl({ character, guest }) {
   if (guest) {
     wsUrl.searchParams.set('guest', '1');
   } else if (character) {
-    wsUrl.searchParams.set('token', authToken ?? '');
     wsUrl.searchParams.set('characterId', character.id);
   }
   return wsUrl.toString();
@@ -380,11 +361,11 @@ function startConnection({ character, guest = false }) {
         if (!guest) {
           menu.setOpen(true);
           ui.setMenuOpen(true);
-          if (authToken) {
-            loadCharacters().catch(() => {});
-          } else {
+          loadCharacters().catch(() => {
+            clearSessionState();
+            menu.setAccount(null);
             menu.setStep('auth');
-          }
+          });
         }
       },
       onMessage: (msg) => {
@@ -846,19 +827,18 @@ if (isGuestSession) {
   currentCharacter = { name: 'Guest' };
   updateOverlayLabels();
   startConnection({ guest: true }).catch(() => {});
-} else if (authToken) {
+} else {
   currentAccount = loadStoredAccount();
   menu.setAccount(currentAccount);
   ui.setMenuOpen(true);
   menu.setOpen(true);
   loadCharacters().catch(() => {
-    clearAuthToken();
+    saveAuthToken(null);
     clearStoredAccount();
-    authToken = null;
+    clearSessionState();
+    menu.setAccount(null);
     menu.setStep('auth');
+    menu.setTab('signin');
+    ui.setStatus('menu');
   });
-} else {
-  ui.setMenuOpen(true);
-  menu.setOpen(true);
-  ui.setStatus('menu');
 }

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MMORPG Map Editor</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+    <link rel="stylesheet" href="/admin/map.css" />
+  </head>
+  <body>
+    <div id="app" class="map-app">
+      <header class="header">
+        <div>
+          <div class="title">MMORPG Map Editor</div>
+          <div class="subtitle">Edit placement for all world entities</div>
+        </div>
+        <a class="link" href="/admin">Back to Admin</a>
+      </header>
+
+      <section class="panel auth">
+        <form id="auth-form">
+          <label for="admin-pass">Admin password</label>
+          <div class="auth-row">
+            <input
+              id="admin-pass"
+              type="password"
+              autocomplete="current-password"
+              placeholder="Enter password"
+              required
+            />
+            <button type="submit">Unlock</button>
+          </div>
+          <div id="auth-hint">Stored in memory only (re-enter after refresh).</div>
+        </form>
+        <div id="status" class="status neutral">Status: locked</div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">Map Actions</div>
+        <div class="actions">
+          <button id="reload-btn" type="button" disabled>Reload</button>
+          <button id="save-btn" type="button" disabled>Save</button>
+        </div>
+        <div id="save-status" class="status neutral compact">No changes saved yet.</div>
+        <div id="errors" class="errors"></div>
+      </section>
+
+      <section class="panel editor-panel">
+        <div class="editor-grid">
+          <div class="canvas-shell">
+            <canvas id="map-canvas"></canvas>
+            <div class="canvas-hint">
+              Click items to select. Drag to move. Use the sidebar for precise edits.
+            </div>
+          </div>
+          <div id="sidebar" class="sidebar">
+            <div class="section" id="section-map">
+              <div class="section-title">Map Settings</div>
+              <div id="map-fields" class="row-fields"></div>
+            </div>
+            <div class="section" id="section-base">
+              <div class="section-title">Base</div>
+              <div id="base-fields" class="row-fields"></div>
+            </div>
+            <div class="section" id="section-spawn">
+              <div class="section-title with-action">
+                <span>Spawn Points</span>
+                <button type="button" class="ghost" data-action="add" data-type="spawnPoints">
+                  Add
+                </button>
+              </div>
+              <div id="list-spawnPoints" class="list"></div>
+            </div>
+            <div class="section" id="section-obstacles">
+              <div class="section-title with-action">
+                <span>Obstacles</span>
+                <button type="button" class="ghost" data-action="add" data-type="obstacles">
+                  Add
+                </button>
+              </div>
+              <div id="list-obstacles" class="list"></div>
+            </div>
+            <div class="section" id="section-resources">
+              <div class="section-title with-action">
+                <span>Resource Nodes</span>
+                <button type="button" class="ghost" data-action="add" data-type="resourceNodes">
+                  Add
+                </button>
+              </div>
+              <div id="list-resourceNodes" class="list"></div>
+            </div>
+            <div class="section" id="section-vendors">
+              <div class="section-title with-action">
+                <span>Vendors</span>
+                <button type="button" class="ghost" data-action="add" data-type="vendors">
+                  Add
+                </button>
+              </div>
+              <div id="list-vendors" class="list"></div>
+            </div>
+            <div class="section" id="section-mobs">
+              <div class="section-title with-action">
+                <span>Mob Spawns</span>
+                <button type="button" class="ghost" data-action="add" data-type="mobSpawns">
+                  Add
+                </button>
+              </div>
+              <div id="list-mobSpawns" class="list"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script type="module" src="/admin/map.js"></script>
+  </body>
+</html>

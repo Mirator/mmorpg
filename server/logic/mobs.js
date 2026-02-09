@@ -88,6 +88,31 @@ export function createMobs(count, world, options = {}) {
   return mobs;
 }
 
+export function createMobsFromSpawns(spawns, world, options = {}) {
+  const rand = options.random ?? Math.random;
+  const list = Array.isArray(spawns) ? spawns : [];
+  return list.map((spawn, index) => {
+    const x = spawn.x ?? 0;
+    const z = spawn.z ?? 0;
+    const level = getMobLevelForPosition({ x, z }, world);
+    const maxHp = getMobMaxHp(level);
+    return {
+      id: spawn.id ?? `m${index + 1}`,
+      pos: { x, y: 0, z },
+      state: 'idle',
+      targetId: null,
+      nextDecisionAt: 0,
+      dir: randomDirection(rand),
+      attackCooldownUntil: 0,
+      level,
+      hp: maxHp,
+      maxHp,
+      dead: false,
+      respawnAt: 0,
+    };
+  });
+}
+
 export function stepMobs(mobs, players, world, dt, now, config = {}) {
   const rand = config.random ?? Math.random;
   const speed = config.speed ?? 2.2;

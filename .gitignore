@@ -35,6 +35,7 @@ test-results/
 
 # Local progress log
 progress.md
+security_best_practices_report.md
 
 .DS_Store
 Thumbs.db

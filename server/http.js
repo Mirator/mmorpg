@@ -4,6 +4,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createAdminStateHandler } from './admin.js';
+import { createMapConfigHandlers } from './mapConfig.js';
 import { sendDbError } from './httpErrors.js';
 import {
   generateId,
@@ -46,7 +47,51 @@ function getBearerToken(req) {
   return token.length > 0 ? token : null;
 }
 
-export function createHttpApp({ config, world, players, resources, mobs, spawner }) {
+function getCookieValue(req, name) {
+  const header = req?.headers?.cookie;
+  if (!header || typeof header !== 'string') return null;
+  const parts = header.split(';');
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    const eq = trimmed.indexOf('=');
+    if (eq === -1) continue;
+    const key = trimmed.slice(0, eq).trim();
+    if (key !== name) continue;
+    const value = trimmed.slice(eq + 1).trim();
+    return value ? decodeURIComponent(value) : '';
+  }
+  return null;
+}
+
+function setSessionCookie(res, token, config) {
+  res.cookie(config.sessionCookieName, token, {
+    httpOnly: true,
+    sameSite: config.sessionCookieSameSite,
+    secure: config.sessionCookieSecure,
+    maxAge: SESSION_TTL_MS,
+    path: '/',
+  });
+}
+
+function clearSessionCookie(res, config) {
+  res.clearCookie(config.sessionCookieName, {
+    httpOnly: true,
+    sameSite: config.sessionCookieSameSite,
+    secure: config.sessionCookieSecure,
+    path: '/',
+  });
+}
+
+export function createHttpApp({
+  config,
+  world,
+  players,
+  resources,
+  mobs,
+  spawner,
+  mapConfigPath,
+}) {
   const app = express();
   app.disable('x-powered-by');
 
@@ -56,7 +101,21 @@ export function createHttpApp({ config, world, players, resources, mobs, spawner
 
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          'default-src': ["'self'"],
+          'base-uri': ["'self'"],
+          'frame-ancestors': ["'none'"],
+          'img-src': ["'self'", 'data:'],
+          'script-src': ["'self'", 'https://cdn.jsdelivr.net'],
+          'script-src-elem': ["'self'", 'https://cdn.jsdelivr.net'],
+          'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+          'style-src-elem': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+          'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
+          'object-src': ["'none'"],
+        },
+      },
     })
   );
   app.use(
@@ -73,12 +132,31 @@ export function createHttpApp({ config, world, players, resources, mobs, spawner
     })
   );
 
+  const authLimiter = rateLimit({
+    windowMs: 5 * 60_000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many attempts, try again soon.' },
+    keyGenerator: (req) => {
+      const ip = req.ip ?? 'unknown';
+      const username =
+        typeof req.body?.username === 'string'
+          ? req.body.username.toLowerCase().trim()
+          : '';
+      return `${ip}:${username || 'unknown'}`;
+    },
+  });
+
   app.get('/favicon.ico', (req, res) => {
     res.redirect(302, '/favicon.svg');
   });
 
   app.get('/admin', (req, res) => {
     res.sendFile(path.join(ADMIN_DIR, 'index.html'));
+  });
+  app.get('/admin/map', (req, res) => {
+    res.sendFile(path.join(ADMIN_DIR, 'map.html'));
   });
   app.use('/admin', express.static(ADMIN_DIR));
   app.use('/shared', express.static(SHARED_DIR));
@@ -95,7 +173,14 @@ export function createHttpApp({ config, world, players, resources, mobs, spawner
     })
   );
 
-  app.post('/api/auth/signup', async (req, res) => {
+  const mapHandlers = createMapConfigHandlers({
+    password: config.adminPassword,
+    mapConfigPath,
+  });
+  app.get('/admin/map-config', mapHandlers.getHandler);
+  app.put('/admin/map-config', mapHandlers.putHandler);
+
+  app.post('/api/auth/signup', authLimiter, async (req, res) => {
     const normalized = normalizeUsername(req.body?.username);
     if (!normalized) {
       sendError(res, 400, 'Username must be 3-20 characters (letters, numbers, underscore).');
@@ -160,10 +245,16 @@ export function createHttpApp({ config, world, players, resources, mobs, spawner
       return;
     }
 
-    res.json({ token, account: { id: accountId, username: normalized.name } });
+    setSessionCookie(res, token, config);
+
+    const payload = { account: { id: accountId, username: normalized.name } };
+    if (config.exposeAuthToken) {
+      payload.token = token;
+    }
+    res.json(payload);
   });
 
-  app.post('/api/auth/login', async (req, res) => {
+  app.post('/api/auth/login', authLimiter, async (req, res) => {
     const normalized = normalizeUsername(req.body?.username);
     if (!normalized) {
       sendError(res, 400, 'Invalid username or password.');
@@ -213,11 +304,19 @@ export function createHttpApp({ config, world, players, resources, mobs, spawner
       return;
     }
 
-    res.json({ token, account: { id: account.id, username: account.username } });
+    setSessionCookie(res, token, config);
+
+    const payload = { account: { id: account.id, username: account.username } };
+    if (config.exposeAuthToken) {
+      payload.token = token;
+    }
+    res.json(payload);
   });
 
   async function requireAuth(req, res, next) {
-    const token = getBearerToken(req);
+    const token =
+      getBearerToken(req) ??
+      getCookieValue(req, config.sessionCookieName);
     if (!token) {
       sendError(res, 401, 'Unauthorized');
       return;
@@ -234,6 +333,7 @@ export function createHttpApp({ config, world, players, resources, mobs, spawner
     }
 
     if (!session || !session.account) {
+      clearSessionCookie(res, config);
       sendError(res, 401, 'Unauthorized');
       return;
     }
@@ -241,6 +341,7 @@ export function createHttpApp({ config, world, players, resources, mobs, spawner
     const now = new Date();
     if (session.expiresAt && session.expiresAt <= now) {
       deleteSession(token).catch(() => {});
+      clearSessionCookie(res, config);
       sendError(res, 401, 'Session expired');
       return;
     }
@@ -261,6 +362,7 @@ export function createHttpApp({ config, world, players, resources, mobs, spawner
     } catch (err) {
       // Ignore if already deleted.
     }
+    clearSessionCookie(res, config);
     res.json({ ok: true });
   });
 
@@ -386,6 +488,24 @@ export function createHttpApp({ config, world, players, resources, mobs, spawner
     }
 
     res.json({ ok: true });
+  });
+
+  app.use((req, res) => {
+    const acceptsHtml = req.accepts('html');
+    if (acceptsHtml) {
+      res.status(404).send('Not Found');
+      return;
+    }
+    res.status(404).json({ error: 'Not Found' });
+  });
+
+  app.use((err, req, res, next) => {
+    console.error('Unhandled error:', err);
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    res.status(500).json({ error: 'Internal server error' });
   });
 
   return app;

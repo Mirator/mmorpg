@@ -1,8 +1,8 @@
 import http from 'http';
 import { createHttpApp } from './http.js';
-import { createWorld } from './logic/world.js';
+import { createSimulatedWorld, createWorldFromConfig } from './logic/world.js';
 import { createResources } from './logic/resources.js';
-import { createMobs, getMobMaxHp } from './logic/mobs.js';
+import { createMobs, createMobsFromSpawns, getMobMaxHp } from './logic/mobs.js';
 import { createWebSocketServer } from './ws.js';
 import { createGameLoop } from './gameLoop.js';
 import { createSpawner } from './spawn.js';
@@ -13,13 +13,22 @@ import { disconnectPrisma } from './db/client.js';
 import { getServerConfig } from './config.js';
 import { seedDevAccount } from './devSeed.js';
 import { autoMigrateDev } from './devMigrate.js';
+import { loadMapConfigSync, resolveMapConfigPath } from './mapConfig.js';
 
 export function createServer({ env = process.env } = {}) {
   const config = getServerConfig(env);
   const isE2eTest = env.E2E_TEST === 'true';
-  const world = createWorld();
+  const useSimulatedWorld =
+    isE2eTest && env.E2E_SIMULATED_WORLD !== 'false';
+  const mapConfigPath = resolveMapConfigPath(env);
+  const mapConfig = useSimulatedWorld ? null : loadMapConfigSync(mapConfigPath);
+  const world = useSimulatedWorld
+    ? createSimulatedWorld()
+    : createWorldFromConfig(mapConfig);
   const resources = createResources(world.resourceNodes);
-  const mobs = createMobs(world.mobCount, world);
+  const mobs = useSimulatedWorld
+    ? createMobs(world.mobCount, world)
+    : createMobsFromSpawns(world.mobSpawns, world);
   const players = new Map();
   const spawner = createSpawner(world);
 
@@ -58,7 +67,15 @@ export function createServer({ env = process.env } = {}) {
     });
   }
 
-  const app = createHttpApp({ config, world, players, resources, mobs, spawner });
+  const app = createHttpApp({
+    config,
+    world,
+    players,
+    resources,
+    mobs,
+    spawner,
+    mapConfigPath,
+  });
   const server = http.createServer(app);
 
   const persistence = createPersistence({

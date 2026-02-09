@@ -1,5 +1,4 @@
 const POLL_INTERVAL_MS = 1000;
-const SESSION_KEY = 'mmorpg_admin_pass';
 const PAGE_SIZE = 20;
 
 const form = document.getElementById('auth-form');
@@ -28,6 +27,7 @@ const mobsPageInfo = document.getElementById('mobs-page-info');
 
 let pollTimer = null;
 let latestState = null;
+let adminPassword = '';
 const paging = {
   players: { page: 0, prev: playersPrev, next: playersNext, info: playersPageInfo },
   resources: {
@@ -99,11 +99,11 @@ function updatePager(pager, total) {
 }
 
 function readPassword() {
-  return sessionStorage.getItem(SESSION_KEY) ?? '';
+  return adminPassword;
 }
 
 function savePassword(password) {
-  sessionStorage.setItem(SESSION_KEY, password);
+  adminPassword = password;
 }
 
 function stopPolling() {
@@ -270,10 +270,4 @@ wirePager(paging.resources, 'next');
 wirePager(paging.mobs, 'prev');
 wirePager(paging.mobs, 'next');
 
-const existing = readPassword();
-if (existing) {
-  passInput.value = existing;
-  startPolling();
-} else {
-  setStatus('Status: waiting for password', 'warning');
-}
+setStatus('Status: waiting for password', 'warning');

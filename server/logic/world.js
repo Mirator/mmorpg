@@ -5,6 +5,7 @@ import {
   VENDOR_CONFIG,
   MOB_CONFIG,
 } from '../../shared/config.js';
+import { validateMapConfig } from '../../shared/mapConfig.js';
 
 const WORLD_SEED = WORLD_CONFIG.seed;
 
@@ -107,7 +108,7 @@ function generateSpawnPoints() {
   return points;
 }
 
-export function createWorld() {
+export function createSimulatedWorld() {
   const rng = mulberry32(WORLD_SEED);
   const obstacles = generateObstacles(rng);
   const resourceNodes = generateResourceNodes(rng, obstacles);
@@ -128,6 +129,7 @@ export function createWorld() {
     obstacles,
     resourceNodes,
     spawnPoints,
+    mobSpawns: [],
     mobCount: MOB_COUNT,
     mobRespawnMs: MOB_RESPAWN_MS,
     harvestRadius: HARVEST_RADIUS,
@@ -140,6 +142,68 @@ export function createWorld() {
     vendors,
     vendorInteractRadius: VENDOR_INTERACT_RADIUS,
   };
+}
+
+export function createWorldFromConfig(mapConfig) {
+  const errors = validateMapConfig(mapConfig);
+  if (errors.length) {
+    throw new Error(`Invalid map config: ${errors.join(' ')}`);
+  }
+
+  const base = {
+    x: mapConfig.base.x,
+    z: mapConfig.base.z,
+    radius: mapConfig.base.radius,
+  };
+  const obstacles = mapConfig.obstacles.map((obs) => ({
+    x: obs.x,
+    z: obs.z,
+    r: obs.radius ?? obs.r,
+  }));
+  const resourceNodes = mapConfig.resourceNodes.map((node) => ({
+    id: node.id,
+    x: node.x,
+    z: node.z,
+  }));
+  const spawnPoints = mapConfig.spawnPoints.map((point) => ({
+    x: point.x,
+    z: point.z,
+  }));
+  const vendors = mapConfig.vendors.map((vendor) => ({
+    id: vendor.id,
+    name: vendor.name,
+    x: vendor.x,
+    z: vendor.z,
+  }));
+  const mobSpawns = mapConfig.mobSpawns.map((spawn) => ({
+    id: spawn.id,
+    x: spawn.x,
+    z: spawn.z,
+  }));
+
+  return {
+    mapSize: mapConfig.mapSize,
+    base,
+    obstacles,
+    resourceNodes,
+    spawnPoints,
+    mobSpawns,
+    mobCount: mobSpawns.length,
+    mobRespawnMs: MOB_RESPAWN_MS,
+    harvestRadius: HARVEST_RADIUS,
+    resourceRespawnMs: RESOURCE_RESPAWN_MS,
+    playerMaxHp: PLAYER_MAX_HP,
+    playerSpeed: PLAYER_SPEED,
+    playerInvCap: PLAYER_INV_CAP,
+    playerInvSlots: PLAYER_INV_SLOTS,
+    playerInvStackMax: PLAYER_INV_STACK_MAX,
+    vendors,
+    vendorInteractRadius: VENDOR_INTERACT_RADIUS,
+  };
+}
+
+export function createWorld(mapConfig) {
+  return createWorldFromConfig(mapConfig);
 }
 
 export function worldSnapshot(world) {

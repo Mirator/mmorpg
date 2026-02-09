@@ -12,6 +12,18 @@ function parseBoolEnv(value) {
   return value === 'true';
 }
 
+function parseSameSiteEnv(value, fallback = 'lax') {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  if (raw === 'lax' || raw === 'strict' || raw === 'none') {
+    return raw;
+  }
+  return fallback;
+}
+
+function isLocalhostHost(host) {
+  return host === '127.0.0.1' || host === 'localhost';
+}
+
 function parseAllowedOrigins(raw, defaults) {
   if (!raw) return new Set(defaults);
   const parts = raw
@@ -38,7 +50,15 @@ export function getServerConfig(env = process.env) {
     : 0.6;
 
   const allowNoOrigin = parseBoolEnv(env.ALLOW_NO_ORIGIN);
+  const allowNoOriginRemote = parseBoolEnv(env.ALLOW_NO_ORIGIN_REMOTE);
   const adminPassword = resolveAdminPassword(env);
+
+  const sessionCookieName = env.SESSION_COOKIE_NAME ?? 'mmorpg_session';
+  const sessionCookieSameSite = parseSameSiteEnv(env.SESSION_COOKIE_SAMESITE, 'lax');
+  const sessionCookieSecure = env.SESSION_COOKIE_SECURE === undefined
+    ? env.NODE_ENV === 'production'
+    : parseBoolEnv(env.SESSION_COOKIE_SECURE);
+  const exposeAuthToken = parseBoolEnv(env.EXPOSE_AUTH_TOKEN);
 
   const defaultOrigins = new Set([
     `http://localhost:${port}`,
@@ -52,6 +72,7 @@ export function getServerConfig(env = process.env) {
     host,
     trustProxy,
     allowNoOrigin,
+    allowNoOriginRemote,
     allowedOrigins,
     maxConnectionsPerIp,
     maxPayloadBytes,
@@ -62,6 +83,11 @@ export function getServerConfig(env = process.env) {
     persistForceMs,
     persistPosEps,
     adminPassword,
+    isLocalhost: isLocalhostHost(host),
+    sessionCookieName,
+    sessionCookieSameSite,
+    sessionCookieSecure,
+    exposeAuthToken,
     tickHz: 60,
     broadcastHz: 20,
     playerRadius: 0.6,

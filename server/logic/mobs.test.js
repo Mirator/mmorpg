@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createMobs, stepMobs } from './mobs.js';
+import { createMobs, createMobsFromSpawns, stepMobs } from './mobs.js';
 
 describe('mobs', () => {
   it('does not spawn mobs in invalid locations when space is blocked', () => {
@@ -120,5 +120,18 @@ describe('mobs', () => {
     expect(mob.dead).toBe(false);
     expect(mob.hp).toBe(mob.maxHp);
     expect(mob.state).toBe('idle');
+  });
+
+  it('creates mobs from spawn points', () => {
+    const world = {
+      mapSize: 100,
+      base: { x: 0, z: 0 },
+      obstacles: [],
+    };
+    const spawns = [{ id: 'm1', x: 10, z: -5 }];
+    const mobs = createMobsFromSpawns(spawns, world, { random: () => 0.5 });
+    expect(mobs).toHaveLength(1);
+    expect(mobs[0].id).toBe('m1');
+    expect(mobs[0].pos).toEqual({ x: 10, y: 0, z: -5 });
   });
 });
