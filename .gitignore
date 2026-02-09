@@ -11,6 +11,10 @@ lerna-debug.log*
 .env.*
 !.env.example
 
+# Prisma local sqlite fallbacks (if ever used)
+prisma/*.db
+prisma/*.db-journal
+
 dist/
 build/
 coverage/

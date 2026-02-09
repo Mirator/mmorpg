@@ -1,4 +1,5 @@
 import { applyCollisions } from './collision.js';
+import { MAX_LEVEL } from '../../shared/progression.js';
 
 function randomRange(rand, min, max) {
   return min + (max - min) * rand();
@@ -27,6 +28,25 @@ function isSpawnValid(x, z, world) {
   return true;
 }
 
+function clampLevel(level) {
+  if (!Number.isFinite(level)) return 1;
+  return Math.max(1, Math.min(MAX_LEVEL, Math.floor(level)));
+}
+
+export function getMobLevelForPosition(pos, world) {
+  const maxDist = (world?.mapSize ?? 400) / 2;
+  const base = world?.base ?? { x: 0, z: 0 };
+  const dist = Math.hypot(pos.x - base.x, pos.z - base.z);
+  const t = maxDist > 0 ? Math.min(1, dist / maxDist) : 0;
+  const level = 1 + Math.floor(t * (MAX_LEVEL - 1));
+  return clampLevel(level);
+}
+
+export function getMobMaxHp(level) {
+  const lvl = clampLevel(level);
+  return 20 + 8 * lvl;
+}
+
 export function createMobs(count, world, options = {}) {
   const rand = options.random ?? Math.random;
   const mobs = [];
@@ -39,6 +59,8 @@ export function createMobs(count, world, options = {}) {
     const x = randomRange(rand, -half, half);
     const z = randomRange(rand, -half, half);
     if (!isSpawnValid(x, z, world)) continue;
+    const level = getMobLevelForPosition({ x, z }, world);
+    const maxHp = getMobMaxHp(level);
     mobs.push({
       id: `m${mobs.length + 1}`,
       pos: { x, y: 0, z },
@@ -47,6 +69,11 @@ export function createMobs(count, world, options = {}) {
       nextDecisionAt: 0,
       dir: randomDirection(rand),
       attackCooldownUntil: 0,
+      level,
+      hp: maxHp,
+      maxHp,
+      dead: false,
+      respawnAt: 0,
     });
   }
 
@@ -67,15 +94,32 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
   const aggroRadius = config.aggroRadius ?? 12;
   const leashRadius = config.leashRadius ?? 18;
   const attackRange = config.attackRange ?? 1.4;
-  const attackDamage = config.attackDamage ?? 8;
+  const attackDamageBase = config.attackDamageBase ?? 6;
+  const attackDamagePerLevel = config.attackDamagePerLevel ?? 2;
   const attackCooldownMs = config.attackCooldownMs ?? 900;
   const idleDuration = config.idleDurationMs ?? [1200, 2800];
   const wanderDuration = config.wanderDurationMs ?? [1500, 3200];
   const mobRadius = config.mobRadius ?? 0.8;
+  const respawnMs = config.respawnMs ?? 10_000;
 
   const alivePlayers = players.filter((p) => !p.dead);
 
   for (const mob of mobs) {
+    if (mob.dead) {
+      if (!mob.respawnAt) {
+        mob.respawnAt = now + respawnMs;
+      }
+      if (mob.respawnAt && now >= mob.respawnAt) {
+        mob.dead = false;
+        mob.hp = mob.maxHp ?? getMobMaxHp(mob.level ?? 1);
+        mob.state = 'idle';
+        mob.targetId = null;
+        mob.attackCooldownUntil = 0;
+        mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
+      }
+      continue;
+    }
+
     let target = null;
     let closestDist2 = aggroRadius * aggroRadius;
     for (const player of alivePlayers) {
@@ -124,7 +168,9 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
       }
 
       if (dist <= attackRange && now >= mob.attackCooldownUntil) {
-        target.hp = Math.max(0, target.hp - attackDamage);
+        const damage =
+          attackDamageBase + attackDamagePerLevel * (mob.level ?? 1);
+        target.hp = Math.max(0, target.hp - damage);
         mob.attackCooldownUntil = now + attackCooldownMs;
       }
     }

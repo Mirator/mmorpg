@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createWorld } from './logic/world.js';
+import { xpToNext } from '../shared/progression.js';
 import {
   buildAdminState,
   createAdminStateHandler,
@@ -53,6 +54,9 @@ describe('admin state serialization', () => {
             null,
           ],
           currencyCopper: 120,
+          classId: 'fighter',
+          level: 2,
+          xp: 15,
           dead: false,
           respawnAt: 0,
         },
@@ -77,6 +81,10 @@ describe('admin state serialization', () => {
         z: -2,
         hp: 90,
         maxHp: 100,
+        classId: 'fighter',
+        level: 2,
+        xp: 15,
+        xpToNext: xpToNext(2),
         inv: 2,
         invCap: 5,
         invSlots: 2,
@@ -91,7 +99,18 @@ describe('admin state serialization', () => {
       { id: 'r1', x: 5, z: 6, available: true, respawnAt: 0 },
     ]);
     expect(serializeMobs(mobs)).toEqual([
-      { id: 'm1', x: -3, z: 4, state: 'idle', targetId: null },
+      {
+        id: 'm1',
+        x: -3,
+        z: 4,
+        state: 'idle',
+        targetId: null,
+        level: 1,
+        hp: 0,
+        maxHp: 0,
+        dead: false,
+        respawnAt: 0,
+      },
     ]);
   });
 
@@ -109,6 +128,9 @@ describe('admin state serialization', () => {
           invStackMax: 5,
           inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }],
           currencyCopper: 55,
+          classId: 'mage',
+          level: 3,
+          xp: 44,
           dead: true,
           respawnAt: 12345,
         },
@@ -125,6 +147,8 @@ describe('admin state serialization', () => {
         inv: 4,
         currencyCopper: 55,
         dead: true,
+        classId: 'mage',
+        level: 3,
       },
     });
   });
@@ -138,6 +162,10 @@ describe('admin state serialization', () => {
       respawnAt: 12345,
       hp: 50,
       currencyCopper: 55,
+      classId: 'ranger',
+      level: 4,
+      xp: 22,
+      attackCooldownUntil: 9876,
     };
 
     expect(serializePlayerPrivate(player)).toEqual({
@@ -147,6 +175,11 @@ describe('admin state serialization', () => {
       inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }],
       currencyCopper: 55,
       respawnAt: 12345,
+      classId: 'ranger',
+      level: 4,
+      xp: 22,
+      xpToNext: xpToNext(4),
+      attackCooldownUntil: 9876,
     });
   });
 

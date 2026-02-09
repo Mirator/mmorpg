@@ -3,6 +3,14 @@ import { initWorld, updateResources, updateMobs, animateWorld } from './world.js
 import { applyWASD } from '/shared/math.js';
 import { formatCurrency, splitCurrency, VENDOR_SELL_PRICES } from '/shared/economy.js';
 import {
+  ABILITY_SLOTS,
+  DEFAULT_CLASS_ID,
+  getAbilitiesForClass,
+  getClassById,
+  isValidClassId,
+} from '/shared/classes.js';
+import { totalXpForLevel, xpToNext } from '/shared/progression.js';
+import {
   setStatus,
   updateHud,
   showPrompt,
@@ -16,6 +24,12 @@ import { createVendorUI } from './vendor.js';
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
 const coordsEl = document.getElementById('coords');
+const classModal = document.getElementById('class-modal');
+const skillsPanel = document.getElementById('skills-panel');
+const skillsClassEl = document.getElementById('skills-class');
+const skillsLevelEl = document.getElementById('skills-level');
+const skillsXpEl = document.getElementById('skills-xp');
+const skillsListEl = document.getElementById('skills-list');
 const inventoryPanel = document.getElementById('inventory-panel');
 const inventoryGrid = document.getElementById('inventory-grid');
 const vendorDialog = document.getElementById('vendor-dialog');
@@ -27,9 +41,23 @@ const vendorCloseBtn = document.getElementById('vendor-close-btn');
 const vendorPanelCloseBtn = document.getElementById('vendor-panel-close');
 const vendorPricesEl = document.getElementById('vendor-sell-prices');
 const inventoryCoinsEl = document.getElementById('inventory-coins');
+const abilityBar = document.getElementById('ability-bar');
 
 let inventoryUI = null;
 let vendorUI = null;
+
+const CLASS_STORAGE_KEY = 'mmorpg_class_id';
+const PLAYER_STORAGE_KEY = 'mmorpg_player_id';
+const urlParams = new URLSearchParams(window.location.search);
+const isGuestSession = urlParams.get('guest') === '1';
+const playerStorage = isGuestSession ? sessionStorage : localStorage;
+let selectedClassId = null;
+let classModalOpen = false;
+let skillsOpen = false;
+const abilitySlots = [];
+const localCooldowns = new Map();
+let skillsRenderKey = '';
+let currentMe = null;
 
 const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
@@ -92,6 +120,7 @@ let latestResources = [];
 let latestMobs = [];
 let nearestVendor = null;
 let inVendorRange = false;
+let playerId = null;
 
 function formatItemName(kind) {
   if (!kind) return 'Item';
@@ -124,10 +153,198 @@ function renderVendorPrices() {
   }
 }
 
+function loadClassId() {
+  const stored = localStorage.getItem(CLASS_STORAGE_KEY);
+  if (stored && isValidClassId(stored)) {
+    return stored;
+  }
+  return null;
+}
+
+function saveClassId(classId) {
+  if (classId) {
+    localStorage.setItem(CLASS_STORAGE_KEY, classId);
+  }
+}
+
+function isValidPlayerId(value) {
+  return typeof value === 'string' && /^[a-zA-Z0-9._-]{1,64}$/.test(value);
+}
+
+function createPlayerId() {
+  if (crypto?.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `p-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function loadPlayerId() {
+  const stored = playerStorage.getItem(PLAYER_STORAGE_KEY);
+  if (isValidPlayerId(stored)) {
+    return stored;
+  }
+  const fresh = createPlayerId();
+  playerStorage.setItem(PLAYER_STORAGE_KEY, fresh);
+  return fresh;
+}
+
+function savePlayerId(id) {
+  if (isValidPlayerId(id)) {
+    playerStorage.setItem(PLAYER_STORAGE_KEY, id);
+  }
+}
+
+function setClassModalOpen(open) {
+  classModalOpen = !!open;
+  classModal?.classList.toggle('open', classModalOpen);
+  if (classModalOpen) {
+    clearPrompt();
+  }
+}
+
+function sendClassSelection(classId) {
+  if (!classId) return;
+  seq += 1;
+  send({ type: 'classSelect', classId, seq });
+}
+
+function applyClassSelection(classId) {
+  if (!isValidClassId(classId)) return;
+  selectedClassId = classId;
+  saveClassId(classId);
+  setClassModalOpen(false);
+  sendClassSelection(classId);
+  updateAbilityBar(currentMe);
+  updateSkillsPanel(currentMe);
+}
+
+function getCurrentClassId(me) {
+  return me?.classId ?? selectedClassId ?? DEFAULT_CLASS_ID;
+}
+
+function setSkillsOpen(open) {
+  skillsOpen = !!open;
+  skillsPanel?.classList.toggle('open', skillsOpen);
+  if (skillsOpen) {
+    clearPrompt();
+    keys.w = false;
+    keys.a = false;
+    keys.s = false;
+    keys.d = false;
+    sendInput();
+  }
+}
+
+function toggleSkills() {
+  if (isInventoryOpen() || isDialogOpen() || isTradeOpen()) return;
+  setSkillsOpen(!skillsOpen);
+}
+
+function buildAbilityBar() {
+  if (!abilityBar) return;
+  abilityBar.innerHTML = '';
+  abilitySlots.length = 0;
+  for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
+    const el = document.createElement('div');
+    el.className = 'ability-slot empty';
+    el.dataset.slot = String(slot);
+    el.style.setProperty('--cooldown', '0');
+    const key = document.createElement('div');
+    key.className = 'ability-key';
+    key.textContent = slot === 10 ? '0' : String(slot);
+    const name = document.createElement('div');
+    name.className = 'ability-name';
+    name.textContent = '';
+    el.appendChild(key);
+    el.appendChild(name);
+    el.addEventListener('click', () => {
+      useAbility(slot);
+    });
+    abilityBar.appendChild(el);
+    abilitySlots.push(el);
+  }
+}
+
+function updateAbilityBar(me) {
+  if (!abilityBar || abilitySlots.length === 0) return;
+  const classId = getCurrentClassId(me);
+  const abilities = getAbilitiesForClass(classId, me?.level ?? 1);
+  const abilityBySlot = new Map(abilities.map((ability) => [ability.slot, ability]));
+  const serverNow = getServerNow();
+
+  for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
+    const ability = abilityBySlot.get(slot);
+    const slotEl = abilitySlots[slot - 1];
+    if (!slotEl) continue;
+    const nameEl = slotEl.querySelector('.ability-name');
+    if (ability) {
+      slotEl.classList.remove('empty');
+      if (nameEl) nameEl.textContent = ability.name;
+    } else {
+      slotEl.classList.add('empty');
+      if (nameEl) nameEl.textContent = '';
+      slotEl.style.setProperty('--cooldown', '0');
+      continue;
+    }
+
+    let remaining = 0;
+    if (ability.id === 'basic_attack') {
+      const localCooldown = localCooldowns.get(slot) ?? 0;
+      const serverCooldown = me?.attackCooldownUntil ?? 0;
+      const cooldownEnd = Math.max(localCooldown, serverCooldown);
+      remaining = Math.max(0, cooldownEnd - serverNow);
+    }
+    const fraction = ability.cooldownMs
+      ? Math.min(1, remaining / ability.cooldownMs)
+      : 0;
+    slotEl.style.setProperty('--cooldown', fraction.toFixed(3));
+  }
+}
+
+function updateSkillsPanel(me) {
+  if (!skillsPanel || !skillsOpen) return;
+  const classId = getCurrentClassId(me);
+  const klass = getClassById(classId);
+  if (skillsClassEl) {
+    skillsClassEl.textContent = klass?.name ?? classId ?? '--';
+  }
+  if (skillsLevelEl) {
+    skillsLevelEl.textContent = `${me?.level ?? 1}`;
+  }
+  if (skillsXpEl) {
+    const needed = me?.xpToNext ?? xpToNext(me?.level ?? 1);
+    skillsXpEl.textContent = needed ? `${me?.xp ?? 0}/${needed}` : 'MAX';
+  }
+
+  const renderKey = `${classId}:${me?.level ?? 1}`;
+  if (renderKey === skillsRenderKey) return;
+  skillsRenderKey = renderKey;
+  if (!skillsListEl) return;
+  skillsListEl.innerHTML = '';
+  const abilities = getAbilitiesForClass(classId, me?.level ?? 1);
+  for (const ability of abilities) {
+    const row = document.createElement('div');
+    row.className = 'skill-row';
+    const name = document.createElement('div');
+    name.className = 'skill-name';
+    name.textContent = ability.name;
+    const meta = document.createElement('div');
+    meta.className = 'skill-meta';
+    meta.textContent = `Slot ${ability.slot} · CD ${Math.round(
+      (ability.cooldownMs ?? 0) / 1000
+    )}s`;
+    row.appendChild(name);
+    row.appendChild(meta);
+    skillsListEl.appendChild(row);
+  }
+}
+
 const lastStats = {
   hp: null,
   inv: null,
   currencyCopper: null,
+  level: null,
+  totalXp: null,
 };
 
 let manualStepping = false;
@@ -305,7 +522,13 @@ window.addEventListener('resize', resize);
 resize();
 
 const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-const ws = new WebSocket(`${wsProtocol}://${location.host}`);
+playerId = loadPlayerId();
+const wsUrl = new URL(`${wsProtocol}://${location.host}`);
+wsUrl.searchParams.set('playerId', playerId);
+if (isGuestSession) {
+  wsUrl.searchParams.set('guest', '1');
+}
+const ws = new WebSocket(wsUrl.toString());
 let seq = 0;
 
 function send(msg) {
@@ -358,9 +581,24 @@ if (vendorDialog && vendorPanel) {
 
 renderVendorPrices();
 
+buildAbilityBar();
+selectedClassId = loadClassId();
+setClassModalOpen(!selectedClassId);
+if (classModal) {
+  classModal.querySelectorAll('.class-option').forEach((button) => {
+    button.addEventListener('click', () => {
+      const classId = button.getAttribute('data-class');
+      applyClassSelection(classId);
+    });
+  });
+}
+
 ws.addEventListener('open', () => {
   setStatus('connected');
   send({ type: 'hello' });
+  if (selectedClassId) {
+    sendClassSelection(selectedClassId);
+  }
 });
 
 ws.addEventListener('close', () => {
@@ -396,6 +634,7 @@ function handleStateMessage(msg) {
 function updateLocalUi() {
   const me = getLocalPlayer();
   const serverNow = getServerNow();
+  currentMe = me;
   if (me) {
     updateHud(me, serverNow);
     if (inventoryUI) {
@@ -410,19 +649,37 @@ function updateLocalUi() {
     if (lastStats.hp !== null && me.hp < lastStats.hp) {
       flashDamage();
     }
-    if (lastStats.inv !== null && me.inv > lastStats.inv) {
-      showEvent('Harvested +1');
+
+    const totalXp = totalXpForLevel(me.level ?? 1, me.xp ?? 0);
+    let eventMessage = null;
+    if (lastStats.level !== null && me.level > lastStats.level) {
+      eventMessage = `Level Up! (${me.level})`;
+    } else if (lastStats.totalXp !== null && totalXp > lastStats.totalXp) {
+      eventMessage = `XP +${totalXp - lastStats.totalXp}`;
+    }
+
+    if (!eventMessage && lastStats.inv !== null && me.inv > lastStats.inv) {
+      eventMessage = 'Harvested +1';
     }
     if (
+      !eventMessage &&
       lastStats.currencyCopper !== null &&
       (me.currencyCopper ?? 0) > lastStats.currencyCopper
     ) {
       const diff = (me.currencyCopper ?? 0) - lastStats.currencyCopper;
-      showEvent(`Sold +${formatCurrency(diff)}`);
+      eventMessage = `Sold +${formatCurrency(diff)}`;
     }
+    if (eventMessage) {
+      showEvent(eventMessage);
+    }
+
     lastStats.hp = me.hp;
     lastStats.inv = me.inv;
     lastStats.currencyCopper = me.currencyCopper ?? 0;
+    lastStats.level = me.level ?? 1;
+    lastStats.totalXp = totalXp;
+    updateAbilityBar(me);
+    updateSkillsPanel(me);
   } else {
     updateHud(null, serverNow);
     if (inventoryUI) {
@@ -437,6 +694,10 @@ function updateLocalUi() {
     lastStats.hp = null;
     lastStats.inv = null;
     lastStats.currencyCopper = null;
+    lastStats.level = null;
+    lastStats.totalXp = null;
+    updateAbilityBar(null);
+    updateSkillsPanel(null);
   }
 }
 
@@ -450,6 +711,10 @@ ws.addEventListener('message', (event) => {
 
   if (msg.type === 'welcome') {
     myId = msg.id;
+    if (myId && myId !== playerId) {
+      playerId = myId;
+      savePlayerId(myId);
+    }
     if (msg.snapshot) {
       handleStateMessage(msg.snapshot);
     }
@@ -479,6 +744,37 @@ function sendInput() {
 function sendInteract() {
   seq += 1;
   send({ type: 'action', kind: 'interact', seq });
+}
+
+function useAbility(slot) {
+  if (isUiBlocking()) return;
+  const classId = getCurrentClassId(currentMe);
+  const abilities = getAbilitiesForClass(classId, currentMe?.level ?? 1);
+  const ability = abilities.find((item) => item.slot === slot);
+  if (!ability) return;
+  const now = getServerNow();
+  const localCooldown = localCooldowns.get(slot) ?? 0;
+  const serverCooldown = currentMe?.attackCooldownUntil ?? 0;
+  if (Math.max(localCooldown, serverCooldown) > now) return;
+  localCooldowns.set(slot, now + (ability.cooldownMs ?? 0));
+  updateAbilityBar(currentMe);
+  seq += 1;
+  send({ type: 'action', kind: 'ability', slot, seq });
+}
+
+function getAbilitySlotFromEvent(event) {
+  const code = event.code || '';
+  const digitMatch = code.match(/^(Digit|Numpad)(\d)$/);
+  if (digitMatch) {
+    const digit = Number(digitMatch[2]);
+    return digit === 0 ? 10 : digit;
+  }
+  const key = event.key;
+  if (typeof key === 'string' && key.length === 1 && key >= '0' && key <= '9') {
+    const digit = Number(key);
+    return digit === 0 ? 10 : digit;
+  }
+  return null;
 }
 
 function getNearestVendor(pos) {
@@ -511,8 +807,22 @@ function isTradeOpen() {
   return vendorUI?.isTradeOpen?.() ?? false;
 }
 
+function isClassModalOpen() {
+  return classModalOpen;
+}
+
+function isSkillsOpen() {
+  return skillsOpen;
+}
+
 function isUiBlocking() {
-  return isInventoryOpen() || isDialogOpen() || isTradeOpen();
+  return (
+    isInventoryOpen() ||
+    isDialogOpen() ||
+    isTradeOpen() ||
+    isClassModalOpen() ||
+    isSkillsOpen()
+  );
 }
 
 function setInventoryOpen(next) {
@@ -530,7 +840,7 @@ function setInventoryOpen(next) {
 }
 
 function toggleInventory() {
-  if (isTradeOpen() || isDialogOpen()) return;
+  if (isTradeOpen() || isDialogOpen() || isClassModalOpen() || isSkillsOpen()) return;
   setInventoryOpen(!isInventoryOpen());
 }
 
@@ -565,6 +875,10 @@ window.addEventListener('keydown', (event) => {
     toggleInventory();
     return;
   }
+  if (key === 'k' && !event.repeat) {
+    toggleSkills();
+    return;
+  }
   if ((key === 'b' || key === 's') && isTradeOpen() && vendorUI && !event.repeat) {
     vendorUI.setTab(key === 'b' ? 'buy' : 'sell');
     return;
@@ -592,6 +906,13 @@ window.addEventListener('keydown', (event) => {
     return;
   }
   if (isUiBlocking()) return;
+  if (!event.repeat) {
+    const abilitySlot = getAbilitySlotFromEvent(event);
+    if (abilitySlot) {
+      useAbility(abilitySlot);
+      return;
+    }
+  }
   handleKey(event, true);
 });
 window.addEventListener('keyup', (event) => {
@@ -661,6 +982,11 @@ function stepFrame(dt, now) {
 
   if (worldState) {
     animateWorld(worldState, now);
+  }
+
+  updateAbilityBar(currentMe);
+  if (skillsOpen) {
+    updateSkillsPanel(currentMe);
   }
 
   nearestVendor = null;
@@ -755,6 +1081,9 @@ function buildTextState() {
   const inventoryOpen = isInventoryOpen();
   const tradeOpen = isTradeOpen();
   const dialogOpen = isDialogOpen();
+  const classId = getCurrentClassId(me);
+  const abilities = getAbilitiesForClass(classId, me?.level ?? 1);
+  const serverNow = getServerNow();
   const vendor = vendorUI?.getVendor?.() ?? null;
   const tradeTab = tradeOpen ? vendorUI?.getTab?.() ?? null : null;
   const currencyCopper = me?.currencyCopper ?? 0;
@@ -785,6 +1114,11 @@ function buildTextState() {
           z: me.z,
           hp: me.hp,
           maxHp: me.maxHp,
+          classId,
+          level: me.level ?? 1,
+          xp: me.xp ?? 0,
+          xpToNext: me.xpToNext ?? xpToNext(me.level ?? 1),
+          attackCooldownUntil: me.attackCooldownUntil ?? 0,
           inv: me.inv,
           invCap: me.invCap,
           invSlots: me.invSlots,
@@ -795,6 +1129,23 @@ function buildTextState() {
           respawnAt: me.respawnAt ?? 0,
         }
       : null,
+    classSelection: {
+      open: isClassModalOpen(),
+      selectedClassId: selectedClassId ?? null,
+    },
+    skills: {
+      open: skillsOpen,
+    },
+    abilities: abilities.map((ability) => ({
+      id: ability.id,
+      name: ability.name,
+      slot: ability.slot,
+      cooldownMs: ability.cooldownMs ?? 0,
+      cooldownRemainingMs:
+        ability.id === 'basic_attack'
+          ? Math.max(0, (me?.attackCooldownUntil ?? 0) - serverNow)
+          : 0,
+    })),
     trade: {
       dialogOpen,
       tradeOpen,
@@ -832,6 +1183,11 @@ function buildTextState() {
       z: m.z,
       state: m.state,
       targetId: m.targetId ?? null,
+      level: m.level ?? 1,
+      hp: m.hp ?? 0,
+      maxHp: m.maxHp ?? 0,
+      dead: !!m.dead,
+      respawnAt: m.respawnAt ?? 0,
     })),
   };
 }

@@ -1,12 +1,29 @@
 import { chromium } from 'playwright';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import process from 'node:process';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const PORT = Number.parseInt(process.env.E2E_PORT ?? '', 10) || 3001;
 const BASE_URL = `http://localhost:${PORT}`;
 const SERVER_START_TIMEOUT_MS = 8000;
 const TEST_TIMEOUT_MS = 20000;
 const DEATH_TIMEOUT_MS = 30000;
+const DATABASE_URL_E2E = process.env.DATABASE_URL_E2E;
+
+function resetE2eDatabase() {
+  if (!DATABASE_URL_E2E) {
+    throw new Error('DATABASE_URL_E2E is not set; cannot run e2e DB reset.');
+  }
+  const result = spawnSync('npm', ['run', 'db:reset:e2e'], {
+    stdio: 'inherit',
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    throw new Error('Failed to reset e2e database.');
+  }
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -133,8 +150,15 @@ async function waitForCondition(page, condition, timeoutMs, label) {
 }
 
 async function run() {
+  resetE2eDatabase();
   const server = spawn('node', ['server/index.js'], {
-    env: { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', E2E_TEST: 'true' },
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      HOST: '127.0.0.1',
+      E2E_TEST: 'true',
+      DATABASE_URL: DATABASE_URL_E2E,
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
@@ -146,6 +170,12 @@ async function run() {
       args: ['--use-gl=angle', '--use-angle=swiftshader'],
     });
     const page = await browser.newPage();
+    await page.addInitScript(() => {
+      if (!localStorage.getItem('e2e_clear_done')) {
+        localStorage.clear();
+        localStorage.setItem('e2e_clear_done', 'true');
+      }
+    });
 
     const consoleErrors = [];
     page.on('pageerror', (err) => consoleErrors.push(String(err)));
@@ -156,6 +186,32 @@ async function run() {
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(500);
     await page.waitForFunction(() => window.__game && typeof window.__game.moveTo === 'function');
+
+    await page.waitForSelector('#class-modal.open');
+    await page.click('.class-option[data-class="fighter"]');
+    await page.waitForFunction(
+      () => !document.querySelector('#class-modal')?.classList.contains('open')
+    );
+
+    await page.waitForSelector('#ability-bar .ability-slot');
+    const abilitySlotCount = await page.locator('#ability-bar .ability-slot').count();
+    if (abilitySlotCount !== 10) {
+      throw new Error(`Ability bar slot count mismatch: ${abilitySlotCount}`);
+    }
+
+    await page.keyboard.press('k');
+    await page.waitForSelector('#skills-panel.open');
+    await page.waitForFunction(() =>
+      document.querySelector('#skills-list')?.textContent?.includes('Basic Attack')
+    );
+    const skillsText = await page.locator('#skills-list').innerText();
+    if (!skillsText.includes('Basic Attack')) {
+      throw new Error('Skills panel missing Basic Attack');
+    }
+    await page.keyboard.press('k');
+    await page.waitForFunction(
+      () => !document.querySelector('#skills-panel')?.classList.contains('open')
+    );
 
     let state = await waitForCondition(
       page,
@@ -183,6 +239,12 @@ async function run() {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(500);
     await page.waitForFunction(() => window.__game && typeof window.__game.moveTo === 'function');
+    const modalOpen = await page.evaluate(
+      () => document.querySelector('#class-modal')?.classList.contains('open')
+    );
+    if (modalOpen) {
+      throw new Error('Class selection modal re-opened after reload');
+    }
     state = await waitForCondition(
       page,
       (s) => s.player && s.resources?.length > 0 && s.mobs?.length > 0,
@@ -415,19 +477,68 @@ async function run() {
     await page.click('#vendor-panel-close');
     await page.waitForFunction(() => !document.querySelector('#vendor-panel')?.classList.contains('open'));
 
-    const testMob = state.mobs.find((m) => m.id === 'm-test');
-    const mob = testMob
-      ? testMob
-      : state.mobs.reduce((closest, current) => {
-          if (!closest) return current;
-          return distance(state.player, current) < distance(state.player, closest)
-            ? current
-            : closest;
-        }, null);
+    state = await getState(page);
+
+    const attackTarget =
+      state.mobs.find((m) => m.id === 'm-test' && !m.dead) ??
+      state.mobs.find((m) => !m.dead);
+    if (!attackTarget) {
+      throw new Error('No alive mob available for attack test');
+    }
+    const classId = state.player?.classId ?? 'fighter';
+    const attackRange = ['ranger', 'priest', 'mage'].includes(classId) ? 6 : 2;
+    await page.evaluate(
+      ({ x, z }) => window.__game?.moveTo(x, z),
+      { x: attackTarget.x, z: attackTarget.z }
+    );
+    state = await waitForCondition(
+      page,
+      (s) => s.player && distance(s.player, attackTarget) <= attackRange + 0.2,
+      TEST_TIMEOUT_MS,
+      'reach attack target'
+    );
+
+    let updatedTarget = state.mobs.find((m) => m.id === attackTarget.id);
+    const levelBefore = state.player.level ?? 1;
+    for (let i = 0; i < 10; i += 1) {
+      await page.keyboard.press('1');
+      await sleep(950);
+      await advance(page, 200);
+      state = await getState(page);
+      updatedTarget = state.mobs.find((m) => m.id === attackTarget.id);
+      if (!updatedTarget) break;
+      if (updatedTarget.dead || updatedTarget.hp <= 0) break;
+    }
+    if (!updatedTarget) {
+      throw new Error('Attack target missing from state');
+    }
+    if (!updatedTarget.dead) {
+      throw new Error('Expected attack target to die from basic attacks');
+    }
+    if ((state.player.level ?? 1) <= levelBefore) {
+      throw new Error('Expected level up after mob kill');
+    }
+
+    const liveMobs = state.mobs.filter((m) => !m.dead);
+    const obstaclesForMobs = state.world?.obstacles ?? [];
+    const losMobs = liveMobs.filter((m) => hasLineOfSight(state.player, m, obstaclesForMobs));
+    const damagePool = (losMobs.length ? losMobs : liveMobs).filter(
+      (m) => m.id !== attackTarget.id
+    );
+    const mobDamageTarget =
+      damagePool.reduce((closest, current) => {
+        if (!closest) return current;
+        return distance(state.player, current) < distance(state.player, closest)
+          ? current
+          : closest;
+      }, null) ?? liveMobs[0];
+    if (!mobDamageTarget) {
+      throw new Error('No mob available for damage test');
+    }
     const hpBefore = state.player.hp;
     await page.evaluate(
       ({ x, z }) => window.__game?.moveTo(x, z),
-      { x: mob.x, z: mob.z }
+      { x: mobDamageTarget.x, z: mobDamageTarget.z }
     );
     state = await waitForCondition(
       page,

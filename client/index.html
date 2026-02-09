@@ -10,16 +10,58 @@
     <div id="app"></div>
     <div id="overlay">
       <div class="title">MMORPG MVP</div>
-      <div>WASD to move · Click to move · E to interact · I for inventory</div>
+      <div>WASD to move · Click to move · E to interact · I for inventory · K for skills · 1-0 for abilities</div>
       <div>Status: <span id="status">connecting...</span></div>
     </div>
     <div id="hud">
+      <div>Level: <span id="hud-level">1</span></div>
+      <div>XP: <span id="hud-xp">0/100</span></div>
       <div>HP: <span id="hud-hp">--</span></div>
       <div>Inv: <span id="hud-inv">0</span></div>
       <div>Coins: <span id="hud-coins">0g 0s 0c</span></div>
       <div>Respawn: <span id="hud-respawn">--</span></div>
       <div>FPS: <span id="fps">0</span></div>
       <div>X/Z: <span id="coords">0.0, 0.0</span></div>
+    </div>
+    <div id="class-modal" class="class-modal">
+      <div class="class-panel">
+        <div class="class-title">Choose Your Class</div>
+        <div class="class-subtitle">Pick a role to begin your journey.</div>
+        <div class="class-grid">
+          <button class="class-option" data-class="guardian">
+            <div class="class-name">Guardian</div>
+            <div class="class-role">Tank</div>
+          </button>
+          <button class="class-option" data-class="fighter">
+            <div class="class-name">Fighter</div>
+            <div class="class-role">Melee DPS</div>
+          </button>
+          <button class="class-option" data-class="ranger">
+            <div class="class-name">Ranger</div>
+            <div class="class-role">Ranged DPS</div>
+          </button>
+          <button class="class-option" data-class="priest">
+            <div class="class-name">Priest</div>
+            <div class="class-role">Healer</div>
+          </button>
+          <button class="class-option" data-class="mage">
+            <div class="class-name">Mage</div>
+            <div class="class-role">Magic DPS</div>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="skills-panel" class="skills-panel">
+      <div class="skills-header">
+        <div class="skills-title">Skills</div>
+        <div class="skills-meta">
+          <div>Class: <span id="skills-class">--</span></div>
+          <div>Level: <span id="skills-level">1</span></div>
+          <div>XP: <span id="skills-xp">0/0</span></div>
+        </div>
+      </div>
+      <div id="skills-list" class="skills-list"></div>
+      <div class="skills-hint">Press K to close</div>
     </div>
     <div id="inventory-panel">
       <div class="inventory-header">
@@ -61,6 +103,7 @@
     <div id="prompt">Press E to harvest</div>
     <div id="event"></div>
     <div id="damage-flash"></div>
+    <div id="ability-bar" class="ability-bar"></div>
     <script type="module" src="./client.js"></script>
   </body>
 </html>

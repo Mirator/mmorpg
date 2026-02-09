@@ -5,6 +5,7 @@ const BASE_RADIUS = 9;
 const OBSTACLE_COUNT = 12;
 const RESOURCE_COUNT = 80;
 const MOB_COUNT = 8;
+const MOB_RESPAWN_MS = 10_000;
 
 const HARVEST_RADIUS = 2.2;
 const RESOURCE_RESPAWN_MS = 15_000;
@@ -120,6 +121,7 @@ export function createWorld() {
     resourceNodes,
     spawnPoints,
     mobCount: MOB_COUNT,
+    mobRespawnMs: MOB_RESPAWN_MS,
     harvestRadius: HARVEST_RADIUS,
     resourceRespawnMs: RESOURCE_RESPAWN_MS,
     playerMaxHp: PLAYER_MAX_HP,

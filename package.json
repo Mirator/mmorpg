@@ -6,15 +6,21 @@
   "scripts": {
     "start": "node server/index.js",
     "test": "vitest run",
-    "test:e2e": "node e2e/playwright-e2e.js"
+    "test:e2e": "node e2e/playwright-e2e.js",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:reset:test": "node scripts/db-reset.js test",
+    "db:reset:e2e": "node scripts/db-reset.js e2e"
   },
   "dependencies": {
+    "@prisma/client": "^5.10.0",
+    "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.1",
     "helmet": "^7.1.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "prisma": "^5.10.0",
     "playwright": "^1.50.1",
     "vitest": "^1.6.0"
   }

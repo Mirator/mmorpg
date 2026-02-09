@@ -285,6 +285,7 @@ export function updateMobs(worldState, mobs) {
   const seen = new Set();
 
   for (const mob of mobs) {
+    if (mob.dead) continue;
     seen.add(mob.id);
     let mesh = worldState.mobMeshes.get(mob.id);
     if (!mesh) {

@@ -1,6 +1,9 @@
 import { formatCurrency } from '/shared/economy.js';
+import { xpToNext } from '/shared/progression.js';
 
 const statusEl = document.getElementById('status');
+const levelEl = document.getElementById('hud-level');
+const xpEl = document.getElementById('hud-xp');
 const hpEl = document.getElementById('hud-hp');
 const invEl = document.getElementById('hud-inv');
 const coinsEl = document.getElementById('hud-coins');
@@ -17,6 +20,8 @@ export function setStatus(text) {
 
 export function updateHud(player, now) {
   if (!player) {
+    if (levelEl) levelEl.textContent = '--';
+    if (xpEl) xpEl.textContent = '--';
     if (hpEl) hpEl.textContent = '--';
     if (invEl) invEl.textContent = '--';
     if (coinsEl) coinsEl.textContent = '--';
@@ -24,6 +29,11 @@ export function updateHud(player, now) {
     return;
   }
 
+  if (levelEl) levelEl.textContent = `${player.level ?? 1}`;
+  if (xpEl) {
+    const needed = player.xpToNext ?? xpToNext(player.level ?? 1);
+    xpEl.textContent = needed ? `${player.xp ?? 0}/${needed}` : 'MAX';
+  }
   if (hpEl) hpEl.textContent = `${player.hp ?? 0}`;
   if (invEl) {
     const inv = player.inv ?? 0;

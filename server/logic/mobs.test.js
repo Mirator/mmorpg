@@ -76,7 +76,7 @@ describe('mobs', () => {
       }
     );
 
-    expect(player.hp).toBe(93);
+    expect(player.hp).toBe(92);
 
     stepMobs(
       [mob],
@@ -93,6 +93,32 @@ describe('mobs', () => {
       }
     );
 
-    expect(player.hp).toBe(93);
+    expect(player.hp).toBe(92);
+  });
+
+  it('respawns dead mobs after respawn timer', () => {
+    const mob = {
+      id: 'm1',
+      pos: { x: 0, y: 0, z: 0 },
+      state: 'dead',
+      targetId: null,
+      nextDecisionAt: 0,
+      dir: { x: 1, z: 0 },
+      attackCooldownUntil: 0,
+      level: 3,
+      hp: 0,
+      maxHp: 44,
+      dead: true,
+      respawnAt: 1000,
+    };
+
+    stepMobs([mob], [], { mapSize: 100, obstacles: [] }, 0.1, 1500, {
+      random: () => 0.5,
+      respawnMs: 1000,
+    });
+
+    expect(mob.dead).toBe(false);
+    expect(mob.hp).toBe(mob.maxHp);
+    expect(mob.state).toBe('idle');
   });
 });

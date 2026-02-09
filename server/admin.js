@@ -1,4 +1,5 @@
 import { worldSnapshot } from './logic/world.js';
+import { xpToNext } from '../shared/progression.js';
 
 export function resolveAdminPassword(env = process.env) {
   return env.ADMIN_PASSWORD ?? '1234';
@@ -13,6 +14,10 @@ export function serializePlayers(players) {
       z: p.pos.z,
       hp: p.hp,
       maxHp: p.maxHp,
+      classId: p.classId ?? null,
+      level: p.level ?? 1,
+      xp: p.xp ?? 0,
+      xpToNext: xpToNext(p.level ?? 1),
       inv: p.inv,
       invCap: p.invCap,
       invSlots: p.invSlots,
@@ -38,6 +43,8 @@ export function serializePlayersPublic(players) {
       inv: p.inv,
       currencyCopper: p.currencyCopper ?? 0,
       dead: p.dead,
+      classId: p.classId ?? null,
+      level: p.level ?? 1,
     };
   }
   return out;
@@ -52,6 +59,11 @@ export function serializePlayerPrivate(player) {
     inventory: player.inventory,
     currencyCopper: player.currencyCopper ?? 0,
     respawnAt: player.respawnAt ?? 0,
+    classId: player.classId ?? null,
+    level: player.level ?? 1,
+    xp: player.xp ?? 0,
+    xpToNext: xpToNext(player.level ?? 1),
+    attackCooldownUntil: player.attackCooldownUntil ?? 0,
   };
 }
 
@@ -72,6 +84,11 @@ export function serializeMobs(mobs) {
     z: m.pos.z,
     state: m.state,
     targetId: m.targetId,
+    level: m.level ?? 1,
+    hp: m.hp ?? 0,
+    maxHp: m.maxHp ?? 0,
+    dead: !!m.dead,
+    respawnAt: m.respawnAt ?? 0,
   }));
 }
 

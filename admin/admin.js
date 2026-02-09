@@ -158,12 +158,16 @@ function renderState(state) {
     .map(([id, player]) =>
     buildRow([
       id,
-      formatNumber(player.x),
-      formatNumber(player.y),
-      formatNumber(player.z),
+      player.classId ?? '--',
+      player.level ?? '--',
+      player.xpToNext
+        ? `${player.xp ?? 0}/${player.xpToNext}`
+        : player.xp ?? '--',
       player.hp ?? '--',
       player.inv ?? '--',
-      player.score ?? '--',
+      player.currencyCopper ?? '--',
+      formatNumber(player.x),
+      formatNumber(player.z),
       player.dead ? 'yes' : 'no',
       player.dead ? formatRespawn(player.respawnAt) : '--',
     ])
@@ -196,10 +200,16 @@ function renderState(state) {
     .map((mob) =>
     buildRow([
       mob.id ?? '--',
+      mob.level ?? '--',
+      mob.maxHp
+        ? `${mob.hp ?? 0}/${mob.maxHp}`
+        : mob.hp ?? '--',
       formatNumber(mob.x),
       formatNumber(mob.z),
       mob.state ?? '--',
       mob.targetId ?? '--',
+      mob.dead ? 'yes' : 'no',
+      mob.dead ? formatRespawn(mob.respawnAt) : '--',
     ])
     );
   replaceTableBody(mobsBody, mobRows);
