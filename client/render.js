@@ -8,8 +8,23 @@ export function createRenderSystem({ app }) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b0f14);
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  } catch (err) {
+    console.error('WebGL unavailable, falling back to canvas renderer.', err);
+    const canvas = document.createElement('canvas');
+    renderer = {
+      domElement: canvas,
+      setPixelRatio: () => {},
+      setSize: (width, height) => {
+        canvas.width = width;
+        canvas.height = height;
+      },
+      render: () => {},
+    };
+  }
   app.appendChild(renderer.domElement);
 
   const cameraOffset = new THREE.Vector3(20, 20, 20);

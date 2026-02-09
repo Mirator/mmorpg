@@ -19,10 +19,10 @@ export function createInputHandler({
   renderer,
   camera,
   isUiBlocking,
+  isMenuOpen,
   isDialogOpen,
   isTradeOpen,
   isInventoryOpen,
-  isClassModalOpen,
   isSkillsOpen,
   onToggleInventory,
   onToggleSkills,
@@ -79,6 +79,9 @@ export function createInputHandler({
       handler();
       return;
     }
+    if (isMenuOpen?.()) {
+      return;
+    }
     if (key === 'i' && !event.repeat) {
       onToggleInventory?.();
       return;
@@ -107,6 +110,7 @@ export function createInputHandler({
   });
 
   window.addEventListener('keyup', (event) => {
+    if (isMenuOpen?.()) return;
     if (isUiBlocking()) return;
     handleKey(event, false);
   });

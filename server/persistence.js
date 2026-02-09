@@ -33,7 +33,7 @@ export function createPersistence({
   async function persistPlayer(player, now = Date.now()) {
     if (!player || player.isGuest) return;
     const state = serializePlayerState(player);
-    await savePlayer(player.persistId ?? player.id, state, new Date(now));
+    await savePlayer(player, state, new Date(now));
     player.dirty = false;
     player.lastPersistedAt = now;
     player.lastPersistedPos = { x: player.pos?.x ?? 0, z: player.pos?.z ?? 0 };

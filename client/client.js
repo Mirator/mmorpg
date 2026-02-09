@@ -3,6 +3,7 @@ import { createGameState } from './state.js';
 import { createNet } from './net.js';
 import { createInputHandler } from './input.js';
 import { createUiState } from './ui-state.js';
+import { createMenu } from './menu.js';
 import { getAbilitiesForClass } from '/shared/classes.js';
 import { splitCurrency } from '/shared/economy.js';
 import { xpToNext } from '/shared/progression.js';
@@ -11,6 +12,9 @@ import { PLAYER_CONFIG } from '/shared/config.js';
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
 const coordsEl = document.getElementById('coords');
+const accountNameEl = document.getElementById('account-name');
+const characterNameEl = document.getElementById('character-name');
+const signOutBtn = document.getElementById('signout-btn');
 
 const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
@@ -30,12 +34,14 @@ let playerId = null;
 let currentMe = null;
 let nearestVendor = null;
 let inVendorRange = false;
+let closingNet = null;
+let inputHandler = null;
+
+const AUTH_TOKEN_KEY = 'mmorpg_auth_token';
+const ACCOUNT_KEY = 'mmorpg_account';
+const LAST_CHARACTER_PREFIX = 'mmorpg_last_character_';
 
 const ui = createUiState({
-  onClassSelect: (classId) => {
-    seq += 1;
-    net?.send({ type: 'classSelect', classId, seq });
-  },
   onInventorySwap: (from, to) => {
     seq += 1;
     net?.send({ type: 'inventorySwap', from, to, seq });
@@ -52,55 +58,372 @@ const ui = createUiState({
   },
 });
 
-const PLAYER_STORAGE_KEY = 'mmorpg_player_id';
+const menu = createMenu({
+  onSignIn: handleSignIn,
+  onSignUp: handleSignUp,
+  onSelectCharacter: connectCharacter,
+  onCreateCharacter: handleCreateCharacter,
+  onDeleteCharacter: handleDeleteCharacter,
+  onSignOut: handleSignOut,
+});
+
 const urlParams = new URLSearchParams(window.location.search);
 const isGuestSession = urlParams.get('guest') === '1';
-const playerStorage = isGuestSession ? sessionStorage : localStorage;
 
-function isValidPlayerId(value) {
-  return typeof value === 'string' && /^[a-zA-Z0-9._-]{1,64}$/.test(value);
+let authToken = loadAuthToken();
+let currentAccount = null;
+let currentCharacter = null;
+let lastCharacterId = null;
+
+function loadAuthToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
-function createPlayerId() {
-  if (crypto?.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `p-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
-}
-
-function loadPlayerId() {
-  const stored = playerStorage.getItem(PLAYER_STORAGE_KEY);
-  if (isValidPlayerId(stored)) {
-    return stored;
-  }
-  const fresh = createPlayerId();
-  playerStorage.setItem(PLAYER_STORAGE_KEY, fresh);
-  return fresh;
-}
-
-function savePlayerId(id) {
-  if (isValidPlayerId(id)) {
-    playerStorage.setItem(PLAYER_STORAGE_KEY, id);
+function saveAuthToken(token) {
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
   }
 }
 
-function getNearestVendor(pos) {
-  const worldConfig = gameState.getWorldConfig();
-  if (!pos || !Array.isArray(worldConfig?.vendors)) {
-    return { vendor: null, distance: Infinity };
-  }
-  let bestVendor = null;
-  let bestDist = Infinity;
-  for (const vendor of worldConfig.vendors) {
-    const dx = vendor.x - pos.x;
-    const dz = vendor.z - pos.z;
-    const dist = Math.hypot(dx, dz);
-    if (dist < bestDist) {
-      bestDist = dist;
-      bestVendor = vendor;
+function clearAuthToken() {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+function loadStoredAccount() {
+  const raw = localStorage.getItem(ACCOUNT_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.id === 'string') {
+      return parsed;
     }
+  } catch {
+    return null;
   }
-  return { vendor: bestVendor, distance: bestDist };
+  return null;
+}
+
+function saveStoredAccount(account) {
+  if (!account || typeof account.id !== 'string') return;
+  localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
+}
+
+function clearStoredAccount() {
+  localStorage.removeItem(ACCOUNT_KEY);
+}
+
+function getLastCharacterKey() {
+  return currentAccount?.id ? `${LAST_CHARACTER_PREFIX}${currentAccount.id}` : null;
+}
+
+function loadLastCharacterId() {
+  const key = getLastCharacterKey();
+  if (!key) return null;
+  return localStorage.getItem(key);
+}
+
+function saveLastCharacterId(id) {
+  const key = getLastCharacterKey();
+  if (!key) return;
+  if (id) {
+    localStorage.setItem(key, id);
+  }
+}
+
+function clearLastCharacterId() {
+  const key = getLastCharacterKey();
+  if (!key) return;
+  localStorage.removeItem(key);
+}
+
+function updateOverlayLabels() {
+  if (accountNameEl) {
+    accountNameEl.textContent = currentAccount?.username ?? '--';
+  }
+  if (characterNameEl) {
+    characterNameEl.textContent = currentCharacter?.name ?? '--';
+  }
+}
+
+function clearSessionState() {
+  currentAccount = null;
+  currentCharacter = null;
+  updateOverlayLabels();
+}
+
+async function apiFetch(path, { method = 'GET', body, token } = {}) {
+  const headers = {};
+  if (body) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const res = await fetch(path, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let payload = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+  if (!res.ok) {
+    throw new Error(payload?.error || 'Request failed');
+  }
+  return payload;
+}
+
+async function loadCharacters() {
+  if (!authToken) return;
+  const data = await apiFetch('/api/characters', { token: authToken });
+  menu.setCharacters(data.characters ?? []);
+  lastCharacterId = loadLastCharacterId();
+  menu.setSelectedCharacterId(lastCharacterId);
+  menu.setStep('characters');
+  menu.setOpen(true);
+  ui.setMenuOpen(true);
+  updateOverlayLabels();
+}
+
+async function handleSignIn({ username, password }) {
+  menu.setLoading(true);
+  menu.setError('auth', '');
+  try {
+    const data = await apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: { username, password },
+    });
+    authToken = data.token;
+    saveAuthToken(authToken);
+    currentAccount = data.account ?? null;
+    saveStoredAccount(currentAccount);
+    menu.setAccount(currentAccount);
+    await loadCharacters();
+  } catch (err) {
+    menu.setError('auth', err.message || 'Unable to sign in.');
+  } finally {
+    menu.setLoading(false);
+  }
+}
+
+async function handleSignUp({ username, password }) {
+  menu.setLoading(true);
+  menu.setError('auth', '');
+  try {
+    const data = await apiFetch('/api/auth/signup', {
+      method: 'POST',
+      body: { username, password },
+    });
+    authToken = data.token;
+    saveAuthToken(authToken);
+    currentAccount = data.account ?? null;
+    saveStoredAccount(currentAccount);
+    menu.setAccount(currentAccount);
+    await loadCharacters();
+  } catch (err) {
+    menu.setError('auth', err.message || 'Unable to create account.');
+  } finally {
+    menu.setLoading(false);
+  }
+}
+
+async function handleCreateCharacter({ name, classId }) {
+  if (!authToken) return;
+  menu.setLoading(true);
+  menu.setError('create', '');
+  try {
+    const data = await apiFetch('/api/characters', {
+      method: 'POST',
+      token: authToken,
+      body: { name, classId },
+    });
+    const character = data.character;
+    if (character) {
+      await loadCharacters();
+      await connectCharacter(character);
+      return;
+    }
+    menu.setError('create', 'Unable to create character.');
+  } catch (err) {
+    menu.setError('create', err.message || 'Unable to create character.');
+  } finally {
+    menu.setLoading(false);
+  }
+}
+
+async function handleSignOut() {
+  menu.setLoading(true);
+  try {
+    if (authToken) {
+      await apiFetch('/api/auth/logout', { method: 'POST', token: authToken });
+    }
+  } catch {
+    // ignore
+  }
+  clearAuthToken();
+  clearStoredAccount();
+  authToken = null;
+  lastCharacterId = null;
+  clearSessionState();
+  disconnect();
+  menu.setAccount(null);
+  menu.setCharacters([]);
+  menu.setStep('auth');
+  menu.setTab('signin');
+  menu.setOpen(true);
+  ui.setMenuOpen(true);
+  ui.setStatus('menu');
+  menu.setLoading(false);
+}
+
+async function handleDeleteCharacter(character) {
+  if (!authToken || !character?.id) return;
+  const confirmDelete = window.confirm(`Delete ${character.name ?? 'this character'}? This cannot be undone.`);
+  if (!confirmDelete) return;
+  menu.setLoading(true);
+  menu.setError('characters', '');
+  try {
+    await apiFetch(`/api/characters/${character.id}`, { method: 'DELETE', token: authToken });
+    if (lastCharacterId === character.id) {
+      clearLastCharacterId();
+      lastCharacterId = null;
+      menu.setSelectedCharacterId(null);
+    }
+    await loadCharacters();
+  } catch (err) {
+    menu.setError('characters', err.message || 'Unable to delete character.');
+  } finally {
+    menu.setLoading(false);
+  }
+}
+
+async function connectCharacter(character) {
+  if (!authToken || !character?.id) return;
+  menu.setLoading(true);
+  menu.setError('characters', '');
+  try {
+    saveLastCharacterId(character.id);
+    lastCharacterId = character.id;
+    menu.setSelectedCharacterId(character.id);
+    await startConnection({ character });
+    menu.setOpen(false);
+    ui.setMenuOpen(false);
+  } catch (err) {
+    menu.setError('characters', err.message || 'Unable to connect.');
+    ui.setMenuOpen(true);
+  } finally {
+    menu.setLoading(false);
+  }
+}
+
+function buildWsUrl({ character, guest }) {
+  const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  const wsUrl = new URL(`${wsProtocol}://${location.host}`);
+  if (guest) {
+    wsUrl.searchParams.set('guest', '1');
+  } else if (character) {
+    wsUrl.searchParams.set('token', authToken ?? '');
+    wsUrl.searchParams.set('characterId', character.id);
+  }
+  return wsUrl.toString();
+}
+
+function resetClientState() {
+  gameState.reset();
+  renderSystem.syncPlayers([]);
+  renderSystem.setLocalPlayerId(null);
+  currentMe = null;
+  playerId = null;
+  ui.updateLocalUi({ me: null, worldConfig: null, serverNow: Date.now() });
+}
+
+function disconnect() {
+  if (net) {
+    closingNet = net;
+    net.close();
+    net = null;
+  }
+  resetClientState();
+}
+
+function startConnection({ character, guest = false }) {
+  return new Promise((resolve, reject) => {
+    disconnect();
+    seq = 0;
+    if (character) {
+      currentCharacter = character;
+    }
+    updateOverlayLabels();
+
+    const url = buildWsUrl({ character, guest });
+    let resolved = false;
+
+    const localNet = createNet({
+      url,
+      onOpen: () => {
+        ui.setStatus('connected');
+        localNet.send({ type: 'hello' });
+      },
+      onClose: () => {
+        ui.setStatus('disconnected');
+        if (!resolved) {
+          resolved = true;
+          reject(new Error('Connection closed.'));
+        }
+        if (closingNet === localNet) {
+          closingNet = null;
+          return;
+        }
+        if (!guest) {
+          menu.setOpen(true);
+          ui.setMenuOpen(true);
+          if (authToken) {
+            loadCharacters().catch(() => {});
+          } else {
+            menu.setStep('auth');
+          }
+        }
+      },
+      onMessage: (msg) => {
+        const now = manualStepping ? virtualNow : performance.now();
+        if (msg.type === 'welcome') {
+          const id = msg.id;
+          if (id && id !== playerId) {
+            playerId = id;
+          }
+          gameState.setLocalPlayerId(id);
+          renderSystem.setLocalPlayerId(id);
+          if (msg.config) {
+            gameState.setConfigSnapshot(msg.config);
+          }
+          if (msg.snapshot) {
+            handleStateMessage(msg.snapshot, now);
+          }
+          if (!resolved) {
+            resolved = true;
+            resolve();
+          }
+          return;
+        }
+
+        if (msg.type === 'state') {
+          handleStateMessage(msg, now);
+        }
+
+        if (msg.type === 'me') {
+          if (Number.isFinite(msg.t)) {
+            gameState.updateServerTime(msg.t);
+          }
+          gameState.updateMe(msg.data ?? null);
+          updateLocalUi();
+        }
+      },
+    });
+    net = localNet;
+  });
 }
 
 function sendInput(keys) {
@@ -139,8 +462,6 @@ function useAbility(slot) {
   seq += 1;
   net?.send({ type: 'action', kind: 'ability', slot, seq });
 }
-
-let inputHandler = null;
 
 function handleInteract() {
   if (ui.isTradeOpen()) return;
@@ -202,69 +523,14 @@ function updateLocalUi() {
   ui.updateLocalUi({ me, worldConfig: gameState.getWorldConfig(), serverNow });
 }
 
-playerId = loadPlayerId();
-const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-const wsUrl = new URL(`${wsProtocol}://${location.host}`);
-wsUrl.searchParams.set('playerId', playerId);
-if (isGuestSession) {
-  wsUrl.searchParams.set('guest', '1');
-}
-
-net = createNet({
-  url: wsUrl.toString(),
-  onOpen: () => {
-    ui.setStatus('connected');
-    net.send({ type: 'hello' });
-    const selected = ui.getSelectedClassId();
-    if (selected) {
-      seq += 1;
-      net.send({ type: 'classSelect', classId: selected, seq });
-    }
-  },
-  onClose: () => {
-    ui.setStatus('disconnected');
-  },
-  onMessage: (msg) => {
-    const now = manualStepping ? virtualNow : performance.now();
-    if (msg.type === 'welcome') {
-      const id = msg.id;
-      if (id && id !== playerId) {
-        playerId = id;
-        savePlayerId(id);
-      }
-      gameState.setLocalPlayerId(id);
-      renderSystem.setLocalPlayerId(id);
-      if (msg.config) {
-        gameState.setConfigSnapshot(msg.config);
-      }
-      if (msg.snapshot) {
-        handleStateMessage(msg.snapshot, now);
-      }
-      return;
-    }
-
-    if (msg.type === 'state') {
-      handleStateMessage(msg, now);
-    }
-
-    if (msg.type === 'me') {
-      if (Number.isFinite(msg.t)) {
-        gameState.updateServerTime(msg.t);
-      }
-      gameState.updateMe(msg.data ?? null);
-      updateLocalUi();
-    }
-  },
-});
-
 inputHandler = createInputHandler({
   renderer: renderSystem.renderer,
   camera: renderSystem.camera,
   isUiBlocking: ui.isUiBlocking,
+  isMenuOpen: ui.isMenuOpen,
   isDialogOpen: ui.isDialogOpen,
   isTradeOpen: ui.isTradeOpen,
   isInventoryOpen: ui.isInventoryOpen,
-  isClassModalOpen: ui.isClassModalOpen,
   isSkillsOpen: ui.isSkillsOpen,
   onToggleInventory: ui.toggleInventory,
   onToggleSkills: ui.toggleSkills,
@@ -429,8 +695,15 @@ function buildTextState() {
     me?.invSlots ?? worldConfig?.playerInvSlots ?? inventorySlots.length;
   const inventoryStackMax =
     me?.invStackMax ?? worldConfig?.playerInvStackMax ?? 0;
+  const menuState = menu.getState();
+
   return {
-    mode: 'play',
+    mode: ui.isMenuOpen() ? 'menu' : 'play',
+    menu: {
+      ...menuState,
+      account: currentAccount?.username ?? null,
+      character: currentCharacter?.name ?? null,
+    },
     coordSystem: {
       origin: 'map center',
       axes: { x: 'right', z: 'down', y: 'up' },
@@ -444,7 +717,7 @@ function buildTextState() {
       vendorInteractRadius: worldConfig?.vendorInteractRadius ?? 2.5,
       obstacles: obstacles.map((o) => ({ x: o.x, z: o.z, r: o.r })),
     },
-    serverTime: gameState.getLastServerTimestamp(),
+    serverTime: gameState.getServerNow(),
     player: me
       ? {
           id: playerId,
@@ -467,10 +740,6 @@ function buildTextState() {
           respawnAt: me.respawnAt ?? 0,
         }
       : null,
-    classSelection: {
-      open: ui.isClassModalOpen(),
-      selectedClassId: ui.getSelectedClassId() ?? null,
-    },
     skills: {
       open: ui.isSkillsOpen(),
     },
@@ -544,3 +813,52 @@ window.__game = {
   },
   getState: () => buildTextState(),
 };
+
+function getNearestVendor(pos) {
+  const worldConfig = gameState.getWorldConfig();
+  if (!pos || !Array.isArray(worldConfig?.vendors)) {
+    return { vendor: null, distance: Infinity };
+  }
+  let bestVendor = null;
+  let bestDist = Infinity;
+  for (const vendor of worldConfig.vendors) {
+    const dx = vendor.x - pos.x;
+    const dz = vendor.z - pos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestVendor = vendor;
+    }
+  }
+  return { vendor: bestVendor, distance: bestDist };
+}
+
+if (signOutBtn) {
+  signOutBtn.addEventListener('click', () => {
+    handleSignOut();
+  });
+}
+
+if (isGuestSession) {
+  ui.setMenuOpen(false);
+  menu.setOpen(false);
+  currentAccount = { username: 'Guest' };
+  currentCharacter = { name: 'Guest' };
+  updateOverlayLabels();
+  startConnection({ guest: true }).catch(() => {});
+} else if (authToken) {
+  currentAccount = loadStoredAccount();
+  menu.setAccount(currentAccount);
+  ui.setMenuOpen(true);
+  menu.setOpen(true);
+  loadCharacters().catch(() => {
+    clearAuthToken();
+    clearStoredAccount();
+    authToken = null;
+    menu.setStep('auth');
+  });
+} else {
+  ui.setMenuOpen(true);
+  menu.setOpen(true);
+  ui.setStatus('menu');
+}

@@ -9,9 +9,41 @@ datasource db {
 
 model Player {
   id           String   @id
+  accountId    String?
+  name         String
+  nameLower    String   @unique
   state        Json
   stateVersion Int      @default(1)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @default(now()) @updatedAt
   lastSeenAt   DateTime?
+
+  account      Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([accountId])
+}
+
+model Account {
+  id            String   @id
+  username      String   @unique
+  usernameLower String   @unique
+  passwordHash  String
+  passwordSalt  String
+  createdAt     DateTime @default(now())
+  lastSeenAt    DateTime?
+
+  sessions      Session[]
+  players       Player[]
+}
+
+model Session {
+  id         String   @id
+  accountId  String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime?
+
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
 }

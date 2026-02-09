@@ -11,6 +11,8 @@ import { serializePlayerState } from './db/playerState.js';
 import { savePlayer } from './db/playerRepo.js';
 import { disconnectPrisma } from './db/client.js';
 import { getServerConfig } from './config.js';
+import { seedDevAccount } from './devSeed.js';
+import { autoMigrateDev } from './devMigrate.js';
 
 export function createServer({ env = process.env } = {}) {
   const config = getServerConfig(env);
@@ -56,7 +58,7 @@ export function createServer({ env = process.env } = {}) {
     });
   }
 
-  const app = createHttpApp({ config, world, players, resources, mobs });
+  const app = createHttpApp({ config, world, players, resources, mobs, spawner });
   const server = http.createServer(app);
 
   const persistence = createPersistence({
@@ -90,6 +92,10 @@ export function createServer({ env = process.env } = {}) {
   });
 
   function start() {
+    autoMigrateDev({ env, config });
+    seedDevAccount({ env, config }).catch((err) => {
+      console.warn('[dev] Failed to seed default account:', err);
+    });
     ws.startHeartbeat();
     ws.startBroadcast();
     persistence.startPersistenceLoop();

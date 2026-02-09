@@ -157,6 +157,20 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     renderInterpolatedPlayers,
     updateLocalPrediction,
     resetPrediction,
+    reset: () => {
+      snapshots.length = 0;
+      latestPlayers = {};
+      latestMe = null;
+      latestResources = [];
+      latestMobs = [];
+      worldConfig = null;
+      configSnapshot = null;
+      myId = null;
+      predictedLocalPos = null;
+      serverTimeOffsetMs = 0;
+      hasServerTime = false;
+      lastServerTimestamp = null;
+    },
     getLatestPlayers: () => latestPlayers,
     getLatestResources: () => latestResources,
     getLatestMobs: () => latestMobs,

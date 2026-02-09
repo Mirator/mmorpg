@@ -4,14 +4,88 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MMORPG MVP</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <div id="app"></div>
+    <div id="menu" class="menu open" data-step="auth" data-tab="signin">
+      <div class="menu-card menu-auth">
+        <div class="menu-brand">MMORPG MVP</div>
+        <div class="menu-subtitle">Sign in to continue your journey.</div>
+        <div class="menu-tabs">
+          <button class="menu-tab active" data-tab="signin">Sign In</button>
+          <button class="menu-tab" data-tab="signup">Create Account</button>
+        </div>
+        <form id="signin-form" class="menu-form">
+          <label class="menu-label" for="signin-username">Username</label>
+          <input id="signin-username" name="username" type="text" autocomplete="username" required />
+          <label class="menu-label" for="signin-password">Password</label>
+          <input
+            id="signin-password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+          <button type="submit" class="menu-primary">Sign In</button>
+        </form>
+        <form id="signup-form" class="menu-form hidden">
+          <label class="menu-label" for="signup-username">Username</label>
+          <input id="signup-username" name="username" type="text" autocomplete="username" required />
+          <label class="menu-label" for="signup-password">Password</label>
+          <input
+            id="signup-password"
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            required
+          />
+          <button type="submit" class="menu-primary">Create Account</button>
+        </form>
+        <div id="menu-auth-error" class="menu-error"></div>
+      </div>
+      <div class="menu-card menu-characters">
+        <div class="menu-brand small">Welcome back</div>
+        <div id="menu-account" class="menu-subtitle">Account: --</div>
+        <div id="menu-last-character" class="menu-subtitle">Last played: --</div>
+        <div class="menu-title">Choose Character</div>
+        <div id="character-list" class="character-list"></div>
+        <div class="menu-actions">
+          <button id="character-create-open" class="menu-secondary">Create Character</button>
+          <button id="menu-signout" class="menu-ghost">Sign Out</button>
+        </div>
+        <div id="menu-characters-error" class="menu-error"></div>
+      </div>
+      <div class="menu-card menu-create">
+        <div class="menu-brand small">Create Character</div>
+        <form id="character-create-form" class="menu-form">
+          <label class="menu-label" for="character-name">Name</label>
+          <input id="character-name" name="name" type="text" required />
+          <label class="menu-label" for="character-class">Class</label>
+          <select id="character-class" name="classId" required>
+            <option value="guardian">Guardian (Tank)</option>
+            <option value="fighter" selected>Fighter (Melee DPS)</option>
+            <option value="ranger">Ranger (Ranged DPS)</option>
+            <option value="priest">Priest (Healer)</option>
+            <option value="mage">Mage (Magic DPS)</option>
+          </select>
+          <div class="menu-actions">
+            <button type="button" id="character-create-cancel" class="menu-ghost">Back</button>
+            <button type="submit" class="menu-primary">Create</button>
+          </div>
+        </form>
+        <div id="menu-create-error" class="menu-error"></div>
+      </div>
+    </div>
     <div id="overlay">
       <div class="title">MMORPG MVP</div>
       <div>WASD to move · Click to move · E to interact · I for inventory · K for skills · 1-0 for abilities</div>
       <div>Status: <span id="status">connecting...</span></div>
+      <div class="overlay-row">
+        Account: <span id="account-name">--</span> · Character: <span id="character-name">--</span>
+      </div>
+      <button id="signout-btn" class="overlay-btn">Sign out</button>
     </div>
     <div id="hud">
       <div>Level: <span id="hud-level">1</span></div>
@@ -22,34 +96,6 @@
       <div>Respawn: <span id="hud-respawn">--</span></div>
       <div>FPS: <span id="fps">0</span></div>
       <div>X/Z: <span id="coords">0.0, 0.0</span></div>
-    </div>
-    <div id="class-modal" class="class-modal">
-      <div class="class-panel">
-        <div class="class-title">Choose Your Class</div>
-        <div class="class-subtitle">Pick a role to begin your journey.</div>
-        <div class="class-grid">
-          <button class="class-option" data-class="guardian">
-            <div class="class-name">Guardian</div>
-            <div class="class-role">Tank</div>
-          </button>
-          <button class="class-option" data-class="fighter">
-            <div class="class-name">Fighter</div>
-            <div class="class-role">Melee DPS</div>
-          </button>
-          <button class="class-option" data-class="ranger">
-            <div class="class-name">Ranger</div>
-            <div class="class-role">Ranged DPS</div>
-          </button>
-          <button class="class-option" data-class="priest">
-            <div class="class-name">Priest</div>
-            <div class="class-role">Healer</div>
-          </button>
-          <button class="class-option" data-class="mage">
-            <div class="class-name">Mage</div>
-            <div class="class-role">Magic DPS</div>
-          </button>
-        </div>
-      </div>
     </div>
     <div id="skills-panel" class="skills-panel">
       <div class="skills-header">

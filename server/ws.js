@@ -12,13 +12,12 @@ import {
 import { worldSnapshot } from './logic/world.js';
 import { tryHarvest } from './logic/resources.js';
 import { tryBasicAttack } from './logic/combat.js';
-import {
-  countInventory,
-  createInventory,
-  swapInventorySlots,
-} from './logic/inventory.js';
-import { loadPlayer, createPlayer, savePlayer } from './db/playerRepo.js';
+import { countInventory, swapInventorySlots } from './logic/inventory.js';
+import { loadPlayer, savePlayer } from './db/playerRepo.js';
 import { hydratePlayerState, migratePlayerState, serializePlayerState } from './db/playerState.js';
+import { createBasePlayerState } from './logic/players.js';
+import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
+import { updateAccountLastSeen } from './db/accountRepo.js';
 
 function safeSend(ws, msg) {
   if (ws.readyState !== ws.OPEN) return;
@@ -67,7 +66,7 @@ function createMessageLimiter(max, intervalMs) {
   };
 }
 
-function normalizePlayerId(raw) {
+function normalizeId(raw) {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
   if (!trimmed || trimmed.length > 64) return null;
@@ -85,11 +84,12 @@ function generatePlayerId() {
 function parseConnectionParams(req) {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    const playerId = normalizePlayerId(url.searchParams.get('playerId'));
+    const token = normalizeId(url.searchParams.get('token'));
+    const characterId = normalizeId(url.searchParams.get('characterId'));
     const guest = url.searchParams.get('guest') === '1';
-    return { playerId, guest };
+    return { token, characterId, guest };
   } catch {
-    return { playerId: null, guest: false };
+    return { token: null, characterId: null, guest: false };
   }
 }
 
@@ -214,22 +214,67 @@ export function createWebSocketServer({
     });
 
     (async () => {
-      const { playerId: requestedId, guest } = parseConnectionParams(req);
-      const id = requestedId ?? generatePlayerId();
-      playerId = id;
+      const { token, characterId, guest } = parseConnectionParams(req);
       const spawn = spawner.getSpawnPoint();
 
       let stored = null;
+      let account = null;
+      let id = null;
+
       if (!guest) {
+        if (!token || !characterId) {
+          ws.close(1008, 'Auth required');
+          cleanupConnection();
+          return;
+        }
+
+        let session;
         try {
-          stored = await loadPlayer(id);
+          session = await getSessionWithAccount(token);
+        } catch (err) {
+          console.error('Failed to load session:', err);
+          ws.close(1011, 'Auth unavailable');
+          cleanupConnection();
+          return;
+        }
+
+        if (!session || !session.account) {
+          ws.close(1008, 'Unauthorized');
+          cleanupConnection();
+          return;
+        }
+
+        const now = new Date();
+        if (session.expiresAt && session.expiresAt <= now) {
+          ws.close(1008, 'Session expired');
+          cleanupConnection();
+          return;
+        }
+
+        account = session.account;
+        try {
+          stored = await loadPlayer(characterId);
         } catch (err) {
           console.error('Failed to load player from DB:', err);
           ws.close(1011, 'DB unavailable');
           cleanupConnection();
           return;
         }
+
+        if (!stored || stored.accountId !== account.id) {
+          ws.close(1008, 'Character not found');
+          cleanupConnection();
+          return;
+        }
+
+        id = stored.id;
+        touchSession(token, now).catch(() => {});
+        updateAccountLastSeen(account.id, now).catch(() => {});
+      } else {
+        id = generatePlayerId();
       }
+
+      playerId = id;
 
       let basePlayer;
       if (stored?.state) {
@@ -256,44 +301,48 @@ export function createWebSocketServer({
           level: hydrated.level,
           xp: hydrated.xp,
           attackCooldownUntil: 0,
+          accountId: stored.accountId ?? null,
+          name: stored.name ?? null,
+          nameLower: stored.nameLower ?? null,
         };
 
         if (!guest && migrated.didUpgrade) {
           const upgradedState = serializePlayerState(basePlayer);
-          savePlayer(id, upgradedState, new Date()).catch((err) => {
+          savePlayer(basePlayer, upgradedState, new Date()).catch((err) => {
             console.error('Failed to persist migrated player state:', err);
           });
         }
       } else {
+        const baseState = createBasePlayerState({
+          world,
+          spawn,
+          classId: DEFAULT_CLASS_ID,
+        });
         basePlayer = {
           id,
           ws,
-          pos: { x: spawn.x, y: 0, z: spawn.z },
+          pos: baseState.pos,
           target: null,
           keys: { w: false, a: false, s: false, d: false },
           lastInputSeq: 0,
-          hp: world.playerMaxHp,
-          maxHp: world.playerMaxHp,
-          inv: 0,
-          invCap: world.playerInvCap,
-          invSlots: world.playerInvSlots,
-          invStackMax: world.playerInvStackMax,
-          inventory: createInventory(world.playerInvSlots),
-          currencyCopper: 0,
+          hp: baseState.hp,
+          maxHp: baseState.maxHp,
+          inv: baseState.inv,
+          invCap: baseState.invCap,
+          invSlots: baseState.invSlots,
+          invStackMax: baseState.invStackMax,
+          inventory: baseState.inventory,
+          currencyCopper: baseState.currencyCopper,
           dead: false,
           respawnAt: 0,
-          classId: DEFAULT_CLASS_ID,
-          level: 1,
-          xp: 0,
+          classId: baseState.classId,
+          level: baseState.level,
+          xp: baseState.xp,
           attackCooldownUntil: 0,
+          accountId: account?.id ?? null,
+          name: stored?.name ?? null,
+          nameLower: stored?.nameLower ?? null,
         };
-        if (!guest) {
-          try {
-            await createPlayer(id, serializePlayerState(basePlayer), new Date());
-          } catch (err) {
-            console.error('Failed to create player record:', err);
-          }
-        }
       }
 
       const existing = players.get(id);
@@ -307,6 +356,9 @@ export function createWebSocketServer({
 
       basePlayer.isGuest = guest;
       basePlayer.persistId = id;
+      basePlayer.persistAccountId = basePlayer.accountId ?? null;
+      basePlayer.persistName = basePlayer.name ?? null;
+      basePlayer.persistNameLower = basePlayer.nameLower ?? null;
       persistence.initPlayerPersistence(basePlayer, Date.now());
       basePlayer.connectionId = generatePlayerId();
 

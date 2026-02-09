@@ -178,19 +178,51 @@ async function run() {
     });
 
     const consoleErrors = [];
-    page.on('pageerror', (err) => consoleErrors.push(String(err)));
+    const ignoredErrorSnippets = [
+      'WebGLRenderer: A WebGL context could not be created',
+      'WebGLRenderer: Error creating WebGL context',
+      'WebGL unavailable, falling back to canvas renderer.',
+    ];
+    const shouldIgnoreError = (text) =>
+      ignoredErrorSnippets.some((snippet) => text.includes(snippet));
+
+    page.on('pageerror', (err) => {
+      const text = String(err);
+      if (!shouldIgnoreError(text)) {
+        consoleErrors.push(text);
+      }
+    });
     page.on('console', (msg) => {
-      if (msg.type() === 'error') consoleErrors.push(msg.text());
+      if (msg.type() !== 'error') return;
+      const text = msg.text();
+      if (!shouldIgnoreError(text)) {
+        consoleErrors.push(text);
+      }
     });
 
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(500);
     await page.waitForFunction(() => window.__game && typeof window.__game.moveTo === 'function');
+    const suffix = Date.now().toString(36);
+    const username = `tester_${suffix}`;
+    const password = 'password123';
+    const characterName = `Hero ${suffix}`;
 
-    await page.waitForSelector('#class-modal.open');
-    await page.click('.class-option[data-class="fighter"]');
+    await page.waitForSelector('#menu.open');
+    await page.click('.menu-tab[data-tab=\"signup\"]');
+    await page.fill('#signup-username', username);
+    await page.fill('#signup-password', password);
+    await page.click('#signup-form button[type=\"submit\"]');
+
+    await page.waitForSelector('#menu[data-step=\"characters\"]');
+    await page.click('#character-create-open');
+    await page.waitForSelector('#menu[data-step=\"create\"]');
+    await page.fill('#character-name', characterName);
+    await page.selectOption('#character-class', 'fighter');
+    await page.click('#character-create-form button[type=\"submit\"]');
+
     await page.waitForFunction(
-      () => !document.querySelector('#class-modal')?.classList.contains('open')
+      () => !document.querySelector('#menu')?.classList.contains('open')
     );
 
     await page.waitForSelector('#ability-bar .ability-slot');
@@ -239,12 +271,13 @@ async function run() {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(500);
     await page.waitForFunction(() => window.__game && typeof window.__game.moveTo === 'function');
-    const modalOpen = await page.evaluate(
-      () => document.querySelector('#class-modal')?.classList.contains('open')
+    await page.waitForSelector('#menu.open');
+    await page.waitForSelector('#menu[data-step=\"characters\"]');
+    const playButtons = page.locator('.character-row button');
+    await playButtons.first().click();
+    await page.waitForFunction(
+      () => !document.querySelector('#menu')?.classList.contains('open')
     );
-    if (modalOpen) {
-      throw new Error('Class selection modal re-opened after reload');
-    }
     state = await waitForCondition(
       page,
       (s) => s.player && s.resources?.length > 0 && s.mobs?.length > 0,
@@ -536,16 +569,40 @@ async function run() {
       throw new Error('No mob available for damage test');
     }
     const hpBefore = state.player.hp;
-    await page.evaluate(
-      ({ x, z }) => window.__game?.moveTo(x, z),
-      { x: mobDamageTarget.x, z: mobDamageTarget.z }
-    );
-    state = await waitForCondition(
-      page,
-      (s) => s.player && s.player.hp < hpBefore,
-      TEST_TIMEOUT_MS,
-      'mob damage'
-    );
+    const damageStart = Date.now();
+    const damageTimeoutMs = Math.max(TEST_TIMEOUT_MS, 30000);
+    let damagedState = null;
+    while (Date.now() - damageStart < damageTimeoutMs) {
+      const current = await getState(page);
+      if (!current.player) break;
+      const liveMobsNow = current.mobs.filter((m) => !m.dead);
+      if (liveMobsNow.length === 0) break;
+      const obstaclesNow = current.world?.obstacles ?? [];
+      const losNow = liveMobsNow.filter((m) => hasLineOfSight(current.player, m, obstaclesNow));
+      const candidatesNow = losNow.length ? losNow : liveMobsNow;
+      const mob = candidatesNow.reduce((closest, next) => {
+        if (!closest) return next;
+        return distance(current.player, next) < distance(current.player, closest)
+          ? next
+          : closest;
+      }, null);
+      if (!mob) break;
+      await page.evaluate(
+        ({ x, z }) => window.__game?.moveTo(x, z),
+        { x: mob.x, z: mob.z }
+      );
+      await advance(page, 500);
+      await sleep(250);
+      const after = await getState(page);
+      if (after.player && after.player.hp < hpBefore) {
+        damagedState = after;
+        break;
+      }
+    }
+    if (!damagedState) {
+      throw new Error('Timed out waiting for mob damage.');
+    }
+    state = damagedState;
 
     state = await waitForCondition(
       page,

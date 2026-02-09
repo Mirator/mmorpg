@@ -4,7 +4,6 @@ import {
   DEFAULT_CLASS_ID,
   getAbilitiesForClass,
   getClassById,
-  isValidClassId,
 } from '/shared/classes.js';
 import { totalXpForLevel, xpToNext } from '/shared/progression.js';
 import {
@@ -18,8 +17,6 @@ import {
 import { createInventoryUI } from './inventory.js';
 import { createVendorUI } from './vendor.js';
 
-const CLASS_STORAGE_KEY = 'mmorpg_class_id';
-
 function formatItemName(kind) {
   if (!kind) return 'Item';
   return kind
@@ -28,8 +25,7 @@ function formatItemName(kind) {
     .join(' ');
 }
 
-export function createUiState({ onClassSelect, onInventorySwap, onVendorSell, onAbilityClick, onUiOpen }) {
-  const classModal = document.getElementById('class-modal');
+export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, onUiOpen }) {
   const skillsPanel = document.getElementById('skills-panel');
   const skillsClassEl = document.getElementById('skills-class');
   const skillsLevelEl = document.getElementById('skills-level');
@@ -51,9 +47,8 @@ export function createUiState({ onClassSelect, onInventorySwap, onVendorSell, on
   let inventoryUI = null;
   let vendorUI = null;
 
-  let selectedClassId = null;
-  let classModalOpen = false;
   let skillsOpen = false;
+  let menuOpen = true;
   const abilitySlots = [];
   const localCooldowns = new Map();
   let skillsRenderKey = '';
@@ -66,38 +61,8 @@ export function createUiState({ onClassSelect, onInventorySwap, onVendorSell, on
     totalXp: null,
   };
 
-  function loadClassId() {
-    const stored = localStorage.getItem(CLASS_STORAGE_KEY);
-    if (stored && isValidClassId(stored)) {
-      return stored;
-    }
-    return null;
-  }
-
-  function saveClassId(classId) {
-    if (classId) {
-      localStorage.setItem(CLASS_STORAGE_KEY, classId);
-    }
-  }
-
   function getCurrentClassId(me) {
-    return me?.classId ?? selectedClassId ?? DEFAULT_CLASS_ID;
-  }
-
-  function setClassModalOpen(open) {
-    classModalOpen = !!open;
-    classModal?.classList.toggle('open', classModalOpen);
-    if (classModalOpen) {
-      clearPrompt();
-    }
-  }
-
-  function applyClassSelection(classId) {
-    if (!isValidClassId(classId)) return;
-    selectedClassId = classId;
-    saveClassId(classId);
-    setClassModalOpen(false);
-    onClassSelect?.(classId);
+    return me?.classId ?? DEFAULT_CLASS_ID;
   }
 
   function setSkillsOpen(open) {
@@ -110,8 +75,23 @@ export function createUiState({ onClassSelect, onInventorySwap, onVendorSell, on
   }
 
   function toggleSkills() {
-    if (isInventoryOpen() || isDialogOpen() || isTradeOpen()) return;
+    if (menuOpen || isInventoryOpen() || isDialogOpen() || isTradeOpen()) return;
     setSkillsOpen(!skillsOpen);
+  }
+
+  function setMenuOpen(open) {
+    menuOpen = !!open;
+    document.body.classList.toggle('menu-open', menuOpen);
+    if (menuOpen) {
+      setSkillsOpen(false);
+      setInventoryOpen(false);
+      clearPrompt();
+      onUiOpen?.();
+    }
+  }
+
+  function isMenuOpen() {
+    return menuOpen;
   }
 
   function buildAbilityBar() {
@@ -287,20 +267,16 @@ export function createUiState({ onClassSelect, onInventorySwap, onVendorSell, on
     return vendorUI?.isTradeOpen?.() ?? false;
   }
 
-  function isClassModalOpen() {
-    return classModalOpen;
-  }
-
   function isSkillsOpen() {
     return skillsOpen;
   }
 
   function isUiBlocking() {
     return (
+      menuOpen ||
       isInventoryOpen() ||
       isDialogOpen() ||
       isTradeOpen() ||
-      isClassModalOpen() ||
       isSkillsOpen()
     );
   }
@@ -316,7 +292,7 @@ export function createUiState({ onClassSelect, onInventorySwap, onVendorSell, on
   }
 
   function toggleInventory() {
-    if (isTradeOpen() || isDialogOpen() || isClassModalOpen() || isSkillsOpen()) return;
+    if (menuOpen || isTradeOpen() || isDialogOpen() || isSkillsOpen()) return;
     setInventoryOpen(!isInventoryOpen());
   }
 
@@ -387,19 +363,9 @@ export function createUiState({ onClassSelect, onInventorySwap, onVendorSell, on
     }
   }
 
-  selectedClassId = loadClassId();
-  setClassModalOpen(!selectedClassId);
-  if (classModal) {
-    classModal.querySelectorAll('.class-option').forEach((button) => {
-      button.addEventListener('click', () => {
-        const classId = button.getAttribute('data-class');
-        applyClassSelection(classId);
-      });
-    });
-  }
-
   buildAbilityBar();
   renderVendorPrices();
+  setMenuOpen(true);
 
   return {
     setStatus,
@@ -413,14 +379,14 @@ export function createUiState({ onClassSelect, onInventorySwap, onVendorSell, on
     toggleInventory,
     setSkillsOpen,
     toggleSkills,
+    setMenuOpen,
     isInventoryOpen,
     isDialogOpen,
     isTradeOpen,
-    isClassModalOpen,
+    isMenuOpen,
     isSkillsOpen,
     isUiBlocking,
     getCurrentClassId,
-    getSelectedClassId: () => selectedClassId,
     setLocalCooldown: (slot, until) => localCooldowns.set(slot, until),
     getLocalCooldown: (slot) => localCooldowns.get(slot) ?? 0,
     vendorUI,

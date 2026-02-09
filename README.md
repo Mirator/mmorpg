@@ -32,10 +32,15 @@ Run the initial migration:
 npm run db:migrate:dev
 ```
 
+On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MIGRATE_DEV=false` to disable).
+
 ## Environment Variables
 
 - `PORT`, `HOST` (default `3000`, `127.0.0.1`)
 - `ADMIN_PASSWORD` (default `1234`)
+- `AUTO_MIGRATE_DEV` (`true` to auto-run `prisma migrate dev` on localhost; default `true`)
+- `DEV_ACCOUNT_USER` (default `test`, only when HOST is `127.0.0.1` or `localhost`)
+- `DEV_ACCOUNT_PASSWORD` (default `test1234`, only when HOST is `127.0.0.1` or `localhost`)
 - `ALLOWED_ORIGINS` (comma-separated)
 - `TRUST_PROXY` (`true` to trust `x-forwarded-for`)
 - `ALLOW_NO_ORIGIN` (`true` to allow missing Origin header)
@@ -74,3 +79,22 @@ Requires `DATABASE_URL_E2E` in `.env` and a Postgres database created for e2e.
 
 WebSocket client messages are validated in `shared/protocol.js`. The server sends a
 config snapshot (including `protocolVersion`) in the welcome payload.
+
+## Auth + Characters
+
+Accounts and characters are stored in Postgres. Usernames and character names are globally
+unique (case-insensitive). The client uses HTTP auth endpoints before opening a WebSocket.
+
+### Auth endpoints
+
+- `POST /api/auth/signup` `{ username, password }` → `{ token, account }`
+- `POST /api/auth/login` `{ username, password }` → `{ token, account }`
+- `POST /api/auth/logout` (Bearer token) → `{ ok: true }`
+- `GET /api/characters` (Bearer token) → `{ characters }`
+- `POST /api/characters` (Bearer token) `{ name, classId }` → `{ character }`
+- `DELETE /api/characters/:id` (Bearer token) → `{ ok: true }`
+
+### WebSocket
+
+Pass `token` and `characterId` as query params when opening the WebSocket. Use `?guest=1`
+for local/dev guest sessions.
