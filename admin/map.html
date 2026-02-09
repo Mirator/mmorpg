@@ -54,58 +54,117 @@
             </div>
           </div>
           <div id="sidebar" class="sidebar">
-            <div class="section" id="section-map">
-              <div class="section-title">Map Settings</div>
-              <div id="map-fields" class="row-fields"></div>
+            <div class="section collapsible" id="section-map">
+              <div class="section-title with-action">
+                <span>Map Settings</span>
+                <button type="button" class="ghost toggle" data-action="toggle">
+                  Collapse
+                </button>
+              </div>
+              <div class="section-body">
+                <div id="map-fields" class="row-fields"></div>
+              </div>
             </div>
-            <div class="section" id="section-base">
-              <div class="section-title">Base</div>
-              <div id="base-fields" class="row-fields"></div>
+            <div class="section collapsible" id="section-base">
+              <div class="section-title with-action">
+                <span>Base</span>
+                <button type="button" class="ghost toggle" data-action="toggle">
+                  Collapse
+                </button>
+              </div>
+              <div class="section-body">
+                <div id="base-fields" class="row-fields"></div>
+              </div>
             </div>
-            <div class="section" id="section-spawn">
+            <div class="section collapsible" id="section-spawn">
               <div class="section-title with-action">
                 <span>Spawn Points</span>
-                <button type="button" class="ghost" data-action="add" data-type="spawnPoints">
-                  Add
-                </button>
+                <div class="section-actions">
+                  <button
+                    type="button"
+                    class="ghost"
+                    data-action="add"
+                    data-type="spawnPoints"
+                  >
+                    Add
+                  </button>
+                  <button type="button" class="ghost toggle" data-action="toggle">
+                    Collapse
+                  </button>
+                </div>
               </div>
-              <div id="list-spawnPoints" class="list"></div>
+              <div class="section-body">
+                <div id="list-spawnPoints" class="list"></div>
+              </div>
             </div>
-            <div class="section" id="section-obstacles">
+            <div class="section collapsible" id="section-obstacles">
               <div class="section-title with-action">
                 <span>Obstacles</span>
-                <button type="button" class="ghost" data-action="add" data-type="obstacles">
-                  Add
-                </button>
+                <div class="section-actions">
+                  <button type="button" class="ghost" data-action="add" data-type="obstacles">
+                    Add
+                  </button>
+                  <button type="button" class="ghost toggle" data-action="toggle">
+                    Collapse
+                  </button>
+                </div>
               </div>
-              <div id="list-obstacles" class="list"></div>
+              <div class="section-body">
+                <div id="list-obstacles" class="list"></div>
+              </div>
             </div>
-            <div class="section" id="section-resources">
+            <div class="section collapsible" id="section-resources">
               <div class="section-title with-action">
                 <span>Resource Nodes</span>
-                <button type="button" class="ghost" data-action="add" data-type="resourceNodes">
-                  Add
-                </button>
+                <div class="section-actions">
+                  <button
+                    type="button"
+                    class="ghost"
+                    data-action="add"
+                    data-type="resourceNodes"
+                  >
+                    Add
+                  </button>
+                  <button type="button" class="ghost toggle" data-action="toggle">
+                    Collapse
+                  </button>
+                </div>
               </div>
-              <div id="list-resourceNodes" class="list"></div>
+              <div class="section-body">
+                <div id="list-resourceNodes" class="list"></div>
+              </div>
             </div>
-            <div class="section" id="section-vendors">
+            <div class="section collapsible" id="section-vendors">
               <div class="section-title with-action">
                 <span>Vendors</span>
-                <button type="button" class="ghost" data-action="add" data-type="vendors">
-                  Add
-                </button>
+                <div class="section-actions">
+                  <button type="button" class="ghost" data-action="add" data-type="vendors">
+                    Add
+                  </button>
+                  <button type="button" class="ghost toggle" data-action="toggle">
+                    Collapse
+                  </button>
+                </div>
               </div>
-              <div id="list-vendors" class="list"></div>
+              <div class="section-body">
+                <div id="list-vendors" class="list"></div>
+              </div>
             </div>
-            <div class="section" id="section-mobs">
+            <div class="section collapsible" id="section-mobs">
               <div class="section-title with-action">
                 <span>Mob Spawns</span>
-                <button type="button" class="ghost" data-action="add" data-type="mobSpawns">
-                  Add
-                </button>
+                <div class="section-actions">
+                  <button type="button" class="ghost" data-action="add" data-type="mobSpawns">
+                    Add
+                  </button>
+                  <button type="button" class="ghost toggle" data-action="toggle">
+                    Collapse
+                  </button>
+                </div>
               </div>
-              <div id="list-mobSpawns" class="list"></div>
+              <div class="section-body">
+                <div id="list-mobSpawns" class="list"></div>
+              </div>
             </div>
           </div>
         </div>

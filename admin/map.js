@@ -622,6 +622,14 @@ sidebar.addEventListener('click', (event) => {
   if (!(target instanceof HTMLElement)) return;
   const action = target.dataset.action;
   const type = target.dataset.type;
+  if (action === 'toggle') {
+    const section = target.closest('.section');
+    if (section) {
+      section.classList.toggle('collapsed');
+      updateToggleLabels();
+    }
+    return;
+  }
   if (action === 'add' && type) {
     addItem(type);
     return;
@@ -642,6 +650,17 @@ sidebar.addEventListener('click', (event) => {
     }
   }
 });
+
+function updateToggleLabels() {
+  const toggles = sidebar.querySelectorAll('.toggle');
+  toggles.forEach((button) => {
+    const section = button.closest('.section');
+    if (!section) return;
+    button.textContent = section.classList.contains('collapsed')
+      ? 'Expand'
+      : 'Collapse';
+  });
+}
 
 reloadBtn.addEventListener('click', async () => {
   const password = readPassword();
@@ -676,6 +695,7 @@ saveBtn.addEventListener('click', async () => {
 
 function renderAll() {
   if (!mapConfig) return;
+  updateToggleLabels();
   renderMapFields();
   renderBaseFields();
   renderLists();
