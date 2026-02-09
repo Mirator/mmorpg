@@ -62,6 +62,33 @@ export function serializePlayerState(player) {
   };
 }
 
+export function migratePlayerState(rawState, version) {
+  const currentVersion = Number.isInteger(version) ? version : 0;
+  if (currentVersion > PLAYER_STATE_VERSION) {
+    return { state: rawState ?? {}, version: currentVersion, didUpgrade: false };
+  }
+  let state = rawState ?? {};
+  let didUpgrade = false;
+
+  if (currentVersion < 1) {
+    state = {
+      ...state,
+      currencyCopper: Number.isFinite(state?.currencyCopper) ? state.currencyCopper : 0,
+      classId:
+        typeof state?.classId === 'string' && isValidClassId(state.classId)
+          ? state.classId
+          : DEFAULT_CLASS_ID,
+      level: Number.isFinite(state?.level) ? state.level : 1,
+      xp: Number.isFinite(state?.xp) ? state.xp : 0,
+      invSlots: Number.isFinite(state?.invSlots) ? state.invSlots : undefined,
+      invStackMax: Number.isFinite(state?.invStackMax) ? state.invStackMax : undefined,
+    };
+    didUpgrade = true;
+  }
+
+  return { state, version: PLAYER_STATE_VERSION, didUpgrade };
+}
+
 export function hydratePlayerState(rawState, world, spawn) {
   const pos = sanitizePos(rawState?.pos, world, spawn);
   const maxHp = toNumber(world?.playerMaxHp, 100);

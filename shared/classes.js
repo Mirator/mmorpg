@@ -1,3 +1,25 @@
+// @ts-check
+import { COMBAT_CONFIG } from './config.js';
+
+/**
+ * @typedef {Object} ClassDefinition
+ * @property {string} id
+ * @property {string} name
+ * @property {string} role
+ * @property {number} attackRange
+ * @property {string} blurb
+ */
+
+/**
+ * @typedef {Object} AbilityDefinition
+ * @property {string} id
+ * @property {string} name
+ * @property {number} slot
+ * @property {number} cooldownMs
+ * @property {number} range
+ * @property {number} requiredLevel
+ */
+
 export const DEFAULT_CLASS_ID = 'fighter';
 export const ABILITY_SLOTS = 10;
 
@@ -56,7 +78,7 @@ export function getAbilitiesForClass(classId, level = 1) {
       id: 'basic_attack',
       name: 'Basic Attack',
       slot: 1,
-      cooldownMs: 900,
+      cooldownMs: COMBAT_CONFIG.basicAttackCooldownMs,
       range: klass.attackRange,
       requiredLevel: 1,
     },

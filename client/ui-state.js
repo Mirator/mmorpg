@@ -1,0 +1,428 @@
+import { formatCurrency, VENDOR_SELL_PRICES } from '/shared/economy.js';
+import {
+  ABILITY_SLOTS,
+  DEFAULT_CLASS_ID,
+  getAbilitiesForClass,
+  getClassById,
+  isValidClassId,
+} from '/shared/classes.js';
+import { totalXpForLevel, xpToNext } from '/shared/progression.js';
+import {
+  setStatus,
+  updateHud,
+  showPrompt,
+  clearPrompt,
+  showEvent,
+  flashDamage,
+} from './ui.js';
+import { createInventoryUI } from './inventory.js';
+import { createVendorUI } from './vendor.js';
+
+const CLASS_STORAGE_KEY = 'mmorpg_class_id';
+
+function formatItemName(kind) {
+  if (!kind) return 'Item';
+  return kind
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+export function createUiState({ onClassSelect, onInventorySwap, onVendorSell, onAbilityClick, onUiOpen }) {
+  const classModal = document.getElementById('class-modal');
+  const skillsPanel = document.getElementById('skills-panel');
+  const skillsClassEl = document.getElementById('skills-class');
+  const skillsLevelEl = document.getElementById('skills-level');
+  const skillsXpEl = document.getElementById('skills-xp');
+  const skillsListEl = document.getElementById('skills-list');
+  const inventoryPanel = document.getElementById('inventory-panel');
+  const inventoryGrid = document.getElementById('inventory-grid');
+  const vendorDialog = document.getElementById('vendor-dialog');
+  const vendorPanel = document.getElementById('vendor-panel');
+  const vendorDialogName = document.getElementById('vendor-dialog-name');
+  const vendorPanelName = document.getElementById('vendor-panel-name');
+  const vendorTradeBtn = document.getElementById('vendor-trade-btn');
+  const vendorCloseBtn = document.getElementById('vendor-close-btn');
+  const vendorPanelCloseBtn = document.getElementById('vendor-panel-close');
+  const vendorPricesEl = document.getElementById('vendor-sell-prices');
+  const inventoryCoinsEl = document.getElementById('inventory-coins');
+  const abilityBar = document.getElementById('ability-bar');
+
+  let inventoryUI = null;
+  let vendorUI = null;
+
+  let selectedClassId = null;
+  let classModalOpen = false;
+  let skillsOpen = false;
+  const abilitySlots = [];
+  const localCooldowns = new Map();
+  let skillsRenderKey = '';
+
+  const lastStats = {
+    hp: null,
+    inv: null,
+    currencyCopper: null,
+    level: null,
+    totalXp: null,
+  };
+
+  function loadClassId() {
+    const stored = localStorage.getItem(CLASS_STORAGE_KEY);
+    if (stored && isValidClassId(stored)) {
+      return stored;
+    }
+    return null;
+  }
+
+  function saveClassId(classId) {
+    if (classId) {
+      localStorage.setItem(CLASS_STORAGE_KEY, classId);
+    }
+  }
+
+  function getCurrentClassId(me) {
+    return me?.classId ?? selectedClassId ?? DEFAULT_CLASS_ID;
+  }
+
+  function setClassModalOpen(open) {
+    classModalOpen = !!open;
+    classModal?.classList.toggle('open', classModalOpen);
+    if (classModalOpen) {
+      clearPrompt();
+    }
+  }
+
+  function applyClassSelection(classId) {
+    if (!isValidClassId(classId)) return;
+    selectedClassId = classId;
+    saveClassId(classId);
+    setClassModalOpen(false);
+    onClassSelect?.(classId);
+  }
+
+  function setSkillsOpen(open) {
+    skillsOpen = !!open;
+    skillsPanel?.classList.toggle('open', skillsOpen);
+    if (skillsOpen) {
+      clearPrompt();
+      onUiOpen?.();
+    }
+  }
+
+  function toggleSkills() {
+    if (isInventoryOpen() || isDialogOpen() || isTradeOpen()) return;
+    setSkillsOpen(!skillsOpen);
+  }
+
+  function buildAbilityBar() {
+    if (!abilityBar) return;
+    abilityBar.innerHTML = '';
+    abilitySlots.length = 0;
+    for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
+      const el = document.createElement('div');
+      el.className = 'ability-slot empty';
+      el.dataset.slot = String(slot);
+      el.style.setProperty('--cooldown', '0');
+      const key = document.createElement('div');
+      key.className = 'ability-key';
+      key.textContent = slot === 10 ? '0' : String(slot);
+      const name = document.createElement('div');
+      name.className = 'ability-name';
+      name.textContent = '';
+      el.appendChild(key);
+      el.appendChild(name);
+      el.addEventListener('click', () => {
+        onAbilityClick?.(slot);
+      });
+      abilityBar.appendChild(el);
+      abilitySlots.push(el);
+    }
+  }
+
+  function updateAbilityBar(me, serverNow) {
+    if (!abilityBar || abilitySlots.length === 0) return;
+    const classId = getCurrentClassId(me);
+    const abilities = getAbilitiesForClass(classId, me?.level ?? 1);
+    const abilityBySlot = new Map(abilities.map((ability) => [ability.slot, ability]));
+
+    for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
+      const ability = abilityBySlot.get(slot);
+      const slotEl = abilitySlots[slot - 1];
+      if (!slotEl) continue;
+      const nameEl = slotEl.querySelector('.ability-name');
+      if (ability) {
+        slotEl.classList.remove('empty');
+        if (nameEl) nameEl.textContent = ability.name;
+      } else {
+        slotEl.classList.add('empty');
+        if (nameEl) nameEl.textContent = '';
+        slotEl.style.setProperty('--cooldown', '0');
+        continue;
+      }
+
+      let remaining = 0;
+      if (ability.id === 'basic_attack') {
+        const localCooldown = localCooldowns.get(slot) ?? 0;
+        const serverCooldown = me?.attackCooldownUntil ?? 0;
+        const cooldownEnd = Math.max(localCooldown, serverCooldown);
+        remaining = Math.max(0, cooldownEnd - serverNow);
+      }
+      const fraction = ability.cooldownMs
+        ? Math.min(1, remaining / ability.cooldownMs)
+        : 0;
+      slotEl.style.setProperty('--cooldown', fraction.toFixed(3));
+    }
+  }
+
+  function updateSkillsPanel(me) {
+    if (!skillsPanel || !skillsOpen) return;
+    const classId = getCurrentClassId(me);
+    const klass = getClassById(classId);
+    if (skillsClassEl) {
+      skillsClassEl.textContent = klass?.name ?? classId ?? '--';
+    }
+    if (skillsLevelEl) {
+      skillsLevelEl.textContent = `${me?.level ?? 1}`;
+    }
+    if (skillsXpEl) {
+      const needed = me?.xpToNext ?? xpToNext(me?.level ?? 1);
+      skillsXpEl.textContent = needed ? `${me?.xp ?? 0}/${needed}` : 'MAX';
+    }
+
+    const renderKey = `${classId}:${me?.level ?? 1}`;
+    if (renderKey === skillsRenderKey) return;
+    skillsRenderKey = renderKey;
+    if (!skillsListEl) return;
+    skillsListEl.innerHTML = '';
+    const abilities = getAbilitiesForClass(classId, me?.level ?? 1);
+    for (const ability of abilities) {
+      const row = document.createElement('div');
+      row.className = 'skill-row';
+      const name = document.createElement('div');
+      name.className = 'skill-name';
+      name.textContent = ability.name;
+      const meta = document.createElement('div');
+      meta.className = 'skill-meta';
+      meta.textContent = `Slot ${ability.slot} · CD ${Math.round(
+        (ability.cooldownMs ?? 0) / 1000
+      )}s`;
+      row.appendChild(name);
+      row.appendChild(meta);
+      skillsListEl.appendChild(row);
+    }
+  }
+
+  function renderVendorPrices() {
+    if (!vendorPricesEl) return;
+    vendorPricesEl.innerHTML = '';
+    const entries = Object.entries(VENDOR_SELL_PRICES ?? {});
+    if (entries.length === 0) {
+      vendorPricesEl.textContent = 'No items can be sold right now.';
+      return;
+    }
+    for (const [kind, price] of entries) {
+      const row = document.createElement('div');
+      row.className = 'vendor-price-row';
+      const name = document.createElement('div');
+      name.className = 'vendor-price-name';
+      name.textContent = formatItemName(kind);
+      const value = document.createElement('div');
+      value.className = 'vendor-price-value';
+      value.textContent = formatCurrency(price);
+      row.appendChild(name);
+      row.appendChild(value);
+      vendorPricesEl.appendChild(row);
+    }
+  }
+
+  if (inventoryPanel && inventoryGrid) {
+    inventoryUI = createInventoryUI({
+      panel: inventoryPanel,
+      grid: inventoryGrid,
+      cols: 5,
+      onSwap: (from, to) => {
+        onInventorySwap?.(from, to);
+      },
+      onDropExternal: ({ slot, target }) => {
+        if (!vendorUI || !vendorUI.isTradeOpen()) return false;
+        const dropzone = target?.closest?.('.vendor-dropzone');
+        if (!dropzone) return false;
+        const vendor = vendorUI.getVendor();
+        if (!vendor?.id) return false;
+        onVendorSell?.(slot, vendor.id);
+        return true;
+      },
+    });
+  }
+
+  if (vendorDialog && vendorPanel) {
+    vendorUI = createVendorUI({
+      dialog: vendorDialog,
+      panel: vendorPanel,
+      dialogName: vendorDialogName,
+      panelName: vendorPanelName,
+      tradeButton: vendorTradeBtn,
+      closeButton: vendorCloseBtn,
+      panelCloseButton: vendorPanelCloseBtn,
+    });
+    vendorTradeBtn?.addEventListener('click', () => {
+      setInventoryOpen(true);
+    });
+    const closeTrade = () => {
+      setInventoryOpen(false);
+    };
+    vendorCloseBtn?.addEventListener('click', closeTrade);
+    vendorPanelCloseBtn?.addEventListener('click', closeTrade);
+  }
+
+  function isInventoryOpen() {
+    return inventoryUI?.isOpen?.() ?? false;
+  }
+
+  function isDialogOpen() {
+    return vendorUI?.isDialogOpen?.() ?? false;
+  }
+
+  function isTradeOpen() {
+    return vendorUI?.isTradeOpen?.() ?? false;
+  }
+
+  function isClassModalOpen() {
+    return classModalOpen;
+  }
+
+  function isSkillsOpen() {
+    return skillsOpen;
+  }
+
+  function isUiBlocking() {
+    return (
+      isInventoryOpen() ||
+      isDialogOpen() ||
+      isTradeOpen() ||
+      isClassModalOpen() ||
+      isSkillsOpen()
+    );
+  }
+
+  function setInventoryOpen(next) {
+    if (!inventoryUI) return;
+    const open = !!next;
+    inventoryUI.setOpen(open);
+    if (open) {
+      clearPrompt();
+      onUiOpen?.();
+    }
+  }
+
+  function toggleInventory() {
+    if (isTradeOpen() || isDialogOpen() || isClassModalOpen() || isSkillsOpen()) return;
+    setInventoryOpen(!isInventoryOpen());
+  }
+
+  function updateLocalUi({ me, worldConfig, serverNow }) {
+    if (me) {
+      updateHud(me, serverNow);
+      if (inventoryUI) {
+        inventoryUI.setInventory(me.inventory ?? [], {
+          slots: me.invSlots ?? worldConfig?.playerInvSlots ?? me.inventory?.length ?? 0,
+          stackMax: me.invStackMax ?? worldConfig?.playerInvStackMax ?? 1,
+        });
+      }
+      if (inventoryCoinsEl) {
+        inventoryCoinsEl.textContent = formatCurrency(me.currencyCopper ?? 0);
+      }
+      if (lastStats.hp !== null && me.hp < lastStats.hp) {
+        flashDamage();
+      }
+
+      const totalXp = totalXpForLevel(me.level ?? 1, me.xp ?? 0);
+      let eventMessage = null;
+      if (lastStats.level !== null && me.level > lastStats.level) {
+        eventMessage = `Level Up! (${me.level})`;
+      } else if (lastStats.totalXp !== null && totalXp > lastStats.totalXp) {
+        eventMessage = `XP +${totalXp - lastStats.totalXp}`;
+      }
+
+      if (!eventMessage && lastStats.inv !== null && me.inv > lastStats.inv) {
+        eventMessage = 'Harvested +1';
+      }
+      if (
+        !eventMessage &&
+        lastStats.currencyCopper !== null &&
+        (me.currencyCopper ?? 0) > lastStats.currencyCopper
+      ) {
+        const diff = (me.currencyCopper ?? 0) - lastStats.currencyCopper;
+        eventMessage = `Sold +${formatCurrency(diff)}`;
+      }
+      if (eventMessage) {
+        showEvent(eventMessage);
+      }
+
+      lastStats.hp = me.hp;
+      lastStats.inv = me.inv;
+      lastStats.currencyCopper = me.currencyCopper ?? 0;
+      lastStats.level = me.level ?? 1;
+      lastStats.totalXp = totalXp;
+      updateAbilityBar(me, serverNow);
+      updateSkillsPanel(me);
+    } else {
+      updateHud(null, serverNow);
+      if (inventoryUI) {
+        inventoryUI.setInventory([], {
+          slots: worldConfig?.playerInvSlots ?? 0,
+          stackMax: worldConfig?.playerInvStackMax ?? 1,
+        });
+      }
+      if (inventoryCoinsEl) {
+        inventoryCoinsEl.textContent = '--';
+      }
+      lastStats.hp = null;
+      lastStats.inv = null;
+      lastStats.currencyCopper = null;
+      lastStats.level = null;
+      lastStats.totalXp = null;
+      updateAbilityBar(null, serverNow);
+      updateSkillsPanel(null);
+    }
+  }
+
+  selectedClassId = loadClassId();
+  setClassModalOpen(!selectedClassId);
+  if (classModal) {
+    classModal.querySelectorAll('.class-option').forEach((button) => {
+      button.addEventListener('click', () => {
+        const classId = button.getAttribute('data-class');
+        applyClassSelection(classId);
+      });
+    });
+  }
+
+  buildAbilityBar();
+  renderVendorPrices();
+
+  return {
+    setStatus,
+    showPrompt,
+    clearPrompt,
+    renderVendorPrices,
+    updateLocalUi,
+    updateAbilityBar,
+    updateSkillsPanel,
+    setInventoryOpen,
+    toggleInventory,
+    setSkillsOpen,
+    toggleSkills,
+    isInventoryOpen,
+    isDialogOpen,
+    isTradeOpen,
+    isClassModalOpen,
+    isSkillsOpen,
+    isUiBlocking,
+    getCurrentClassId,
+    getSelectedClassId: () => selectedClassId,
+    setLocalCooldown: (slot, until) => localCooldowns.set(slot, until),
+    getLocalCooldown: (slot) => localCooldowns.get(slot) ?? 0,
+    vendorUI,
+  };
+}

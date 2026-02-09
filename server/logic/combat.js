@@ -1,15 +1,13 @@
 import { addXp, calculateMobXp } from '../../shared/progression.js';
 import { getClassById } from '../../shared/classes.js';
+import { COMBAT_CONFIG } from '../../shared/config.js';
 import { getMobMaxHp } from './mobs.js';
-
-const BASIC_ATTACK_DAMAGE = 10;
-const BASIC_ATTACK_COOLDOWN_MS = 900;
 
 export function getBasicAttackConfig(classId) {
   const klass = getClassById(classId);
   return {
-    damage: BASIC_ATTACK_DAMAGE,
-    cooldownMs: BASIC_ATTACK_COOLDOWN_MS,
+    damage: COMBAT_CONFIG.basicAttackDamage,
+    cooldownMs: COMBAT_CONFIG.basicAttackCooldownMs,
     range: klass?.attackRange ?? 2.0,
   };
 }

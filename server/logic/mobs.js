@@ -1,5 +1,6 @@
 import { applyCollisions } from './collision.js';
 import { MAX_LEVEL } from '../../shared/progression.js';
+import { MOB_CONFIG } from '../../shared/config.js';
 
 function randomRange(rand, min, max) {
   return min + (max - min) * rand();
@@ -94,13 +95,13 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
   const aggroRadius = config.aggroRadius ?? 12;
   const leashRadius = config.leashRadius ?? 18;
   const attackRange = config.attackRange ?? 1.4;
-  const attackDamageBase = config.attackDamageBase ?? 6;
-  const attackDamagePerLevel = config.attackDamagePerLevel ?? 2;
+  const attackDamageBase = config.attackDamageBase ?? MOB_CONFIG.attackDamageBase;
+  const attackDamagePerLevel = config.attackDamagePerLevel ?? MOB_CONFIG.attackDamagePerLevel;
   const attackCooldownMs = config.attackCooldownMs ?? 900;
   const idleDuration = config.idleDurationMs ?? [1200, 2800];
   const wanderDuration = config.wanderDurationMs ?? [1500, 3200];
-  const mobRadius = config.mobRadius ?? 0.8;
-  const respawnMs = config.respawnMs ?? 10_000;
+  const mobRadius = config.mobRadius ?? MOB_CONFIG.radius;
+  const respawnMs = config.respawnMs ?? MOB_CONFIG.respawnMs;
 
   const alivePlayers = players.filter((p) => !p.dead);
 

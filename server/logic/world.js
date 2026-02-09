@@ -1,21 +1,29 @@
-const WORLD_SEED = 1337;
+import {
+  WORLD_CONFIG,
+  RESOURCE_CONFIG,
+  PLAYER_CONFIG,
+  VENDOR_CONFIG,
+  MOB_CONFIG,
+} from '../../shared/config.js';
 
-const MAP_SIZE = 400;
-const BASE_RADIUS = 9;
-const OBSTACLE_COUNT = 12;
-const RESOURCE_COUNT = 80;
-const MOB_COUNT = 8;
-const MOB_RESPAWN_MS = 10_000;
+const WORLD_SEED = WORLD_CONFIG.seed;
 
-const HARVEST_RADIUS = 2.2;
-const RESOURCE_RESPAWN_MS = 15_000;
+const MAP_SIZE = WORLD_CONFIG.mapSize;
+const BASE_RADIUS = WORLD_CONFIG.baseRadius;
+const OBSTACLE_COUNT = WORLD_CONFIG.obstacleCount;
+const RESOURCE_COUNT = WORLD_CONFIG.resourceCount;
+const MOB_COUNT = WORLD_CONFIG.mobCount;
+const MOB_RESPAWN_MS = MOB_CONFIG.respawnMs;
 
-const PLAYER_MAX_HP = 100;
-const PLAYER_SPEED = 3;
-const PLAYER_INV_SLOTS = 20;
-const PLAYER_INV_STACK_MAX = 20;
+const HARVEST_RADIUS = RESOURCE_CONFIG.harvestRadius;
+const RESOURCE_RESPAWN_MS = RESOURCE_CONFIG.respawnMs;
+
+const PLAYER_MAX_HP = PLAYER_CONFIG.maxHp;
+const PLAYER_SPEED = PLAYER_CONFIG.speed;
+const PLAYER_INV_SLOTS = PLAYER_CONFIG.invSlots;
+const PLAYER_INV_STACK_MAX = PLAYER_CONFIG.invStackMax;
 const PLAYER_INV_CAP = PLAYER_INV_SLOTS * PLAYER_INV_STACK_MAX;
-const VENDOR_INTERACT_RADIUS = 2.5;
+const VENDOR_INTERACT_RADIUS = VENDOR_CONFIG.interactRadius;
 
 function mulberry32(seed) {
   let t = seed >>> 0;

@@ -1,0 +1,166 @@
+import { applyWASD } from '/shared/math.js';
+
+export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs }) {
+  const snapshots = [];
+  let latestPlayers = {};
+  let latestMe = null;
+  let latestResources = [];
+  let latestMobs = [];
+  let worldConfig = null;
+  let configSnapshot = null;
+  let myId = null;
+
+  let predictedLocalPos = null;
+  const correction = 0.1;
+  const snapThreshold = 5;
+
+  let serverTimeOffsetMs = 0;
+  let hasServerTime = false;
+  let lastServerTimestamp = null;
+
+  function setLocalPlayerId(id) {
+    myId = id;
+  }
+
+  function setWorldConfig(config) {
+    worldConfig = config ?? null;
+  }
+
+  function setConfigSnapshot(snapshot) {
+    configSnapshot = snapshot ?? null;
+  }
+
+  function updateServerTime(serverNow) {
+    if (!Number.isFinite(serverNow)) return;
+    serverTimeOffsetMs = serverNow - Date.now();
+    hasServerTime = true;
+    lastServerTimestamp = serverNow;
+  }
+
+  function getServerNow() {
+    return hasServerTime ? Date.now() + serverTimeOffsetMs : Date.now();
+  }
+
+  function getLastServerTimestamp() {
+    return lastServerTimestamp;
+  }
+
+  function pushSnapshot(players, now) {
+    snapshots.push({ t: now, players });
+    latestPlayers = players;
+
+    while (snapshots.length > maxSnapshots) {
+      snapshots.shift();
+    }
+    while (snapshots.length > 2 && now - snapshots[0].t > maxSnapshotAgeMs) {
+      snapshots.shift();
+    }
+  }
+
+  function updateMe(payload) {
+    latestMe = payload ?? null;
+  }
+
+  function updateResources(resources) {
+    latestResources = Array.isArray(resources) ? resources : [];
+  }
+
+  function updateMobs(mobs) {
+    latestMobs = Array.isArray(mobs) ? mobs : [];
+  }
+
+  function getLocalPlayer() {
+    const publicPlayer = latestPlayers?.[myId];
+    if (!publicPlayer) return null;
+    if (latestMe && latestMe.id && latestMe.id !== myId) {
+      return publicPlayer;
+    }
+    return { ...publicPlayer, ...(latestMe ?? {}) };
+  }
+
+  function renderInterpolatedPlayers(now) {
+    if (snapshots.length === 0) return { positions: {}, localPos: null };
+
+    const renderTime = now - interpDelayMs;
+    while (snapshots.length >= 2 && snapshots[1].t <= renderTime) {
+      snapshots.shift();
+    }
+
+    const older = snapshots[0];
+    const newer = snapshots[1] ?? snapshots[0];
+    const span = newer.t - older.t;
+    let alpha = 0;
+    if (span > 0) {
+      alpha = (renderTime - older.t) / span;
+    }
+    alpha = Math.max(0, Math.min(1, alpha));
+
+    const positions = {};
+    let localPos = null;
+
+    for (const [id, newerPos] of Object.entries(newer.players)) {
+      const olderPos = older.players?.[id];
+      const x = olderPos ? olderPos.x + (newerPos.x - olderPos.x) * alpha : newerPos.x;
+      const z = olderPos ? olderPos.z + (newerPos.z - olderPos.z) * alpha : newerPos.z;
+      positions[id] = { x, z };
+      if (id === myId) {
+        localPos = { x, z };
+      }
+    }
+
+    return { positions, localPos };
+  }
+
+  function updateLocalPrediction(dt, serverPos, inputKeys, speed) {
+    if (!serverPos) return null;
+
+    if (!predictedLocalPos) {
+      predictedLocalPos = { x: serverPos.x, z: serverPos.z };
+    } else {
+      const errorX = serverPos.x - predictedLocalPos.x;
+      const errorZ = serverPos.z - predictedLocalPos.z;
+      const errorDist = Math.hypot(errorX, errorZ);
+      if (errorDist > snapThreshold) {
+        predictedLocalPos.x = serverPos.x;
+        predictedLocalPos.z = serverPos.z;
+      } else {
+        predictedLocalPos.x += errorX * correction;
+        predictedLocalPos.z += errorZ * correction;
+      }
+    }
+
+    const dir = applyWASD(inputKeys);
+    if (dir.x !== 0 || dir.z !== 0) {
+      predictedLocalPos.x += dir.x * speed * dt;
+      predictedLocalPos.z += dir.z * speed * dt;
+    }
+
+    return predictedLocalPos;
+  }
+
+  function resetPrediction(pos) {
+    predictedLocalPos = pos ? { x: pos.x, z: pos.z } : null;
+  }
+
+  return {
+    setLocalPlayerId,
+    setWorldConfig,
+    setConfigSnapshot,
+    updateServerTime,
+    getServerNow,
+    getLastServerTimestamp,
+    pushSnapshot,
+    updateMe,
+    updateResources,
+    updateMobs,
+    getLocalPlayer,
+    renderInterpolatedPlayers,
+    updateLocalPrediction,
+    resetPrediction,
+    getLatestPlayers: () => latestPlayers,
+    getLatestResources: () => latestResources,
+    getLatestMobs: () => latestMobs,
+    getWorldConfig: () => worldConfig,
+    getConfigSnapshot: () => configSnapshot,
+  };
+}
