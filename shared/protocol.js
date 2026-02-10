@@ -9,6 +9,7 @@ const MAX_ID_LENGTH = 64;
 /**
  * @typedef {{ w?: boolean, a?: boolean, s?: boolean, d?: boolean }} InputKeys
  * @typedef {{ type: 'hello', seq?: number }} HelloMessage
+ * @typedef {{ type: 'respawn', seq?: number }} RespawnMessage
  * @typedef {{ type: 'input', keys: Required<InputKeys>, seq?: number }} InputMessage
  * @typedef {{ type: 'moveTarget', x: number, z: number, seq?: number }} MoveTargetMessage
  * @typedef {{ type: 'targetSelect', targetId?: string | null, seq?: number }} TargetSelectMessage
@@ -18,11 +19,12 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'inventorySwap', from: number, to: number, seq?: number }} InventorySwapMessage
  * @typedef {{ type: 'equipSwap', fromType: 'inventory' | 'equipment', fromSlot: number | string, toType: 'inventory' | 'equipment', toSlot: number | string, seq?: number }} EquipSwapMessage
  * @typedef {{ type: 'vendorSell', vendorId: string, slot: number, seq?: number }} VendorSellMessage
- * @typedef {HelloMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage} ClientMessage
+ * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage} ClientMessage
  */
 
 const CLIENT_MESSAGE_TYPES = new Set([
   'hello',
+  'respawn',
   'input',
   'moveTarget',
   'targetSelect',
@@ -95,6 +97,10 @@ export function parseClientMessage(raw) {
 
   if (raw.type === 'hello') {
     return { type: 'hello', seq };
+  }
+
+  if (raw.type === 'respawn') {
+    return { type: 'respawn', seq };
   }
 
   if (raw.type === 'input') {

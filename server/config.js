@@ -97,7 +97,7 @@ export function getServerConfig(env = process.env) {
     tickHz: 60,
     broadcastHz: 20,
     playerRadius: 0.6,
-    respawnMs: 5000,
+    respawnMs: 300000,
     resource: {
       harvestRadius: RESOURCE_CONFIG.harvestRadius,
       respawnMs: RESOURCE_CONFIG.respawnMs,

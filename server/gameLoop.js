@@ -3,6 +3,7 @@ import { applyCollisions } from './logic/collision.js';
 import { stepResources } from './logic/resources.js';
 import { stepMobs } from './logic/mobs.js';
 import { clearInventory } from './logic/inventory.js';
+import { respawnPlayer } from './logic/players.js';
 
 export function createGameLoop({ players, world, resources, mobs, config, spawner, markDirty }) {
   const tickHz = config.tickHz;
@@ -28,17 +29,6 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
     markDirty(player);
   }
 
-  function respawnPlayer(player) {
-    const spawn = spawner.getSpawnPoint();
-    player.pos = { x: spawn.x, y: 0, z: spawn.z };
-    player.hp = player.maxHp;
-    player.dead = false;
-    player.respawnAt = 0;
-    player.attackCooldownUntil = 0;
-    player.targetId = null;
-    markDirty(player);
-  }
-
   let intervalId = null;
 
   function start() {
@@ -49,7 +39,7 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
       for (const player of players.values()) {
         if (player.dead) {
           if (player.respawnAt && now >= player.respawnAt) {
-            respawnPlayer(player);
+            respawnPlayer(player, spawner.getSpawnPoint(), markDirty);
           }
           continue;
         }

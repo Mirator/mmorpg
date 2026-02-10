@@ -30,3 +30,16 @@ export function createBasePlayerState({ world, spawn, classId }) {
     attackCooldownUntil: 0,
   };
 }
+
+export function respawnPlayer(player, spawn, markDirty) {
+  if (!player || !spawn) return;
+  player.pos = { x: spawn.x, y: 0, z: spawn.z };
+  player.hp = player.maxHp;
+  player.dead = false;
+  player.respawnAt = 0;
+  player.attackCooldownUntil = 0;
+  player.targetId = null;
+  if (typeof markDirty === 'function') {
+    markDirty(player);
+  }
+}

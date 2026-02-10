@@ -16,7 +16,7 @@ import { countInventory, swapInventorySlots } from './logic/inventory.js';
 import { swapEquipment } from './logic/equipment.js';
 import { loadPlayer, savePlayer } from './db/playerRepo.js';
 import { hydratePlayerState, migratePlayerState, serializePlayerState } from './db/playerState.js';
-import { createBasePlayerState } from './logic/players.js';
+import { createBasePlayerState, respawnPlayer } from './logic/players.js';
 import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
 
@@ -455,6 +455,13 @@ export function createWebSocketServer({
 
         if (Number.isInteger(msg.seq)) {
           player.lastInputSeq = msg.seq;
+        }
+
+        if (msg.type === 'respawn') {
+          if (player.dead) {
+            respawnPlayer(player, spawner.getSpawnPoint(), persistence.markDirty);
+          }
+          return;
         }
 
         if (player.dead) return;

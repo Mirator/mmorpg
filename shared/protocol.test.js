@@ -110,4 +110,11 @@ describe('protocol validation', () => {
   it('accepts hello message', () => {
     expect(parseClientMessage({ type: 'hello' })).toEqual({ type: 'hello', seq: undefined });
   });
+
+  it('accepts respawn message', () => {
+    expect(parseClientMessage({ type: 'respawn' })).toEqual({
+      type: 'respawn',
+      seq: undefined,
+    });
+  });
 });

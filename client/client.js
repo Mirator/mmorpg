@@ -86,6 +86,9 @@ const ui = createUiState({
   onUiOpen: () => {
     inputHandler?.clearMovement();
   },
+  onRespawn: () => {
+    sendRespawn();
+  },
 });
 
 const menu = createMenu({
@@ -465,6 +468,11 @@ function sendMoveTarget(pos, opts = {}) {
   seq += 1;
   net?.send({ type: 'moveTarget', x: pos.x, z: pos.z, seq });
   renderSystem.setTargetMarker(pos);
+}
+
+function sendRespawn() {
+  seq += 1;
+  net?.send({ type: 'respawn', seq });
 }
 
 function getTargetSelectRange() {

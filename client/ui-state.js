@@ -39,6 +39,7 @@ export function createUiState({
   onVendorSell,
   onAbilityClick,
   onUiOpen,
+  onRespawn,
 }) {
   const skillsPanel = document.getElementById('skills-panel');
   const skillsClassEl = document.getElementById('skills-class');
@@ -58,6 +59,9 @@ export function createUiState({
   const vendorPricesEl = document.getElementById('vendor-sell-prices');
   const inventoryCoinsEl = document.getElementById('inventory-coins');
   const abilityBar = document.getElementById('ability-bar');
+  const deathScreen = document.getElementById('death-screen');
+  const deathTimerEl = document.getElementById('death-timer');
+  const deathRespawnBtn = document.getElementById('death-respawn-btn');
 
   let inventoryUI = null;
   let equipmentUI = null;
@@ -65,9 +69,11 @@ export function createUiState({
 
   let skillsOpen = false;
   let menuOpen = true;
+  let deadOpen = false;
   const abilitySlots = [];
   const localCooldowns = new Map();
   let skillsRenderKey = '';
+  let wasDead = false;
 
   const lastStats = {
     hp: null,
@@ -88,6 +94,18 @@ export function createUiState({
       clearPrompt();
       onUiOpen?.();
     }
+  }
+
+  function setDeathOpen(open) {
+    deadOpen = !!open;
+    deathScreen?.classList.toggle('open', deadOpen);
+  }
+
+  function formatDeathTimer(remainingMs) {
+    const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
   }
 
   function toggleSkills() {
@@ -315,7 +333,8 @@ export function createUiState({
       isInventoryOpen() ||
       isDialogOpen() ||
       isTradeOpen() ||
-      isSkillsOpen()
+      isSkillsOpen() ||
+      deadOpen
     );
   }
 
@@ -336,6 +355,25 @@ export function createUiState({
 
   function updateLocalUi({ me, worldConfig, serverNow }) {
     if (me) {
+      const isDead = !!me.dead;
+      if (isDead && !wasDead) {
+        setSkillsOpen(false);
+        setInventoryOpen(false);
+        vendorUI?.closeAll?.();
+        clearPrompt();
+        onUiOpen?.();
+      }
+      if (deathTimerEl) {
+        if (isDead && me.respawnAt) {
+          const remaining = Math.max(0, me.respawnAt - serverNow);
+          deathTimerEl.textContent = formatDeathTimer(remaining);
+        } else {
+          deathTimerEl.textContent = '--';
+        }
+      }
+      setDeathOpen(isDead);
+      wasDead = isDead;
+
       updateHud(me, serverNow);
       if (inventoryUI) {
         inventoryUI.setInventory(me.inventory ?? [], {
@@ -384,6 +422,11 @@ export function createUiState({
       updateAbilityBar(me, serverNow);
       updateSkillsPanel(me);
     } else {
+      setDeathOpen(false);
+      wasDead = false;
+      if (deathTimerEl) {
+        deathTimerEl.textContent = '--';
+      }
       updateHud(null, serverNow);
       if (inventoryUI) {
         inventoryUI.setInventory([], {
@@ -410,6 +453,10 @@ export function createUiState({
   buildAbilityBar();
   renderVendorPrices();
   setMenuOpen(true);
+
+  deathRespawnBtn?.addEventListener('click', () => {
+    onRespawn?.();
+  });
 
   return {
     setStatus,
