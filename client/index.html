@@ -89,7 +89,6 @@
     </div>
     <div id="hud">
       <div>Level: <span id="hud-level">1</span></div>
-      <div>XP: <span id="hud-xp">0/100</span></div>
       <div>HP: <span id="hud-hp">--</span></div>
       <div>Inv: <span id="hud-inv">0</span></div>
       <div>Coins: <span id="hud-coins">0g 0s 0c</span></div>
@@ -154,6 +153,13 @@
     <div id="event"></div>
     <div id="damage-flash"></div>
     <div id="ability-bar" class="ability-bar"></div>
+    <div id="xp-bar" class="xp-bar" role="progressbar" tabindex="0" aria-valuemin="0">
+      <div id="xp-bar-fill" class="xp-bar-fill"></div>
+      <div id="xp-bar-tooltip" class="xp-bar-tooltip" role="tooltip">
+        <div id="xp-bar-value">--</div>
+        <div id="xp-bar-remaining">--</div>
+      </div>
+    </div>
     <script type="module" src="./client.js"></script>
   </body>
 </html>
