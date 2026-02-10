@@ -83,6 +83,10 @@ export function createInputHandler({
     return { ...keys };
   }
 
+  function isMovementActive() {
+    return keys.w || keys.a || keys.s || keys.d;
+  }
+
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
       renderer.domElement.requestFullscreen?.().catch(() => {});
@@ -155,6 +159,9 @@ export function createInputHandler({
         onTargetSelect?.(picked);
         return;
       }
+    }
+    if (isMovementActive()) {
+      return;
     }
     raycaster.setFromCamera(mouse, camera);
     const point = new THREE.Vector3();
