@@ -10,7 +10,7 @@ describe('progression', () => {
   });
 
   it('calculates XP reward by level difference', () => {
-    expect(calculateMobXp(5, 1)).toBe(0);
+    expect(calculateMobXp(5, 1)).toBe(180);
     expect(calculateMobXp(4, 1)).toBe(128);
     expect(calculateMobXp(1, 4)).toBe(8);
   });

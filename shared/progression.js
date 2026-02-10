@@ -58,7 +58,7 @@ export function calculateMobXp(mobLevel, playerLevel) {
   const mob = clampLevel(mobLevel);
   const player = clampLevel(playerLevel);
   const diff = mob - player;
-  if (Math.abs(diff) > 3) return 0;
+  if (Math.abs(diff) > 5) return 0;
   const base = 20 * mob;
   const multiplier = Math.max(0.1, 1 + diff * 0.2);
   return Math.max(0, Math.floor(base * multiplier + 1e-6));
