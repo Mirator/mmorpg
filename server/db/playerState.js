@@ -1,7 +1,8 @@
 import { createInventory, countInventory } from '../logic/inventory.js';
 import { DEFAULT_CLASS_ID, isValidClassId } from '../../shared/classes.js';
+import { normalizeEquipment } from '../../shared/equipment.js';
 
-export const PLAYER_STATE_VERSION = 1;
+export const PLAYER_STATE_VERSION = 2;
 
 function toNumber(value, fallback) {
   const num = Number(value);
@@ -54,6 +55,7 @@ export function serializePlayerState(player) {
     maxHp: toNumber(player?.maxHp, 0),
     inventory: Array.isArray(player?.inventory) ? player.inventory : [],
     currencyCopper: toNumber(player?.currencyCopper, 0),
+    equipment: player?.equipment ?? null,
     classId: typeof player?.classId === 'string' ? player.classId : DEFAULT_CLASS_ID,
     level: toNumber(player?.level, 1),
     xp: toNumber(player?.xp, 0),
@@ -86,6 +88,19 @@ export function migratePlayerState(rawState, version) {
     didUpgrade = true;
   }
 
+  if (currentVersion < 2) {
+    const classId =
+      typeof state?.classId === 'string' && isValidClassId(state.classId)
+        ? state.classId
+        : DEFAULT_CLASS_ID;
+    state = {
+      ...state,
+      equipment: state?.equipment ?? null,
+      classId,
+    };
+    didUpgrade = true;
+  }
+
   return { state, version: PLAYER_STATE_VERSION, didUpgrade };
 }
 
@@ -112,6 +127,7 @@ export function hydratePlayerState(rawState, world, spawn) {
   const level = Math.max(1, Math.floor(toNumber(rawState?.level, 1)));
   const xp = Math.max(0, Math.floor(toNumber(rawState?.xp, 0)));
   const currencyCopper = Math.max(0, Math.floor(toNumber(rawState?.currencyCopper, 0)));
+  const equipment = normalizeEquipment(rawState?.equipment, classId);
 
   return {
     pos,
@@ -123,6 +139,7 @@ export function hydratePlayerState(rawState, world, spawn) {
     invStackMax,
     inventory,
     currencyCopper,
+    equipment,
     classId,
     level,
     xp,

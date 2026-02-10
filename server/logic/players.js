@@ -1,5 +1,6 @@
 import { createInventory, countInventory } from './inventory.js';
 import { DEFAULT_CLASS_ID, isValidClassId } from '../../shared/classes.js';
+import { createDefaultEquipment } from '../../shared/equipment.js';
 
 export function createBasePlayerState({ world, spawn, classId }) {
   const safeClassId = isValidClassId(classId) ? classId : DEFAULT_CLASS_ID;
@@ -19,6 +20,7 @@ export function createBasePlayerState({ world, spawn, classId }) {
     invStackMax,
     inventory,
     currencyCopper: 0,
+    equipment: createDefaultEquipment(safeClassId),
     dead: false,
     respawnAt: 0,
     classId: safeClassId,

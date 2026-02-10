@@ -48,6 +48,15 @@ function formatNumber(value, digits = 2) {
   return Number.isFinite(value) ? value.toFixed(digits) : '--';
 }
 
+function formatItemKind(kind) {
+  if (!kind) return '--';
+  return kind
+    .replace(/^weapon_/, '')
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function formatBase(base) {
   if (!base) return '--';
   return `${formatNumber(base.x)}, ${formatNumber(base.z)} (r=${formatNumber(
@@ -159,6 +168,7 @@ function renderState(state) {
     buildRow([
       id,
       player.classId ?? '--',
+      formatItemKind(player.weaponKind),
       player.level ?? '--',
       player.xpToNext
         ? `${player.xp ?? 0}/${player.xpToNext}`

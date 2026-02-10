@@ -1,0 +1,118 @@
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+function makeSlashMesh() {
+  const geometry = new THREE.RingGeometry(0.2, 0.7, 16);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffe2a8,
+    transparent: true,
+    opacity: 0.9,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  return mesh;
+}
+
+function makeProjectileMesh() {
+  const geometry = new THREE.SphereGeometry(0.18, 10, 10);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x9fe3ff,
+    emissive: 0x4da3ff,
+    emissiveIntensity: 0.6,
+    roughness: 0.3,
+  });
+  return new THREE.Mesh(geometry, material);
+}
+
+function makeImpactMesh() {
+  const geometry = new THREE.RingGeometry(0.15, 0.45, 12);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.85,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  return mesh;
+}
+
+export function createEffectsSystem(scene) {
+  const effects = [];
+
+  function addEffect(effect) {
+    effects.push(effect);
+    scene.add(effect.mesh);
+  }
+
+  function spawnSlash({ to, durationMs = 180, now = performance.now() }) {
+    if (!to) return;
+    const mesh = makeSlashMesh();
+    mesh.position.set(to.x, 0.2, to.z);
+    addEffect({
+      kind: 'slash',
+      mesh,
+      start: now,
+      duration: durationMs,
+    });
+  }
+
+  function spawnProjectile({ from, to, durationMs = 200, now = performance.now() }) {
+    if (!from || !to) return;
+    const mesh = makeProjectileMesh();
+    mesh.position.set(from.x, 0.6, from.z);
+    addEffect({
+      kind: 'projectile',
+      mesh,
+      start: now,
+      duration: durationMs,
+      from: { x: from.x, z: from.z },
+      to: { x: to.x, z: to.z },
+    });
+  }
+
+  function spawnImpact({ to, durationMs = 140, now = performance.now() }) {
+    if (!to) return;
+    const mesh = makeImpactMesh();
+    mesh.position.set(to.x, 0.15, to.z);
+    addEffect({
+      kind: 'impact',
+      mesh,
+      start: now,
+      duration: durationMs,
+    });
+  }
+
+  function update(now) {
+    for (let i = effects.length - 1; i >= 0; i -= 1) {
+      const effect = effects[i];
+      const elapsed = now - effect.start;
+      const t = effect.duration > 0 ? elapsed / effect.duration : 1;
+      if (effect.kind === 'projectile') {
+        const progress = Math.min(1, Math.max(0, t));
+        const x = effect.from.x + (effect.to.x - effect.from.x) * progress;
+        const z = effect.from.z + (effect.to.z - effect.from.z) * progress;
+        effect.mesh.position.set(x, 0.6, z);
+        effect.mesh.material.opacity = 1 - progress * 0.4;
+        effect.mesh.material.transparent = true;
+      } else if (effect.mesh.material) {
+        effect.mesh.material.opacity = Math.max(0, 1 - t);
+      }
+
+      if (t >= 1) {
+        if (effect.kind === 'projectile') {
+          spawnImpact({ to: effect.to, now });
+        }
+        scene.remove(effect.mesh);
+        effects.splice(i, 1);
+      }
+    }
+  }
+
+  return {
+    spawnSlash,
+    spawnProjectile,
+    spawnImpact,
+    update,
+  };
+}

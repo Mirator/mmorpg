@@ -12,6 +12,22 @@ function getAbilitySlotFromEvent(event) {
     const digit = Number(key);
     return digit === 0 ? 10 : digit;
   }
+  const legacyCode =
+    typeof event.keyCode === 'number'
+      ? event.keyCode
+      : typeof event.which === 'number'
+        ? event.which
+        : null;
+  if (legacyCode !== null) {
+    if (legacyCode >= 48 && legacyCode <= 57) {
+      const digit = legacyCode - 48;
+      return digit === 0 ? 10 : digit;
+    }
+    if (legacyCode >= 96 && legacyCode <= 105) {
+      const digit = legacyCode - 96;
+      return digit === 0 ? 10 : digit;
+    }
+  }
   return null;
 }
 

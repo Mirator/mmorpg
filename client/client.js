@@ -8,6 +8,7 @@ import { getAbilitiesForClass } from '/shared/classes.js';
 import { splitCurrency } from '/shared/economy.js';
 import { xpToNext } from '/shared/progression.js';
 import { PLAYER_CONFIG } from '/shared/config.js';
+import { getEquippedWeapon } from '/shared/equipment.js';
 
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
@@ -37,6 +38,29 @@ let inVendorRange = false;
 let closingNet = null;
 let inputHandler = null;
 
+const combatEvents = [];
+const MAX_COMBAT_EVENTS = 12;
+const COMBAT_EVENT_TTL_MS = 2500;
+
+function recordCombatEvent(event, now) {
+  if (!event) return;
+  combatEvents.push({ ...event, t: now });
+  pruneCombatEvents(now);
+}
+
+function pruneCombatEvents(now) {
+  while (combatEvents.length > MAX_COMBAT_EVENTS) {
+    combatEvents.shift();
+  }
+  let idx = 0;
+  while (idx < combatEvents.length && now - combatEvents[idx].t > COMBAT_EVENT_TTL_MS) {
+    idx += 1;
+  }
+  if (idx > 0) {
+    combatEvents.splice(0, idx);
+  }
+}
+
 const ACCOUNT_KEY = 'mmorpg_account';
 const LAST_CHARACTER_PREFIX = 'mmorpg_last_character_';
 
@@ -44,6 +68,10 @@ const ui = createUiState({
   onInventorySwap: (from, to) => {
     seq += 1;
     net?.send({ type: 'inventorySwap', from, to, seq });
+  },
+  onEquipmentSwap: ({ fromType, fromSlot, toType, toSlot }) => {
+    seq += 1;
+    net?.send({ type: 'equipSwap', fromType, fromSlot, toType, toSlot, seq });
   },
   onVendorSell: (slot, vendorId) => {
     seq += 1;
@@ -401,6 +429,14 @@ function startConnection({ character, guest = false }) {
           gameState.updateMe(msg.data ?? null);
           updateLocalUi();
         }
+
+        if (msg.type === 'combatEvent') {
+          const events = Array.isArray(msg.events) ? msg.events : [];
+          const eventTime = Number.isFinite(msg.t) ? msg.t : gameState.getServerNow();
+          for (const event of events) {
+            handleCombatEvent(event, now, eventTime);
+          }
+        }
       },
     });
     net = localNet;
@@ -431,7 +467,8 @@ function sendMoveTarget(pos, opts = {}) {
 function useAbility(slot) {
   if (ui.isUiBlocking()) return;
   const classId = ui.getCurrentClassId(currentMe);
-  const abilities = getAbilitiesForClass(classId, currentMe?.level ?? 1);
+  const weaponDef = getEquippedWeapon(currentMe?.equipment, classId);
+  const abilities = getAbilitiesForClass(classId, currentMe?.level ?? 1, weaponDef);
   const ability = abilities.find((item) => item.slot === slot);
   if (!ability) return;
   const now = gameState.getServerNow();
@@ -494,6 +531,17 @@ function handleStateMessage(msg, now) {
   if (msg.mobs) {
     gameState.updateMobs(msg.mobs);
     renderSystem.updateWorldMobs(msg.mobs);
+  }
+}
+
+function handleCombatEvent(event, now, serverTime) {
+  if (!event || event.kind !== 'basic_attack') return;
+  const timestamp = Number.isFinite(serverTime) ? serverTime : gameState.getServerNow();
+  recordCombatEvent(event, timestamp);
+  if (event.attackType === 'ranged') {
+    renderSystem.spawnProjectile(event.from, event.to, event.durationMs, now);
+  } else {
+    renderSystem.spawnSlash(event.from, event.to, event.durationMs, now);
   }
 }
 
@@ -566,6 +614,7 @@ function stepFrame(dt, now) {
   }
 
   renderSystem.animateWorldMeshes(now);
+  renderSystem.updateEffects(now);
 
   ui.updateAbilityBar(currentMe, gameState.getServerNow());
   if (ui.isSkillsOpen()) {
@@ -617,6 +666,8 @@ function stepFrame(dt, now) {
     ui.clearPrompt();
   }
 
+  pruneCombatEvents(gameState.getServerNow());
+
   fpsFrameCount += 1;
   if (now - fpsLastTime >= 1000) {
     const fps = (fpsFrameCount * 1000) / (now - fpsLastTime);
@@ -667,7 +718,8 @@ function buildTextState() {
   const tradeOpen = ui.isTradeOpen();
   const dialogOpen = ui.isDialogOpen();
   const classId = ui.getCurrentClassId(me);
-  const abilities = getAbilitiesForClass(classId, me?.level ?? 1);
+  const weaponDef = getEquippedWeapon(me?.equipment, classId);
+  const abilities = getAbilitiesForClass(classId, me?.level ?? 1, weaponDef);
   const serverNow = gameState.getServerNow();
   const vendor = ui.vendorUI?.getVendor?.() ?? null;
   const tradeTab = tradeOpen ? ui.vendorUI?.getTab?.() ?? null : null;
@@ -711,6 +763,15 @@ function buildTextState() {
           xp: me.xp ?? 0,
           xpToNext: me.xpToNext ?? xpToNext(me.level ?? 1),
           attackCooldownUntil: me.attackCooldownUntil ?? 0,
+          equipment: me.equipment ?? null,
+          weapon: weaponDef
+            ? {
+                kind: weaponDef.kind,
+                name: weaponDef.name,
+                attackType: weaponDef.attackType,
+                range: weaponDef.range,
+              }
+            : null,
           inv: me.inv,
           invCap: me.invCap,
           invSlots: me.invSlots,
@@ -729,11 +790,28 @@ function buildTextState() {
       name: ability.name,
       slot: ability.slot,
       cooldownMs: ability.cooldownMs ?? 0,
+      range: ability.range ?? 0,
+      attackType: ability.attackType ?? null,
       cooldownRemainingMs:
         ability.id === 'basic_attack'
           ? Math.max(0, (me?.attackCooldownUntil ?? 0) - serverNow)
           : 0,
     })),
+    combat: {
+      recentEvents: combatEvents
+        .filter((event) => event.attackerId === playerId)
+        .map((event) => ({
+          kind: event.kind ?? null,
+          attackType: event.attackType ?? null,
+          attackerId: event.attackerId ?? null,
+          targetId: event.targetId ?? null,
+          from: event.from ?? null,
+          to: event.to ?? null,
+          hit: !!event.hit,
+          durationMs: event.durationMs ?? 0,
+          t: event.t ?? null,
+        })),
+    },
     trade: {
       dialogOpen,
       tradeOpen,
@@ -832,13 +910,19 @@ if (isGuestSession) {
   menu.setAccount(currentAccount);
   ui.setMenuOpen(true);
   menu.setOpen(true);
-  loadCharacters().catch(() => {
-    saveAuthToken(null);
-    clearStoredAccount();
-    clearSessionState();
-    menu.setAccount(null);
+  if (currentAccount) {
+    loadCharacters().catch(() => {
+      saveAuthToken(null);
+      clearStoredAccount();
+      clearSessionState();
+      menu.setAccount(null);
+      menu.setStep('auth');
+      menu.setTab('signin');
+      ui.setStatus('menu');
+    });
+  } else {
     menu.setStep('auth');
     menu.setTab('signin');
     ui.setStatus('menu');
-  });
+  }
 }

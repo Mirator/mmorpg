@@ -7,6 +7,7 @@ import { COMBAT_CONFIG } from './config.js';
  * @property {string} name
  * @property {string} role
  * @property {number} attackRange
+ * @property {string} defaultWeaponKind
  * @property {string} blurb
  */
 
@@ -18,6 +19,7 @@ import { COMBAT_CONFIG } from './config.js';
  * @property {number} cooldownMs
  * @property {number} range
  * @property {number} requiredLevel
+ * @property {'melee' | 'ranged' | null} [attackType]
  */
 
 export const DEFAULT_CLASS_ID = 'fighter';
@@ -29,6 +31,7 @@ export const CLASSES = [
     name: 'Guardian',
     role: 'Tank',
     attackRange: 2.0,
+    defaultWeaponKind: 'weapon_training_sword',
     blurb: 'Heavy armor and steady defense.',
   },
   {
@@ -36,6 +39,7 @@ export const CLASSES = [
     name: 'Fighter',
     role: 'Melee DPS',
     attackRange: 2.0,
+    defaultWeaponKind: 'weapon_training_sword',
     blurb: 'Balanced frontline damage.',
   },
   {
@@ -43,6 +47,7 @@ export const CLASSES = [
     name: 'Ranger',
     role: 'Ranged DPS',
     attackRange: 6.0,
+    defaultWeaponKind: 'weapon_training_bow',
     blurb: 'Quick shots from afar.',
   },
   {
@@ -50,6 +55,7 @@ export const CLASSES = [
     name: 'Priest',
     role: 'Healer',
     attackRange: 6.0,
+    defaultWeaponKind: 'weapon_training_staff',
     blurb: 'Support magic and healing arts.',
   },
   {
@@ -57,6 +63,7 @@ export const CLASSES = [
     name: 'Mage',
     role: 'Magic DPS',
     attackRange: 6.0,
+    defaultWeaponKind: 'weapon_apprentice_wand',
     blurb: 'Arcane burst from range.',
   },
 ];
@@ -71,16 +78,25 @@ export function getClassById(id) {
   return CLASS_BY_ID[id] ?? CLASS_BY_ID[DEFAULT_CLASS_ID];
 }
 
-export function getAbilitiesForClass(classId, level = 1) {
+export function getAbilitiesForClass(classId, level = 1, weaponDef = null) {
   const klass = getClassById(classId);
+  const attackType = weaponDef?.attackType ?? null;
+  const range = Number.isFinite(weaponDef?.range) ? weaponDef.range : klass.attackRange;
+  let name = 'Basic Attack';
+  if (attackType === 'melee') {
+    name = 'Slash';
+  } else if (attackType === 'ranged') {
+    name = weaponDef?.kind?.includes('bow') ? 'Shot' : 'Bolt';
+  }
   return [
     {
       id: 'basic_attack',
-      name: 'Basic Attack',
+      name,
       slot: 1,
       cooldownMs: COMBAT_CONFIG.basicAttackCooldownMs,
-      range: klass.attackRange,
+      range,
       requiredLevel: 1,
+      attackType,
     },
   ];
 }

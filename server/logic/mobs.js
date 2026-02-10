@@ -131,6 +131,22 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
   const alivePlayers = players.filter((p) => !p.dead);
 
   for (const mob of mobs) {
+    if (mob.testId) {
+      if (mob.dead) {
+        if (!mob.respawnAt) {
+          mob.respawnAt = now + respawnMs;
+        }
+        if (mob.respawnAt && now >= mob.respawnAt) {
+          mob.dead = false;
+          mob.hp = mob.maxHp ?? getMobMaxHp(mob.level ?? 1);
+          mob.state = 'idle';
+          mob.targetId = null;
+          mob.attackCooldownUntil = 0;
+          mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
+        }
+      }
+      continue;
+    }
     if (mob.dead) {
       if (!mob.respawnAt) {
         mob.respawnAt = now + respawnMs;

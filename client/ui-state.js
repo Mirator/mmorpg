@@ -5,6 +5,7 @@ import {
   getAbilitiesForClass,
   getClassById,
 } from '/shared/classes.js';
+import { getEquippedWeapon } from '/shared/equipment.js';
 import { totalXpForLevel, xpToNext } from '/shared/progression.js';
 import {
   setStatus,
@@ -15,6 +16,7 @@ import {
   flashDamage,
 } from './ui.js';
 import { createInventoryUI } from './inventory.js';
+import { createEquipmentUI } from './equipment.js';
 import { createVendorUI } from './vendor.js';
 
 function formatItemName(kind) {
@@ -25,7 +27,13 @@ function formatItemName(kind) {
     .join(' ');
 }
 
-export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, onUiOpen }) {
+export function createUiState({
+  onInventorySwap,
+  onEquipmentSwap,
+  onVendorSell,
+  onAbilityClick,
+  onUiOpen,
+}) {
   const skillsPanel = document.getElementById('skills-panel');
   const skillsClassEl = document.getElementById('skills-class');
   const skillsLevelEl = document.getElementById('skills-level');
@@ -33,6 +41,7 @@ export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, o
   const skillsListEl = document.getElementById('skills-list');
   const inventoryPanel = document.getElementById('inventory-panel');
   const inventoryGrid = document.getElementById('inventory-grid');
+  const equipmentGrid = document.getElementById('equipment-grid');
   const vendorDialog = document.getElementById('vendor-dialog');
   const vendorPanel = document.getElementById('vendor-panel');
   const vendorDialogName = document.getElementById('vendor-dialog-name');
@@ -45,6 +54,7 @@ export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, o
   const abilityBar = document.getElementById('ability-bar');
 
   let inventoryUI = null;
+  let equipmentUI = null;
   let vendorUI = null;
 
   let skillsOpen = false;
@@ -122,7 +132,8 @@ export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, o
   function updateAbilityBar(me, serverNow) {
     if (!abilityBar || abilitySlots.length === 0) return;
     const classId = getCurrentClassId(me);
-    const abilities = getAbilitiesForClass(classId, me?.level ?? 1);
+    const weaponDef = getEquippedWeapon(me?.equipment, classId);
+    const abilities = getAbilitiesForClass(classId, me?.level ?? 1, weaponDef);
     const abilityBySlot = new Map(abilities.map((ability) => [ability.slot, ability]));
 
     for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
@@ -158,6 +169,7 @@ export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, o
     if (!skillsPanel || !skillsOpen) return;
     const classId = getCurrentClassId(me);
     const klass = getClassById(classId);
+    const weaponDef = getEquippedWeapon(me?.equipment, classId);
     if (skillsClassEl) {
       skillsClassEl.textContent = klass?.name ?? classId ?? '--';
     }
@@ -169,12 +181,12 @@ export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, o
       skillsXpEl.textContent = needed ? `${me?.xp ?? 0}/${needed}` : 'MAX';
     }
 
-    const renderKey = `${classId}:${me?.level ?? 1}`;
+    const renderKey = `${classId}:${me?.level ?? 1}:${weaponDef?.kind ?? 'none'}`;
     if (renderKey === skillsRenderKey) return;
     skillsRenderKey = renderKey;
     if (!skillsListEl) return;
     skillsListEl.innerHTML = '';
-    const abilities = getAbilitiesForClass(classId, me?.level ?? 1);
+    const abilities = getAbilitiesForClass(classId, me?.level ?? 1, weaponDef);
     for (const ability of abilities) {
       const row = document.createElement('div');
       row.className = 'skill-row';
@@ -224,6 +236,16 @@ export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, o
         onInventorySwap?.(from, to);
       },
       onDropExternal: ({ slot, target }) => {
+        const equipSlot = target?.closest?.('.equipment-slot');
+        if (equipSlot?.dataset?.slot) {
+          onEquipmentSwap?.({
+            fromType: 'inventory',
+            fromSlot: slot,
+            toType: 'equipment',
+            toSlot: equipSlot.dataset.slot,
+          });
+          return true;
+        }
         if (!vendorUI || !vendorUI.isTradeOpen()) return false;
         const dropzone = target?.closest?.('.vendor-dropzone');
         if (!dropzone) return false;
@@ -231,6 +253,15 @@ export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, o
         if (!vendor?.id) return false;
         onVendorSell?.(slot, vendor.id);
         return true;
+      },
+    });
+  }
+
+  if (equipmentGrid) {
+    equipmentUI = createEquipmentUI({
+      grid: equipmentGrid,
+      onSwap: ({ fromType, fromSlot, toType, toSlot }) => {
+        onEquipmentSwap?.({ fromType, fromSlot, toType, toSlot });
       },
     });
   }
@@ -305,6 +336,9 @@ export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, o
           stackMax: me.invStackMax ?? worldConfig?.playerInvStackMax ?? 1,
         });
       }
+      if (equipmentUI) {
+        equipmentUI.setEquipment(me.equipment ?? {});
+      }
       if (inventoryCoinsEl) {
         inventoryCoinsEl.textContent = formatCurrency(me.currencyCopper ?? 0);
       }
@@ -349,6 +383,9 @@ export function createUiState({ onInventorySwap, onVendorSell, onAbilityClick, o
           slots: worldConfig?.playerInvSlots ?? 0,
           stackMax: worldConfig?.playerInvStackMax ?? 1,
         });
+      }
+      if (equipmentUI) {
+        equipmentUI.setEquipment({});
       }
       if (inventoryCoinsEl) {
         inventoryCoinsEl.textContent = '--';

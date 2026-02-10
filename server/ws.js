@@ -13,6 +13,7 @@ import { worldSnapshot } from './logic/world.js';
 import { tryHarvest } from './logic/resources.js';
 import { tryBasicAttack } from './logic/combat.js';
 import { countInventory, swapInventorySlots } from './logic/inventory.js';
+import { swapEquipment } from './logic/equipment.js';
 import { loadPlayer, savePlayer } from './db/playerRepo.js';
 import { hydratePlayerState, migratePlayerState, serializePlayerState } from './db/playerState.js';
 import { createBasePlayerState } from './logic/players.js';
@@ -172,6 +173,34 @@ export function createWebSocketServer({
     });
   }
 
+  const COMBAT_VFX_RADIUS = 25;
+  const COMBAT_VFX_RADIUS2 = COMBAT_VFX_RADIUS * COMBAT_VFX_RADIUS;
+
+  function shouldReceiveCombatEvent(pos, event) {
+    if (!pos || !event) return false;
+    const from = event.from;
+    const to = event.to;
+    const dxFrom = pos.x - (from?.x ?? 0);
+    const dzFrom = pos.z - (from?.z ?? 0);
+    if (dxFrom * dxFrom + dzFrom * dzFrom <= COMBAT_VFX_RADIUS2) return true;
+    if (to) {
+      const dxTo = pos.x - (to.x ?? 0);
+      const dzTo = pos.z - (to.z ?? 0);
+      if (dxTo * dxTo + dzTo * dzTo <= COMBAT_VFX_RADIUS2) return true;
+    }
+    return false;
+  }
+
+  function broadcastCombatEvent(event, now = Date.now()) {
+    if (!event) return;
+    const payload = JSON.stringify({ type: 'combatEvent', t: now, events: [event] });
+    for (const other of players.values()) {
+      if (!other?.pos) continue;
+      if (!shouldReceiveCombatEvent(other.pos, event)) continue;
+      safeSendRaw(other.ws, payload);
+    }
+  }
+
   server.on('upgrade', (req, socket, head) => {
     const origin = req.headers.origin;
     if (!isAllowedOrigin(origin)) {
@@ -315,6 +344,7 @@ export function createWebSocketServer({
           invStackMax: hydrated.invStackMax,
           inventory: hydrated.inventory,
           currencyCopper: hydrated.currencyCopper,
+          equipment: hydrated.equipment,
           dead: false,
           respawnAt: 0,
           classId: hydrated.classId,
@@ -353,6 +383,7 @@ export function createWebSocketServer({
           invStackMax: baseState.invStackMax,
           inventory: baseState.inventory,
           currencyCopper: baseState.currencyCopper,
+          equipment: baseState.equipment,
           dead: false,
           respawnAt: 0,
           classId: baseState.classId,
@@ -471,6 +502,22 @@ export function createWebSocketServer({
           return;
         }
 
+        if (msg.type === 'equipSwap') {
+          const swapped = swapEquipment({
+            inventory: player.inventory,
+            equipment: player.equipment,
+            fromType: msg.fromType,
+            fromSlot: msg.fromSlot,
+            toType: msg.toType,
+            toSlot: msg.toSlot,
+          });
+          if (swapped) {
+            player.inv = countInventory(player.inventory);
+            persistence.markDirty(player);
+          }
+          return;
+        }
+
         if (msg.type === 'action' && msg.kind === 'ability') {
           if (msg.slot !== 1) return;
           const result = tryBasicAttack({
@@ -479,6 +526,9 @@ export function createWebSocketServer({
             now: Date.now(),
             respawnMs: config.mob.respawnMs,
           });
+          if (result.event) {
+            broadcastCombatEvent(result.event, Date.now());
+          }
           if (result.xpGain > 0 || result.leveledUp) {
             persistence.markDirty(player);
           }

@@ -1,5 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { initWorld, updateResources, updateMobs, animateWorld } from './world.js';
+import { createEffectsSystem } from './effects.js';
 
 const CAMERA_LERP_SPEED = 5;
 const FRUSTUM_SIZE = 24;
@@ -67,6 +68,7 @@ export function createRenderSystem({ app }) {
   const playerMeshes = new Map();
   let myId = null;
   let worldState = null;
+  const effectsSystem = createEffectsSystem(scene);
 
   function resize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -160,6 +162,10 @@ export function createRenderSystem({ app }) {
     animateWorld(worldState, now);
   }
 
+  function updateEffects(now) {
+    effectsSystem.update(now);
+  }
+
   function updateCamera(viewPos, dt) {
     if (!viewPos) return null;
     cameraDesired.set(
@@ -191,7 +197,12 @@ export function createRenderSystem({ app }) {
     updateWorldResources,
     updateWorldMobs,
     animateWorldMeshes,
+    updateEffects,
     updateCamera,
     renderFrame,
+    spawnSlash: (from, to, durationMs, now) =>
+      effectsSystem.spawnSlash({ from, to, durationMs, now }),
+    spawnProjectile: (from, to, durationMs, now) =>
+      effectsSystem.spawnProjectile({ from, to, durationMs, now }),
   };
 }

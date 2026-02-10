@@ -56,6 +56,26 @@ describe('protocol validation', () => {
     });
   });
 
+  it('accepts equipSwap message', () => {
+    expect(
+      parseClientMessage({
+        type: 'equipSwap',
+        fromType: 'inventory',
+        fromSlot: 0,
+        toType: 'equipment',
+        toSlot: 'weapon',
+        seq: 2,
+      })
+    ).toEqual({
+      type: 'equipSwap',
+      fromType: 'inventory',
+      fromSlot: 0,
+      toType: 'equipment',
+      toSlot: 'weapon',
+      seq: 2,
+    });
+  });
+
   it('accepts vendorSell message', () => {
     expect(parseClientMessage({ type: 'vendorSell', vendorId: 'vendor-1', slot: 2 })).toEqual({
       type: 'vendorSell',

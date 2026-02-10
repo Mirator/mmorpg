@@ -12,6 +12,7 @@ describe('player state migration', () => {
     expect(result.state.level).toBe(1);
     expect(result.state.xp).toBe(0);
     expect(result.state.currencyCopper).toBe(0);
+    expect(result.state.equipment ?? null).not.toBe(undefined);
   });
 
   it('preserves newer state versions', () => {

@@ -1,14 +1,20 @@
 import { addXp, calculateMobXp } from '../../shared/progression.js';
 import { getClassById } from '../../shared/classes.js';
 import { COMBAT_CONFIG } from '../../shared/config.js';
+import { getEquippedWeapon } from '../../shared/equipment.js';
 import { getMobMaxHp } from './mobs.js';
 
-export function getBasicAttackConfig(classId) {
-  const klass = getClassById(classId);
+export function getBasicAttackConfig(player) {
+  const klass = getClassById(player?.classId);
+  const weaponDef = getEquippedWeapon(player?.equipment, player?.classId);
+  const range = Number.isFinite(weaponDef?.range) ? weaponDef.range : klass?.attackRange ?? 2.0;
+  const attackType =
+    weaponDef?.attackType ?? (range > 3 ? 'ranged' : 'melee');
   return {
     damage: COMBAT_CONFIG.basicAttackDamage,
     cooldownMs: COMBAT_CONFIG.basicAttackCooldownMs,
-    range: klass?.attackRange ?? 2.0,
+    range,
+    attackType,
   };
 }
 
@@ -35,13 +41,30 @@ export function findNearestMobInRange(mobs, pos, range) {
 
 export function tryBasicAttack({ player, mobs, now, respawnMs }) {
   if (!player || player.dead) return { success: false };
-  const config = getBasicAttackConfig(player.classId);
+  const config = getBasicAttackConfig(player);
   if (now < (player.attackCooldownUntil ?? 0)) {
     return { success: false, reason: 'cooldown' };
   }
 
+  player.attackCooldownUntil = now + config.cooldownMs;
+
   const target = findNearestMobInRange(mobs, player.pos, config.range);
-  if (!target) return { success: false, reason: 'no_target' };
+  if (!target) {
+    return {
+      success: false,
+      reason: 'no_target',
+      event: {
+        kind: 'basic_attack',
+        attackType: config.attackType,
+        attackerId: player.id,
+        targetId: null,
+        from: { x: player.pos.x, z: player.pos.z },
+        to: { x: player.pos.x + config.range, z: player.pos.z },
+        hit: false,
+        durationMs: config.attackType === 'ranged' ? 200 : 180,
+      },
+    };
+  }
 
   if (!Number.isFinite(target.maxHp)) {
     target.maxHp = getMobMaxHp(target.level ?? 1);
@@ -51,7 +74,6 @@ export function tryBasicAttack({ player, mobs, now, respawnMs }) {
   }
 
   target.hp = Math.max(0, target.hp - config.damage);
-  player.attackCooldownUntil = now + config.cooldownMs;
 
   let xpGain = 0;
   let leveledUp = false;
@@ -73,5 +95,24 @@ export function tryBasicAttack({ player, mobs, now, respawnMs }) {
     }
   }
 
-  return { success: true, targetId: target.id, xpGain, leveledUp };
+  const from = { x: player.pos.x, z: player.pos.z };
+  const to = { x: target.pos.x, z: target.pos.z };
+  const durationMs = config.attackType === 'ranged' ? 200 : 180;
+
+  return {
+    success: true,
+    targetId: target.id,
+    xpGain,
+    leveledUp,
+    event: {
+      kind: 'basic_attack',
+      attackType: config.attackType,
+      attackerId: player.id,
+      targetId: target.id,
+      from,
+      to,
+      hit: true,
+      durationMs,
+    },
+  };
 }

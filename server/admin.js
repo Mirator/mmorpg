@@ -1,5 +1,6 @@
 import { worldSnapshot } from './logic/world.js';
 import { xpToNext } from '../shared/progression.js';
+import { getEquippedWeapon } from '../shared/equipment.js';
 
 export function resolveAdminPassword(env = process.env) {
   return env.ADMIN_PASSWORD ?? '1234';
@@ -24,6 +25,8 @@ export function serializePlayers(players) {
       invStackMax: p.invStackMax,
       inventory: p.inventory,
       currencyCopper: p.currencyCopper ?? 0,
+      equipment: p.equipment ?? null,
+      weaponKind: getEquippedWeapon(p.equipment, p.classId)?.kind ?? null,
       dead: p.dead,
       respawnAt: p.respawnAt ?? 0,
     };
@@ -64,6 +67,8 @@ export function serializePlayerPrivate(player) {
     xp: player.xp ?? 0,
     xpToNext: xpToNext(player.level ?? 1),
     attackCooldownUntil: player.attackCooldownUntil ?? 0,
+    equipment: player.equipment ?? null,
+    weaponKind: getEquippedWeapon(player.equipment, player.classId)?.kind ?? null,
   };
 }
 

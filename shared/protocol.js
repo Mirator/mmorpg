@@ -1,5 +1,7 @@
 // @ts-check
 
+import { EQUIP_SLOTS } from './equipment.js';
+
 export const PROTOCOL_VERSION = 1;
 
 const MAX_ID_LENGTH = 64;
@@ -13,8 +15,9 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'action', kind: 'ability', slot: number, seq?: number }} AbilityMessage
  * @typedef {{ type: 'classSelect', classId: string, seq?: number }} ClassSelectMessage
  * @typedef {{ type: 'inventorySwap', from: number, to: number, seq?: number }} InventorySwapMessage
+ * @typedef {{ type: 'equipSwap', fromType: 'inventory' | 'equipment', fromSlot: number | string, toType: 'inventory' | 'equipment', toSlot: number | string, seq?: number }} EquipSwapMessage
  * @typedef {{ type: 'vendorSell', vendorId: string, slot: number, seq?: number }} VendorSellMessage
- * @typedef {HelloMessage | InputMessage | MoveTargetMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | VendorSellMessage} ClientMessage
+ * @typedef {HelloMessage | InputMessage | MoveTargetMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage} ClientMessage
  */
 
 const CLIENT_MESSAGE_TYPES = new Set([
@@ -24,6 +27,7 @@ const CLIENT_MESSAGE_TYPES = new Set([
   'action',
   'classSelect',
   'inventorySwap',
+  'equipSwap',
   'vendorSell',
 ]);
 
@@ -41,6 +45,27 @@ function normalizeString(value, maxLen = MAX_ID_LENGTH) {
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > maxLen) return null;
   return trimmed;
+}
+
+const EQUIP_SLOT_SET = new Set(EQUIP_SLOTS);
+
+function normalizeSwapType(value) {
+  if (value === 'inventory' || value === 'equipment') return value;
+  return null;
+}
+
+function normalizeSwapSlot(value, type) {
+  if (type === 'inventory') {
+    const index = Number(value);
+    if (!Number.isInteger(index) || index < 0) return null;
+    return index;
+  }
+  if (type === 'equipment') {
+    const slot = normalizeString(value, 32);
+    if (!slot || !EQUIP_SLOT_SET.has(slot)) return null;
+    return slot;
+  }
+  return null;
 }
 
 /** @param {InputKeys | null | undefined} raw */
@@ -108,6 +133,16 @@ export function parseClientMessage(raw) {
     const to = Number(raw.to);
     if (!Number.isInteger(from) || !Number.isInteger(to)) return null;
     return { type: 'inventorySwap', from, to, seq };
+  }
+
+  if (raw.type === 'equipSwap') {
+    const fromType = normalizeSwapType(raw.fromType);
+    const toType = normalizeSwapType(raw.toType);
+    if (!fromType || !toType) return null;
+    const fromSlot = normalizeSwapSlot(raw.fromSlot, fromType);
+    const toSlot = normalizeSwapSlot(raw.toSlot, toType);
+    if (fromSlot === null || toSlot === null) return null;
+    return { type: 'equipSwap', fromType, fromSlot, toType, toSlot, seq };
   }
 
   if (raw.type === 'vendorSell') {

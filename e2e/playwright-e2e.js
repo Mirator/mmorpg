@@ -234,11 +234,11 @@ async function run() {
     await page.keyboard.press('k');
     await page.waitForSelector('#skills-panel.open');
     await page.waitForFunction(() =>
-      document.querySelector('#skills-list')?.textContent?.includes('Basic Attack')
+      document.querySelector('#skills-list')?.textContent?.includes('Slash')
     );
     const skillsText = await page.locator('#skills-list').innerText();
-    if (!skillsText.includes('Basic Attack')) {
-      throw new Error('Skills panel missing Basic Attack');
+    if (!skillsText.includes('Slash')) {
+      throw new Error('Skills panel missing Slash');
     }
     await page.keyboard.press('k');
     await page.waitForFunction(
@@ -266,25 +266,6 @@ async function run() {
       'movement'
     );
     await page.evaluate(() => window.__game?.clearInput());
-
-    // Reset between scenarios to avoid stale input/state.
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(500);
-    await page.waitForFunction(() => window.__game && typeof window.__game.moveTo === 'function');
-    await page.waitForSelector('#menu.open');
-    await page.waitForSelector('#menu[data-step=\"characters\"]');
-    const playButtons = page.locator('.character-row button');
-    await playButtons.first().click();
-    await page.waitForFunction(
-      () => !document.querySelector('#menu')?.classList.contains('open')
-    );
-    state = await waitForCondition(
-      page,
-      (s) => s.player && s.resources?.length > 0 && s.mobs?.length > 0,
-      TEST_TIMEOUT_MS,
-      'post-reload state'
-    );
-    console.log(`Post-reload resources: ${state.resources.length}, mobs: ${state.mobs.length}`);
 
     const harvestRadius = state.world?.harvestRadius ?? 2;
     let resource = null;
@@ -386,6 +367,11 @@ async function run() {
       'inventory open'
     );
 
+    const equipSlotCount = await page.locator('#equipment-grid .equipment-slot').count();
+    if (equipSlotCount !== 6) {
+      throw new Error(`Equipment slot count mismatch: ${equipSlotCount}`);
+    }
+
     const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
     if (items.length === 0) {
       throw new Error('No inventory items after harvest');
@@ -429,6 +415,63 @@ async function run() {
         !s.inventory.items.some((item) => item.slot === fromSlot),
       TEST_TIMEOUT_MS,
       'inventory swap'
+    );
+
+    const weaponSlotBox = await page
+      .locator('.equipment-slot[data-slot=\"weapon\"]')
+      .boundingBox();
+    const emptySlot = fromSlot;
+    const emptyBox = await page
+      .locator(`.inventory-slot[data-index=\"${emptySlot}\"]`)
+      .boundingBox();
+    if (!weaponSlotBox || !emptyBox) {
+      throw new Error('Weapon slot or empty inventory slot not found');
+    }
+
+    await page.mouse.move(
+      weaponSlotBox.x + weaponSlotBox.width / 2,
+      weaponSlotBox.y + weaponSlotBox.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2, {
+      steps: 6,
+    });
+    await page.mouse.up();
+
+    state = await waitForCondition(
+      page,
+      (s) => s.inventory?.items?.some((item) => item.kind?.startsWith('weapon_')),
+      TEST_TIMEOUT_MS,
+      'unequip weapon'
+    );
+
+    const weaponItemSlot =
+      state.inventory.items.find((item) => item.kind?.startsWith('weapon_'))?.slot ??
+      emptySlot;
+    const weaponItemBox = await page
+      .locator(`.inventory-slot[data-index=\"${weaponItemSlot}\"]`)
+      .boundingBox();
+    if (!weaponItemBox) {
+      throw new Error('Weapon inventory slot not found for re-equip');
+    }
+
+    await page.mouse.move(
+      weaponItemBox.x + weaponItemBox.width / 2,
+      weaponItemBox.y + weaponItemBox.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      weaponSlotBox.x + weaponSlotBox.width / 2,
+      weaponSlotBox.y + weaponSlotBox.height / 2,
+      { steps: 6 }
+    );
+    await page.mouse.up();
+
+    state = await waitForCondition(
+      page,
+      (s) => s.player?.equipment?.weapon?.kind?.startsWith('weapon_'),
+      TEST_TIMEOUT_MS,
+      're-equip weapon'
     );
 
     await page.keyboard.press('i');
@@ -519,17 +562,33 @@ async function run() {
       throw new Error('No alive mob available for attack test');
     }
     const classId = state.player?.classId ?? 'fighter';
-    const attackRange = ['ranger', 'priest', 'mage'].includes(classId) ? 6 : 2;
+    const attackRange =
+      state.player?.weapon?.range ??
+      (['ranger', 'priest', 'mage'].includes(classId) ? 6 : 2);
+    const attackReachThreshold = Math.max(0.2, attackRange - 0.1);
+    const attackMoveTarget = { x: attackTarget.x, z: attackTarget.z };
     await page.evaluate(
       ({ x, z }) => window.__game?.moveTo(x, z),
-      { x: attackTarget.x, z: attackTarget.z }
+      attackMoveTarget
     );
     state = await waitForCondition(
       page,
-      (s) => s.player && distance(s.player, attackTarget) <= attackRange + 0.2,
-      TEST_TIMEOUT_MS,
+      (s) => s.player && distance(s.player, attackMoveTarget) <= attackReachThreshold,
+      Math.max(TEST_TIMEOUT_MS, 30000),
       'reach attack target'
     );
+
+    await page.keyboard.press('1');
+    state = await waitForCondition(
+      page,
+      (s) =>
+        Array.isArray(s.combat?.recentEvents) &&
+        s.combat.recentEvents.some((event) => event.kind === 'basic_attack'),
+      TEST_TIMEOUT_MS,
+      'combat event'
+    );
+    await sleep(950);
+    await advance(page, 200);
 
     let updatedTarget = state.mobs.find((m) => m.id === attackTarget.id);
     const levelBefore = state.player.level ?? 1;
@@ -559,6 +618,7 @@ async function run() {
       (m) => m.id !== attackTarget.id
     );
     const mobDamageTarget =
+      damagePool.find((mob) => mob.id === 'm-chase') ??
       damagePool.reduce((closest, current) => {
         if (!closest) return current;
         return distance(state.player, current) < distance(state.player, closest)

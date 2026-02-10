@@ -38,6 +38,19 @@ function createRequest({ headerPass } = {}) {
 
 describe('admin state serialization', () => {
   it('serializes players, resources, and mobs', () => {
+    const fighterEquipment = {
+      weapon: {
+        id: 'w1',
+        kind: 'weapon_training_sword',
+        name: 'Training Sword',
+        count: 1,
+      },
+      offhand: null,
+      head: null,
+      chest: null,
+      legs: null,
+      feet: null,
+    };
     const players = new Map([
       [
         'p1',
@@ -54,6 +67,7 @@ describe('admin state serialization', () => {
             null,
           ],
           currencyCopper: 120,
+          equipment: fighterEquipment,
           classId: 'fighter',
           level: 2,
           xp: 15,
@@ -91,6 +105,8 @@ describe('admin state serialization', () => {
         invStackMax: 10,
         inventory: [{ id: 'i1', kind: 'crystal', name: 'Crystal', count: 2 }, null],
         currencyCopper: 120,
+        equipment: fighterEquipment,
+        weaponKind: 'weapon_training_sword',
         dead: false,
         respawnAt: 0,
       },
@@ -154,6 +170,19 @@ describe('admin state serialization', () => {
   });
 
   it('serializes private player fields for local client', () => {
+    const rangerEquipment = {
+      weapon: {
+        id: 'w2',
+        kind: 'weapon_training_bow',
+        name: 'Training Bow',
+        count: 1,
+      },
+      offhand: null,
+      head: null,
+      chest: null,
+      legs: null,
+      feet: null,
+    };
     const player = {
       invCap: 10,
       invSlots: 2,
@@ -162,6 +191,7 @@ describe('admin state serialization', () => {
       respawnAt: 12345,
       hp: 50,
       currencyCopper: 55,
+      equipment: rangerEquipment,
       classId: 'ranger',
       level: 4,
       xp: 22,
@@ -180,6 +210,8 @@ describe('admin state serialization', () => {
       xp: 22,
       xpToNext: xpToNext(4),
       attackCooldownUntil: 9876,
+      equipment: rangerEquipment,
+      weaponKind: 'weapon_training_bow',
     });
   });
 
