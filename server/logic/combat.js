@@ -46,25 +46,22 @@ export function tryBasicAttack({ player, mobs, now, respawnMs }) {
     return { success: false, reason: 'cooldown' };
   }
 
-  player.attackCooldownUntil = now + config.cooldownMs;
-
-  const target = findNearestMobInRange(mobs, player.pos, config.range);
-  if (!target) {
-    return {
-      success: false,
-      reason: 'no_target',
-      event: {
-        kind: 'basic_attack',
-        attackType: config.attackType,
-        attackerId: player.id,
-        targetId: null,
-        from: { x: player.pos.x, z: player.pos.z },
-        to: { x: player.pos.x + config.range, z: player.pos.z },
-        hit: false,
-        durationMs: config.attackType === 'ranged' ? 200 : 180,
-      },
-    };
+  if (!player.targetId) {
+    return { success: false, reason: 'no_target' };
   }
+
+  const target = Array.isArray(mobs) ? mobs.find((mob) => mob.id === player.targetId) : null;
+  if (!target || target.dead || target.hp <= 0) {
+    player.targetId = null;
+    return { success: false, reason: 'no_target' };
+  }
+
+  const dist2 = distance2(target.pos ?? target, player.pos);
+  if (dist2 > config.range * config.range) {
+    return { success: false, reason: 'out_of_range' };
+  }
+
+  player.attackCooldownUntil = now + config.cooldownMs;
 
   if (!Number.isFinite(target.maxHp)) {
     target.maxHp = getMobMaxHp(target.level ?? 1);
@@ -82,6 +79,7 @@ export function tryBasicAttack({ player, mobs, now, respawnMs }) {
     target.state = 'dead';
     target.targetId = null;
     target.respawnAt = now + (respawnMs ?? 10_000);
+    player.targetId = null;
     xpGain = calculateMobXp(target.level ?? 1, player.level ?? 1);
     if (xpGain > 0) {
       const beforeLevel = player.level ?? 1;

@@ -79,13 +79,44 @@
       </div>
     </div>
     <div id="overlay">
-      <div class="title">MMORPG MVP</div>
-      <div>WASD to move · Click to move · E to interact · I for inventory · K for skills · 1-0 for abilities</div>
-      <div>Status: <span id="status">connecting...</span></div>
-      <div class="overlay-row">
-        Account: <span id="account-name">--</span> · Character: <span id="character-name">--</span>
+      <div class="overlay-block">
+        <div class="overlay-label">Character</div>
+        <div id="overlay-character-name" class="overlay-name">--</div>
+      </div>
+      <div class="overlay-bar">
+        <div class="overlay-bar-header">
+          <span class="overlay-bar-label">HP</span>
+          <span id="overlay-hp-value" class="overlay-bar-value">--</span>
+        </div>
+        <div class="overlay-bar-track">
+          <div id="overlay-hp-fill" class="overlay-bar-fill"></div>
+        </div>
+      </div>
+      <div class="overlay-bar">
+        <div class="overlay-bar-header">
+          <span class="overlay-bar-label">Stamina</span>
+          <span id="overlay-stamina-value" class="overlay-bar-value">--</span>
+        </div>
+        <div class="overlay-bar-track muted">
+          <div id="overlay-stamina-fill" class="overlay-bar-fill"></div>
+        </div>
+      </div>
+      <div class="overlay-status">Status: <span id="status">connecting...</span></div>
+      <div class="overlay-controls">
+        WASD to move · Click to move · Click target/TAB to cycle enemies · E to interact · I for
+        inventory · K for skills · 1-0 for abilities
       </div>
       <button id="signout-btn" class="overlay-btn">Sign out</button>
+    </div>
+    <div id="target-hud" class="target-hud">
+      <div id="target-name" class="target-name">--</div>
+      <div id="target-meta" class="target-meta">--</div>
+      <div id="target-hp" class="target-hp">
+        <div class="target-hp-bar">
+          <div id="target-hp-fill" class="target-hp-fill"></div>
+        </div>
+        <div id="target-hp-value" class="target-hp-value">--</div>
+      </div>
     </div>
     <div id="hud">
       <div>Level: <span id="hud-level">1</span></div>

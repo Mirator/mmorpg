@@ -347,6 +347,7 @@ export function createWebSocketServer({
           equipment: hydrated.equipment,
           dead: false,
           respawnAt: 0,
+          targetId: null,
           classId: hydrated.classId,
           level: hydrated.level,
           xp: hydrated.xp,
@@ -386,6 +387,7 @@ export function createWebSocketServer({
           equipment: baseState.equipment,
           dead: false,
           respawnAt: 0,
+          targetId: null,
           classId: baseState.classId,
           level: baseState.level,
           xp: baseState.xp,
@@ -464,6 +466,27 @@ export function createWebSocketServer({
 
         if (msg.type === 'moveTarget') {
           player.target = { x: msg.x, z: msg.z };
+          return;
+        }
+
+        if (msg.type === 'targetSelect') {
+          if (!msg.targetId) {
+            player.targetId = null;
+            return;
+          }
+          const target = mobs.find((mob) => mob.id === msg.targetId);
+          const maxDist = config.combat?.targetSelectRange ?? 25;
+          if (!target || target.dead || target.hp <= 0) {
+            player.targetId = null;
+            return;
+          }
+          const dx = target.pos.x - player.pos.x;
+          const dz = target.pos.z - player.pos.z;
+          if (dx * dx + dz * dz > maxDist * maxDist) {
+            player.targetId = null;
+            return;
+          }
+          player.targetId = target.id;
           return;
         }
 

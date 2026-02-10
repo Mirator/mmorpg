@@ -39,6 +39,7 @@ export const MOB_CONFIG = {
 export const COMBAT_CONFIG = {
   basicAttackDamage: 10,
   basicAttackCooldownMs: 900,
+  targetSelectRange: 25,
 };
 
 export function getConfigSnapshot() {
@@ -72,6 +73,7 @@ export function getConfigSnapshot() {
     combat: {
       basicAttackDamage: COMBAT_CONFIG.basicAttackDamage,
       basicAttackCooldownMs: COMBAT_CONFIG.basicAttackCooldownMs,
+      targetSelectRange: COMBAT_CONFIG.targetSelectRange,
     },
     vendor: {
       interactRadius: VENDOR_CONFIG.interactRadius,

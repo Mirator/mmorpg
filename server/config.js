@@ -1,5 +1,11 @@
 import { resolveAdminPassword } from './admin.js';
-import { MOB_CONFIG, RESOURCE_CONFIG, PLAYER_CONFIG, getConfigSnapshot } from '../shared/config.js';
+import {
+  MOB_CONFIG,
+  RESOURCE_CONFIG,
+  PLAYER_CONFIG,
+  COMBAT_CONFIG,
+  getConfigSnapshot,
+} from '../shared/config.js';
 
 const DEFAULT_PORT = 3000;
 
@@ -101,6 +107,9 @@ export function getServerConfig(env = process.env) {
       attackDamageBase: MOB_CONFIG.attackDamageBase,
       attackDamagePerLevel: MOB_CONFIG.attackDamagePerLevel,
       radius: MOB_CONFIG.radius,
+    },
+    combat: {
+      targetSelectRange: COMBAT_CONFIG.targetSelectRange,
     },
     player: {
       maxHp: PLAYER_CONFIG.maxHp,

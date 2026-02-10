@@ -138,6 +138,7 @@ describe('admin state serialization', () => {
           pos: { x: 2, y: 0, z: 3 },
           hp: 50,
           maxHp: 100,
+          name: 'Zara',
           inv: 4,
           invCap: 10,
           invSlots: 2,
@@ -165,6 +166,7 @@ describe('admin state serialization', () => {
         dead: true,
         classId: 'mage',
         level: 3,
+        name: 'Zara',
       },
     });
   });
@@ -196,6 +198,7 @@ describe('admin state serialization', () => {
       level: 4,
       xp: 22,
       attackCooldownUntil: 9876,
+      targetId: 'm-9',
     };
 
     expect(serializePlayerPrivate(player)).toEqual({
@@ -210,6 +213,7 @@ describe('admin state serialization', () => {
       xp: 22,
       xpToNext: xpToNext(4),
       attackCooldownUntil: 9876,
+      targetId: 'm-9',
       equipment: rangerEquipment,
       weaponKind: 'weapon_training_bow',
     });

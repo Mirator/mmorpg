@@ -224,11 +224,69 @@ async function run() {
     await page.waitForFunction(
       () => !document.querySelector('#menu')?.classList.contains('open')
     );
+    await page.waitForFunction(() => !document.body.classList.contains('menu-open'));
 
     await page.waitForSelector('#ability-bar .ability-slot');
     const abilitySlotCount = await page.locator('#ability-bar .ability-slot').count();
     if (abilitySlotCount !== 10) {
       throw new Error(`Ability bar slot count mismatch: ${abilitySlotCount}`);
+    }
+
+    await page.waitForSelector('#overlay');
+    const overlayText = await page.locator('#overlay').innerText();
+    if (overlayText.includes('MMORPG MVP')) {
+      throw new Error('Overlay still includes title text');
+    }
+    if (overlayText.toLowerCase().includes('account')) {
+      throw new Error('Overlay still mentions account');
+    }
+    const characterLabel = await page.locator('#overlay-character-name').innerText();
+    if (!characterLabel || characterLabel.trim() === '--') {
+      throw new Error('Character name missing from overlay');
+    }
+    const hpOverlayValue = await page.locator('#overlay-hp-value').innerText();
+    if (!hpOverlayValue.includes('/')) {
+      throw new Error(`Overlay HP value not populated: "${hpOverlayValue}"`);
+    }
+
+    const controlsMetrics = await page.evaluate(() => {
+      const el = document.querySelector('.overlay-controls');
+      if (!el) return { opacity: null, height: null };
+      return {
+        opacity: getComputedStyle(el).opacity,
+        height: el.getBoundingClientRect().height,
+      };
+    });
+    if (!controlsMetrics.opacity || Number(controlsMetrics.height ?? 0) > 1) {
+      throw new Error('Overlay controls should be hidden by default');
+    }
+    await page.hover('#overlay');
+    await page.waitForTimeout(200);
+    const overlayHoverMatch = await page.evaluate(() => {
+      const el = document.querySelector('#overlay');
+      return el ? el.matches(':hover') : false;
+    });
+    if (!overlayHoverMatch) {
+      await page.dispatchEvent('#overlay', 'mouseenter');
+      await page.waitForTimeout(100);
+    }
+    await page.evaluate(() => {
+      const el = document.querySelector('#overlay');
+      if (el && !el.classList.contains('hovered')) {
+        el.classList.add('hovered');
+      }
+    });
+    await page.waitForTimeout(100);
+    const controlsMetricsHover = await page.evaluate(() => {
+      const el = document.querySelector('.overlay-controls');
+      if (!el) return { opacity: null, height: null };
+      return {
+        opacity: getComputedStyle(el).opacity,
+        height: el.getBoundingClientRect().height,
+      };
+    });
+    if (!controlsMetricsHover.opacity || Number(controlsMetricsHover.height ?? 0) < 8) {
+      throw new Error('Overlay controls did not appear on hover');
     }
 
     await page.keyboard.press('k');
@@ -553,6 +611,65 @@ async function run() {
     await page.click('#vendor-panel-close');
     await page.waitForFunction(() => !document.querySelector('#vendor-panel')?.classList.contains('open'));
 
+    let inventoryClosed = false;
+    let inventoryCloseError = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await page.keyboard.press('i');
+      try {
+        state = await waitForCondition(
+          page,
+          (s) => !s.inventory?.open,
+          TEST_TIMEOUT_MS,
+          'inventory closed after trade'
+        );
+        inventoryClosed = true;
+        break;
+      } catch (err) {
+        inventoryCloseError = err;
+      }
+    }
+    if (!inventoryClosed && inventoryCloseError) {
+      throw inventoryCloseError;
+    }
+
+    const vendorClickTarget = state.world?.vendors?.[0];
+    if (!vendorClickTarget) {
+      throw new Error('No vendor available for targeting');
+    }
+    const vendorScreen = await page.evaluate((vendor) => {
+      return window.__game?.projectToScreen(vendor.x, vendor.z);
+    }, vendorClickTarget);
+    if (!vendorScreen || !Number.isFinite(vendorScreen.x)) {
+      throw new Error('Failed to compute vendor screen position');
+    }
+    await page.evaluate(({ x, y }) => {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return;
+      const event = new MouseEvent('click', { clientX: x, clientY: y, bubbles: true });
+      canvas.dispatchEvent(event);
+    }, vendorScreen);
+    state = await waitForCondition(
+      page,
+      (s) => s.target?.kind === 'vendor' && s.target?.id === vendorClickTarget.id,
+      TEST_TIMEOUT_MS,
+      'vendor target'
+    );
+    await advance(page, 1000 / 30);
+    await sleep(50);
+    await page.waitForFunction(() =>
+      document.querySelector('#target-hud')?.classList.contains('visible')
+    );
+    const vendorHudName = await page.locator('#target-name').innerText();
+    if (vendorHudName.trim() !== vendorClickTarget.name) {
+      throw new Error(
+        `Vendor HUD name mismatch. Expected "${vendorClickTarget.name}", got "${vendorHudName}"`
+      );
+    }
+    const vendorHudMeta = await page.locator('#target-meta').innerText();
+    if (!vendorHudMeta.includes('Vendor')) {
+      throw new Error(`Vendor HUD meta missing: "${vendorHudMeta}"`);
+    }
+
     state = await getState(page);
 
     const attackTarget =
@@ -577,6 +694,41 @@ async function run() {
       Math.max(TEST_TIMEOUT_MS, 30000),
       'reach attack target'
     );
+
+    await page.keyboard.press('Tab');
+    state = await waitForCondition(
+      page,
+      (s) => s.player?.targetId === attackTarget.id,
+      TEST_TIMEOUT_MS,
+      'target selection'
+    );
+
+    await page.waitForFunction(() =>
+      document.querySelector('#target-hud')?.classList.contains('visible')
+    );
+    const targetState = state.target;
+    if (!targetState || targetState.id !== attackTarget.id) {
+      throw new Error('Target HUD state not available after selection');
+    }
+    const targetHudName = await page.locator('#target-name').innerText();
+    if (targetHudName.trim() !== targetState.name) {
+      throw new Error(
+        `Target HUD name mismatch. Expected "${targetState.name}", got "${targetHudName}"`
+      );
+    }
+    const targetHudMeta = await page.locator('#target-meta').innerText();
+    if (!targetHudMeta.includes(`Lvl ${targetState.level}`)) {
+      throw new Error(`Target HUD missing level: "${targetHudMeta}"`);
+    }
+    const targetHudHp = await page.locator('#target-hp-value').innerText();
+    if (!targetHudHp.includes('/')) {
+      throw new Error(`Target HUD HP missing: "${targetHudHp}"`);
+    }
+
+    const xpBarBefore = await page.getAttribute('#xp-bar', 'aria-valuenow');
+    const xpTextBefore = await page.locator('#xp-bar-value').innerText();
+    const xpBefore = state.player?.xp ?? 0;
+    const levelBeforeBar = state.player?.level ?? 1;
 
     await page.keyboard.press('1');
     state = await waitForCondition(
@@ -611,6 +763,24 @@ async function run() {
       throw new Error('Expected level up after mob kill');
     }
 
+    const xpAfter = state.player?.xp ?? 0;
+    const xpBarAfter = await page.getAttribute('#xp-bar', 'aria-valuenow');
+    const xpTextAfter = await page.locator('#xp-bar-value').innerText();
+    const parsedBarAfter = Number.parseInt(xpBarAfter ?? '', 10);
+    if (
+      xpAfter === xpBefore &&
+      xpBarAfter === xpBarBefore &&
+      xpTextAfter === xpTextBefore &&
+      (state.player?.level ?? 1) === levelBeforeBar
+    ) {
+      throw new Error('XP bar did not update after mob kill');
+    }
+    if (Number.isFinite(parsedBarAfter) && parsedBarAfter !== xpAfter) {
+      throw new Error(
+        `XP bar mismatch. Expected ${xpAfter}, got ${parsedBarAfter}`
+      );
+    }
+
     const liveMobs = state.mobs.filter((m) => !m.dead);
     const obstaclesForMobs = state.world?.obstacles ?? [];
     const losMobs = liveMobs.filter((m) => hasLineOfSight(state.player, m, obstaclesForMobs));
@@ -629,40 +799,27 @@ async function run() {
       throw new Error('No mob available for damage test');
     }
     const hpBefore = state.player.hp;
-    const damageStart = Date.now();
     const damageTimeoutMs = Math.max(TEST_TIMEOUT_MS, 30000);
-    let damagedState = null;
-    while (Date.now() - damageStart < damageTimeoutMs) {
-      const current = await getState(page);
-      if (!current.player) break;
-      const liveMobsNow = current.mobs.filter((m) => !m.dead);
-      if (liveMobsNow.length === 0) break;
-      const obstaclesNow = current.world?.obstacles ?? [];
-      const losNow = liveMobsNow.filter((m) => hasLineOfSight(current.player, m, obstaclesNow));
-      const candidatesNow = losNow.length ? losNow : liveMobsNow;
-      const mob = candidatesNow.reduce((closest, next) => {
-        if (!closest) return next;
-        return distance(current.player, next) < distance(current.player, closest)
-          ? next
-          : closest;
-      }, null);
-      if (!mob) break;
-      await page.evaluate(
-        ({ x, z }) => window.__game?.moveTo(x, z),
-        { x: mob.x, z: mob.z }
-      );
-      await advance(page, 500);
-      await sleep(250);
-      const after = await getState(page);
-      if (after.player && after.player.hp < hpBefore) {
-        damagedState = after;
-        break;
-      }
-    }
-    if (!damagedState) {
-      throw new Error('Timed out waiting for mob damage.');
-    }
-    state = damagedState;
+    const mobAttackRange = 1.4;
+
+    await page.evaluate(
+      ({ x, z }) => window.__game?.moveTo(x, z),
+      { x: mobDamageTarget.x, z: mobDamageTarget.z }
+    );
+
+    await waitForCondition(
+      page,
+      (s) => s.player && distance(s.player, mobDamageTarget) <= mobAttackRange - 0.1,
+      Math.max(TEST_TIMEOUT_MS, 30000),
+      'reach mob for damage'
+    );
+
+    state = await waitForCondition(
+      page,
+      (s) => s.player && s.player.hp < hpBefore,
+      damageTimeoutMs,
+      'mob damage'
+    );
 
     state = await waitForCondition(
       page,

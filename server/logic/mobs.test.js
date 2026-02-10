@@ -122,6 +122,20 @@ describe('mobs', () => {
     expect(mob.state).toBe('idle');
   });
 
+  it('assigns level and maxHp to spawned mobs', () => {
+    const world = {
+      mapSize: 100,
+      base: { x: 0, z: 0 },
+      obstacles: [],
+    };
+    const spawns = [{ id: 'm1', x: 12, z: -4 }];
+    const mobs = createMobsFromSpawns(spawns, world, { random: () => 0.5 });
+    expect(mobs).toHaveLength(1);
+    expect(mobs[0].level).toBeGreaterThanOrEqual(1);
+    expect(mobs[0].maxHp).toBeGreaterThan(0);
+    expect(mobs[0].hp).toBe(mobs[0].maxHp);
+  });
+
   it('creates mobs from spawn points', () => {
     const world = {
       mapSize: 100,

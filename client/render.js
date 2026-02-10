@@ -65,10 +65,24 @@ export function createRenderSystem({ app }) {
   targetMarker.visible = false;
   scene.add(targetMarker);
 
+  const targetRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.85, 0.08, 12, 32),
+    new THREE.MeshStandardMaterial({
+      color: 0xfff2a8,
+      emissive: 0xffcc00,
+      emissiveIntensity: 0.5,
+    })
+  );
+  targetRing.rotation.x = Math.PI / 2;
+  targetRing.position.y = 0.1;
+  targetRing.visible = false;
+  scene.add(targetRing);
+
   const playerMeshes = new Map();
   let myId = null;
   let worldState = null;
   const effectsSystem = createEffectsSystem(scene);
+  const mobRaycaster = new THREE.Raycaster();
 
   function resize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -93,6 +107,7 @@ export function createRenderSystem({ app }) {
   function ensurePlayerMesh(id) {
     if (playerMeshes.has(id)) return playerMeshes.get(id);
     const mesh = createPlayerMesh(id === myId);
+    mesh.userData.playerId = id;
     playerMeshes.set(id, mesh);
     scene.add(mesh);
     return mesh;
@@ -142,6 +157,72 @@ export function createRenderSystem({ app }) {
     targetMarker.visible = true;
   }
 
+  function setTargetRing(pos) {
+    if (!pos) {
+      targetRing.visible = false;
+      return;
+    }
+    targetRing.position.set(pos.x, 0.1, pos.z);
+    targetRing.visible = true;
+  }
+
+  function pickMob(ndc) {
+    if (!worldState?.mobMeshes) return null;
+    const meshes = Array.from(worldState.mobMeshes.values());
+    if (!meshes.length) return null;
+    mobRaycaster.setFromCamera(ndc, camera);
+    const hits = mobRaycaster.intersectObjects(meshes, false);
+    if (!hits.length) return null;
+    const hit = hits[0]?.object;
+    return hit?.userData?.mobId ?? null;
+  }
+
+  function pickTarget(ndc) {
+    const targetMeshes = [];
+    if (worldState?.mobMeshes) {
+      targetMeshes.push(...worldState.mobMeshes.values());
+    }
+    if (worldState?.vendorMeshes) {
+      targetMeshes.push(...worldState.vendorMeshes.values());
+    }
+    if (playerMeshes.size) {
+      targetMeshes.push(...playerMeshes.values());
+    }
+    if (!targetMeshes.length) return null;
+    mobRaycaster.setFromCamera(ndc, camera);
+    const hits = mobRaycaster.intersectObjects(targetMeshes, true);
+    for (const hit of hits) {
+      let node = hit.object;
+      while (node) {
+        if (node.userData?.mobId) {
+          return { kind: 'mob', id: node.userData.mobId };
+        }
+        if (node.userData?.vendorId) {
+          return { kind: 'vendor', id: node.userData.vendorId };
+        }
+        if (node.userData?.playerId) {
+          if (node.userData.playerId !== myId) {
+            return { kind: 'player', id: node.userData.playerId };
+          }
+        }
+        node = node.parent;
+      }
+    }
+    return null;
+  }
+
+  function projectToScreen(pos) {
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    const vector = new THREE.Vector3(pos.x, 1, pos.z);
+    vector.project(camera);
+    const rect = renderer.domElement.getBoundingClientRect();
+    return {
+      x: rect.left + ((vector.x + 1) / 2) * rect.width,
+      y: rect.top + ((-vector.y + 1) / 2) * rect.height,
+    };
+  }
+
   function updateWorld(config) {
     if (worldState?.group) {
       scene.remove(worldState.group);
@@ -177,6 +258,7 @@ export function createRenderSystem({ app }) {
     camera.position.lerp(cameraDesired, lerpFactor);
     cameraTarget.set(viewPos.x, 0, viewPos.z);
     camera.lookAt(cameraTarget);
+    camera.updateMatrixWorld();
     return cameraTarget;
   }
 
@@ -193,6 +275,9 @@ export function createRenderSystem({ app }) {
     syncPlayers,
     updatePlayerPositions,
     setTargetMarker,
+    setTargetRing,
+    pickTarget,
+    projectToScreen,
     updateWorld,
     updateWorldResources,
     updateWorldMobs,

@@ -23,6 +23,7 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
     player.inv = 0;
     clearInventory(player.inventory);
     player.target = null;
+    player.targetId = null;
     player.keys = { w: false, a: false, s: false, d: false };
     markDirty(player);
   }
@@ -34,6 +35,7 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
     player.dead = false;
     player.respawnAt = 0;
     player.attackCooldownUntil = 0;
+    player.targetId = null;
     markDirty(player);
   }
 
@@ -66,6 +68,12 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
       stepMobs(mobs, Array.from(players.values()), world, dt, now, mobConfig);
 
       for (const player of players.values()) {
+        if (player.targetId) {
+          const target = mobs.find((mob) => mob.id === player.targetId);
+          if (!target || target.dead || target.hp <= 0) {
+            player.targetId = null;
+          }
+        }
         if (!player.dead && player.hp <= 0) {
           killPlayer(player, now);
         }

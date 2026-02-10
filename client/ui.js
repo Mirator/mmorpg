@@ -13,8 +13,36 @@ const damageFlashEl = document.getElementById('damage-flash');
 const xpBarEl = document.getElementById('xp-bar');
 const xpBarValueEl = document.getElementById('xp-bar-value');
 const xpBarRemainingEl = document.getElementById('xp-bar-remaining');
+const overlayHpFillEl = document.getElementById('overlay-hp-fill');
+const overlayHpValueEl = document.getElementById('overlay-hp-value');
+const overlayStaminaFillEl = document.getElementById('overlay-stamina-fill');
+const overlayStaminaValueEl = document.getElementById('overlay-stamina-value');
+const targetHudEl = document.getElementById('target-hud');
+const targetNameEl = document.getElementById('target-name');
+const targetMetaEl = document.getElementById('target-meta');
+const targetHpEl = document.getElementById('target-hp');
+const targetHpFillEl = document.getElementById('target-hp-fill');
+const targetHpValueEl = document.getElementById('target-hp-value');
 
 let eventTimeout = null;
+
+function setBar(fillEl, valueEl, value, max) {
+  if (fillEl) {
+    if (Number.isFinite(value) && Number.isFinite(max) && max > 0) {
+      const clamped = Math.max(0, Math.min(1, value / max));
+      fillEl.style.width = `${(clamped * 100).toFixed(1)}%`;
+    } else {
+      fillEl.style.width = '0%';
+    }
+  }
+  if (valueEl) {
+    if (Number.isFinite(value) && Number.isFinite(max) && max > 0) {
+      valueEl.textContent = `${Math.floor(value)}/${Math.floor(max)}`;
+    } else {
+      valueEl.textContent = '--';
+    }
+  }
+}
 
 export function setStatus(text) {
   if (statusEl) statusEl.textContent = text;
@@ -35,6 +63,9 @@ export function updateHud(player, now) {
     }
     if (xpBarValueEl) xpBarValueEl.textContent = '--';
     if (xpBarRemainingEl) xpBarRemainingEl.textContent = '--';
+    setBar(overlayHpFillEl, overlayHpValueEl, null, null);
+    if (overlayStaminaFillEl) overlayStaminaFillEl.style.width = '0%';
+    if (overlayStaminaValueEl) overlayStaminaValueEl.textContent = '--';
     return;
   }
 
@@ -59,6 +90,18 @@ export function updateHud(player, now) {
       : 'Max level';
   }
   if (hpEl) hpEl.textContent = `${player.hp ?? 0}`;
+  setBar(
+    overlayHpFillEl,
+    overlayHpValueEl,
+    Number.isFinite(player.hp) ? player.hp : 0,
+    Number.isFinite(player.maxHp) ? player.maxHp : player.hp ?? 0
+  );
+  if (overlayStaminaFillEl) {
+    overlayStaminaFillEl.style.width = '55%';
+  }
+  if (overlayStaminaValueEl) {
+    overlayStaminaValueEl.textContent = '--';
+  }
   if (invEl) {
     const inv = player.inv ?? 0;
     const slots = Number.isFinite(player.invSlots) ? player.invSlots : null;
@@ -73,6 +116,36 @@ export function updateHud(player, now) {
     } else {
       respawnEl.textContent = '--';
     }
+  }
+}
+
+export function updateTargetHud(target) {
+  if (!targetHudEl) return;
+  if (!target) {
+    targetHudEl.classList.remove('visible');
+    if (targetNameEl) targetNameEl.textContent = '--';
+    if (targetMetaEl) targetMetaEl.textContent = '--';
+    if (targetHpEl) targetHpEl.style.display = 'none';
+    setBar(targetHpFillEl, targetHpValueEl, null, null);
+    return;
+  }
+
+  targetHudEl.classList.add('visible');
+  if (targetNameEl) targetNameEl.textContent = target.name ?? '--';
+  if (targetMetaEl) {
+    const metaParts = [];
+    if (target.kind === 'vendor') metaParts.push('Vendor');
+    if (target.kind === 'player') metaParts.push('Player');
+    if (target.kind === 'mob') metaParts.push('Enemy');
+    if (Number.isFinite(target.level)) metaParts.push(`Lvl ${target.level}`);
+    targetMetaEl.textContent = metaParts.join(' · ');
+  }
+  const hasHp = Number.isFinite(target.hp) && Number.isFinite(target.maxHp);
+  if (targetHpEl) targetHpEl.style.display = hasHp ? 'flex' : 'none';
+  if (hasHp) {
+    setBar(targetHpFillEl, targetHpValueEl, target.hp, target.maxHp);
+  } else {
+    setBar(targetHpFillEl, targetHpValueEl, null, null);
   }
 }
 

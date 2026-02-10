@@ -23,6 +23,7 @@ export function createBasePlayerState({ world, spawn, classId }) {
     equipment: createDefaultEquipment(safeClassId),
     dead: false,
     respawnAt: 0,
+    targetId: null,
     classId: safeClassId,
     level: 1,
     xp: 0,

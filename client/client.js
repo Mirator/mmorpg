@@ -4,6 +4,7 @@ import { createNet } from './net.js';
 import { createInputHandler } from './input.js';
 import { createUiState } from './ui-state.js';
 import { createMenu } from './menu.js';
+import { resolveTarget } from './targeting.js';
 import { getAbilitiesForClass } from '/shared/classes.js';
 import { splitCurrency } from '/shared/economy.js';
 import { xpToNext } from '/shared/progression.js';
@@ -14,8 +15,9 @@ const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
 const coordsEl = document.getElementById('coords');
 const accountNameEl = document.getElementById('account-name');
-const characterNameEl = document.getElementById('character-name');
+const characterNameEl = document.getElementById('overlay-character-name');
 const signOutBtn = document.getElementById('signout-btn');
+const overlayEl = document.getElementById('overlay');
 
 const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
@@ -37,6 +39,7 @@ let nearestVendor = null;
 let inVendorRange = false;
 let closingNet = null;
 let inputHandler = null;
+let selectedTarget = null;
 
 const combatEvents = [];
 const MAX_COMBAT_EVENTS = 12;
@@ -464,6 +467,61 @@ function sendMoveTarget(pos, opts = {}) {
   renderSystem.setTargetMarker(pos);
 }
 
+function getTargetSelectRange() {
+  const config = gameState.getConfigSnapshot();
+  return config?.combat?.targetSelectRange ?? 25;
+}
+
+function getAliveTargetById(targetId) {
+  if (!targetId) return null;
+  const mobs = gameState.getLatestMobs();
+  return mobs.find((mob) => mob.id === targetId && !mob.dead && mob.hp > 0) ?? null;
+}
+
+function selectTarget(selection) {
+  if (!selection || !selection.id || !selection.kind) {
+    selectedTarget = null;
+    seq += 1;
+    net?.send({ type: 'targetSelect', targetId: null, seq });
+    return;
+  }
+
+  selectedTarget = { kind: selection.kind, id: selection.id };
+  seq += 1;
+  if (selection.kind === 'mob') {
+    net?.send({ type: 'targetSelect', targetId: selection.id, seq });
+  } else {
+    net?.send({ type: 'targetSelect', targetId: null, seq });
+  }
+}
+
+function cycleTarget() {
+  const me = gameState.getLocalPlayer();
+  if (!me) return;
+  const range = getTargetSelectRange();
+  const range2 = range * range;
+  const mobs = gameState.getLatestMobs().filter((mob) => !mob.dead && mob.hp > 0);
+  const inRange = mobs
+    .map((mob) => {
+      const dx = mob.x - me.x;
+      const dz = mob.z - me.z;
+      return { mob, dist2: dx * dx + dz * dz };
+    })
+    .filter((entry) => entry.dist2 <= range2)
+    .sort((a, b) => {
+      if (a.dist2 !== b.dist2) return a.dist2 - b.dist2;
+      return String(a.mob.id).localeCompare(String(b.mob.id));
+    });
+  if (!inRange.length) {
+    selectTarget(null);
+    return;
+  }
+  const currentMobId = selectedTarget?.kind === 'mob' ? selectedTarget.id : null;
+  const idx = inRange.findIndex((entry) => entry.mob.id === currentMobId);
+  const next = inRange[(idx + 1) % inRange.length].mob;
+  selectTarget({ kind: 'mob', id: next.id });
+}
+
 function useAbility(slot) {
   if (ui.isUiBlocking()) return;
   const classId = ui.getCurrentClassId(currentMe);
@@ -471,6 +529,16 @@ function useAbility(slot) {
   const abilities = getAbilitiesForClass(classId, currentMe?.level ?? 1, weaponDef);
   const ability = abilities.find((item) => item.slot === slot);
   if (!ability) return;
+  if (ability.targetType === 'targeted') {
+    const mobTargetId = selectedTarget?.kind === 'mob' ? selectedTarget.id : null;
+    const target = getAliveTargetById(mobTargetId);
+    if (!target || !currentMe) return;
+    const dx = target.x - currentMe.x;
+    const dz = target.z - currentMe.z;
+    if (dx * dx + dz * dz > (ability.range ?? 0) * (ability.range ?? 0)) {
+      return;
+    }
+  }
   const now = gameState.getServerNow();
   const localCooldown = ui.getLocalCooldown(slot);
   const serverCooldown = currentMe?.attackCooldownUntil ?? 0;
@@ -549,6 +617,15 @@ function updateLocalUi() {
   const me = gameState.getLocalPlayer();
   const serverNow = gameState.getServerNow();
   currentMe = me;
+  if (me && Object.prototype.hasOwnProperty.call(me, 'targetId')) {
+    if (me.targetId) {
+      selectedTarget = { kind: 'mob', id: me.targetId };
+    } else if (selectedTarget?.kind === 'mob') {
+      selectedTarget = null;
+    }
+  } else if (!me) {
+    selectedTarget = null;
+  }
   ui.updateLocalUi({ me, worldConfig: gameState.getWorldConfig(), serverNow });
 }
 
@@ -567,6 +644,9 @@ inputHandler = createInputHandler({
   onAbility: useAbility,
   onMoveTarget: sendMoveTarget,
   onInputChange: sendInput,
+  onTargetSelect: selectTarget,
+  onCycleTarget: cycleTarget,
+  pickTarget: (ndc) => renderSystem.pickTarget(ndc),
   onTradeTab: (tab) => ui.vendorUI?.setTab?.(tab),
 });
 
@@ -615,6 +695,20 @@ function stepFrame(dt, now) {
 
   renderSystem.animateWorldMeshes(now);
   renderSystem.updateEffects(now);
+  const resolvedTarget = resolveTarget(selectedTarget, {
+    mobs: gameState.getLatestMobs(),
+    players: gameState.getLatestPlayers(),
+    vendors: gameState.getWorldConfig()?.vendors ?? [],
+  });
+  if (!resolvedTarget && selectedTarget) {
+    selectedTarget = null;
+  }
+  if (resolvedTarget?.pos) {
+    renderSystem.setTargetRing({ x: resolvedTarget.pos.x, z: resolvedTarget.pos.z });
+  } else {
+    renderSystem.setTargetRing(null);
+  }
+  ui.updateTargetHud(resolvedTarget);
 
   ui.updateAbilityBar(currentMe, gameState.getServerNow());
   if (ui.isSkillsOpen()) {
@@ -729,6 +823,11 @@ function buildTextState() {
   const inventoryStackMax =
     me?.invStackMax ?? worldConfig?.playerInvStackMax ?? 0;
   const menuState = menu.getState();
+  const target = resolveTarget(selectedTarget, {
+    mobs: gameState.getLatestMobs(),
+    players: gameState.getLatestPlayers(),
+    vendors: worldConfig?.vendors ?? [],
+  });
 
   return {
     mode: ui.isMenuOpen() ? 'menu' : 'play',
@@ -763,6 +862,7 @@ function buildTextState() {
           xp: me.xp ?? 0,
           xpToNext: me.xpToNext ?? xpToNext(me.level ?? 1),
           attackCooldownUntil: me.attackCooldownUntil ?? 0,
+          targetId: me.targetId ?? null,
           equipment: me.equipment ?? null,
           weapon: weaponDef
             ? {
@@ -782,6 +882,16 @@ function buildTextState() {
           respawnAt: me.respawnAt ?? 0,
         }
       : null,
+    target: target
+      ? {
+          kind: target.kind,
+          id: target.id,
+          name: target.name ?? null,
+          level: target.level ?? null,
+          hp: target.hp ?? null,
+          maxHp: target.maxHp ?? null,
+        }
+      : null,
     skills: {
       open: ui.isSkillsOpen(),
     },
@@ -792,12 +902,14 @@ function buildTextState() {
       cooldownMs: ability.cooldownMs ?? 0,
       range: ability.range ?? 0,
       attackType: ability.attackType ?? null,
+      targetType: ability.targetType ?? 'none',
       cooldownRemainingMs:
         ability.id === 'basic_attack'
           ? Math.max(0, (me?.attackCooldownUntil ?? 0) - serverNow)
           : 0,
     })),
     combat: {
+      targetSelectRange: getTargetSelectRange(),
       recentEvents: combatEvents
         .filter((event) => event.attackerId === playerId)
         .map((event) => ({
@@ -870,6 +982,9 @@ window.__game = {
   interact: () => {
     sendInteract();
   },
+  projectToScreen: (x, z) => {
+    return renderSystem.projectToScreen({ x, z });
+  },
   getState: () => buildTextState(),
 };
 
@@ -895,6 +1010,15 @@ function getNearestVendor(pos) {
 if (signOutBtn) {
   signOutBtn.addEventListener('click', () => {
     handleSignOut();
+  });
+}
+
+if (overlayEl) {
+  overlayEl.addEventListener('mouseenter', () => {
+    overlayEl.classList.add('hovered');
+  });
+  overlayEl.addEventListener('mouseleave', () => {
+    overlayEl.classList.remove('hovered');
   });
 }
 

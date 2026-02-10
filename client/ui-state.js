@@ -10,6 +10,7 @@ import { totalXpForLevel, xpToNext } from '/shared/progression.js';
 import {
   setStatus,
   updateHud,
+  updateTargetHud,
   showPrompt,
   clearPrompt,
   showEvent,
@@ -25,6 +26,11 @@ function formatItemName(kind) {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function formatTargetType(type) {
+  if (!type) return 'None';
+  return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
 export function createUiState({
@@ -195,9 +201,10 @@ export function createUiState({
       name.textContent = ability.name;
       const meta = document.createElement('div');
       meta.className = 'skill-meta';
+      const typeLabel = formatTargetType(ability.targetType);
       meta.textContent = `Slot ${ability.slot} · CD ${Math.round(
         (ability.cooldownMs ?? 0) / 1000
-      )}s`;
+      )}s · ${typeLabel}`;
       row.appendChild(name);
       row.appendChild(meta);
       skillsListEl.appendChild(row);
@@ -410,6 +417,7 @@ export function createUiState({
     clearPrompt,
     renderVendorPrices,
     updateLocalUi,
+    updateTargetHud,
     updateAbilityBar,
     updateSkillsPanel,
     setInventoryOpen,

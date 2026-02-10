@@ -20,6 +20,7 @@ import { COMBAT_CONFIG } from './config.js';
  * @property {number} range
  * @property {number} requiredLevel
  * @property {'melee' | 'ranged' | null} [attackType]
+ * @property {'targeted' | 'aoe' | 'self' | 'none'} targetType
  */
 
 export const DEFAULT_CLASS_ID = 'fighter';
@@ -97,6 +98,7 @@ export function getAbilitiesForClass(classId, level = 1, weaponDef = null) {
       range,
       requiredLevel: 1,
       attackType,
+      targetType: 'targeted',
     },
   ];
 }

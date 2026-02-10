@@ -11,19 +11,21 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'hello', seq?: number }} HelloMessage
  * @typedef {{ type: 'input', keys: Required<InputKeys>, seq?: number }} InputMessage
  * @typedef {{ type: 'moveTarget', x: number, z: number, seq?: number }} MoveTargetMessage
+ * @typedef {{ type: 'targetSelect', targetId?: string | null, seq?: number }} TargetSelectMessage
  * @typedef {{ type: 'action', kind: 'interact', seq?: number }} InteractMessage
  * @typedef {{ type: 'action', kind: 'ability', slot: number, seq?: number }} AbilityMessage
  * @typedef {{ type: 'classSelect', classId: string, seq?: number }} ClassSelectMessage
  * @typedef {{ type: 'inventorySwap', from: number, to: number, seq?: number }} InventorySwapMessage
  * @typedef {{ type: 'equipSwap', fromType: 'inventory' | 'equipment', fromSlot: number | string, toType: 'inventory' | 'equipment', toSlot: number | string, seq?: number }} EquipSwapMessage
  * @typedef {{ type: 'vendorSell', vendorId: string, slot: number, seq?: number }} VendorSellMessage
- * @typedef {HelloMessage | InputMessage | MoveTargetMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage} ClientMessage
+ * @typedef {HelloMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage} ClientMessage
  */
 
 const CLIENT_MESSAGE_TYPES = new Set([
   'hello',
   'input',
   'moveTarget',
+  'targetSelect',
   'action',
   'classSelect',
   'inventorySwap',
@@ -108,6 +110,15 @@ export function parseClientMessage(raw) {
     const z = Number(raw.z);
     if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
     return { type: 'moveTarget', x, z, seq };
+  }
+
+  if (raw.type === 'targetSelect') {
+    if (raw.targetId === null || raw.targetId === undefined) {
+      return { type: 'targetSelect', targetId: null, seq };
+    }
+    const targetId = normalizeString(raw.targetId);
+    if (!targetId) return null;
+    return { type: 'targetSelect', targetId, seq };
   }
 
   if (raw.type === 'action') {

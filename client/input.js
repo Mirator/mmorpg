@@ -47,6 +47,9 @@ export function createInputHandler({
   onAbility,
   onMoveTarget,
   onInputChange,
+  onTargetSelect,
+  onCycleTarget,
+  pickTarget,
   onTradeTab,
 }) {
   const keys = { w: false, a: false, s: false, d: false };
@@ -98,6 +101,12 @@ export function createInputHandler({
     if (isMenuOpen?.()) {
       return;
     }
+    if (key === 'tab' && !event.repeat) {
+      event.preventDefault();
+      if (isUiBlocking()) return;
+      onCycleTarget?.();
+      return;
+    }
     if (key === 'i' && !event.repeat) {
       onToggleInventory?.();
       return;
@@ -140,6 +149,13 @@ export function createInputHandler({
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    if (pickTarget) {
+      const picked = pickTarget({ x: mouse.x, y: mouse.y });
+      if (picked) {
+        onTargetSelect?.(picked);
+        return;
+      }
+    }
     raycaster.setFromCamera(mouse, camera);
     const point = new THREE.Vector3();
     const hit = raycaster.ray.intersectPlane(groundPlane, point);

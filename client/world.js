@@ -293,6 +293,7 @@ export function updateMobs(worldState, mobs) {
       worldState.mobMeshes.set(mob.id, mesh);
       worldState.group.add(mesh);
     }
+    mesh.userData.mobId = mob.id;
     mesh.position.set(mob.x, 1.1, mob.z);
   }
 

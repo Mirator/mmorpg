@@ -25,6 +25,24 @@ describe('protocol validation', () => {
     expect(msg).toEqual({ type: 'moveTarget', x: 1, z: -2, seq: 1 });
   });
 
+  it('accepts targetSelect message', () => {
+    expect(parseClientMessage({ type: 'targetSelect', targetId: 'mob-1', seq: 2 })).toEqual({
+      type: 'targetSelect',
+      targetId: 'mob-1',
+      seq: 2,
+    });
+    expect(parseClientMessage({ type: 'targetSelect', targetId: null })).toEqual({
+      type: 'targetSelect',
+      targetId: null,
+      seq: undefined,
+    });
+  });
+
+  it('rejects invalid targetSelect message', () => {
+    expect(parseClientMessage({ type: 'targetSelect', targetId: '' })).toBe(null);
+    expect(parseClientMessage({ type: 'targetSelect', targetId: 123 })).toBe(null);
+  });
+
   it('rejects invalid moveTarget message', () => {
     expect(parseClientMessage({ type: 'moveTarget', x: 'nope', z: 1 })).toBe(null);
   });

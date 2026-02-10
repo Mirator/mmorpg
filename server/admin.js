@@ -48,6 +48,7 @@ export function serializePlayersPublic(players) {
       dead: p.dead,
       classId: p.classId ?? null,
       level: p.level ?? 1,
+      name: p.name ?? null,
     };
   }
   return out;
@@ -67,6 +68,7 @@ export function serializePlayerPrivate(player) {
     xp: player.xp ?? 0,
     xpToNext: xpToNext(player.level ?? 1),
     attackCooldownUntil: player.attackCooldownUntil ?? 0,
+    targetId: player.targetId ?? null,
     equipment: player.equipment ?? null,
     weaponKind: getEquippedWeapon(player.equipment, player.classId)?.kind ?? null,
   };
