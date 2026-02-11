@@ -113,6 +113,7 @@ export function createHttpApp({
           'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           'style-src-elem': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
           'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
+          'connect-src': ["'self'", 'data:', 'blob:', 'https://cdn.jsdelivr.net', 'ws:', 'wss:'],
           'object-src': ["'none'"],
         },
       },

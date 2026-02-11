@@ -643,6 +643,7 @@ function handleCombatEvent(event, now, serverTime) {
   if (!event || event.kind !== 'basic_attack') return;
   const timestamp = Number.isFinite(serverTime) ? serverTime : gameState.getServerNow();
   recordCombatEvent(event, timestamp);
+  renderSystem?.triggerAttack?.(event.attackerId, now, event.durationMs);
   if (event.attackType === 'ranged') {
     renderSystem.spawnProjectile(event.from, event.to, event.durationMs, now);
   } else {
@@ -734,6 +735,7 @@ function stepFrame(dt, now) {
   }
 
   renderSystem.animateWorldMeshes(now);
+  renderSystem.updateAnimations(dt, now);
   renderSystem.updateEffects(now);
   const resolvedTarget = resolveTarget(selectedTarget, {
     mobs: gameState.getLatestMobs(),

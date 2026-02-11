@@ -1,5 +1,13 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { initWorld, updateResources, updateMobs, animateWorld } from './world.js';
+import {
+  ASSET_PATHS,
+  assemblePlayerModel,
+  cloneSkinned,
+  loadPlayerAnimations,
+  normalizeToHeight,
+  pickClips,
+} from './assets.js';
 import { createEffectsSystem } from './effects.js';
 
 const CAMERA_LERP_SPEED = 5;
@@ -79,6 +87,9 @@ export function createRenderSystem({ app }) {
   scene.add(targetRing);
 
   const playerMeshes = new Map();
+  const playerControllers = new Map();
+  let playerPrototypePromise = null;
+  let playerClipsPromise = null;
   let myId = null;
   let worldState = null;
   const effectsSystem = createEffectsSystem(scene);
@@ -95,13 +106,16 @@ export function createRenderSystem({ app }) {
   }
 
   function createPlayerMesh(isLocal) {
+    const group = new THREE.Group();
     const geometry = new THREE.BoxGeometry(1, 2, 1);
     const material = new THREE.MeshStandardMaterial({
       color: isLocal ? 0x4da3ff : 0xff7b2f,
     });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.y = 1;
-    return mesh;
+    const placeholder = new THREE.Mesh(geometry, material);
+    placeholder.position.y = 1;
+    group.add(placeholder);
+    group.userData.placeholder = placeholder;
+    return group;
   }
 
   function ensurePlayerMesh(id) {
@@ -110,14 +124,17 @@ export function createRenderSystem({ app }) {
     mesh.userData.playerId = id;
     playerMeshes.set(id, mesh);
     scene.add(mesh);
+    hydratePlayerMesh(id, mesh).catch((err) => {
+      console.warn('[render] Failed to load player model:', err);
+    });
     return mesh;
   }
 
   function setLocalPlayerId(id) {
     myId = id;
     const mesh = playerMeshes.get(myId);
-    if (mesh) {
-      mesh.material.color.set(0x4da3ff);
+    if (mesh?.userData?.placeholder?.material?.color) {
+      mesh.userData.placeholder.material.color.set(0x4da3ff);
     }
   }
 
@@ -131,12 +148,15 @@ export function createRenderSystem({ app }) {
         const mesh = playerMeshes.get(id);
         scene.remove(mesh);
         playerMeshes.delete(id);
+        const controller = playerControllers.get(id);
+        if (controller?.mixer) controller.mixer.stopAllAction();
+        playerControllers.delete(id);
       }
     }
     if (myId) {
       const mesh = playerMeshes.get(myId);
-      if (mesh) {
-        mesh.material.color.set(0x4da3ff);
+      if (mesh?.userData?.placeholder?.material?.color) {
+        mesh.userData.placeholder.material.color.set(0x4da3ff);
       }
     }
   }
@@ -144,7 +164,18 @@ export function createRenderSystem({ app }) {
   function updatePlayerPositions(positions) {
     for (const [id, pos] of Object.entries(positions)) {
       const mesh = ensurePlayerMesh(id);
-      mesh.position.set(pos.x, 1, pos.z);
+      const prev = mesh.userData.lastPos;
+      const nextPos = new THREE.Vector3(pos.x, 0, pos.z);
+      if (prev) {
+        const dx = nextPos.x - prev.x;
+        const dz = nextPos.z - prev.z;
+        const distSq = dx * dx + dz * dz;
+        if (distSq > 0.0004) {
+          mesh.rotation.y = Math.atan2(dx, dz);
+        }
+      }
+      mesh.position.copy(nextPos);
+      mesh.userData.lastPos = nextPos;
     }
   }
 
@@ -171,10 +202,14 @@ export function createRenderSystem({ app }) {
     const meshes = Array.from(worldState.mobMeshes.values());
     if (!meshes.length) return null;
     mobRaycaster.setFromCamera(ndc, camera);
-    const hits = mobRaycaster.intersectObjects(meshes, false);
+    const hits = mobRaycaster.intersectObjects(meshes, true);
     if (!hits.length) return null;
-    const hit = hits[0]?.object;
-    return hit?.userData?.mobId ?? null;
+    let node = hits[0]?.object ?? null;
+    while (node) {
+      if (node.userData?.mobId) return node.userData.mobId;
+      node = node.parent;
+    }
+    return null;
   }
 
   function pickTarget(ndc) {
@@ -225,6 +260,7 @@ export function createRenderSystem({ app }) {
 
   function updateWorld(config) {
     if (worldState?.group) {
+      worldState.isActive = false;
       scene.remove(worldState.group);
     }
     worldState = initWorld(scene, config);
@@ -241,6 +277,25 @@ export function createRenderSystem({ app }) {
 
   function animateWorldMeshes(now) {
     animateWorld(worldState, now);
+  }
+
+  function updateAnimations(dt, now) {
+    updateControllerMap(playerControllers, playerMeshes, dt, now);
+    if (worldState?.mobControllers && worldState?.mobMeshes) {
+      updateControllerMap(worldState.mobControllers, worldState.mobMeshes, dt, now);
+    }
+  }
+
+  function triggerAttack(id, now, durationMs) {
+    if (!id) return;
+    const playerController = playerControllers.get(id);
+    const mobController = worldState?.mobControllers?.get?.(id);
+    const controller = playerController ?? mobController;
+    if (!controller) return;
+    controller.attackUntil = Math.max(controller.attackUntil ?? 0, now + (durationMs ?? 200));
+    if (controller.actions?.attack) {
+      playAction(controller, 'attack');
+    }
   }
 
   function updateEffects(now) {
@@ -266,6 +321,223 @@ export function createRenderSystem({ app }) {
     renderer.render(scene, camera);
   }
 
+  function getPlayerPrototype() {
+    if (!playerPrototypePromise) {
+      playerPrototypePromise = assemblePlayerModel();
+    }
+    return playerPrototypePromise;
+  }
+
+  function getPlayerClips() {
+    if (!playerClipsPromise) {
+      const overrides = ASSET_PATHS.playerModel
+        ? {
+            idleNames: ['Idle_Loop', 'Idle_Talking_Loop', 'Idle_No_Loop', 'Idle_FoldArms_Loop'],
+            walkNames: ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Walk_Formal_Loop'],
+            attackNames: ['Sword_Attack', 'Punch_Jab', 'Punch_Cross'],
+            attackKeywords: ['attack', 'slash', 'swing', 'punch'],
+          }
+        : {
+            idleNames: ['Idle_Loop', 'Idle_No_Loop'],
+            walkNames: ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Walk_Formal_Loop'],
+            attackNames: ['Sword_Attack', 'Punch_Jab', 'Punch_Cross'],
+            attackKeywords: ['attack', 'slash', 'swing', 'punch'],
+          };
+
+      playerClipsPromise = loadPlayerAnimations().then((clips) => pickClips(clips, overrides));
+    }
+    return playerClipsPromise;
+  }
+
+  async function hydratePlayerMesh(id, mesh) {
+    if (!mesh) return;
+    if (!mesh.userData) mesh.userData = {};
+    if (mesh.userData.hydrating) return;
+    mesh.userData.hydrating = true;
+
+    const [prototype, clipSet] = await Promise.all([
+      getPlayerPrototype(),
+      getPlayerClips(),
+    ]);
+    if (!prototype || !clipSet) return;
+    if (!playerMeshes.has(id)) return;
+
+    const model = cloneSkinned(prototype);
+    normalizeToHeight(model, 2.0);
+    mesh.clear();
+    mesh.add(model);
+
+    if (clipSet.all.length) {
+      const mixer = new THREE.AnimationMixer(model);
+      const actions = createActions(mixer, clipSet);
+      const walkCycle = buildWalkCycle(model);
+      const controller = {
+        mixer,
+        actions,
+        active: null,
+        attackUntil: 0,
+        lastPos: mesh.position.clone(),
+        walkCycle,
+      };
+      if (actions.idle) {
+        actions.idle.play();
+        controller.active = 'idle';
+      }
+      playerControllers.set(id, controller);
+    }
+  }
+
+  function createActions(mixer, clipSet) {
+    const actions = {
+      idle: clipSet.idle ? mixer.clipAction(clipSet.idle) : null,
+      walk: clipSet.walk ? mixer.clipAction(clipSet.walk) : null,
+      attack: clipSet.attack ? mixer.clipAction(clipSet.attack) : null,
+    };
+    if (actions.attack) {
+      actions.attack.setLoop(THREE.LoopOnce, 1);
+      actions.attack.clampWhenFinished = true;
+    }
+    return actions;
+  }
+
+  function buildWalkCycle(model) {
+    let skeleton = null;
+    model.traverse((node) => {
+      if (!skeleton && node?.isSkinnedMesh && node.skeleton) {
+        skeleton = node.skeleton;
+      }
+    });
+    if (!skeleton) return null;
+
+    const names = [
+      'upperarm_l',
+      'upperarm_r',
+      'thigh_l',
+      'thigh_r',
+      'calf_l',
+      'calf_r',
+      'spine_01',
+    ];
+
+    const bones = {};
+    const rest = {};
+    for (const name of names) {
+      const bone = skeleton.getBoneByName?.(name) ?? null;
+      if (bone) {
+        bones[name] = bone;
+        rest[name] = bone.quaternion.clone();
+      }
+    }
+
+    if (!Object.keys(bones).length) return null;
+
+    return {
+      bones,
+      rest,
+      phase: Math.random() * Math.PI * 2,
+      root: model,
+      wasWalking: false,
+      axisX: new THREE.Vector3(1, 0, 0),
+      axisZ: new THREE.Vector3(0, 0, 1),
+      tmpQuat: new THREE.Quaternion(),
+    };
+  }
+
+  function resetWalkCycle(walkCycle) {
+    if (!walkCycle) return;
+    for (const [name, bone] of Object.entries(walkCycle.bones)) {
+      const rest = walkCycle.rest[name];
+      if (rest) bone.quaternion.copy(rest);
+    }
+    if (walkCycle.root) {
+      walkCycle.root.position.y = 0;
+    }
+  }
+
+  function applyWalkCycle(walkCycle, now, speed) {
+    if (!walkCycle) return;
+    const intensity = Math.min(1, speed / 2);
+    const t = now * 0.006 + walkCycle.phase;
+    const swing = Math.sin(t);
+    const lift = Math.cos(t);
+
+    const armSwing = 0.55 * intensity * swing;
+    const legSwing = 0.7 * intensity * swing;
+    const calfSwing = 0.4 * intensity * Math.max(0, -swing);
+    const spineLean = 0.1 * intensity * Math.sin(t + Math.PI / 2);
+
+    const applyRot = (boneName, angle, axis) => {
+      const bone = walkCycle.bones[boneName];
+      if (!bone) return;
+      const rest = walkCycle.rest[boneName];
+      if (!rest) return;
+      walkCycle.tmpQuat.setFromAxisAngle(axis, angle);
+      bone.quaternion.copy(rest).multiply(walkCycle.tmpQuat);
+    };
+
+    applyRot('upperarm_l', armSwing, walkCycle.axisX);
+    applyRot('upperarm_r', -armSwing, walkCycle.axisX);
+    applyRot('thigh_l', -legSwing, walkCycle.axisX);
+    applyRot('thigh_r', legSwing, walkCycle.axisX);
+    applyRot('calf_l', calfSwing, walkCycle.axisX);
+    applyRot('calf_r', -calfSwing, walkCycle.axisX);
+    applyRot('spine_01', spineLean, walkCycle.axisZ);
+
+    if (walkCycle.root) {
+      walkCycle.root.position.y = 0.05 * intensity * Math.max(0, lift);
+    }
+    walkCycle.wasWalking = true;
+  }
+
+  function playAction(controller, name) {
+    if (!controller?.actions) return;
+    const next = controller.actions[name];
+    if (!next) return;
+    if (controller.active === name) return;
+    const prev = controller.active ? controller.actions[controller.active] : null;
+    next.reset();
+    next.fadeIn(0.15);
+    next.play();
+    if (prev) {
+      prev.fadeOut(0.15);
+    }
+    controller.active = name;
+  }
+
+  function updateControllerMap(controllers, meshes, dt, now) {
+    if (!controllers || !meshes) return;
+    for (const [id, controller] of controllers.entries()) {
+      const mesh = meshes.get(id);
+      if (!mesh) continue;
+      const lastPos = controller.lastPos ?? mesh.position.clone();
+      const speed = mesh.position.distanceTo(lastPos) / Math.max(0.001, dt);
+      controller.lastPos = mesh.position.clone();
+      const isAttacking = controller.actions?.attack && controller.attackUntil && now < controller.attackUntil;
+      const wantsWalk = speed > 0.1;
+      const useWalkCycle = controller.walkCycle && !controller.actions?.walk;
+
+      if (isAttacking) {
+        playAction(controller, 'attack');
+      } else if (wantsWalk && controller.actions?.walk) {
+        playAction(controller, 'walk');
+      } else if (controller.actions?.idle) {
+        playAction(controller, 'idle');
+      }
+
+      controller.mixer?.update(dt);
+
+      if (useWalkCycle && !isAttacking) {
+        if (wantsWalk) {
+          applyWalkCycle(controller.walkCycle, now, speed);
+        } else if (controller.walkCycle.wasWalking) {
+          resetWalkCycle(controller.walkCycle);
+          controller.walkCycle.wasWalking = false;
+        }
+      }
+    }
+  }
+
+
   return {
     scene,
     renderer,
@@ -282,6 +554,8 @@ export function createRenderSystem({ app }) {
     updateWorldResources,
     updateWorldMobs,
     animateWorldMeshes,
+    updateAnimations,
+    triggerAttack,
     updateEffects,
     updateCamera,
     renderFrame,

@@ -1,4 +1,11 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import {
+  ASSET_PATHS,
+  cloneSkinned,
+  loadGltf,
+  normalizeToHeight,
+  pickClips,
+} from './assets.js';
 
 const COLORS = {
   ground: 0x1b2620,
@@ -14,22 +21,65 @@ const COLORS = {
   vendor: 0xffd54f,
 };
 
+let mobPrototypePromise = null;
+const environmentCache = new Map();
+
+function cloneStatic(scene) {
+  return scene.clone(true);
+}
+
+function getMobPrototype() {
+  if (!mobPrototypePromise) {
+    mobPrototypePromise = loadGltf(ASSET_PATHS.monsters.orc);
+  }
+  return mobPrototypePromise;
+}
+
+function getEnvironmentPrototype(key) {
+  if (!environmentCache.has(key)) {
+    const url = ASSET_PATHS.environment[key];
+    environmentCache.set(key, loadGltf(url));
+  }
+  return environmentCache.get(key);
+}
+
 function buildTileTexture() {
   const canvas = document.createElement('canvas');
-  const size = 64;
+  const size = 256;
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
 
+  const seed = 41293;
+  let state = seed;
+  const rand = () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+
   ctx.fillStyle = '#1f2b24';
   ctx.fillRect(0, 0, size, size);
 
-  ctx.fillStyle = '#2a3b30';
-  ctx.fillRect(3, 3, size - 6, size - 6);
+  const cell = 4;
+  for (let y = 0; y < size; y += cell) {
+    for (let x = 0; x < size; x += cell) {
+      const n = rand();
+      const shade = n > 0.6 ? '#2f3f33' : n > 0.25 ? '#243228' : '#1c271f';
+      ctx.fillStyle = shade;
+      ctx.fillRect(x, y, cell, cell);
+    }
+  }
 
-  ctx.strokeStyle = '#465a4d';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, size - 4, size - 4);
+  for (let i = 0; i < 80; i += 1) {
+    const radius = 6 + rand() * 18;
+    const x = rand() * size;
+    const y = rand() * size;
+    const alpha = 0.08 + rand() * 0.12;
+    ctx.fillStyle = `rgba(10, 16, 12, ${alpha.toFixed(3)})`;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -40,7 +90,7 @@ function buildTileTexture() {
 }
 
 function buildGround(mapSize) {
-  const tileSize = 4;
+  const tileSize = 14;
   const texture = buildTileTexture();
   texture.repeat.set(mapSize / tileSize, mapSize / tileSize);
 
@@ -144,8 +194,9 @@ function buildResourceMesh() {
   return group;
 }
 
-function buildMobMesh() {
-  const mesh = new THREE.Mesh(
+function buildMobMesh(worldState, mobId) {
+  const group = new THREE.Group();
+  const placeholder = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.5, 1.0, 4, 8),
     new THREE.MeshStandardMaterial({
       color: COLORS.mob,
@@ -154,8 +205,15 @@ function buildMobMesh() {
       roughness: 0.6,
     })
   );
-  mesh.position.y = 1.1;
-  return mesh;
+  placeholder.position.y = 1.1;
+  group.add(placeholder);
+  group.userData.placeholder = placeholder;
+
+  hydrateMobMesh(worldState, mobId, group).catch((err) => {
+    console.warn('[world] Failed to load mob model:', err);
+  });
+
+  return group;
 }
 
 function makeNameSprite(text) {
@@ -213,6 +271,8 @@ export function initWorld(scene, world) {
   const base = world?.base ?? { x: 0, z: 0, radius: 8 };
 
   const group = new THREE.Group();
+  const envGroup = new THREE.Group();
+  envGroup.name = 'environment';
   const ground = buildGround(mapSize);
   const baseMesh = buildVillage(base);
   const obstacleMeshes = (world?.obstacles ?? []).map(buildObstacleMesh);
@@ -223,23 +283,35 @@ export function initWorld(scene, world) {
     group.add(vendorMesh);
   }
 
-  group.add(ground, baseMesh, ...obstacleMeshes);
+  group.add(ground, baseMesh, envGroup, ...obstacleMeshes);
   scene.add(group);
 
-  return {
+  const worldState = {
     mapSize,
     base,
     obstacles: world?.obstacles ?? [],
     group,
+    envGroup,
+    envReady: false,
     ground,
     baseMesh,
     obstacleMeshes,
     resourceMeshes: new Map(),
     mobMeshes: new Map(),
+    mobControllers: new Map(),
     vendorMeshes,
+    isActive: true,
     lastResources: [],
     lastMobs: [],
   };
+
+  loadEnvironmentModels(worldState, envGroup, base, worldState.obstacles).catch(
+    (err) => {
+      console.warn('[world] Failed to load environment models:', err);
+    }
+  );
+
+  return worldState;
 }
 
 export function updateResources(worldState, resources) {
@@ -289,20 +361,124 @@ export function updateMobs(worldState, mobs) {
     seen.add(mob.id);
     let mesh = worldState.mobMeshes.get(mob.id);
     if (!mesh) {
-      mesh = buildMobMesh();
+      mesh = buildMobMesh(worldState, mob.id);
       worldState.mobMeshes.set(mob.id, mesh);
       worldState.group.add(mesh);
     }
     mesh.userData.mobId = mob.id;
-    mesh.position.set(mob.x, 1.1, mob.z);
+    const prev = mesh.userData.lastPos;
+    const nextPos = new THREE.Vector3(mob.x, 0, mob.z);
+    if (prev) {
+      const dx = nextPos.x - prev.x;
+      const dz = nextPos.z - prev.z;
+      const distSq = dx * dx + dz * dz;
+      if (distSq > 0.0004) {
+        mesh.rotation.y = Math.atan2(dx, dz);
+      }
+    }
+    mesh.position.copy(nextPos);
+    mesh.userData.lastPos = nextPos;
   }
 
   for (const [id, mesh] of worldState.mobMeshes.entries()) {
     if (!seen.has(id)) {
       worldState.group.remove(mesh);
       worldState.mobMeshes.delete(id);
+      worldState.mobControllers.delete(id);
     }
   }
+}
+
+function createMobActions(mixer, clipSet) {
+  const actions = {
+    idle: clipSet.idle ? mixer.clipAction(clipSet.idle) : null,
+    walk: clipSet.walk ? mixer.clipAction(clipSet.walk) : null,
+    attack: clipSet.attack ? mixer.clipAction(clipSet.attack) : null,
+  };
+  if (actions.attack) {
+    actions.attack.setLoop(THREE.LoopOnce, 1);
+    actions.attack.clampWhenFinished = true;
+  }
+  return actions;
+}
+
+async function hydrateMobMesh(worldState, mobId, group) {
+  if (!worldState?.isActive) return;
+  const gltf = await getMobPrototype();
+  if (!worldState.isActive) return;
+  if (worldState.mobMeshes.get(mobId) !== group) return;
+
+  const model = cloneSkinned(gltf.scene);
+  normalizeToHeight(model, 1.6);
+  group.clear();
+  group.add(model);
+
+  const clipSet = pickClips(gltf.animations ?? [], {
+    idleKeywords: ['idle'],
+    walkKeywords: ['walk', 'run'],
+    attackKeywords: ['bite', 'attack', 'hit'],
+  });
+
+  if (clipSet.all.length) {
+    const mixer = new THREE.AnimationMixer(model);
+    const actions = createMobActions(mixer, clipSet);
+    if (actions.idle) actions.idle.play();
+    worldState.mobControllers.set(mobId, {
+      mixer,
+      actions,
+      active: actions.idle ? 'idle' : null,
+      attackUntil: 0,
+      lastPos: group.position.clone(),
+    });
+  }
+}
+
+async function addEnvironmentModel(worldState, envGroup, key, placement) {
+  if (!worldState?.isActive) return;
+  const gltf = await getEnvironmentPrototype(key);
+  if (!worldState.isActive) return;
+
+  const model = cloneStatic(gltf.scene);
+  normalizeToHeight(model, placement.height ?? 4);
+  model.position.set(placement.x, 0, placement.z);
+  model.rotation.y = placement.rotation ?? 0;
+  envGroup.add(model);
+}
+
+async function addTreeClusters(worldState, envGroup, obstacles) {
+  if (!worldState?.isActive) return;
+  const gltf = await getEnvironmentPrototype('trees');
+  if (!worldState.isActive) return;
+  const picks = Array.isArray(obstacles) ? obstacles.slice(0, 4) : [];
+  for (const obstacle of picks) {
+    const model = cloneStatic(gltf.scene);
+    normalizeToHeight(model, 5);
+    model.position.set(obstacle.x + 2, 0, obstacle.z + 2);
+    model.rotation.y = (Math.random() * Math.PI) / 2;
+    envGroup.add(model);
+  }
+}
+
+async function loadEnvironmentModels(worldState, envGroup, base, obstacles) {
+  if (!worldState?.isActive) return;
+  const ring = (base?.radius ?? 8) + 6;
+  const diag = ring * 0.7;
+  const placements = [
+    { key: 'market', x: base.x + ring, z: base.z, rotation: Math.PI / 2, height: 4.8 },
+    { key: 'barracks', x: base.x - ring, z: base.z, rotation: -Math.PI / 2, height: 5.6 },
+    { key: 'storage', x: base.x, z: base.z + ring, rotation: Math.PI, height: 4.4 },
+    { key: 'houseA', x: base.x, z: base.z - ring, rotation: 0, height: 3.6 },
+    { key: 'houseB', x: base.x + diag, z: base.z + diag, rotation: Math.PI / 4, height: 3.8 },
+  ];
+
+  await Promise.all(
+    placements.map((placement) =>
+      addEnvironmentModel(worldState, envGroup, placement.key, placement)
+    )
+  );
+
+  await addTreeClusters(worldState, envGroup, obstacles);
+  if (worldState.isActive) worldState.envReady = true;
 }
 
 export function animateWorld(worldState, now) {
