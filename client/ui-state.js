@@ -175,13 +175,13 @@ export function createUiState({
         continue;
       }
 
-      let remaining = 0;
-      if (ability.id === 'basic_attack') {
-        const localCooldown = localCooldowns.get(slot) ?? 0;
-        const serverCooldown = me?.attackCooldownUntil ?? 0;
-        const cooldownEnd = Math.max(localCooldown, serverCooldown);
-        remaining = Math.max(0, cooldownEnd - serverNow);
-      }
+      const localCooldown = localCooldowns.get(slot) ?? 0;
+      const serverCooldown =
+        ability.id === 'basic_attack'
+          ? me?.attackCooldownUntil ?? 0
+          : me?.abilityCooldowns?.[ability.id] ?? 0;
+      const cooldownEnd = Math.max(localCooldown, serverCooldown);
+      const remaining = Math.max(0, cooldownEnd - serverNow);
       const fraction = ability.cooldownMs
         ? Math.min(1, remaining / ability.cooldownMs)
         : 0;

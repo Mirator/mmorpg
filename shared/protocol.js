@@ -12,7 +12,7 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'respawn', seq?: number }} RespawnMessage
  * @typedef {{ type: 'input', keys: Required<InputKeys>, seq?: number }} InputMessage
  * @typedef {{ type: 'moveTarget', x: number, z: number, seq?: number }} MoveTargetMessage
- * @typedef {{ type: 'targetSelect', targetId?: string | null, seq?: number }} TargetSelectMessage
+ * @typedef {{ type: 'targetSelect', targetId?: string | null, targetKind?: 'mob' | 'player' | null, seq?: number }} TargetSelectMessage
  * @typedef {{ type: 'action', kind: 'interact', seq?: number }} InteractMessage
  * @typedef {{ type: 'action', kind: 'ability', slot: number, seq?: number }} AbilityMessage
  * @typedef {{ type: 'classSelect', classId: string, seq?: number }} ClassSelectMessage
@@ -49,6 +49,11 @@ function normalizeString(value, maxLen = MAX_ID_LENGTH) {
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > maxLen) return null;
   return trimmed;
+}
+
+function normalizeTargetKind(value) {
+  if (value === 'mob' || value === 'player') return value;
+  return null;
 }
 
 const EQUIP_SLOT_SET = new Set(EQUIP_SLOTS);
@@ -120,11 +125,12 @@ export function parseClientMessage(raw) {
 
   if (raw.type === 'targetSelect') {
     if (raw.targetId === null || raw.targetId === undefined) {
-      return { type: 'targetSelect', targetId: null, seq };
+      return { type: 'targetSelect', targetId: null, targetKind: null, seq };
     }
     const targetId = normalizeString(raw.targetId);
     if (!targetId) return null;
-    return { type: 'targetSelect', targetId, seq };
+    const targetKind = normalizeTargetKind(raw.targetKind);
+    return { type: 'targetSelect', targetId, targetKind, seq };
   }
 
   if (raw.type === 'action') {

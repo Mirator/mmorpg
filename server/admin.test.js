@@ -214,6 +214,12 @@ describe('admin state serialization', () => {
       xpToNext: xpToNext(4),
       attackCooldownUntil: 9876,
       targetId: 'm-9',
+      targetKind: null,
+      resourceType: null,
+      resourceMax: 0,
+      resource: 0,
+      abilityCooldowns: {},
+      moveSpeedMultiplier: 1,
       equipment: rangerEquipment,
       weaponKind: 'weapon_training_bow',
     });

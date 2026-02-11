@@ -29,6 +29,46 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function getMenuStatus(page) {
+  return page.evaluate(() => {
+    const menu = document.querySelector('#menu');
+    const authError = document.querySelector('#menu-auth-error')?.textContent?.trim() ?? '';
+    const charactersError =
+      document.querySelector('#menu-characters-error')?.textContent?.trim() ?? '';
+    const createError = document.querySelector('#menu-create-error')?.textContent?.trim() ?? '';
+    return {
+      step: menu?.dataset?.step ?? null,
+      open: menu?.classList?.contains('open') ?? false,
+      loading: menu?.classList?.contains('loading') ?? false,
+      authError,
+      charactersError,
+      createError,
+    };
+  });
+}
+
+async function waitForMenuStepOrError(page, step, timeoutMs) {
+  const start = Date.now();
+  let lastState = null;
+  while (Date.now() - start < timeoutMs) {
+    const state = await getMenuStatus(page);
+    lastState = state;
+    if (state.step === step) {
+      return { ok: true, state };
+    }
+    const errorText = state.authError || state.charactersError || state.createError;
+    if (errorText) {
+      return { ok: false, errorText, state };
+    }
+    await sleep(100);
+  }
+  return {
+    ok: false,
+    errorText: `Timed out waiting for menu step "${step}"`,
+    state: lastState,
+  };
+}
+
 function withTimeout(promise, ms, label) {
   let timeoutId;
   const timeout = new Promise((_, reject) => {
@@ -210,11 +250,34 @@ async function run() {
 
     await page.waitForSelector('#menu.open');
     await page.click('.menu-tab[data-tab=\"signup\"]');
+    await page.waitForFunction(
+      () => !document.querySelector('#signup-form')?.classList.contains('hidden')
+    );
     await page.fill('#signup-username', username);
     await page.fill('#signup-password', password);
     await page.click('#signup-form button[type=\"submit\"]');
 
-    await page.waitForSelector('#menu[data-step=\"characters\"]');
+    const signupResult = await waitForMenuStepOrError(page, 'characters', TEST_TIMEOUT_MS);
+    if (!signupResult.ok) {
+      const errorText = signupResult.errorText ?? 'Unknown sign-up error';
+      if (errorText.toLowerCase().includes('username already taken')) {
+        await page.click('.menu-tab[data-tab=\"signin\"]');
+        await page.waitForFunction(
+          () => !document.querySelector('#signin-form')?.classList.contains('hidden')
+        );
+        await page.fill('#signin-username', username);
+        await page.fill('#signin-password', password);
+        await page.click('#signin-form button[type=\"submit\"]');
+        const signInResult = await waitForMenuStepOrError(page, 'characters', TEST_TIMEOUT_MS);
+        if (!signInResult.ok) {
+          throw new Error(
+            `Sign-in failed after sign-up conflict: ${signInResult.errorText ?? 'unknown error'}`
+          );
+        }
+      } else {
+        throw new Error(`Sign-up failed: ${errorText}`);
+      }
+    }
     await page.click('#character-create-open');
     await page.waitForSelector('#menu[data-step=\"create\"]');
     await page.fill('#character-name', characterName);

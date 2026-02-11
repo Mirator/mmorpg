@@ -69,6 +69,12 @@ export function serializePlayerPrivate(player) {
     xpToNext: xpToNext(player.level ?? 1),
     attackCooldownUntil: player.attackCooldownUntil ?? 0,
     targetId: player.targetId ?? null,
+    targetKind: player.targetKind ?? null,
+    resourceType: player.resourceType ?? null,
+    resourceMax: player.resourceMax ?? 0,
+    resource: player.resource ?? 0,
+    abilityCooldowns: player.abilityCooldowns ?? {},
+    moveSpeedMultiplier: player.moveSpeedMultiplier ?? 1,
     equipment: player.equipment ?? null,
     weaponKind: getEquippedWeapon(player.equipment, player.classId)?.kind ?? null,
   };

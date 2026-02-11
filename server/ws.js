@@ -2,7 +2,11 @@ import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import { parseClientMessage } from '../shared/protocol.js';
 import { getSellPriceCopper } from '../shared/economy.js';
-import { DEFAULT_CLASS_ID, isValidClassId } from '../shared/classes.js';
+import {
+  DEFAULT_CLASS_ID,
+  isValidClassId,
+  getResourceForClass,
+} from '../shared/classes.js';
 import {
   serializePlayersPublic,
   serializePlayerPrivate,
@@ -11,7 +15,7 @@ import {
 } from './admin.js';
 import { worldSnapshot } from './logic/world.js';
 import { tryHarvest } from './logic/resources.js';
-import { tryBasicAttack } from './logic/combat.js';
+import { tryUseAbility } from './logic/combat.js';
 import { countInventory, swapInventorySlots } from './logic/inventory.js';
 import { swapEquipment } from './logic/equipment.js';
 import { loadPlayer, savePlayer } from './db/playerRepo.js';
@@ -97,6 +101,26 @@ function generatePlayerId() {
     return crypto.randomUUID();
   }
   return `p-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function initCombatState(player) {
+  if (!player) return;
+  const resourceDef = getResourceForClass(player.classId);
+  const resourceMax = resourceDef?.max ?? 0;
+  const resourceType = resourceDef?.type ?? null;
+  player.resourceType = resourceType;
+  player.resourceMax = resourceMax;
+  player.resource = resourceType === 'rage' ? 0 : resourceMax;
+  player.abilityCooldowns = {};
+  player.combatTagUntil = 0;
+  player.lastMoveDir = null;
+  player.movedThisTick = false;
+  player.cast = null;
+  player.moveSpeedMultiplier = 1;
+  player.damageTakenMultiplier = 1;
+  player.slowImmuneUntil = 0;
+  player.defensiveStanceUntil = 0;
+  player.targetKind = null;
 }
 
 function parseConnectionParams(req) {
@@ -356,6 +380,7 @@ export function createWebSocketServer({
           name: stored.name ?? null,
           nameLower: stored.nameLower ?? null,
         };
+        initCombatState(basePlayer);
 
         if (!guest && migrated.didUpgrade) {
           const upgradedState = serializePlayerState(basePlayer);
@@ -396,6 +421,7 @@ export function createWebSocketServer({
           name: stored?.name ?? null,
           nameLower: stored?.nameLower ?? null,
         };
+        initCombatState(basePlayer);
       }
 
       const existing = players.get(id);
@@ -479,21 +505,45 @@ export function createWebSocketServer({
         if (msg.type === 'targetSelect') {
           if (!msg.targetId) {
             player.targetId = null;
+            player.targetKind = null;
             return;
           }
-          const target = mobs.find((mob) => mob.id === msg.targetId);
+          const targetKind = msg.targetKind === 'player' ? 'player' : 'mob';
           const maxDist = config.combat?.targetSelectRange ?? 25;
+          if (targetKind === 'player') {
+            const targetPlayer = players.get(msg.targetId);
+            if (!targetPlayer || targetPlayer.dead) {
+              player.targetId = null;
+              player.targetKind = null;
+              return;
+            }
+            const dx = targetPlayer.pos.x - player.pos.x;
+            const dz = targetPlayer.pos.z - player.pos.z;
+            if (dx * dx + dz * dz > maxDist * maxDist) {
+              player.targetId = null;
+              player.targetKind = null;
+              return;
+            }
+            player.targetId = targetPlayer.id;
+            player.targetKind = 'player';
+            return;
+          }
+
+          const target = mobs.find((mob) => mob.id === msg.targetId);
           if (!target || target.dead || target.hp <= 0) {
             player.targetId = null;
+            player.targetKind = null;
             return;
           }
           const dx = target.pos.x - player.pos.x;
           const dz = target.pos.z - player.pos.z;
           if (dx * dx + dz * dz > maxDist * maxDist) {
             player.targetId = null;
+            player.targetKind = null;
             return;
           }
           player.targetId = target.id;
+          player.targetKind = 'mob';
           return;
         }
 
@@ -520,6 +570,7 @@ export function createWebSocketServer({
         if (msg.type === 'classSelect') {
           if (!isValidClassId(msg.classId)) return;
           player.classId = msg.classId;
+          initCombatState(player);
           persistence.markDirty(player);
           return;
         }
@@ -549,15 +600,18 @@ export function createWebSocketServer({
         }
 
         if (msg.type === 'action' && msg.kind === 'ability') {
-          if (msg.slot !== 1) return;
-          const result = tryBasicAttack({
+          const now = Date.now();
+          const result = tryUseAbility({
             player,
+            slot: msg.slot,
             mobs,
-            now: Date.now(),
+            players,
+            world,
+            now,
             respawnMs: config.mob.respawnMs,
           });
           if (result.event) {
-            broadcastCombatEvent(result.event, Date.now());
+            broadcastCombatEvent(result.event, now);
           }
           if (result.xpGain > 0 || result.leveledUp) {
             persistence.markDirty(player);

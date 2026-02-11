@@ -486,20 +486,31 @@ function getAliveTargetById(targetId) {
   return mobs.find((mob) => mob.id === targetId && !mob.dead && mob.hp > 0) ?? null;
 }
 
+function getAlivePlayerById(targetId) {
+  if (!targetId) return null;
+  const players = gameState.getLatestPlayers();
+  const target =
+    players && typeof players === 'object' ? players[targetId] : null;
+  if (!target || target.dead) return null;
+  return { id: targetId, ...target };
+}
+
 function selectTarget(selection) {
   if (!selection || !selection.id || !selection.kind) {
     selectedTarget = null;
     seq += 1;
-    net?.send({ type: 'targetSelect', targetId: null, seq });
+    net?.send({ type: 'targetSelect', targetId: null, targetKind: null, seq });
     return;
   }
 
   selectedTarget = { kind: selection.kind, id: selection.id };
   seq += 1;
   if (selection.kind === 'mob') {
-    net?.send({ type: 'targetSelect', targetId: selection.id, seq });
+    net?.send({ type: 'targetSelect', targetId: selection.id, targetKind: 'mob', seq });
+  } else if (selection.kind === 'player') {
+    net?.send({ type: 'targetSelect', targetId: selection.id, targetKind: 'player', seq });
   } else {
-    net?.send({ type: 'targetSelect', targetId: null, seq });
+    net?.send({ type: 'targetSelect', targetId: null, targetKind: null, seq });
   }
 }
 
@@ -538,20 +549,38 @@ function useAbility(slot) {
   const ability = abilities.find((item) => item.slot === slot);
   if (!ability) return;
   if (ability.targetType === 'targeted') {
-    const mobTargetId = selectedTarget?.kind === 'mob' ? selectedTarget.id : null;
-    const target = getAliveTargetById(mobTargetId);
-    if (!target || !currentMe) return;
-    const dx = target.x - currentMe.x;
-    const dz = target.z - currentMe.z;
-    if (dx * dx + dz * dz > (ability.range ?? 0) * (ability.range ?? 0)) {
-      return;
+    if (ability.targetKind === 'player') {
+      if (selectedTarget?.kind === 'player') {
+        const target = getAlivePlayerById(selectedTarget.id);
+        if (!target || !currentMe) return;
+        const dx = target.x - currentMe.x;
+        const dz = target.z - currentMe.z;
+        if (dx * dx + dz * dz > (ability.range ?? 0) * (ability.range ?? 0)) {
+          return;
+        }
+      }
+    } else {
+      const mobTargetId = selectedTarget?.kind === 'mob' ? selectedTarget.id : null;
+      const target = getAliveTargetById(mobTargetId);
+      if (!target || !currentMe) return;
+      const dx = target.x - currentMe.x;
+      const dz = target.z - currentMe.z;
+      if (dx * dx + dz * dz > (ability.range ?? 0) * (ability.range ?? 0)) {
+        return;
+      }
     }
   }
   const now = gameState.getServerNow();
   const localCooldown = ui.getLocalCooldown(slot);
-  const serverCooldown = currentMe?.attackCooldownUntil ?? 0;
+  const serverCooldown =
+    ability.id === 'basic_attack'
+      ? currentMe?.attackCooldownUntil ?? 0
+      : currentMe?.abilityCooldowns?.[ability.id] ?? 0;
   if (Math.max(localCooldown, serverCooldown) > now) return;
-  ui.setLocalCooldown(slot, now + (ability.cooldownMs ?? 0));
+  const cost = ability.resourceCost ?? 0;
+  if (cost > 0 && (currentMe?.resource ?? 0) < cost) return;
+  const localCooldownDuration = ability.windUpMs ?? ability.cooldownMs ?? 0;
+  ui.setLocalCooldown(slot, now + localCooldownDuration);
   ui.updateAbilityBar(currentMe, now);
   seq += 1;
   net?.send({ type: 'action', kind: 'ability', slot, seq });
@@ -670,7 +699,10 @@ let virtualNow = performance.now();
 function getPlayerSpeed() {
   const worldConfig = gameState.getWorldConfig();
   const configSnapshot = gameState.getConfigSnapshot();
-  return worldConfig?.playerSpeed ?? configSnapshot?.player?.speed ?? DEFAULT_PLAYER_SPEED;
+  const baseSpeed =
+    worldConfig?.playerSpeed ?? configSnapshot?.player?.speed ?? DEFAULT_PLAYER_SPEED;
+  const multiplier = currentMe?.moveSpeedMultiplier ?? 1;
+  return baseSpeed * multiplier;
 }
 
 function stepFrame(dt, now) {
@@ -871,6 +903,12 @@ function buildTextState() {
           xpToNext: me.xpToNext ?? xpToNext(me.level ?? 1),
           attackCooldownUntil: me.attackCooldownUntil ?? 0,
           targetId: me.targetId ?? null,
+          targetKind: me.targetKind ?? null,
+          resourceType: me.resourceType ?? null,
+          resourceMax: me.resourceMax ?? 0,
+          resource: me.resource ?? 0,
+          abilityCooldowns: me.abilityCooldowns ?? {},
+          moveSpeedMultiplier: me.moveSpeedMultiplier ?? 1,
           equipment: me.equipment ?? null,
           weapon: weaponDef
             ? {
@@ -911,10 +949,13 @@ function buildTextState() {
       range: ability.range ?? 0,
       attackType: ability.attackType ?? null,
       targetType: ability.targetType ?? 'none',
-      cooldownRemainingMs:
-        ability.id === 'basic_attack'
-          ? Math.max(0, (me?.attackCooldownUntil ?? 0) - serverNow)
-          : 0,
+      targetKind: ability.targetKind ?? null,
+      cooldownRemainingMs: Math.max(
+        0,
+        (ability.id === 'basic_attack'
+          ? me?.attackCooldownUntil ?? 0
+          : me?.abilityCooldowns?.[ability.id] ?? 0) - serverNow
+      ),
     })),
     combat: {
       targetSelectRange: getTargetSelectRange(),

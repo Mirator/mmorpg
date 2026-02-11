@@ -17,6 +17,10 @@ function distance2(a, b) {
   return dx * dx + dz * dz;
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function isSpawnValid(x, z, world) {
   const distFromBase = Math.hypot(x - world.base.x, z - world.base.z);
   if (distFromBase < world.base.radius + 8) return false;
@@ -141,6 +145,12 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
           mob.hp = mob.maxHp ?? getMobMaxHp(mob.level ?? 1);
           mob.state = 'idle';
           mob.targetId = null;
+          mob.stunnedUntil = 0;
+          mob.stunImmuneUntil = 0;
+          mob.slowUntil = 0;
+          mob.slowMultiplier = 1;
+          mob.weakenedUntil = 0;
+          mob.weakenedMultiplier = 1;
           mob.attackCooldownUntil = 0;
           mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
         }
@@ -156,11 +166,31 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         mob.hp = mob.maxHp ?? getMobMaxHp(mob.level ?? 1);
         mob.state = 'idle';
         mob.targetId = null;
+        mob.stunnedUntil = 0;
+        mob.stunImmuneUntil = 0;
+        mob.slowUntil = 0;
+        mob.slowMultiplier = 1;
+        mob.weakenedUntil = 0;
+        mob.weakenedMultiplier = 1;
         mob.attackCooldownUntil = 0;
         mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
       }
       continue;
     }
+
+    const stunned = Number.isFinite(mob.stunnedUntil) && mob.stunnedUntil > now;
+    if (stunned) {
+      continue;
+    }
+
+    const slowMultiplier =
+      Number.isFinite(mob.slowUntil) && mob.slowUntil > now
+        ? mob.slowMultiplier ?? 1
+        : 1;
+    const weakenedMultiplier =
+      Number.isFinite(mob.weakenedUntil) && mob.weakenedUntil > now
+        ? mob.weakenedMultiplier ?? 1
+        : 1;
 
     let target = null;
     let closestDist2 = aggroRadius * aggroRadius;
@@ -188,8 +218,8 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         mob.nextDecisionAt = now + randomRange(rand, ...wanderDuration);
       }
     } else if (mob.state === 'wander') {
-      mob.pos.x += mob.dir.x * wanderSpeed * dt;
-      mob.pos.z += mob.dir.z * wanderSpeed * dt;
+      mob.pos.x += mob.dir.x * wanderSpeed * slowMultiplier * dt;
+      mob.pos.z += mob.dir.z * wanderSpeed * slowMultiplier * dt;
       mob.pos = applyCollisions(mob.pos, world, mobRadius);
       if (now >= mob.nextDecisionAt) {
         mob.state = 'idle';
@@ -204,15 +234,25 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         mob.targetId = null;
         mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
       } else if (dist > 0.01) {
-        mob.pos.x += (dx / dist) * speed * dt;
-        mob.pos.z += (dz / dist) * speed * dt;
+        mob.pos.x += (dx / dist) * speed * slowMultiplier * dt;
+        mob.pos.z += (dz / dist) * speed * slowMultiplier * dt;
         mob.pos = applyCollisions(mob.pos, world, mobRadius);
       }
 
       if (dist <= attackRange && now >= mob.attackCooldownUntil) {
-        const damage =
+        let damage =
           attackDamageBase + attackDamagePerLevel * (mob.level ?? 1);
+        damage *= weakenedMultiplier;
+        damage *= target.damageTakenMultiplier ?? 1;
+        damage = Math.max(0, Math.floor(damage));
         target.hp = Math.max(0, target.hp - damage);
+        if (damage > 0) {
+          target.combatTagUntil = now + 5000;
+          if (target.resourceType === 'rage') {
+            const max = Number.isFinite(target.resourceMax) ? target.resourceMax : 100;
+            target.resource = clamp((target.resource ?? 0) + 4, 0, max);
+          }
+        }
         mob.attackCooldownUntil = now + attackCooldownMs;
       }
     }

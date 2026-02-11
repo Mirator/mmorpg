@@ -17,6 +17,7 @@ const overlayHpFillEl = document.getElementById('overlay-hp-fill');
 const overlayHpValueEl = document.getElementById('overlay-hp-value');
 const overlayStaminaFillEl = document.getElementById('overlay-stamina-fill');
 const overlayStaminaValueEl = document.getElementById('overlay-stamina-value');
+const overlayResourceLabelEl = document.getElementById('overlay-resource-label');
 const targetHudEl = document.getElementById('target-hud');
 const targetNameEl = document.getElementById('target-name');
 const targetMetaEl = document.getElementById('target-meta');
@@ -44,6 +45,11 @@ function setBar(fillEl, valueEl, value, max) {
   }
 }
 
+function formatResourceLabel(resourceType) {
+  if (!resourceType) return 'Resource';
+  return resourceType.charAt(0).toUpperCase() + resourceType.slice(1);
+}
+
 export function setStatus(text) {
   if (statusEl) statusEl.textContent = text;
 }
@@ -66,6 +72,7 @@ export function updateHud(player, now) {
     setBar(overlayHpFillEl, overlayHpValueEl, null, null);
     if (overlayStaminaFillEl) overlayStaminaFillEl.style.width = '0%';
     if (overlayStaminaValueEl) overlayStaminaValueEl.textContent = '--';
+    if (overlayResourceLabelEl) overlayResourceLabelEl.textContent = 'Resource';
     return;
   }
 
@@ -96,11 +103,14 @@ export function updateHud(player, now) {
     Number.isFinite(player.hp) ? player.hp : 0,
     Number.isFinite(player.maxHp) ? player.maxHp : player.hp ?? 0
   );
-  if (overlayStaminaFillEl) {
-    overlayStaminaFillEl.style.width = '55%';
-  }
-  if (overlayStaminaValueEl) {
-    overlayStaminaValueEl.textContent = '--';
+  setBar(
+    overlayStaminaFillEl,
+    overlayStaminaValueEl,
+    Number.isFinite(player.resource) ? player.resource : 0,
+    Number.isFinite(player.resourceMax) ? player.resourceMax : player.resource ?? 0
+  );
+  if (overlayResourceLabelEl) {
+    overlayResourceLabelEl.textContent = formatResourceLabel(player.resourceType);
   }
   if (invEl) {
     const inv = player.inv ?? 0;

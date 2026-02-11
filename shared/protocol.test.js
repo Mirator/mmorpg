@@ -29,11 +29,21 @@ describe('protocol validation', () => {
     expect(parseClientMessage({ type: 'targetSelect', targetId: 'mob-1', seq: 2 })).toEqual({
       type: 'targetSelect',
       targetId: 'mob-1',
+      targetKind: null,
       seq: 2,
+    });
+    expect(
+      parseClientMessage({ type: 'targetSelect', targetId: 'p1', targetKind: 'player' })
+    ).toEqual({
+      type: 'targetSelect',
+      targetId: 'p1',
+      targetKind: 'player',
+      seq: undefined,
     });
     expect(parseClientMessage({ type: 'targetSelect', targetId: null })).toEqual({
       type: 'targetSelect',
       targetId: null,
+      targetKind: null,
       seq: undefined,
     });
   });
