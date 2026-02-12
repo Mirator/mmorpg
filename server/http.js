@@ -119,10 +119,12 @@ export function createHttpApp({
       },
     })
   );
+  // Apply 50% increase globally, then 100% increase on localhost
+  const generalRateLimitMax = Math.round(120 * 1.5 * (config.isLocalhost ? 2 : 1));
   app.use(
     rateLimit({
       windowMs: 60_000,
-      max: 120,
+      max: generalRateLimitMax,
       standardHeaders: true,
       legacyHeaders: false,
     })
@@ -133,9 +135,11 @@ export function createHttpApp({
     })
   );
 
+  // Apply 50% increase globally, then 100% increase on localhost
+  const authRateLimitMax = Math.round(20 * 1.5 * (config.isLocalhost ? 2 : 1));
   const authLimiter = rateLimit({
     windowMs: 5 * 60_000,
-    max: 20,
+    max: authRateLimitMax,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many attempts, try again soon.' },

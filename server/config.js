@@ -44,9 +44,19 @@ export function getServerConfig(env = process.env) {
   const host = env.HOST ?? '127.0.0.1';
   const trustProxy = parseBoolEnv(env.TRUST_PROXY);
 
-  const maxConnectionsPerIp = parseIntEnv(env.MAX_CONNECTIONS_PER_IP, 5);
+  const isLocalhost = isLocalhostHost(host);
+  const baseMaxConnectionsPerIp = parseIntEnv(env.MAX_CONNECTIONS_PER_IP, 5);
+  const baseMsgRateMax = parseIntEnv(env.MSG_RATE_MAX, 60);
+  
+  // Apply 50% increase globally, then 100% increase on localhost
+  const maxConnectionsPerIp = Math.ceil(
+    baseMaxConnectionsPerIp * 1.5 * (isLocalhost ? 2 : 1)
+  );
+  const msgRateMax = Math.round(
+    baseMsgRateMax * 1.5 * (isLocalhost ? 2 : 1)
+  );
+  
   const maxPayloadBytes = parseIntEnv(env.MAX_PAYLOAD_BYTES, 16 * 1024);
-  const msgRateMax = parseIntEnv(env.MSG_RATE_MAX, 60);
   const msgRateIntervalMs = parseIntEnv(env.MSG_RATE_INTERVAL_MS, 1000);
   const heartbeatIntervalMs = parseIntEnv(env.HEARTBEAT_INTERVAL_MS, 30_000);
   const persistIntervalMs = parseIntEnv(env.PERSIST_INTERVAL_MS, 5000);
@@ -89,7 +99,7 @@ export function getServerConfig(env = process.env) {
     persistForceMs,
     persistPosEps,
     adminPassword,
-    isLocalhost: isLocalhostHost(host),
+    isLocalhost,
     sessionCookieName,
     sessionCookieSameSite,
     sessionCookieSecure,
