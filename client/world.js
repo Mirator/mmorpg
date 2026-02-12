@@ -218,24 +218,30 @@ function buildMobMesh(worldState, mobId) {
 
 function makeNameSprite(text) {
   const canvas = document.createElement('canvas');
-  const size = 256;
-  canvas.width = size;
-  canvas.height = size;
+  const padding = 24;
+  const fontSize = 22;
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, size, size);
+  ctx.font = `bold ${fontSize}px Rajdhani, sans-serif`;
+  const metrics = ctx.measureText(text);
+  const textWidth = Math.ceil(metrics.width);
+  const width = textWidth + padding * 2;
+  const height = fontSize + padding;
+  canvas.width = width;
+  canvas.height = height;
+  ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-  ctx.fillRect(0, size * 0.35, size, size * 0.3);
+  ctx.fillRect(0, 0, width, height);
   ctx.fillStyle = '#ffe9a8';
-  ctx.font = 'bold 40px Rajdhani, sans-serif';
+  ctx.font = `bold ${fontSize}px Rajdhani, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, size / 2, size / 2);
+  ctx.fillText(text, width / 2, height / 2);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(4, 2, 1);
-  sprite.position.y = 3.6;
+  sprite.scale.set(width / 80, height / 80, 1);
+  sprite.position.y = 3.0;
   return sprite;
 }
 
