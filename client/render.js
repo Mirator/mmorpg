@@ -279,8 +279,8 @@ export function createRenderSystem({ app }) {
     animateWorld(worldState, now);
   }
 
-  function updateAnimations(dt, now) {
-    updateControllerMap(playerControllers, playerMeshes, dt, now);
+  function updateAnimations(dt, now, deadPlayerIds = new Set()) {
+    updateControllerMap(playerControllers, playerMeshes, dt, now, deadPlayerIds);
     if (worldState?.mobControllers && worldState?.mobMeshes) {
       updateControllerMap(worldState.mobControllers, worldState.mobMeshes, dt, now);
     }
@@ -336,12 +336,16 @@ export function createRenderSystem({ app }) {
             walkNames: ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Walk_Formal_Loop'],
             attackNames: ['Sword_Attack', 'Punch_Jab', 'Punch_Cross'],
             attackKeywords: ['attack', 'slash', 'swing', 'punch'],
+            deathNames: ['Death'],
+            deathKeywords: ['death'],
           }
         : {
             idleNames: ['Idle_Loop', 'Idle_No_Loop'],
             walkNames: ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Walk_Formal_Loop'],
             attackNames: ['Sword_Attack', 'Punch_Jab', 'Punch_Cross'],
             attackKeywords: ['attack', 'slash', 'swing', 'punch'],
+            deathNames: ['Death'],
+            deathKeywords: ['death'],
           };
 
       playerClipsPromise = loadPlayerAnimations().then((clips) => pickClips(clips, overrides));
@@ -392,10 +396,15 @@ export function createRenderSystem({ app }) {
       idle: clipSet.idle ? mixer.clipAction(clipSet.idle) : null,
       walk: clipSet.walk ? mixer.clipAction(clipSet.walk) : null,
       attack: clipSet.attack ? mixer.clipAction(clipSet.attack) : null,
+      death: clipSet.death ? mixer.clipAction(clipSet.death) : null,
     };
     if (actions.attack) {
       actions.attack.setLoop(THREE.LoopOnce, 1);
       actions.attack.clampWhenFinished = true;
+    }
+    if (actions.death) {
+      actions.death.setLoop(THREE.LoopOnce, 1);
+      actions.death.clampWhenFinished = true;
     }
     return actions;
   }
@@ -504,7 +513,7 @@ export function createRenderSystem({ app }) {
     controller.active = name;
   }
 
-  function updateControllerMap(controllers, meshes, dt, now) {
+  function updateControllerMap(controllers, meshes, dt, now, deadPlayerIds) {
     if (!controllers || !meshes) return;
     for (const [id, controller] of controllers.entries()) {
       const mesh = meshes.get(id);
@@ -512,11 +521,14 @@ export function createRenderSystem({ app }) {
       const lastPos = controller.lastPos ?? mesh.position.clone();
       const speed = mesh.position.distanceTo(lastPos) / Math.max(0.001, dt);
       controller.lastPos = mesh.position.clone();
+      const isDead = deadPlayerIds && deadPlayerIds.has(id);
       const isAttacking = controller.actions?.attack && controller.attackUntil && now < controller.attackUntil;
       const wantsWalk = speed > 0.1;
       const useWalkCycle = controller.walkCycle && !controller.actions?.walk;
 
-      if (isAttacking) {
+      if (isDead && controller.actions?.death) {
+        playAction(controller, 'death');
+      } else if (isAttacking) {
         playAction(controller, 'attack');
       } else if (wantsWalk && controller.actions?.walk) {
         playAction(controller, 'walk');
@@ -526,7 +538,7 @@ export function createRenderSystem({ app }) {
 
       controller.mixer?.update(dt);
 
-      if (useWalkCycle && !isAttacking) {
+      if (useWalkCycle && !isAttacking && !isDead) {
         if (wantsWalk) {
           applyWalkCycle(controller.walkCycle, now, speed);
         } else if (controller.walkCycle.wasWalking) {

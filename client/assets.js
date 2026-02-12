@@ -162,9 +162,11 @@ export function pickClips(clips, overrides = {}) {
   const idleNames = overrides.idleNames ?? null;
   const walkNames = overrides.walkNames ?? null;
   const attackNames = overrides.attackNames ?? null;
+  const deathNames = overrides.deathNames ?? null;
   const idleKeywords = overrides.idleKeywords ?? ['idle'];
   const walkKeywords = overrides.walkKeywords ?? ['walk', 'run'];
   const attackKeywords = overrides.attackKeywords ?? ['attack', 'slash', 'swing', 'punch', 'bite'];
+  const deathKeywords = overrides.deathKeywords ?? ['death'];
 
   const findByName = (names) => {
     if (!Array.isArray(names) || !names.length) return null;
@@ -184,11 +186,16 @@ export function pickClips(clips, overrides = {}) {
     findClipByKeywords(clipList, attackKeywords) ??
     clipList[2] ??
     null;
+  const death =
+    findByName(deathNames) ??
+    findClipByKeywords(clipList, deathKeywords) ??
+    null;
 
   return {
     idle,
     walk,
     attack,
+    death,
     all: clipList,
   };
 }

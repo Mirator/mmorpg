@@ -752,7 +752,14 @@ function stepFrame(dt, now) {
   }
 
   renderSystem.animateWorldMeshes(now);
-  renderSystem.updateAnimations(dt, now);
+  const players = gameState.getLatestPlayers();
+  const deadPlayerIds = new Set();
+  if (players && typeof players === 'object') {
+    for (const [id, p] of Object.entries(players)) {
+      if (p?.dead) deadPlayerIds.add(id);
+    }
+  }
+  renderSystem.updateAnimations(dt, now, deadPlayerIds);
   renderSystem.updateEffects(now);
   const resolvedTarget = resolveTarget(selectedTarget, {
     mobs: gameState.getLatestMobs(),
