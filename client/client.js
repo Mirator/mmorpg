@@ -725,7 +725,10 @@ function getPlayerSpeed() {
 
 function stepFrame(dt, now) {
   const { positions, localPos: serverLocalPos } = gameState.renderInterpolatedPlayers(now);
-  renderSystem.updatePlayerPositions(positions);
+  renderSystem.updatePlayerPositions(positions, {
+    localPlayerId: playerId ?? null,
+    inputKeys: inputHandler.getKeys(),
+  });
 
   const localState = gameState.getLocalPlayer();
   if (localState?.dead && serverLocalPos) {
@@ -739,7 +742,10 @@ function stepFrame(dt, now) {
   const viewPos = predictedPos ?? serverLocalPos;
 
   if (predictedPos && playerId) {
-    renderSystem.updatePlayerPositions({ [playerId]: predictedPos });
+    renderSystem.updatePlayerPositions(
+      { [playerId]: predictedPos },
+      { localPlayerId: playerId, inputKeys: inputHandler.getKeys() }
+    );
   }
 
   if (viewPos) {

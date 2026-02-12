@@ -161,7 +161,10 @@ export function createRenderSystem({ app }) {
     }
   }
 
-  function updatePlayerPositions(positions) {
+  function updatePlayerPositions(positions, options = {}) {
+    const { localPlayerId, inputKeys } = options;
+    const hasMovementInput = inputKeys && (inputKeys.w || inputKeys.a || inputKeys.s || inputKeys.d);
+
     for (const [id, pos] of Object.entries(positions)) {
       const mesh = ensurePlayerMesh(id);
       const prev = mesh.userData.lastPos;
@@ -170,7 +173,8 @@ export function createRenderSystem({ app }) {
         const dx = nextPos.x - prev.x;
         const dz = nextPos.z - prev.z;
         const distSq = dx * dx + dz * dz;
-        if (distSq > 0.0004) {
+        const isLocalWithNoInput = (id === localPlayerId) && !hasMovementInput;
+        if (distSq > 0.0004 && !isLocalWithNoInput) {
           mesh.rotation.y = Math.atan2(dx, dz);
         }
       }
