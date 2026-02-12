@@ -1,26 +1,9 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { clone as cloneSkeleton } from './vendor/SkeletonUtils.js';
+import { ASSET_PATHS, getPreloadAssetList } from './assetPaths.js';
 
-const ASSET_ROOT = '/assets/quaternius';
-
-export const ASSET_PATHS = {
-  playerModel: `${ASSET_ROOT}/outfits/Male_Peasant.gltf`,
-  playerBase: `${ASSET_ROOT}/base/Superhero_Male_FullBody.gltf`,
-  playerOutfit: `${ASSET_ROOT}/outfits/Male_Peasant.gltf`,
-  playerAnimations: `${ASSET_ROOT}/animations/UAL1_Standard.glb`,
-  monsters: {
-    orc: `${ASSET_ROOT}/monsters/Orc.gltf`,
-  },
-  environment: {
-    market: `${ASSET_ROOT}/environment/Market_FirstAge_Level1.gltf`,
-    houseA: `${ASSET_ROOT}/environment/Houses_FirstAge_2_Level1.gltf`,
-    houseB: `${ASSET_ROOT}/environment/Houses_FirstAge_3_Level1.gltf`,
-    barracks: `${ASSET_ROOT}/environment/Barracks_FirstAge_Level1.gltf`,
-    storage: `${ASSET_ROOT}/environment/Storage_FirstAge_Level1.gltf`,
-    trees: `${ASSET_ROOT}/environment/Resource_Tree_Group_Cut.gltf`,
-  },
-};
+export { ASSET_PATHS };
 
 const gltfCache = new Map();
 const loader = new GLTFLoader();
@@ -208,4 +191,19 @@ export function pickClips(clips, overrides = {}) {
     attack,
     all: clipList,
   };
+}
+
+/**
+ * Preloads all game assets before entering the game.
+ * Warms the loadGltf cache and player model/animations.
+ */
+export async function preloadAllAssets() {
+  const list = getPreloadAssetList();
+
+  await Promise.all([
+    assemblePlayerModel(),
+    loadPlayerAnimations(),
+    ...list.mobs.map((url) => loadGltf(url)),
+    ...list.environment.map((url) => loadGltf(url)),
+  ]);
 }

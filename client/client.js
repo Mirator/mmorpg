@@ -4,6 +4,7 @@ import { createNet } from './net.js';
 import { createInputHandler } from './input.js';
 import { createUiState } from './ui-state.js';
 import { createMenu } from './menu.js';
+import { preloadAllAssets } from './assets.js';
 import { resolveTarget } from './targeting.js';
 import { getAbilitiesForClass } from '/shared/classes.js';
 import { splitCurrency } from '/shared/economy.js';
@@ -18,6 +19,17 @@ const accountNameEl = document.getElementById('account-name');
 const characterNameEl = document.getElementById('overlay-character-name');
 const signOutBtn = document.getElementById('signout-btn');
 const overlayEl = document.getElementById('overlay');
+const loadingScreenEl = document.getElementById('loading-screen');
+const loadingTextEl = document.getElementById('loading-text');
+
+function showLoadingScreen(text = 'Loading...') {
+  if (loadingTextEl) loadingTextEl.textContent = text;
+  loadingScreenEl?.classList.add('visible');
+}
+
+function hideLoadingScreen() {
+  loadingScreenEl?.classList.remove('visible');
+}
 
 const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
@@ -324,10 +336,15 @@ async function connectCharacter(character) {
     saveLastCharacterId(character.id);
     lastCharacterId = character.id;
     menu.setSelectedCharacterId(character.id);
+    showLoadingScreen('Loading assets...');
+    await preloadAllAssets();
+    showLoadingScreen('Connecting...');
     await startConnection({ character });
+    hideLoadingScreen();
     menu.setOpen(false);
     ui.setMenuOpen(false);
   } catch (err) {
+    hideLoadingScreen();
     menu.setError('characters', err.message || 'Unable to connect.');
     ui.setMenuOpen(true);
   } finally {
@@ -1079,7 +1096,18 @@ if (isGuestSession) {
   currentAccount = { username: 'Guest' };
   currentCharacter = { name: 'Guest' };
   updateOverlayLabels();
-  startConnection({ guest: true }).catch(() => {});
+  (async () => {
+    showLoadingScreen('Loading assets...');
+    try {
+      await preloadAllAssets();
+      showLoadingScreen('Connecting...');
+      await startConnection({ guest: true });
+    } catch {
+      // connection failed
+    } finally {
+      hideLoadingScreen();
+    }
+  })();
 } else {
   currentAccount = loadStoredAccount();
   menu.setAccount(currentAccount);

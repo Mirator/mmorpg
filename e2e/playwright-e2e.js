@@ -10,6 +10,7 @@ const BASE_URL = `http://localhost:${PORT}`;
 const SERVER_START_TIMEOUT_MS = 8000;
 const TEST_TIMEOUT_MS = 20000;
 const DEATH_TIMEOUT_MS = 30000;
+const LOADING_TIMEOUT_MS = 30000;
 const DATABASE_URL_E2E = process.env.DATABASE_URL_E2E;
 
 function resetE2eDatabase() {
@@ -45,6 +46,27 @@ async function getMenuStatus(page) {
       createError,
     };
   });
+}
+
+async function getLoadingScreenState(page) {
+  return page.evaluate(() => {
+    const el = document.querySelector('#loading-screen');
+    if (!el) return { visible: false, text: null };
+    return {
+      visible: el.classList.contains('visible'),
+      text: document.querySelector('#loading-text')?.textContent?.trim() ?? null,
+    };
+  });
+}
+
+async function waitForLoadingScreenToDisappear(page, timeoutMs = LOADING_TIMEOUT_MS) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const state = await getLoadingScreenState(page);
+    if (!state.visible) return;
+    await sleep(100);
+  }
+  throw new Error('Loading screen did not disappear within timeout');
 }
 
 async function waitForMenuStepOrError(page, step, timeoutMs) {
@@ -283,6 +305,12 @@ async function run() {
     await page.fill('#character-name', characterName);
     await page.selectOption('#character-class', 'fighter');
     await page.click('#character-create-form button[type=\"submit\"]');
+
+    await page.waitForFunction(
+      () => document.querySelector('#loading-screen')?.classList.contains('visible') === true,
+      { timeout: 5000 }
+    );
+    await waitForLoadingScreenToDisappear(page);
 
     await page.waitForFunction(
       () => !document.querySelector('#menu')?.classList.contains('open')
