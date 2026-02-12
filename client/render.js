@@ -288,6 +288,9 @@ export function createRenderSystem({ app }) {
     if (worldState?.mobControllers && worldState?.mobMeshes) {
       updateControllerMap(worldState.mobControllers, worldState.mobMeshes, dt, now);
     }
+    if (worldState?.vendorControllers && worldState?.vendorMeshes) {
+      updateControllerMap(worldState.vendorControllers, worldState.vendorMeshes, dt, now);
+    }
   }
 
   function triggerAttack(id, now, durationMs) {

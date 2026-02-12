@@ -1,8 +1,9 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import {
-  ASSET_PATHS,
+  assembleVendorModel,
   cloneSkinned,
   loadGltf,
+  loadPlayerAnimations,
   normalizeToHeight,
   pickClips,
 } from './assets.js';
@@ -22,7 +23,28 @@ const COLORS = {
 };
 
 let mobPrototypePromise = null;
+let vendorPrototypePromise = null;
+let vendorClipsPromise = null;
 const environmentCache = new Map();
+
+function getVendorPrototype() {
+  if (!vendorPrototypePromise) {
+    vendorPrototypePromise = assembleVendorModel();
+  }
+  return vendorPrototypePromise;
+}
+
+function getVendorClips() {
+  if (!vendorClipsPromise) {
+    vendorClipsPromise = loadPlayerAnimations().then((clips) =>
+      pickClips(clips, {
+        idleNames: ['Idle_Loop', 'Idle_No_Loop', 'Idle_Talking_Loop', 'Idle_FoldArms_Loop'],
+        idleKeywords: ['idle'],
+      })
+    );
+  }
+  return vendorClipsPromise;
+}
 
 function cloneStatic(scene) {
   return scene.clone(true);
@@ -245,10 +267,10 @@ function makeNameSprite(text) {
   return sprite;
 }
 
-function buildVendorMesh(vendor) {
+function buildVendorMesh(vendor, worldState) {
   const group = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.6, 0.75, 1.6, 8),
+  const placeholder = new THREE.Mesh(
+    new THREE.CapsuleGeometry(0.5, 1.0, 4, 8),
     new THREE.MeshStandardMaterial({
       color: COLORS.vendor,
       emissive: 0x6a4b00,
@@ -256,20 +278,50 @@ function buildVendorMesh(vendor) {
       roughness: 0.6,
     })
   );
-  body.position.y = 0.8;
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.45, 12, 12),
-    new THREE.MeshStandardMaterial({
-      color: 0xffe0b2,
-      roughness: 0.5,
-    })
-  );
-  head.position.y = 1.8;
+  placeholder.position.y = 1.1;
+  group.add(placeholder);
+  group.userData.placeholder = placeholder;
+
   const name = makeNameSprite(vendor?.name ?? 'Vendor');
-  group.add(body, head, name);
+  group.add(name);
+
   group.position.set(vendor.x, 0, vendor.z);
   group.userData.vendorId = vendor.id;
+
+  hydrateVendorMesh(worldState, vendor.id, group).catch((err) => {
+    console.warn('[world] Failed to load vendor model:', err);
+  });
+
   return group;
+}
+
+async function hydrateVendorMesh(worldState, vendorId, group) {
+  if (!worldState?.isActive) return;
+  const [prototype, clipSet] = await Promise.all([
+    getVendorPrototype(),
+    getVendorClips(),
+  ]);
+  if (!prototype) return;
+  if (!worldState.isActive) return;
+  if (worldState.vendorMeshes.get(vendorId) !== group) return;
+
+  const model = cloneSkinned(prototype);
+  normalizeToHeight(model, 2.0);
+  group.remove(group.userData.placeholder);
+  group.userData.placeholder = null;
+  group.add(model);
+
+  if (clipSet?.idle) {
+    const mixer = new THREE.AnimationMixer(model);
+    const idleAction = mixer.clipAction(clipSet.idle);
+    idleAction.play();
+    worldState.vendorControllers.set(vendorId, {
+      mixer,
+      actions: { idle: idleAction },
+      active: 'idle',
+      lastPos: group.position.clone(),
+    });
+  }
 }
 
 export function initWorld(scene, world) {
@@ -283,14 +335,6 @@ export function initWorld(scene, world) {
   const baseMesh = buildVillage(base);
   const obstacleMeshes = (world?.obstacles ?? []).map(buildObstacleMesh);
   const vendorMeshes = new Map();
-  for (const vendor of world?.vendors ?? []) {
-    const vendorMesh = buildVendorMesh(vendor);
-    vendorMeshes.set(vendor.id, vendorMesh);
-    group.add(vendorMesh);
-  }
-
-  group.add(ground, baseMesh, envGroup, ...obstacleMeshes);
-  scene.add(group);
 
   const worldState = {
     mapSize,
@@ -306,10 +350,20 @@ export function initWorld(scene, world) {
     mobMeshes: new Map(),
     mobControllers: new Map(),
     vendorMeshes,
+    vendorControllers: new Map(),
     isActive: true,
     lastResources: [],
     lastMobs: [],
   };
+
+  for (const vendor of world?.vendors ?? []) {
+    const vendorMesh = buildVendorMesh(vendor, worldState);
+    vendorMeshes.set(vendor.id, vendorMesh);
+    group.add(vendorMesh);
+  }
+
+  group.add(ground, baseMesh, envGroup, ...obstacleMeshes);
+  scene.add(group);
 
   loadEnvironmentModels(worldState, envGroup, base, worldState.obstacles).catch(
     (err) => {

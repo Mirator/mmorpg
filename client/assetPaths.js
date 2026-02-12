@@ -2,6 +2,7 @@ const ASSET_ROOT = '/assets/quaternius';
 
 export const ASSET_PATHS = {
   playerModel: `${ASSET_ROOT}/outfits/Male_Peasant.gltf`,
+  vendorModel: `${ASSET_ROOT}/outfits/Male_Ranger.gltf`,
   playerBase: `${ASSET_ROOT}/base/Superhero_Male_FullBody.gltf`,
   playerOutfit: `${ASSET_ROOT}/outfits/Male_Peasant.gltf`,
   playerAnimations: `${ASSET_ROOT}/animations/UAL1_Standard.glb`,
@@ -25,6 +26,7 @@ export const ASSET_PATHS = {
 export function getPreloadAssetList() {
   return {
     player: ['assemblePlayerModel', 'loadPlayerAnimations'],
+    vendor: [ASSET_PATHS.vendorModel],
     mobs: [ASSET_PATHS.monsters.orc],
     environment: Object.values(ASSET_PATHS.environment),
   };

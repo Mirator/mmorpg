@@ -4,6 +4,7 @@ import { ASSET_PATHS, getPreloadAssetList } from './assetPaths.js';
 describe('assetPaths', () => {
   it('has expected ASSET_PATHS structure', () => {
     expect(ASSET_PATHS).toHaveProperty('playerModel');
+    expect(ASSET_PATHS).toHaveProperty('vendorModel');
     expect(ASSET_PATHS).toHaveProperty('playerBase');
     expect(ASSET_PATHS).toHaveProperty('playerOutfit');
     expect(ASSET_PATHS).toHaveProperty('playerAnimations');
@@ -31,6 +32,10 @@ describe('assetPaths', () => {
     expect(Array.isArray(list.player)).toBe(true);
     expect(list.player).toContain('assemblePlayerModel');
     expect(list.player).toContain('loadPlayerAnimations');
+
+    expect(list).toHaveProperty('vendor');
+    expect(Array.isArray(list.vendor)).toBe(true);
+    expect(list.vendor).toContain(ASSET_PATHS.vendorModel);
 
     expect(list).toHaveProperty('mobs');
     expect(Array.isArray(list.mobs)).toBe(true);

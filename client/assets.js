@@ -84,6 +84,25 @@ function attachSimpleHead(root) {
   head.add(headMesh);
 }
 
+function removeHoodFromModel(root) {
+  const toRemove = [];
+  root.traverse((node) => {
+    if (node.name && node.name.includes('Head_Hood')) {
+      toRemove.push(node);
+    }
+  });
+  toRemove.forEach((node) => node.parent?.remove(node));
+}
+
+export async function assembleVendorModel() {
+  if (!ASSET_PATHS.vendorModel) return null;
+  const modelGltf = await loadGltf(ASSET_PATHS.vendorModel);
+  const model = cloneSkinned(modelGltf.scene);
+  removeHoodFromModel(model);
+  attachSimpleHead(model);
+  return model;
+}
+
 export async function assemblePlayerModel() {
   if (ASSET_PATHS.playerModel) {
     const modelGltf = await loadGltf(ASSET_PATHS.playerModel);
@@ -209,6 +228,7 @@ export async function preloadAllAssets() {
 
   await Promise.all([
     assemblePlayerModel(),
+    assembleVendorModel(),
     loadPlayerAnimations(),
     ...list.mobs.map((url) => loadGltf(url)),
     ...list.environment.map((url) => loadGltf(url)),
