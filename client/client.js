@@ -247,7 +247,8 @@ function stepFrame(dt, now) {
   }
 
   if (viewPos) {
-    renderSystem.updateCamera(viewPos, dt);
+    const cameraTarget = renderSystem.updateCamera(viewPos, dt);
+    if (cameraTarget) renderSystem.updateVisibility(cameraTarget);
     if (coordsEl) {
       coordsEl.textContent = `${viewPos.x.toFixed(1)}, ${(viewPos.y ?? 0).toFixed(1)}, ${viewPos.z.toFixed(1)}`;
     }

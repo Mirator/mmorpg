@@ -12,6 +12,7 @@ import { createEffectsSystem } from './effects.js';
 
 const CAMERA_LERP_SPEED = 5;
 const FRUSTUM_SIZE = 24;
+const CULL_DISTANCE = 100;
 
 export function createRenderSystem({ app }) {
   const scene = new THREE.Scene();
@@ -324,6 +325,42 @@ export function createRenderSystem({ app }) {
     return cameraTarget;
   }
 
+  const visibilityCheckPos = new THREE.Vector3();
+
+  function updateVisibility(cameraTargetVec) {
+    if (!cameraTargetVec || !worldState) return;
+    const cullDistSq = CULL_DISTANCE * CULL_DISTANCE;
+
+    const setVisibleByDistance = (obj) => {
+      obj.getWorldPosition(visibilityCheckPos);
+      obj.visible = visibilityCheckPos.distanceToSquared(cameraTargetVec) <= cullDistSq;
+    };
+
+    for (const child of worldState.envGroup.children) {
+      if (child.isLOD) child.update(camera);
+      setVisibleByDistance(child);
+    }
+    for (const mesh of worldState.obstacleMeshes) {
+      setVisibleByDistance(mesh);
+    }
+    for (const mesh of worldState.resourceMeshes.values()) {
+      setVisibleByDistance(mesh);
+    }
+    for (const mesh of worldState.mobMeshes.values()) {
+      setVisibleByDistance(mesh);
+    }
+    for (const mesh of worldState.vendorMeshes.values()) {
+      setVisibleByDistance(mesh);
+    }
+    for (const [id, mesh] of playerMeshes) {
+      if (id === myId) {
+        mesh.visible = true;
+      } else {
+        setVisibleByDistance(mesh);
+      }
+    }
+  }
+
   function renderFrame() {
     renderer.render(scene, camera);
   }
@@ -577,6 +614,7 @@ export function createRenderSystem({ app }) {
     triggerAttack,
     updateEffects,
     updateCamera,
+    updateVisibility,
     renderFrame,
     spawnSlash: (from, to, durationMs, now) =>
       effectsSystem.spawnSlash({ from, to, durationMs, now }),

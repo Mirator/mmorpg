@@ -10,6 +10,8 @@ import {
   pickClips,
 } from './assets.js';
 
+const LOD_FAR_DISTANCE = 50;
+
 const COLORS = {
   ground: 0x1b2620,
   tile: 0x2a3b30,
@@ -50,6 +52,34 @@ function getVendorClips() {
 
 function cloneStatic(scene) {
   return scene.clone(true);
+}
+
+function createLODModel(fullModel, impostorType = 'box') {
+  const box = new THREE.Box3().setFromObject(fullModel);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+
+  let impostor;
+  if (impostorType === 'cone') {
+    impostor = new THREE.Mesh(
+      new THREE.ConeGeometry(Math.max(size.x, size.z) * 0.5, size.y, 6),
+      new THREE.MeshStandardMaterial({ color: 0x3a4a38, roughness: 1 })
+    );
+    impostor.position.y = center.y;
+  } else {
+    impostor = new THREE.Mesh(
+      new THREE.BoxGeometry(size.x, size.y, size.z),
+      new THREE.MeshStandardMaterial({ color: 0x6d5841, roughness: 1 })
+    );
+    impostor.position.copy(center);
+  }
+
+  const lod = new THREE.LOD();
+  lod.addLevel(fullModel, 0);
+  lod.addLevel(impostor, LOD_FAR_DISTANCE);
+  return lod;
 }
 
 function getMobPrototype() {
@@ -509,9 +539,10 @@ async function addEnvironmentModel(worldState, envGroup, key, placement) {
 
   const model = cloneStatic(gltf.scene);
   normalizeToHeight(model, placement.height ?? 4);
-  model.position.set(placement.x, placement.y ?? 0, placement.z);
-  model.rotation.y = placement.rotation ?? 0;
-  envGroup.add(model);
+  const lod = createLODModel(model, 'box');
+  lod.position.set(placement.x, placement.y ?? 0, placement.z);
+  lod.rotation.y = placement.rotation ?? 0;
+  envGroup.add(lod);
 }
 
 async function addTreeClusters(worldState, envGroup, obstacles) {
@@ -522,9 +553,10 @@ async function addTreeClusters(worldState, envGroup, obstacles) {
   for (const obstacle of picks) {
     const model = cloneStatic(gltf.scene);
     normalizeToHeight(model, 5);
-    model.position.set(obstacle.x + 2, obstacle.y ?? 0, obstacle.z + 2);
-    model.rotation.y = (Math.random() * Math.PI) / 2;
-    envGroup.add(model);
+    const lod = createLODModel(model, 'cone');
+    lod.position.set(obstacle.x + 2, obstacle.y ?? 0, obstacle.z + 2);
+    lod.rotation.y = (Math.random() * Math.PI) / 2;
+    envGroup.add(lod);
   }
 }
 
