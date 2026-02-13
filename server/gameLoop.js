@@ -40,7 +40,7 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
       const now = Date.now();
 
       for (const player of players.values()) {
-        const prevPos = { x: player.pos.x, z: player.pos.z };
+        const prevPos = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
         let respawned = false;
 
         if (player.dead) {

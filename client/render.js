@@ -168,7 +168,7 @@ export function createRenderSystem({ app }) {
     for (const [id, pos] of Object.entries(positions)) {
       const mesh = ensurePlayerMesh(id);
       const prev = mesh.userData.lastPos;
-      const nextPos = new THREE.Vector3(pos.x, 0, pos.z);
+      const nextPos = new THREE.Vector3(pos.x, pos.y ?? 0, pos.z);
       if (prev) {
         const dx = nextPos.x - prev.x;
         const dz = nextPos.z - prev.z;
@@ -188,7 +188,7 @@ export function createRenderSystem({ app }) {
       targetMarker.visible = false;
       return;
     }
-    targetMarker.position.set(pos.x, 0.15, pos.z);
+    targetMarker.position.set(pos.x, (pos.y ?? 0) + 0.15, pos.z);
     targetMarker.visible = true;
   }
 
@@ -197,7 +197,7 @@ export function createRenderSystem({ app }) {
       targetRing.visible = false;
       return;
     }
-    targetRing.position.set(pos.x, 0.1, pos.z);
+    targetRing.position.set(pos.x, (pos.y ?? 0) + 0.1, pos.z);
     targetRing.visible = true;
   }
 
@@ -253,7 +253,7 @@ export function createRenderSystem({ app }) {
   function projectToScreen(pos) {
     camera.updateMatrixWorld();
     camera.updateProjectionMatrix();
-    const vector = new THREE.Vector3(pos.x, 1, pos.z);
+    const vector = new THREE.Vector3(pos.x, pos.y ?? 1, pos.z);
     vector.project(camera);
     const rect = renderer.domElement.getBoundingClientRect();
     return {
@@ -318,7 +318,7 @@ export function createRenderSystem({ app }) {
     );
     const lerpFactor = 1 - Math.exp(-CAMERA_LERP_SPEED * dt);
     camera.position.lerp(cameraDesired, lerpFactor);
-    cameraTarget.set(viewPos.x, 0, viewPos.z);
+    cameraTarget.set(viewPos.x, viewPos.y ?? 0, viewPos.z);
     camera.lookAt(cameraTarget);
     camera.updateMatrixWorld();
     return cameraTarget;

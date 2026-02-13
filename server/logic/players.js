@@ -15,7 +15,7 @@ export function createBasePlayerState({ world, spawn, classId }) {
   const invCap = invSlots * invStackMax;
 
   return {
-    pos: { x: spawn?.x ?? 0, y: 0, z: spawn?.z ?? 0 },
+    pos: { x: spawn?.x ?? 0, y: spawn?.y ?? 0, z: spawn?.z ?? 0 },
     hp: world?.playerMaxHp ?? 100,
     maxHp: world?.playerMaxHp ?? 100,
     inv,
@@ -50,7 +50,7 @@ export function createBasePlayerState({ world, spawn, classId }) {
 
 export function respawnPlayer(player, spawn, markDirty) {
   if (!player || !spawn) return;
-  player.pos = { x: spawn.x, y: 0, z: spawn.z };
+  player.pos = { x: spawn.x, y: spawn.y ?? 0, z: spawn.z };
   player.hp = player.maxHp;
   player.dead = false;
   player.respawnAt = 0;

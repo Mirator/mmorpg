@@ -20,7 +20,17 @@ describe('movement', () => {
     const target = { x: 2, z: 0 };
     const result = stepTowardTarget(pos, target, 1, 3, 0.1);
     expect(result.pos.x).toBeCloseTo(2, 5);
+    expect(result.pos.y).toBe(0);
     expect(result.target).toBeNull();
+  });
+
+  it('interpolates y when moving toward target with different height', () => {
+    const pos = { x: 0, y: 0, z: 0 };
+    const target = { x: 4, y: 2, z: 0 };
+    const result = stepTowardTarget(pos, target, 1, 2, 0.1);
+    expect(result.pos.x).toBeCloseTo(2, 5);
+    expect(result.pos.y).toBeCloseTo(1, 5);
+    expect(result.target).toEqual(target);
   });
 
   it('moves toward target without clearing when not reached', () => {

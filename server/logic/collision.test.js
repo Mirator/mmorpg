@@ -6,7 +6,15 @@ describe('collision', () => {
     const pos = { x: 10, y: 0, z: -10 };
     const clamped = clampToBounds(pos, 10, 1);
     expect(clamped.x).toBe(4);
+    expect(clamped.y).toBe(0);
     expect(clamped.z).toBe(-4);
+  });
+
+  it('clamps y when world has mapYMin and mapYMax', () => {
+    const pos = { x: 0, y: 50, z: 0 };
+    const world = { mapSize: 20, mapYMin: -10, mapYMax: 10 };
+    const clamped = clampToBounds(pos, 20, 0, world);
+    expect(clamped.y).toBe(10);
   });
 
   it('pushes out of obstacles', () => {

@@ -52,4 +52,27 @@ describe('map config validation', () => {
     expect(normalized.vendors).toEqual([]);
     expect(normalized.mobSpawns).toEqual([]);
   });
+
+  it('normalizes points with y', () => {
+    const normalized = normalizeMapConfig(buildConfig());
+    expect(normalized.base).toHaveProperty('y', 0);
+    expect(normalized.spawnPoints[0]).toHaveProperty('y', 0);
+    expect(normalized.resourceNodes[0]).toHaveProperty('y', 0);
+    const withY = normalizeMapConfig(
+      buildConfig({
+        spawnPoints: [{ x: 2, y: 5, z: 2 }],
+      })
+    );
+    expect(withY.spawnPoints[0].y).toBe(5);
+  });
+
+  it('rejects y outside mapYMin/mapYMax when defined', () => {
+    const config = buildConfig({
+      mapYMin: -10,
+      mapYMax: 10,
+      spawnPoints: [{ x: 2, y: 20, z: 2 }],
+    });
+    const errors = validateMapConfig(config);
+    expect(errors.some((e) => e.includes('y must be within'))).toBe(true);
+  });
 });

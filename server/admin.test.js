@@ -112,12 +112,13 @@ describe('admin state serialization', () => {
       },
     });
     expect(serializeResources(resources)).toEqual([
-      { id: 'r1', x: 5, z: 6, available: true, respawnAt: 0 },
+      { id: 'r1', x: 5, y: 0, z: 6, available: true, respawnAt: 0 },
     ]);
     expect(serializeMobs(mobs)).toEqual([
       {
         id: 'm1',
         x: -3,
+        y: 0,
         z: 4,
         state: 'idle',
         targetId: null,

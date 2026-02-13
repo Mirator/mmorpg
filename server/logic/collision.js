@@ -2,11 +2,15 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-export function clampToBounds(pos, mapSize, radius = 0) {
+export function clampToBounds(pos, mapSize, radius = 0, world = null) {
   const half = mapSize / 2 - radius;
+  let y = pos.y ?? 0;
+  if (world && Number.isFinite(world.mapYMin) && Number.isFinite(world.mapYMax)) {
+    y = clamp(y, world.mapYMin, world.mapYMax);
+  }
   return {
     x: clamp(pos.x, -half, half),
-    y: pos.y ?? 0,
+    y,
     z: clamp(pos.z, -half, half),
   };
 }
@@ -37,7 +41,7 @@ export function resolveObstacles(pos, obstacles, radius = 0) {
 }
 
 export function applyCollisions(pos, world, radius = 0) {
-  const bounded = clampToBounds(pos, world.mapSize, radius);
+  const bounded = clampToBounds(pos, world.mapSize, radius, world);
   const resolved = resolveObstacles(bounded, world.obstacles, radius);
-  return clampToBounds(resolved, world.mapSize, radius);
+  return clampToBounds(resolved, world.mapSize, radius, world);
 }

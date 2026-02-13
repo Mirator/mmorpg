@@ -9,9 +9,10 @@ export function stepTowardTarget(pos, target, dt, speed, epsilon = 0.1) {
   const dz = target.z - pos.z;
   const dist = Math.hypot(dx, dz);
 
+  const targetY = target.y ?? pos.y ?? 0;
   if (dist <= epsilon) {
     return {
-      pos: { x: target.x, y: pos.y ?? 0, z: target.z },
+      pos: { x: target.x, y: targetY, z: target.z },
       target: null,
     };
   }
@@ -19,18 +20,20 @@ export function stepTowardTarget(pos, target, dt, speed, epsilon = 0.1) {
   const step = speed * dt;
   if (step >= dist) {
     return {
-      pos: { x: target.x, y: pos.y ?? 0, z: target.z },
+      pos: { x: target.x, y: targetY, z: target.z },
       target: null,
     };
   }
 
   const nx = dx / dist;
   const nz = dz / dist;
+  const lerp = step / dist;
+  const y = (pos.y ?? 0) + (targetY - (pos.y ?? 0)) * lerp;
 
   return {
     pos: {
       x: pos.x + nx * step,
-      y: pos.y ?? 0,
+      y,
       z: pos.z + nz * step,
     },
     target,

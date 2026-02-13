@@ -167,7 +167,7 @@ export function createInputHandler({
     const point = new THREE.Vector3();
     const hit = raycaster.ray.intersectPlane(groundPlane, point);
     if (hit) {
-      onMoveTarget?.({ x: point.x, z: point.z });
+      onMoveTarget?.({ x: point.x, y: point.y ?? 0, z: point.z });
     }
   });
 

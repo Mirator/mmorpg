@@ -22,7 +22,12 @@ describe('protocol validation', () => {
 
   it('accepts moveTarget message', () => {
     const msg = parseClientMessage({ type: 'moveTarget', x: 1, z: -2, seq: 1 });
-    expect(msg).toEqual({ type: 'moveTarget', x: 1, z: -2, seq: 1 });
+    expect(msg).toEqual({ type: 'moveTarget', x: 1, y: 0, z: -2, seq: 1 });
+  });
+
+  it('accepts moveTarget message with y', () => {
+    const msg = parseClientMessage({ type: 'moveTarget', x: 1, y: 5, z: -2, seq: 1 });
+    expect(msg).toEqual({ type: 'moveTarget', x: 1, y: 5, z: -2, seq: 1 });
   });
 
   it('accepts targetSelect message', () => {

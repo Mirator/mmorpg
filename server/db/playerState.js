@@ -15,10 +15,14 @@ function clamp(value, min, max) {
 
 function sanitizePos(raw, world, spawn) {
   const half = Number.isFinite(world?.mapSize) ? world.mapSize / 2 : 200;
-  const fallback = spawn ?? { x: 0, z: 0 };
+  const fallback = spawn ?? { x: 0, y: 0, z: 0 };
   const x = Number.isFinite(raw?.x) ? clamp(raw.x, -half, half) : fallback.x;
   const z = Number.isFinite(raw?.z) ? clamp(raw.z, -half, half) : fallback.z;
-  return { x, y: 0, z };
+  let y = Number.isFinite(raw?.y) ? raw.y : (fallback.y ?? 0);
+  if (Number.isFinite(world?.mapYMin) && Number.isFinite(world?.mapYMax)) {
+    y = clamp(y, world.mapYMin, world.mapYMax);
+  }
+  return { x, y, z };
 }
 
 function sanitizeInventory(raw, slots, stackMax) {
@@ -49,6 +53,7 @@ export function serializePlayerState(player) {
   return {
     pos: {
       x: toNumber(player?.pos?.x, 0),
+      y: toNumber(player?.pos?.y, 0),
       z: toNumber(player?.pos?.z, 0),
     },
     hp: toNumber(player?.hp, 0),

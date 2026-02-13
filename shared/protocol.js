@@ -11,7 +11,7 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'hello', seq?: number }} HelloMessage
  * @typedef {{ type: 'respawn', seq?: number }} RespawnMessage
  * @typedef {{ type: 'input', keys: Required<InputKeys>, seq?: number }} InputMessage
- * @typedef {{ type: 'moveTarget', x: number, z: number, seq?: number }} MoveTargetMessage
+ * @typedef {{ type: 'moveTarget', x: number, y?: number, z: number, seq?: number }} MoveTargetMessage
  * @typedef {{ type: 'targetSelect', targetId?: string | null, targetKind?: 'mob' | 'player' | null, seq?: number }} TargetSelectMessage
  * @typedef {{ type: 'action', kind: 'interact', seq?: number }} InteractMessage
  * @typedef {{ type: 'action', kind: 'ability', slot: number, seq?: number }} AbilityMessage
@@ -120,7 +120,8 @@ export function parseClientMessage(raw) {
     const x = Number(raw.x);
     const z = Number(raw.z);
     if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
-    return { type: 'moveTarget', x, z, seq };
+    const y = raw.y !== undefined ? Number(raw.y) : 0;
+    return { type: 'moveTarget', x, y: Number.isFinite(y) ? y : 0, z, seq };
   }
 
   if (raw.type === 'targetSelect') {

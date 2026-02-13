@@ -10,6 +10,7 @@ export function createResources(nodes) {
   return nodes.map((node) => ({
     id: node.id,
     x: node.x,
+    y: node.y ?? 0,
     z: node.z,
     available: true,
     respawnAt: 0,

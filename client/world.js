@@ -185,7 +185,7 @@ function buildVillage(base) {
   totem.position.y = 0.8;
   village.add(totem);
 
-  village.position.set(base.x, 0, base.z);
+  village.position.set(base.x, base.y ?? 0, base.z);
   return village;
 }
 
@@ -194,7 +194,7 @@ function buildObstacleMesh(obstacle) {
     new THREE.CylinderGeometry(obstacle.r, obstacle.r, 2.4, 10),
     new THREE.MeshStandardMaterial({ color: COLORS.obstacle, roughness: 1 })
   );
-  mesh.position.set(obstacle.x, 1.2, obstacle.z);
+  mesh.position.set(obstacle.x, obstacle.y ?? 1.2, obstacle.z);
   return mesh;
 }
 
@@ -285,7 +285,7 @@ function buildVendorMesh(vendor, worldState) {
   const name = makeNameSprite(vendor?.name ?? 'Vendor');
   group.add(name);
 
-  group.position.set(vendor.x, 0, vendor.z);
+  group.position.set(vendor.x, vendor.y ?? 0, vendor.z);
   group.userData.vendorId = vendor.id;
 
   hydrateVendorMesh(worldState, vendor.id, group).catch((err) => {
@@ -387,7 +387,7 @@ export function updateResources(worldState, resources) {
       worldState.resourceMeshes.set(resource.id, mesh);
       worldState.group.add(mesh);
     }
-    mesh.position.set(resource.x, 0, resource.z);
+    mesh.position.set(resource.x, resource.y ?? 0, resource.z);
     mesh.userData.available = resource.available;
     const crystal = mesh.userData.crystal;
     if (crystal) {
@@ -427,7 +427,7 @@ export function updateMobs(worldState, mobs) {
     }
     mesh.userData.mobId = mob.id;
     const prev = mesh.userData.lastPos;
-    const nextPos = new THREE.Vector3(mob.x, 0, mob.z);
+    const nextPos = new THREE.Vector3(mob.x, mob.y ?? 0, mob.z);
     if (prev) {
       const dx = nextPos.x - prev.x;
       const dz = nextPos.z - prev.z;
@@ -500,7 +500,7 @@ async function addEnvironmentModel(worldState, envGroup, key, placement) {
 
   const model = cloneStatic(gltf.scene);
   normalizeToHeight(model, placement.height ?? 4);
-  model.position.set(placement.x, 0, placement.z);
+  model.position.set(placement.x, placement.y ?? 0, placement.z);
   model.rotation.y = placement.rotation ?? 0;
   envGroup.add(model);
 }
@@ -513,7 +513,7 @@ async function addTreeClusters(worldState, envGroup, obstacles) {
   for (const obstacle of picks) {
     const model = cloneStatic(gltf.scene);
     normalizeToHeight(model, 5);
-    model.position.set(obstacle.x + 2, 0, obstacle.z + 2);
+    model.position.set(obstacle.x + 2, obstacle.y ?? 0, obstacle.z + 2);
     model.rotation.y = (Math.random() * Math.PI) / 2;
     envGroup.add(model);
   }

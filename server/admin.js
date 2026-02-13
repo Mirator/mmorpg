@@ -84,6 +84,7 @@ export function serializeResources(resources) {
   return resources.map((r) => ({
     id: r.id,
     x: r.x,
+    y: r.y ?? 0,
     z: r.z,
     available: r.available,
     respawnAt: r.respawnAt,
@@ -94,6 +95,7 @@ export function serializeMobs(mobs) {
   return mobs.map((m) => ({
     id: m.id,
     x: m.pos.x,
+    y: m.pos.y ?? 0,
     z: m.pos.z,
     state: m.state,
     targetId: m.targetId,

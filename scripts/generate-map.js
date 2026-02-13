@@ -24,32 +24,38 @@ const mapConfig = {
   mapSize: world.mapSize,
   base: {
     x: world.base.x,
+    y: world.base.y ?? 0,
     z: world.base.z,
     radius: world.base.radius,
   },
   spawnPoints: world.spawnPoints.map((point) => ({
     x: point.x,
+    y: point.y ?? 0,
     z: point.z,
   })),
   obstacles: world.obstacles.map((obs) => ({
     x: obs.x,
+    y: obs.y ?? 0,
     z: obs.z,
     radius: obs.r,
   })),
   resourceNodes: world.resourceNodes.map((node) => ({
     id: node.id,
     x: node.x,
+    y: node.y ?? 0,
     z: node.z,
   })),
   vendors: world.vendors.map((vendor) => ({
     id: vendor.id,
     name: vendor.name,
     x: vendor.x,
+    y: vendor.y ?? 0,
     z: vendor.z,
   })),
   mobSpawns: mobs.map((mob) => ({
     id: mob.id,
     x: mob.pos.x,
+    y: mob.pos.y ?? 0,
     z: mob.pos.z,
   })),
 };

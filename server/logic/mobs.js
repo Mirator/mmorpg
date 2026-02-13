@@ -100,9 +100,10 @@ export function createMobsFromSpawns(spawns, world, options = {}) {
     const z = spawn.z ?? 0;
     const level = getMobLevelForPosition({ x, z }, world);
     const maxHp = getMobMaxHp(level);
+    const y = spawn.y ?? 0;
     return {
       id: spawn.id ?? `m${index + 1}`,
-      pos: { x, y: 0, z },
+      pos: { x, y, z },
       state: 'idle',
       targetId: null,
       nextDecisionAt: 0,
@@ -228,15 +229,20 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
     } else if (mob.state === 'chase' && target) {
       const dx = target.pos.x - mob.pos.x;
       const dz = target.pos.z - mob.pos.z;
+      const dy = (target.pos.y ?? 0) - (mob.pos.y ?? 0);
       const dist = Math.hypot(dx, dz);
       if (dist > leashRadius) {
         mob.state = 'idle';
         mob.targetId = null;
         mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
       } else if (dist > 0.01) {
-        mob.pos.x += (dx / dist) * speed * slowMultiplier * dt;
-        mob.pos.z += (dz / dist) * speed * slowMultiplier * dt;
+        const step = (speed * slowMultiplier * dt) / dist;
+        mob.pos.x += dx * step;
+        mob.pos.z += dz * step;
+        mob.pos.y = (mob.pos.y ?? 0) + dy * Math.min(1, step);
         mob.pos = applyCollisions(mob.pos, world, mobRadius);
+      } else {
+        mob.pos.y = target.pos.y ?? 0;
       }
 
       if (dist <= attackRange && now >= mob.attackCooldownUntil) {

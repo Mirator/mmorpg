@@ -483,7 +483,7 @@ function sendMoveTarget(pos, opts = {}) {
   }
   if (!pos) return;
   seq += 1;
-  net?.send({ type: 'moveTarget', x: pos.x, z: pos.z, seq });
+  net?.send({ type: 'moveTarget', x: pos.x, y: pos.y ?? 0, z: pos.z, seq });
   renderSystem.setTargetMarker(pos);
 }
 
@@ -612,7 +612,7 @@ function handleInteract() {
   }
   if (ui.isInventoryOpen()) return;
   const me = gameState.getLocalPlayer();
-  const pos = me ? { x: me.x, z: me.z } : null;
+  const pos = me ? { x: me.x, y: me.y ?? 0, z: me.z } : null;
   const { vendor, distance } = pos ? getNearestVendor(pos) : { vendor: null, distance: Infinity };
   const maxDist = gameState.getWorldConfig()?.vendorInteractRadius ?? 2.5;
   const targetVendor = vendor ?? nearestVendor;
@@ -751,10 +751,10 @@ function stepFrame(dt, now) {
   if (viewPos) {
     renderSystem.updateCamera(viewPos, dt);
     if (coordsEl) {
-      coordsEl.textContent = `${viewPos.x.toFixed(1)}, ${viewPos.z.toFixed(1)}`;
+      coordsEl.textContent = `${viewPos.x.toFixed(1)}, ${(viewPos.y ?? 0).toFixed(1)}, ${viewPos.z.toFixed(1)}`;
     }
   } else if (coordsEl) {
-    coordsEl.textContent = '--, --';
+    coordsEl.textContent = '--, --, --';
   }
 
   renderSystem.animateWorldMeshes(now);
@@ -776,7 +776,11 @@ function stepFrame(dt, now) {
     selectedTarget = null;
   }
   if (resolvedTarget?.pos) {
-    renderSystem.setTargetRing({ x: resolvedTarget.pos.x, z: resolvedTarget.pos.z });
+    renderSystem.setTargetRing({
+      x: resolvedTarget.pos.x,
+      y: resolvedTarget.pos.y ?? 0,
+      z: resolvedTarget.pos.z,
+    });
   } else {
     renderSystem.setTargetRing(null);
   }

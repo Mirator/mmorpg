@@ -101,10 +101,13 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     for (const [id, newerPos] of Object.entries(newer.players)) {
       const olderPos = older.players?.[id];
       const x = olderPos ? olderPos.x + (newerPos.x - olderPos.x) * alpha : newerPos.x;
+      const y = olderPos
+        ? (olderPos.y ?? 0) + ((newerPos.y ?? 0) - (olderPos.y ?? 0)) * alpha
+        : newerPos.y ?? 0;
       const z = olderPos ? olderPos.z + (newerPos.z - olderPos.z) * alpha : newerPos.z;
-      positions[id] = { x, z };
+      positions[id] = { x, y, z };
       if (id === myId) {
-        localPos = { x, z };
+        localPos = { x, y, z };
       }
     }
 
@@ -114,17 +117,21 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
   function updateLocalPrediction(dt, serverPos, inputKeys, speed) {
     if (!serverPos) return null;
 
+    const serverY = serverPos.y ?? 0;
     if (!predictedLocalPos) {
-      predictedLocalPos = { x: serverPos.x, z: serverPos.z };
+      predictedLocalPos = { x: serverPos.x, y: serverY, z: serverPos.z };
     } else {
       const errorX = serverPos.x - predictedLocalPos.x;
       const errorZ = serverPos.z - predictedLocalPos.z;
+      const errorY = serverY - (predictedLocalPos.y ?? 0);
       const errorDist = Math.hypot(errorX, errorZ);
       if (errorDist > snapThreshold) {
         predictedLocalPos.x = serverPos.x;
+        predictedLocalPos.y = serverY;
         predictedLocalPos.z = serverPos.z;
       } else {
         predictedLocalPos.x += errorX * correction;
+        predictedLocalPos.y = (predictedLocalPos.y ?? 0) + errorY * correction;
         predictedLocalPos.z += errorZ * correction;
       }
     }
@@ -139,7 +146,7 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
   }
 
   function resetPrediction(pos) {
-    predictedLocalPos = pos ? { x: pos.x, z: pos.z } : null;
+    predictedLocalPos = pos ? { x: pos.x, y: pos.y ?? 0, z: pos.z } : null;
   }
 
   return {

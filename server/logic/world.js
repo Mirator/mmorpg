@@ -69,7 +69,7 @@ function generateObstacles(rng) {
     const distFromBase = Math.sqrt(distance2(x, z, 0, 0));
     if (distFromBase < BASE_RADIUS + r + 8) continue;
     if (!farEnoughFromObstacles(x, z, obstacles, 8)) continue;
-    obstacles.push({ x, z, r });
+    obstacles.push({ x, y: 0, z, r });
   }
 
   return obstacles;
@@ -88,7 +88,7 @@ function generateResourceNodes(rng, obstacles) {
     const distFromBase = Math.sqrt(distance2(x, z, 0, 0));
     if (distFromBase < BASE_RADIUS + 6) continue;
     if (!farEnoughFromObstacles(x, z, obstacles, 6)) continue;
-    nodes.push({ id: `r${nodes.length + 1}`, x, z });
+    nodes.push({ id: `r${nodes.length + 1}`, x, y: 0, z });
   }
 
   return nodes;
@@ -102,6 +102,7 @@ function generateSpawnPoints() {
     const angle = (i / count) * Math.PI * 2;
     points.push({
       x: Math.cos(angle) * radius,
+      y: 0,
       z: Math.sin(angle) * radius,
     });
   }
@@ -113,12 +114,13 @@ export function createSimulatedWorld() {
   const obstacles = generateObstacles(rng);
   const resourceNodes = generateResourceNodes(rng, obstacles);
   const spawnPoints = generateSpawnPoints();
-  const base = { x: 0, z: 0, radius: BASE_RADIUS };
+  const base = { x: 0, y: 0, z: 0, radius: BASE_RADIUS };
   const vendors = [
     {
       id: 'vendor-1',
       name: 'General Vendor',
       x: base.x + base.radius + 4,
+      y: 0,
       z: base.z - 2,
     },
   ];
@@ -152,37 +154,45 @@ export function createWorldFromConfig(mapConfig) {
 
   const base = {
     x: mapConfig.base.x,
+    y: mapConfig.base.y ?? 0,
     z: mapConfig.base.z,
     radius: mapConfig.base.radius,
   };
   const obstacles = mapConfig.obstacles.map((obs) => ({
     x: obs.x,
+    y: obs.y ?? 0,
     z: obs.z,
     r: obs.radius ?? obs.r,
   }));
   const resourceNodes = mapConfig.resourceNodes.map((node) => ({
     id: node.id,
     x: node.x,
+    y: node.y ?? 0,
     z: node.z,
   }));
   const spawnPoints = mapConfig.spawnPoints.map((point) => ({
     x: point.x,
+    y: point.y ?? 0,
     z: point.z,
   }));
   const vendors = mapConfig.vendors.map((vendor) => ({
     id: vendor.id,
     name: vendor.name,
     x: vendor.x,
+    y: vendor.y ?? 0,
     z: vendor.z,
   }));
   const mobSpawns = mapConfig.mobSpawns.map((spawn) => ({
     id: spawn.id,
     x: spawn.x,
+    y: spawn.y ?? 0,
     z: spawn.z,
   }));
 
   return {
     mapSize: mapConfig.mapSize,
+    mapYMin: mapConfig.mapYMin,
+    mapYMax: mapConfig.mapYMax,
     base,
     obstacles,
     resourceNodes,
@@ -209,6 +219,8 @@ export function createWorld(mapConfig) {
 export function worldSnapshot(world) {
   return {
     mapSize: world.mapSize,
+    mapYMin: world.mapYMin,
+    mapYMax: world.mapYMax,
     base: world.base,
     obstacles: world.obstacles,
     harvestRadius: world.harvestRadius,

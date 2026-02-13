@@ -194,8 +194,8 @@ export function tryBasicAttack({ player, mobs, now, respawnMs }) {
     player.resource = clampResource(player, (player.resource ?? 0) + resourceDef.gainOnHit);
   }
 
-  const from = { x: player.pos.x, z: player.pos.z };
-  const to = { x: target.pos.x, z: target.pos.z };
+  const from = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
+  const to = { x: target.pos.x, y: target.pos.y ?? 0, z: target.pos.z };
   const durationMs = config.attackType === 'ranged' ? 200 : 180;
 
   return {

@@ -28,27 +28,32 @@ let dragging = false;
 const FIELD_DEFS = {
   spawnPoints: [
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
+    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
   ],
   obstacles: [
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
+    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
     { key: 'radius', label: 'R', type: 'number', step: '0.1' },
   ],
   resourceNodes: [
     { key: 'id', label: 'ID', type: 'text' },
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
+    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
   ],
   vendors: [
     { key: 'id', label: 'ID', type: 'text' },
     { key: 'name', label: 'Name', type: 'text' },
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
+    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
   ],
   mobSpawns: [
     { key: 'id', label: 'ID', type: 'text' },
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
+    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
   ],
 };
@@ -168,8 +173,18 @@ function worldToCanvas(pos) {
 
 function canvasToWorld(pos) {
   const { scale, cx, cy } = getMetrics();
+  let y = 0;
+  if (selected && mapConfig) {
+    if (selected.type === 'base') {
+      y = mapConfig.base?.y ?? 0;
+    } else {
+      const item = mapConfig[selected.type]?.[selected.index];
+      y = item?.y ?? 0;
+    }
+  }
   return {
     x: (pos.x - cx) / scale,
+    y,
     z: (pos.y - cy) / scale,
   };
 }
@@ -177,8 +192,16 @@ function canvasToWorld(pos) {
 function clampToBounds(pos, radius = 0) {
   if (!mapConfig) return pos;
   const half = mapConfig.mapSize / 2;
+  let y = pos.y ?? 0;
+  if (
+    Number.isFinite(mapConfig.mapYMin) &&
+    Number.isFinite(mapConfig.mapYMax)
+  ) {
+    y = Math.min(mapConfig.mapYMax, Math.max(mapConfig.mapYMin, y));
+  }
   return {
     x: Math.min(half - radius, Math.max(-half + radius, pos.x)),
+    y,
     z: Math.min(half - radius, Math.max(-half + radius, pos.z)),
   };
 }
@@ -302,6 +325,11 @@ function renderBaseFields() {
       label: 'X',
       value: formatNumber(mapConfig.base.x),
       field: 'x',
+    },
+    {
+      label: 'Y',
+      value: formatNumber(mapConfig.base.y),
+      field: 'y',
     },
     {
       label: 'Z',
@@ -428,13 +456,14 @@ function addItem(type) {
   if (!Array.isArray(list)) return;
   let item = null;
   if (type === 'spawnPoints') {
-    item = { x: base.x + offset, z: base.z };
+    item = { x: base.x + offset, y: base.y ?? 0, z: base.z };
   } else if (type === 'obstacles') {
-    item = { x: base.x + offset + 6, z: base.z, radius: 6 };
+    item = { x: base.x + offset + 6, y: base.y ?? 0, z: base.z, radius: 6 };
   } else if (type === 'resourceNodes') {
     item = {
       id: getNextId(list, 'r'),
       x: base.x + offset + 10,
+      y: base.y ?? 0,
       z: base.z,
     };
   } else if (type === 'vendors') {
@@ -442,12 +471,14 @@ function addItem(type) {
       id: getNextId(list, 'vendor-'),
       name: 'Vendor',
       x: base.x + offset,
+      y: base.y ?? 0,
       z: base.z - 2,
     };
   } else if (type === 'mobSpawns') {
     item = {
       id: getNextId(list, 'm'),
       x: base.x + offset + 16,
+      y: base.y ?? 0,
       z: base.z,
     };
   }
@@ -456,10 +487,12 @@ function addItem(type) {
   if (item.radius) {
     const pos = clampToBounds(item, item.radius);
     item.x = pos.x;
+    item.y = pos.y ?? 0;
     item.z = pos.z;
   } else {
     const pos = clampToBounds(item, 0);
     item.x = pos.x;
+    item.y = pos.y ?? 0;
     item.z = pos.z;
   }
 
@@ -546,6 +579,7 @@ function updateSelectedPosition(worldPos) {
     const base = mapConfig.base;
     const clamped = clampToBounds(worldPos, base.radius);
     base.x = clamped.x;
+    base.y = clamped.y ?? 0;
     base.z = clamped.z;
     return;
   }
@@ -556,6 +590,7 @@ function updateSelectedPosition(worldPos) {
   const radius = selected.type === 'obstacles' ? item.radius : 0;
   const clamped = clampToBounds(worldPos, radius);
   item.x = clamped.x;
+  item.y = clamped.y ?? 0;
   item.z = clamped.z;
 }
 

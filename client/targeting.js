@@ -41,6 +41,7 @@ export function resolveTarget(selection, { mobs, players, vendors }) {
       maxHp: mob.maxHp ?? 0,
       pos: {
         x: mob.x ?? mob.pos?.x ?? 0,
+        y: mob.y ?? mob.pos?.y ?? 0,
         z: mob.z ?? mob.pos?.z ?? 0,
       },
     };
@@ -63,6 +64,7 @@ export function resolveTarget(selection, { mobs, players, vendors }) {
       maxHp: player.maxHp ?? null,
       pos: {
         x: player.x ?? 0,
+        y: player.y ?? 0,
         z: player.z ?? 0,
       },
     };
@@ -81,6 +83,7 @@ export function resolveTarget(selection, { mobs, players, vendors }) {
       maxHp: null,
       pos: {
         x: vendor.x ?? 0,
+        y: vendor.y ?? 0,
         z: vendor.z ?? 0,
       },
     };

@@ -4,7 +4,7 @@ export function createSpawner(world) {
     getSpawnPoint() {
       const point = world.spawnPoints[nextSpawnIndex % world.spawnPoints.length];
       nextSpawnIndex += 1;
-      return { x: point.x, z: point.z };
+      return { x: point.x, y: point.y ?? 0, z: point.z };
     },
   };
 }

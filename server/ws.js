@@ -498,7 +498,7 @@ export function createWebSocketServer({
         }
 
         if (msg.type === 'moveTarget') {
-          player.target = { x: msg.x, z: msg.z };
+          player.target = { x: msg.x, y: msg.y ?? 0, z: msg.z };
           return;
         }
 
