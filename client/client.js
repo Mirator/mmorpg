@@ -1,9 +1,11 @@
 import { createRenderSystem } from './render.js';
 import { createGameState } from './state.js';
-import { createNet } from './net.js';
 import { createInputHandler } from './input.js';
 import { createUiState } from './ui-state.js';
 import { createMenu } from './menu.js';
+import { createAuth } from './auth.js';
+import { createConnection } from './connection.js';
+import { createCombat } from './combat.js';
 import { preloadAllAssets } from './assets.js';
 import { resolveTarget } from './targeting.js';
 import { getAbilitiesForClass } from '/shared/classes.js';
@@ -43,565 +45,150 @@ const gameState = createGameState({
   maxSnapshotAgeMs: MAX_SNAPSHOT_AGE_MS,
 });
 
-let seq = 0;
-let net = null;
-let playerId = null;
-let currentMe = null;
+const ctx = {
+  seq: 0,
+  net: null,
+  closingNet: null,
+  playerId: null,
+  currentMe: null,
+  selectedTarget: null,
+};
+
 let nearestVendor = null;
 let inVendorRange = false;
-let closingNet = null;
 let inputHandler = null;
-let selectedTarget = null;
 
-const combatEvents = [];
-const MAX_COMBAT_EVENTS = 12;
-const COMBAT_EVENT_TTL_MS = 2500;
-
-function recordCombatEvent(event, now) {
-  if (!event) return;
-  combatEvents.push({ ...event, t: now });
-  pruneCombatEvents(now);
+function sendWithSeq(msg) {
+  ctx.seq += 1;
+  ctx.net?.send?.({ ...msg, seq: ctx.seq });
 }
 
-function pruneCombatEvents(now) {
-  while (combatEvents.length > MAX_COMBAT_EVENTS) {
-    combatEvents.shift();
-  }
-  let idx = 0;
-  while (idx < combatEvents.length && now - combatEvents[idx].t > COMBAT_EVENT_TTL_MS) {
-    idx += 1;
-  }
-  if (idx > 0) {
-    combatEvents.splice(0, idx);
-  }
+function setWorld(config) {
+  const worldConfig = config ?? null;
+  gameState.setWorldConfig(worldConfig);
+  renderSystem.updateWorld(worldConfig);
 }
 
-const ACCOUNT_KEY = 'mmorpg_account';
-const LAST_CHARACTER_PREFIX = 'mmorpg_last_character_';
+function updateLocalUi() {
+  const me = gameState.getLocalPlayer();
+  const serverNow = gameState.getServerNow();
+  ctx.currentMe = me;
+  if (me && Object.prototype.hasOwnProperty.call(me, 'targetId')) {
+    if (me.targetId) {
+      ctx.selectedTarget = { kind: 'mob', id: me.targetId };
+    } else if (ctx.selectedTarget?.kind === 'mob') {
+      ctx.selectedTarget = null;
+    }
+  } else if (!me) {
+    ctx.selectedTarget = null;
+  }
+  ui.updateLocalUi({ me, worldConfig: gameState.getWorldConfig(), serverNow });
+}
+
+const authRef = { current: null };
+const connectionRef = { current: null };
+const combatRef = { current: null };
 
 const ui = createUiState({
   onInventorySwap: (from, to) => {
-    seq += 1;
-    net?.send({ type: 'inventorySwap', from, to, seq });
+    sendWithSeq({ type: 'inventorySwap', from, to });
   },
   onEquipmentSwap: ({ fromType, fromSlot, toType, toSlot }) => {
-    seq += 1;
-    net?.send({ type: 'equipSwap', fromType, fromSlot, toType, toSlot, seq });
+    sendWithSeq({ type: 'equipSwap', fromType, fromSlot, toType, toSlot });
   },
   onVendorSell: (slot, vendorId) => {
-    seq += 1;
-    net?.send({ type: 'vendorSell', slot, vendorId, seq });
+    sendWithSeq({ type: 'vendorSell', slot, vendorId });
   },
   onAbilityClick: (slot) => {
-    useAbility(slot);
+    combatRef.current?.useAbility(slot);
   },
   onUiOpen: () => {
     inputHandler?.clearMovement();
   },
   onRespawn: () => {
-    sendRespawn();
+    connectionRef.current?.sendRespawn();
   },
 });
 
 const menu = createMenu({
-  onSignIn: handleSignIn,
-  onSignUp: handleSignUp,
-  onSelectCharacter: connectCharacter,
-  onCreateCharacter: handleCreateCharacter,
-  onDeleteCharacter: handleDeleteCharacter,
-  onSignOut: handleSignOut,
+  onSignIn: (data) => authRef.current?.signIn(data),
+  onSignUp: (data) => authRef.current?.signUp(data),
+  onSelectCharacter: (char) => authRef.current?.connectCharacter(char),
+  onCreateCharacter: (data) => authRef.current?.createCharacter(data),
+  onDeleteCharacter: (char) => authRef.current?.deleteCharacter(char),
+  onSignOut: () => authRef.current?.signOut(),
 });
+
+const auth = createAuth({
+  menu,
+  ui,
+  accountNameEl,
+  characterNameEl,
+});
+authRef.current = auth;
+
+const combat = createCombat({
+  gameState,
+  ui,
+  renderSystem,
+  sendWithSeq,
+  ctx,
+});
+combatRef.current = combat;
+
+const connection = createConnection({
+  gameState,
+  renderSystem,
+  ui,
+  ctx,
+  onCombatEvents: (event, now, eventTime) =>
+    combat.handleCombatEvent(event, now, eventTime),
+  updateLocalUi,
+  setWorld,
+  loadCharacters: () => auth.loadCharacters(),
+  clearSessionState: () => auth.clearSessionState(),
+  menu,
+});
+connectionRef.current = connection;
+
+auth.setOnConnectCharacter(async (character) => {
+  showLoadingScreen('Loading assets...');
+  await preloadAllAssets();
+  showLoadingScreen('Connecting...');
+  await connection.start({ character }, { manualStepping, virtualNow });
+  hideLoadingScreen();
+});
+auth.setOnDisconnect(() => connection.disconnect());
 
 const urlParams = new URLSearchParams(window.location.search);
 const isGuestSession = urlParams.get('guest') === '1';
 
-let authToken = null;
-let currentAccount = null;
-let currentCharacter = null;
-let lastCharacterId = null;
+let lastFrameTime = performance.now();
+let fpsLastTime = lastFrameTime;
+let fpsFrameCount = 0;
+let manualStepping = false;
+let virtualNow = performance.now();
 
-function saveAuthToken(token) {
-  authToken = token ?? null;
-}
-
-function loadStoredAccount() {
-  const raw = localStorage.getItem(ACCOUNT_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.id === 'string') {
-      return parsed;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-function saveStoredAccount(account) {
-  if (!account || typeof account.id !== 'string') return;
-  localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
-}
-
-function clearStoredAccount() {
-  localStorage.removeItem(ACCOUNT_KEY);
-}
-
-function getLastCharacterKey() {
-  return currentAccount?.id ? `${LAST_CHARACTER_PREFIX}${currentAccount.id}` : null;
-}
-
-function loadLastCharacterId() {
-  const key = getLastCharacterKey();
-  if (!key) return null;
-  return localStorage.getItem(key);
-}
-
-function saveLastCharacterId(id) {
-  const key = getLastCharacterKey();
-  if (!key) return;
-  if (id) {
-    localStorage.setItem(key, id);
-  }
-}
-
-function clearLastCharacterId() {
-  const key = getLastCharacterKey();
-  if (!key) return;
-  localStorage.removeItem(key);
-}
-
-function updateOverlayLabels() {
-  if (accountNameEl) {
-    accountNameEl.textContent = currentAccount?.username ?? '--';
-  }
-  if (characterNameEl) {
-    characterNameEl.textContent = currentCharacter?.name ?? '--';
-  }
-}
-
-function clearSessionState() {
-  currentAccount = null;
-  currentCharacter = null;
-  updateOverlayLabels();
-}
-
-async function apiFetch(path, { method = 'GET', body } = {}) {
-  const headers = {};
-  if (body) {
-    headers['Content-Type'] = 'application/json';
-  }
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`;
-  }
-  const res = await fetch(path, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-    credentials: 'same-origin',
-  });
-  let payload = null;
-  try {
-    payload = await res.json();
-  } catch {
-    payload = null;
-  }
-  if (!res.ok) {
-    throw new Error(payload?.error || 'Request failed');
-  }
-  return payload;
-}
-
-async function loadCharacters() {
-  const data = await apiFetch('/api/characters');
-  menu.setCharacters(data.characters ?? []);
-  lastCharacterId = loadLastCharacterId();
-  menu.setSelectedCharacterId(lastCharacterId);
-  menu.setStep('characters');
-  menu.setOpen(true);
-  ui.setMenuOpen(true);
-  updateOverlayLabels();
-}
-
-async function handleSignIn({ username, password }) {
-  menu.setLoading(true);
-  menu.setError('auth', '');
-  try {
-    const data = await apiFetch('/api/auth/login', {
-      method: 'POST',
-      body: { username, password },
-    });
-    saveAuthToken(data.token ?? null);
-    currentAccount = data.account ?? null;
-    saveStoredAccount(currentAccount);
-    menu.setAccount(currentAccount);
-    await loadCharacters();
-  } catch (err) {
-    menu.setError('auth', err.message || 'Unable to sign in.');
-  } finally {
-    menu.setLoading(false);
-  }
-}
-
-async function handleSignUp({ username, password }) {
-  menu.setLoading(true);
-  menu.setError('auth', '');
-  try {
-    const data = await apiFetch('/api/auth/signup', {
-      method: 'POST',
-      body: { username, password },
-    });
-    saveAuthToken(data.token ?? null);
-    currentAccount = data.account ?? null;
-    saveStoredAccount(currentAccount);
-    menu.setAccount(currentAccount);
-    await loadCharacters();
-  } catch (err) {
-    menu.setError('auth', err.message || 'Unable to create account.');
-  } finally {
-    menu.setLoading(false);
-  }
-}
-
-async function handleCreateCharacter({ name, classId }) {
-  menu.setLoading(true);
-  menu.setError('create', '');
-  try {
-    const data = await apiFetch('/api/characters', {
-      method: 'POST',
-      body: { name, classId },
-    });
-    const character = data.character;
-    if (character) {
-      await loadCharacters();
-      await connectCharacter(character);
-      return;
-    }
-    menu.setError('create', 'Unable to create character.');
-  } catch (err) {
-    menu.setError('create', err.message || 'Unable to create character.');
-  } finally {
-    menu.setLoading(false);
-  }
-}
-
-async function handleSignOut() {
-  menu.setLoading(true);
-  try {
-    await apiFetch('/api/auth/logout', { method: 'POST' });
-  } catch {
-    // ignore
-  }
-  saveAuthToken(null);
-  clearStoredAccount();
-  lastCharacterId = null;
-  clearSessionState();
-  disconnect();
-  menu.setAccount(null);
-  menu.setCharacters([]);
-  menu.setStep('auth');
-  menu.setTab('signin');
-  menu.setOpen(true);
-  ui.setMenuOpen(true);
-  ui.setStatus('menu');
-  menu.setLoading(false);
-}
-
-async function handleDeleteCharacter(character) {
-  if (!character?.id) return;
-  const confirmDelete = window.confirm(`Delete ${character.name ?? 'this character'}? This cannot be undone.`);
-  if (!confirmDelete) return;
-  menu.setLoading(true);
-  menu.setError('characters', '');
-  try {
-    await apiFetch(`/api/characters/${character.id}`, { method: 'DELETE' });
-    if (lastCharacterId === character.id) {
-      clearLastCharacterId();
-      lastCharacterId = null;
-      menu.setSelectedCharacterId(null);
-    }
-    await loadCharacters();
-  } catch (err) {
-    menu.setError('characters', err.message || 'Unable to delete character.');
-  } finally {
-    menu.setLoading(false);
-  }
-}
-
-async function connectCharacter(character) {
-  if (!character?.id) return;
-  menu.setLoading(true);
-  menu.setError('characters', '');
-  try {
-    saveLastCharacterId(character.id);
-    lastCharacterId = character.id;
-    menu.setSelectedCharacterId(character.id);
-    showLoadingScreen('Loading assets...');
-    await preloadAllAssets();
-    showLoadingScreen('Connecting...');
-    await startConnection({ character });
-    hideLoadingScreen();
-    menu.setOpen(false);
-    ui.setMenuOpen(false);
-  } catch (err) {
-    hideLoadingScreen();
-    menu.setError('characters', err.message || 'Unable to connect.');
-    ui.setMenuOpen(true);
-  } finally {
-    menu.setLoading(false);
-  }
-}
-
-function buildWsUrl({ character, guest }) {
-  const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  const wsUrl = new URL(`${wsProtocol}://${location.host}`);
-  if (guest) {
-    wsUrl.searchParams.set('guest', '1');
-  } else if (character) {
-    wsUrl.searchParams.set('characterId', character.id);
-  }
-  return wsUrl.toString();
-}
-
-function resetClientState() {
-  gameState.reset();
-  renderSystem.syncPlayers([]);
-  renderSystem.setLocalPlayerId(null);
-  currentMe = null;
-  playerId = null;
-  ui.updateLocalUi({ me: null, worldConfig: null, serverNow: Date.now() });
-}
-
-function disconnect() {
-  if (net) {
-    closingNet = net;
-    net.close();
-    net = null;
-  }
-  resetClientState();
-}
-
-function startConnection({ character, guest = false }) {
-  return new Promise((resolve, reject) => {
-    disconnect();
-    seq = 0;
-    if (character) {
-      currentCharacter = character;
-    }
-    updateOverlayLabels();
-
-    const url = buildWsUrl({ character, guest });
-    let resolved = false;
-
-    const localNet = createNet({
-      url,
-      onOpen: () => {
-        ui.setStatus('connected');
-        localNet.send({ type: 'hello' });
-      },
-      onClose: () => {
-        ui.setStatus('disconnected');
-        if (!resolved) {
-          resolved = true;
-          reject(new Error('Connection closed.'));
-        }
-        if (closingNet === localNet) {
-          closingNet = null;
-          return;
-        }
-        if (!guest) {
-          menu.setOpen(true);
-          ui.setMenuOpen(true);
-          loadCharacters().catch(() => {
-            clearSessionState();
-            menu.setAccount(null);
-            menu.setStep('auth');
-          });
-        }
-      },
-      onMessage: (msg) => {
-        const now = manualStepping ? virtualNow : performance.now();
-        if (msg.type === 'welcome') {
-          const id = msg.id;
-          if (id && id !== playerId) {
-            playerId = id;
-          }
-          gameState.setLocalPlayerId(id);
-          renderSystem.setLocalPlayerId(id);
-          if (msg.config) {
-            gameState.setConfigSnapshot(msg.config);
-          }
-          if (msg.snapshot) {
-            handleStateMessage(msg.snapshot, now);
-          }
-          if (!resolved) {
-            resolved = true;
-            resolve();
-          }
-          return;
-        }
-
-        if (msg.type === 'state') {
-          handleStateMessage(msg, now);
-        }
-
-        if (msg.type === 'me') {
-          if (Number.isFinite(msg.t)) {
-            gameState.updateServerTime(msg.t);
-          }
-          gameState.updateMe(msg.data ?? null);
-          updateLocalUi();
-        }
-
-        if (msg.type === 'combatEvent') {
-          const events = Array.isArray(msg.events) ? msg.events : [];
-          const eventTime = Number.isFinite(msg.t) ? msg.t : gameState.getServerNow();
-          for (const event of events) {
-            handleCombatEvent(event, now, eventTime);
-          }
-        }
-      },
-    });
-    net = localNet;
-  });
-}
-
-function sendInput(keys) {
-  seq += 1;
-  net?.send({ type: 'input', keys, seq });
-}
-
-function sendInteract() {
-  seq += 1;
-  net?.send({ type: 'action', kind: 'interact', seq });
-}
-
-function sendMoveTarget(pos, opts = {}) {
-  if (opts.clearTarget) {
-    renderSystem.setTargetMarker(null);
-    return;
-  }
-  if (!pos) return;
-  seq += 1;
-  net?.send({ type: 'moveTarget', x: pos.x, y: pos.y ?? 0, z: pos.z, seq });
-  renderSystem.setTargetMarker(pos);
-}
-
-function sendRespawn() {
-  seq += 1;
-  net?.send({ type: 'respawn', seq });
-}
-
-function getTargetSelectRange() {
-  const config = gameState.getConfigSnapshot();
-  return config?.combat?.targetSelectRange ?? 25;
-}
-
-function getAliveTargetById(targetId) {
-  if (!targetId) return null;
-  const mobs = gameState.getLatestMobs();
-  return mobs.find((mob) => mob.id === targetId && !mob.dead && mob.hp > 0) ?? null;
-}
-
-function getAlivePlayerById(targetId) {
-  if (!targetId) return null;
-  const players = gameState.getLatestPlayers();
-  const target =
-    players && typeof players === 'object' ? players[targetId] : null;
-  if (!target || target.dead) return null;
-  return { id: targetId, ...target };
-}
-
-function selectTarget(selection) {
-  if (!selection || !selection.id || !selection.kind) {
-    selectedTarget = null;
-    seq += 1;
-    net?.send({ type: 'targetSelect', targetId: null, targetKind: null, seq });
-    return;
-  }
-
-  selectedTarget = { kind: selection.kind, id: selection.id };
-  seq += 1;
-  if (selection.kind === 'mob') {
-    net?.send({ type: 'targetSelect', targetId: selection.id, targetKind: 'mob', seq });
-  } else if (selection.kind === 'player') {
-    net?.send({ type: 'targetSelect', targetId: selection.id, targetKind: 'player', seq });
-  } else {
-    net?.send({ type: 'targetSelect', targetId: null, targetKind: null, seq });
-  }
-}
-
-function cycleTarget() {
-  const me = gameState.getLocalPlayer();
-  if (!me) return;
-  const range = getTargetSelectRange();
-  const range2 = range * range;
-  const mobs = gameState.getLatestMobs().filter((mob) => !mob.dead && mob.hp > 0);
-  const inRange = mobs
-    .map((mob) => {
-      const dx = mob.x - me.x;
-      const dz = mob.z - me.z;
-      return { mob, dist2: dx * dx + dz * dz };
-    })
-    .filter((entry) => entry.dist2 <= range2)
-    .sort((a, b) => {
-      if (a.dist2 !== b.dist2) return a.dist2 - b.dist2;
-      return String(a.mob.id).localeCompare(String(b.mob.id));
-    });
-  if (!inRange.length) {
-    selectTarget(null);
-    return;
-  }
-  const currentMobId = selectedTarget?.kind === 'mob' ? selectedTarget.id : null;
-  const idx = inRange.findIndex((entry) => entry.mob.id === currentMobId);
-  const next = inRange[(idx + 1) % inRange.length].mob;
-  selectTarget({ kind: 'mob', id: next.id });
-}
-
-function useAbility(slot) {
-  if (ui.isUiBlocking()) return;
-  const classId = ui.getCurrentClassId(currentMe);
-  const weaponDef = getEquippedWeapon(currentMe?.equipment, classId);
-  const abilities = getAbilitiesForClass(classId, currentMe?.level ?? 1, weaponDef);
-  const ability = abilities.find((item) => item.slot === slot);
-  if (!ability) return;
-  if (ability.targetType === 'targeted') {
-    if (ability.targetKind === 'player') {
-      if (selectedTarget?.kind === 'player') {
-        const target = getAlivePlayerById(selectedTarget.id);
-        if (!target || !currentMe) return;
-        const dx = target.x - currentMe.x;
-        const dz = target.z - currentMe.z;
-        if (dx * dx + dz * dz > (ability.range ?? 0) * (ability.range ?? 0)) {
-          return;
-        }
-      }
-    } else {
-      const mobTargetId = selectedTarget?.kind === 'mob' ? selectedTarget.id : null;
-      const target = getAliveTargetById(mobTargetId);
-      if (!target || !currentMe) return;
-      const dx = target.x - currentMe.x;
-      const dz = target.z - currentMe.z;
-      if (dx * dx + dz * dz > (ability.range ?? 0) * (ability.range ?? 0)) {
-        return;
-      }
-    }
-  }
-  const now = gameState.getServerNow();
-  const localCooldown = ui.getLocalCooldown(slot);
-  const serverCooldown =
-    ability.id === 'basic_attack'
-      ? currentMe?.attackCooldownUntil ?? 0
-      : currentMe?.abilityCooldowns?.[ability.id] ?? 0;
-  if (Math.max(localCooldown, serverCooldown) > now) return;
-  const cost = ability.resourceCost ?? 0;
-  if (cost > 0 && (currentMe?.resource ?? 0) < cost) return;
-  const localCooldownDuration = ability.windUpMs ?? ability.cooldownMs ?? 0;
-  ui.setLocalCooldown(slot, now + localCooldownDuration);
-  ui.updateAbilityBar(currentMe, now);
-  seq += 1;
-  net?.send({ type: 'action', kind: 'ability', slot, seq });
-}
+inputHandler = createInputHandler({
+  renderer: renderSystem.renderer,
+  camera: renderSystem.camera,
+  isUiBlocking: ui.isUiBlocking,
+  isMenuOpen: ui.isMenuOpen,
+  isDialogOpen: ui.isDialogOpen,
+  isTradeOpen: ui.isTradeOpen,
+  isInventoryOpen: ui.isInventoryOpen,
+  isSkillsOpen: ui.isSkillsOpen,
+  onToggleInventory: ui.toggleInventory,
+  onToggleSkills: ui.toggleSkills,
+  onInteract: handleInteract,
+  onAbility: (slot) => combat.useAbility(slot),
+  onMoveTarget: (pos, opts) => connection.sendMoveTarget(pos, opts),
+  onInputChange: connection.sendInput,
+  onTargetSelect: combat.selectTarget,
+  onCycleTarget: combat.cycleTarget,
+  pickTarget: (ndc) => renderSystem.pickTarget(ndc),
+  onTradeTab: (tab) => ui.vendorUI?.setTab?.(tab),
+});
 
 function handleInteract() {
   if (ui.isTradeOpen()) return;
@@ -622,111 +209,22 @@ function handleInteract() {
     ui.clearPrompt();
     return;
   }
-  sendInteract();
+  connection.sendInteract();
 }
-
-function setWorld(config) {
-  const worldConfig = config ?? null;
-  gameState.setWorldConfig(worldConfig);
-  renderSystem.updateWorld(worldConfig);
-}
-
-function handleStateMessage(msg, now) {
-  if (Number.isFinite(msg.t)) {
-    gameState.updateServerTime(msg.t);
-  }
-  if (msg.world) {
-    const currentWorld = gameState.getWorldConfig();
-    if (!currentWorld || currentWorld.mapSize !== msg.world.mapSize) {
-      setWorld(msg.world);
-    }
-  }
-  if (msg.players) {
-    gameState.pushSnapshot(msg.players, now);
-    renderSystem.syncPlayers(Object.keys(msg.players));
-    updateLocalUi();
-  }
-  if (msg.resources) {
-    gameState.updateResources(msg.resources);
-    renderSystem.updateWorldResources(msg.resources);
-  }
-  if (msg.mobs) {
-    gameState.updateMobs(msg.mobs);
-    renderSystem.updateWorldMobs(msg.mobs);
-  }
-}
-
-function handleCombatEvent(event, now, serverTime) {
-  if (!event || event.kind !== 'basic_attack') return;
-  const timestamp = Number.isFinite(serverTime) ? serverTime : gameState.getServerNow();
-  recordCombatEvent(event, timestamp);
-  renderSystem?.triggerAttack?.(event.attackerId, now, event.durationMs);
-  if (event.attackType === 'ranged') {
-    renderSystem.spawnProjectile(event.from, event.to, event.durationMs, now);
-  } else {
-    renderSystem.spawnSlash(event.from, event.to, event.durationMs, now);
-  }
-}
-
-function updateLocalUi() {
-  const me = gameState.getLocalPlayer();
-  const serverNow = gameState.getServerNow();
-  currentMe = me;
-  if (me && Object.prototype.hasOwnProperty.call(me, 'targetId')) {
-    if (me.targetId) {
-      selectedTarget = { kind: 'mob', id: me.targetId };
-    } else if (selectedTarget?.kind === 'mob') {
-      selectedTarget = null;
-    }
-  } else if (!me) {
-    selectedTarget = null;
-  }
-  ui.updateLocalUi({ me, worldConfig: gameState.getWorldConfig(), serverNow });
-}
-
-inputHandler = createInputHandler({
-  renderer: renderSystem.renderer,
-  camera: renderSystem.camera,
-  isUiBlocking: ui.isUiBlocking,
-  isMenuOpen: ui.isMenuOpen,
-  isDialogOpen: ui.isDialogOpen,
-  isTradeOpen: ui.isTradeOpen,
-  isInventoryOpen: ui.isInventoryOpen,
-  isSkillsOpen: ui.isSkillsOpen,
-  onToggleInventory: ui.toggleInventory,
-  onToggleSkills: ui.toggleSkills,
-  onInteract: handleInteract,
-  onAbility: useAbility,
-  onMoveTarget: sendMoveTarget,
-  onInputChange: sendInput,
-  onTargetSelect: selectTarget,
-  onCycleTarget: cycleTarget,
-  pickTarget: (ndc) => renderSystem.pickTarget(ndc),
-  onTradeTab: (tab) => ui.vendorUI?.setTab?.(tab),
-});
-
-window.addEventListener('resize', renderSystem.resize);
-renderSystem.resize();
-
-let lastFrameTime = performance.now();
-let fpsLastTime = lastFrameTime;
-let fpsFrameCount = 0;
-let manualStepping = false;
-let virtualNow = performance.now();
 
 function getPlayerSpeed() {
   const worldConfig = gameState.getWorldConfig();
   const configSnapshot = gameState.getConfigSnapshot();
   const baseSpeed =
     worldConfig?.playerSpeed ?? configSnapshot?.player?.speed ?? DEFAULT_PLAYER_SPEED;
-  const multiplier = currentMe?.moveSpeedMultiplier ?? 1;
+  const multiplier = ctx.currentMe?.moveSpeedMultiplier ?? 1;
   return baseSpeed * multiplier;
 }
 
 function stepFrame(dt, now) {
   const { positions, localPos: serverLocalPos } = gameState.renderInterpolatedPlayers(now);
   renderSystem.updatePlayerPositions(positions, {
-    localPlayerId: playerId ?? null,
+    localPlayerId: ctx.playerId ?? null,
     inputKeys: inputHandler.getKeys(),
   });
 
@@ -741,10 +239,10 @@ function stepFrame(dt, now) {
     : serverLocalPos;
   const viewPos = predictedPos ?? serverLocalPos;
 
-  if (predictedPos && playerId) {
+  if (predictedPos && ctx.playerId) {
     renderSystem.updatePlayerPositions(
-      { [playerId]: predictedPos },
-      { localPlayerId: playerId, inputKeys: inputHandler.getKeys() }
+      { [ctx.playerId]: predictedPos },
+      { localPlayerId: ctx.playerId, inputKeys: inputHandler.getKeys() }
     );
   }
 
@@ -767,13 +265,13 @@ function stepFrame(dt, now) {
   }
   renderSystem.updateAnimations(dt, now, deadPlayerIds);
   renderSystem.updateEffects(now);
-  const resolvedTarget = resolveTarget(selectedTarget, {
+  const resolvedTarget = resolveTarget(ctx.selectedTarget, {
     mobs: gameState.getLatestMobs(),
     players: gameState.getLatestPlayers(),
     vendors: gameState.getWorldConfig()?.vendors ?? [],
   });
-  if (!resolvedTarget && selectedTarget) {
-    selectedTarget = null;
+  if (!resolvedTarget && ctx.selectedTarget) {
+    ctx.selectedTarget = null;
   }
   if (resolvedTarget?.pos) {
     renderSystem.setTargetRing({
@@ -786,9 +284,9 @@ function stepFrame(dt, now) {
   }
   ui.updateTargetHud(resolvedTarget);
 
-  ui.updateAbilityBar(currentMe, gameState.getServerNow());
+  ui.updateAbilityBar(ctx.currentMe, gameState.getServerNow());
   if (ui.isSkillsOpen()) {
-    ui.updateSkillsPanel(currentMe);
+    ui.updateSkillsPanel(ctx.currentMe);
   }
 
   nearestVendor = null;
@@ -836,7 +334,7 @@ function stepFrame(dt, now) {
     ui.clearPrompt();
   }
 
-  pruneCombatEvents(gameState.getServerNow());
+  combat.pruneCombatEvents(gameState.getServerNow());
 
   fpsFrameCount += 1;
   if (now - fpsLastTime >= 1000) {
@@ -862,6 +360,9 @@ function animate() {
   stepFrame(dt, now);
   requestAnimationFrame(animate);
 }
+
+window.addEventListener('resize', renderSystem.resize);
+renderSystem.resize();
 
 animate();
 
@@ -899,7 +400,7 @@ function buildTextState() {
   const inventoryStackMax =
     me?.invStackMax ?? worldConfig?.playerInvStackMax ?? 0;
   const menuState = menu.getState();
-  const target = resolveTarget(selectedTarget, {
+  const target = resolveTarget(ctx.selectedTarget, {
     mobs: gameState.getLatestMobs(),
     players: gameState.getLatestPlayers(),
     vendors: worldConfig?.vendors ?? [],
@@ -909,8 +410,8 @@ function buildTextState() {
     mode: ui.isMenuOpen() ? 'menu' : 'play',
     menu: {
       ...menuState,
-      account: currentAccount?.username ?? null,
-      character: currentCharacter?.name ?? null,
+      account: auth.getAccount()?.username ?? null,
+      character: auth.getCharacter()?.name ?? null,
     },
     coordSystem: {
       origin: 'map center',
@@ -928,7 +429,7 @@ function buildTextState() {
     serverTime: gameState.getServerNow(),
     player: me
       ? {
-          id: playerId,
+          id: ctx.playerId,
           x: me.x,
           z: me.z,
           hp: me.hp,
@@ -994,9 +495,9 @@ function buildTextState() {
       ),
     })),
     combat: {
-      targetSelectRange: getTargetSelectRange(),
-      recentEvents: combatEvents
-        .filter((event) => event.attackerId === playerId)
+      targetSelectRange: combat.getTargetSelectRange(),
+      recentEvents: combat.getCombatEvents()
+        .filter((event) => event.attackerId === ctx.playerId)
         .map((event) => ({
           kind: event.kind ?? null,
           attackType: event.attackType ?? null,
@@ -1059,13 +560,13 @@ window.render_game_to_text = () => JSON.stringify(buildTextState());
 
 window.__game = {
   moveTo: (x, z) => {
-    sendMoveTarget({ x, z });
+    connection.sendMoveTarget({ x, z });
   },
   clearInput: () => {
-    sendInput({ w: false, a: false, s: false, d: false });
+    connection.sendInput({ w: false, a: false, s: false, d: false });
   },
   interact: () => {
-    sendInteract();
+    connection.sendInteract();
   },
   projectToScreen: (x, z) => {
     return renderSystem.projectToScreen({ x, z });
@@ -1094,7 +595,7 @@ function getNearestVendor(pos) {
 
 if (signOutBtn) {
   signOutBtn.addEventListener('click', () => {
-    handleSignOut();
+    auth.signOut();
   });
 }
 
@@ -1110,15 +611,13 @@ if (overlayEl) {
 if (isGuestSession) {
   ui.setMenuOpen(false);
   menu.setOpen(false);
-  currentAccount = { username: 'Guest' };
-  currentCharacter = { name: 'Guest' };
-  updateOverlayLabels();
+  auth.setGuestAccount();
   (async () => {
     showLoadingScreen('Loading assets...');
     try {
       await preloadAllAssets();
       showLoadingScreen('Connecting...');
-      await startConnection({ guest: true });
+      await connection.start({ guest: true }, { manualStepping, virtualNow });
     } catch {
       // connection failed
     } finally {
@@ -1126,15 +625,14 @@ if (isGuestSession) {
     }
   })();
 } else {
-  currentAccount = loadStoredAccount();
-  menu.setAccount(currentAccount);
+  auth.initFromStorage();
+  menu.setAccount(auth.getAccount());
   ui.setMenuOpen(true);
   menu.setOpen(true);
-  if (currentAccount) {
-    loadCharacters().catch(() => {
-      saveAuthToken(null);
-      clearStoredAccount();
-      clearSessionState();
+  auth.updateOverlayLabels();
+  if (auth.getAccount()) {
+    auth.loadCharacters().catch(() => {
+      auth.clearSessionState();
       menu.setAccount(null);
       menu.setStep('auth');
       menu.setTab('signin');
