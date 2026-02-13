@@ -1,4 +1,5 @@
 import { createNet } from './net.js';
+import { showErrorOverlay, hideErrorOverlay } from './error-overlay.js';
 
 function buildWsUrl({ character, guest }) {
   const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -22,6 +23,7 @@ export function createConnection({
   loadCharacters,
   clearSessionState,
   menu,
+  getReconnectParams,
 }) {
   function resetClientState() {
     gameState.reset();
@@ -79,6 +81,60 @@ export function createConnection({
 
       const url = buildWsUrl({ character, guest });
       let resolved = false;
+      let disconnectHandled = false;
+
+      function handleUnexpectedDisconnect() {
+        if (disconnectHandled) return;
+        disconnectHandled = true;
+        if (!resolved) {
+          resolved = true;
+          reject(new Error('Connection closed.'));
+        }
+        hideErrorOverlay();
+        showErrorOverlay({
+          title: 'Connection lost',
+          message: 'Check your network and try again.',
+          actions: [
+            {
+              label: 'Reconnect',
+              onClick: () => {
+                hideErrorOverlay();
+                const params = getReconnectParams?.() ?? { guest };
+                start(params, { manualStepping, virtualNow }).catch(() => {
+                  showErrorOverlay({
+                    title: 'Reconnect failed',
+                    message: 'Check your network and try again.',
+                    actions: [
+                      { label: 'Retry', onClick: () => window.location.reload() },
+                      { label: 'Back to menu', onClick: () => window.location.reload() },
+                    ],
+                  });
+                });
+              },
+            },
+            {
+              label: 'Back to menu',
+              onClick: () => {
+                hideErrorOverlay();
+                disconnect();
+                if (!guest) {
+                  menu.setOpen(true);
+                  ui.setMenuOpen(true);
+                  loadCharacters().catch(() => {
+                    clearSessionState();
+                    menu.setAccount(null);
+                    menu.setStep('auth');
+                    menu.setTab('signin');
+                    ui.setStatus('menu');
+                  });
+                } else {
+                  window.location.reload();
+                }
+              },
+            },
+          ],
+        });
+      }
 
       const localNet = createNet({
         url,
@@ -96,17 +152,15 @@ export function createConnection({
             ctx.closingNet = null;
             return;
           }
-          if (!guest) {
-            menu.setOpen(true);
-            ui.setMenuOpen(true);
-            loadCharacters().catch(() => {
-              clearSessionState();
-              menu.setAccount(null);
-              menu.setStep('auth');
-              menu.setTab('signin');
-              ui.setStatus('menu');
-            });
+          handleUnexpectedDisconnect();
+        },
+        onError: () => {
+          if (!resolved) {
+            resolved = true;
+            reject(new Error('Connection failed.'));
           }
+          if (ctx.closingNet === localNet) return;
+          handleUnexpectedDisconnect();
         },
         onMessage: (msg) => {
           const now = manualStepping ? virtualNow : performance.now();

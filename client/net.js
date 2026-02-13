@@ -1,4 +1,4 @@
-export function createNet({ url, onOpen, onClose, onMessage }) {
+export function createNet({ url, onOpen, onClose, onMessage, onError }) {
   const ws = new WebSocket(url);
 
   function send(msg) {
@@ -11,8 +11,12 @@ export function createNet({ url, onOpen, onClose, onMessage }) {
     onOpen?.();
   });
 
-  ws.addEventListener('close', () => {
-    onClose?.();
+  ws.addEventListener('close', (event) => {
+    onClose?.(event);
+  });
+
+  ws.addEventListener('error', () => {
+    onError?.();
   });
 
   ws.addEventListener('message', (event) => {

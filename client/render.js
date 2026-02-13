@@ -9,6 +9,7 @@ import {
   pickClips,
 } from './assets.js';
 import { createEffectsSystem } from './effects.js';
+import { showErrorOverlay } from './error-overlay.js';
 
 const CAMERA_LERP_SPEED = 5;
 const FRUSTUM_SIZE = 24;
@@ -19,23 +20,55 @@ export function createRenderSystem({ app }) {
   scene.background = new THREE.Color(0x0b0f14);
 
   let renderer;
+  let webGLReady = true;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   } catch (err) {
-    console.error('WebGL unavailable, falling back to canvas renderer.', err);
-    const canvas = document.createElement('canvas');
+    console.error('WebGL unavailable.', err);
+    webGLReady = false;
+    const fallbackDiv = document.createElement('div');
+    fallbackDiv.style.width = '100%';
+    fallbackDiv.style.height = '100%';
     renderer = {
-      domElement: canvas,
+      domElement: fallbackDiv,
       setPixelRatio: () => {},
-      setSize: (width, height) => {
-        canvas.width = width;
-        canvas.height = height;
-      },
+      setSize: () => {},
       render: () => {},
     };
+    app.appendChild(renderer.domElement);
+    showErrorOverlay({
+      title: 'Graphics unavailable',
+      message:
+        'WebGL is not supported or disabled. Try updating your browser or enabling hardware acceleration.',
+      actions: [
+        { label: 'Refresh page', onClick: () => window.location.reload() },
+      ],
+    });
   }
-  app.appendChild(renderer.domElement);
+  if (webGLReady) {
+    app.appendChild(renderer.domElement);
+
+    renderer.domElement.addEventListener(
+      'webglcontextlost',
+      (event) => {
+        event.preventDefault();
+        webGLReady = false;
+        showErrorOverlay({
+          title: 'Graphics were reset',
+          message: 'The game will need to reload.',
+          actions: [
+            { label: 'Refresh page', onClick: () => window.location.reload() },
+          ],
+        });
+      },
+      false
+    );
+
+    renderer.domElement.addEventListener('webglcontextrestored', () => {
+      webGLReady = true;
+    }, false);
+  }
 
   const cameraOffset = new THREE.Vector3(20, 20, 20);
   const cameraTarget = new THREE.Vector3();
@@ -97,6 +130,7 @@ export function createRenderSystem({ app }) {
   const mobRaycaster = new THREE.Raycaster();
 
   function resize() {
+    if (!webGLReady) return;
     renderer.setSize(window.innerWidth, window.innerHeight);
     const aspect = window.innerWidth / window.innerHeight;
     camera.left = (-FRUSTUM_SIZE * aspect) / 2;
@@ -362,6 +396,7 @@ export function createRenderSystem({ app }) {
   }
 
   function renderFrame() {
+    if (!webGLReady) return;
     renderer.render(scene, camera);
   }
 
@@ -598,6 +633,7 @@ export function createRenderSystem({ app }) {
     scene,
     renderer,
     camera,
+    isWebGLReady: () => webGLReady,
     resize,
     setLocalPlayerId,
     syncPlayers,

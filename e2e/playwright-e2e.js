@@ -244,6 +244,7 @@ async function run() {
       'WebGLRenderer: A WebGL context could not be created',
       'WebGLRenderer: Error creating WebGL context',
       'WebGL unavailable, falling back to canvas renderer.',
+      'WebGL unavailable.',
     ];
     const shouldIgnoreError = (text) =>
       ignoredErrorSnippets.some((snippet) => text.includes(snippet));

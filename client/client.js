@@ -1,3 +1,4 @@
+import { showErrorOverlay, hideErrorOverlay } from './error-overlay.js';
 import { createRenderSystem } from './render.js';
 import { createGameState } from './state.js';
 import { createInputHandler } from './input.js';
@@ -148,15 +149,20 @@ const connection = createConnection({
   loadCharacters: () => auth.loadCharacters(),
   clearSessionState: () => auth.clearSessionState(),
   menu,
+  getReconnectParams: () =>
+    isGuestSession ? { guest: true } : { character: auth.getCharacter() },
 });
 connectionRef.current = connection;
 
 auth.setOnConnectCharacter(async (character) => {
   showLoadingScreen('Loading assets...');
-  await preloadAllAssets();
-  showLoadingScreen('Connecting...');
-  await connection.start({ character }, { manualStepping, virtualNow });
-  hideLoadingScreen();
+  try {
+    await preloadAllAssets();
+    showLoadingScreen('Connecting...');
+    await connection.start({ character }, { manualStepping, virtualNow });
+  } finally {
+    hideLoadingScreen();
+  }
 });
 auth.setOnDisconnect(() => connection.disconnect());
 
@@ -351,6 +357,9 @@ function stepFrame(dt, now) {
 }
 
 function animate() {
+  if (!renderSystem.isWebGLReady()) {
+    return;
+  }
   if (manualStepping) {
     requestAnimationFrame(animate);
     return;
@@ -365,7 +374,9 @@ function animate() {
 window.addEventListener('resize', renderSystem.resize);
 renderSystem.resize();
 
-animate();
+if (renderSystem.isWebGLReady()) {
+  animate();
+}
 
 window.advanceTime = (ms) => {
   manualStepping = true;
@@ -620,7 +631,27 @@ if (isGuestSession) {
       showLoadingScreen('Connecting...');
       await connection.start({ guest: true }, { manualStepping, virtualNow });
     } catch {
-      // connection failed
+      hideErrorOverlay();
+      showErrorOverlay({
+        title: 'Could not connect',
+        message: 'Check your network and try again.',
+        actions: [
+          {
+            label: 'Retry',
+            onClick: () => {
+              hideErrorOverlay();
+              window.location.href = `${window.location.pathname}?guest=1`;
+            },
+          },
+          {
+            label: 'Back',
+            onClick: () => {
+              hideErrorOverlay();
+              window.location.href = window.location.pathname;
+            },
+          },
+        ],
+      });
     } finally {
       hideLoadingScreen();
     }

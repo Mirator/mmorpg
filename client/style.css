@@ -532,6 +532,58 @@ body.menu-open #xp-bar {
   }
 }
 
+.error-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 8, 12, 0.9);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 80;
+}
+
+.error-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.error-overlay-card {
+  width: min(420px, 90vw);
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 77, 77, 0.35);
+  background: radial-gradient(circle at top, rgba(32, 12, 16, 0.96), rgba(10, 12, 18, 0.98));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+.error-overlay-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffd1d1;
+}
+
+.error-overlay-message {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.error-overlay-actions {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.error-overlay-btn {
+  flex: 1;
+  min-width: 120px;
+}
+
 #target-hud {
   position: fixed;
   top: 64px;
