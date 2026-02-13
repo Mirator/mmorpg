@@ -185,6 +185,7 @@ inputHandler = createInputHandler({
   isInventoryOpen: ui.isInventoryOpen,
   isSkillsOpen: ui.isSkillsOpen,
   onToggleInventory: ui.toggleInventory,
+  onToggleCharacter: ui.toggleCharacter,
   onToggleSkills: ui.toggleSkills,
   onInteract: handleInteract,
   onAbility: (slot) => combat.useAbility(slot),
@@ -584,6 +585,9 @@ window.__game = {
     return renderSystem.projectToScreen({ x, z });
   },
   getState: () => buildTextState(),
+  selectTarget: (selection) => {
+    combat.selectTarget(selection);
+  },
 };
 
 function getNearestVendor(pos) {

@@ -76,9 +76,14 @@ export function createAuth({
     if (accountNameEl) {
       accountNameEl.textContent = currentAccount?.username ?? '--';
     }
+    const charName = currentCharacter?.name ?? '--';
     if (characterNameEl) {
-      characterNameEl.textContent = currentCharacter?.name ?? '--';
+      characterNameEl.textContent = charName;
     }
+    const charSheetName = document.getElementById('character-sheet-name');
+    const charSheetCharName = document.getElementById('character-sheet-char-name');
+    if (charSheetName) charSheetName.textContent = charName;
+    if (charSheetCharName) charSheetCharName.textContent = charName;
   }
 
   function clearSessionState() {

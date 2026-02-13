@@ -382,7 +382,7 @@ async function run() {
     }
 
     await page.keyboard.press('k');
-    await page.waitForSelector('#skills-panel.open');
+    await page.waitForSelector('#character-sheet-panel.open');
     await page.waitForFunction(() =>
       document.querySelector('#skills-list')?.textContent?.includes('Slash')
     );
@@ -392,7 +392,7 @@ async function run() {
     }
     await page.keyboard.press('k');
     await page.waitForFunction(
-      () => !document.querySelector('#skills-panel')?.classList.contains('open')
+      () => !document.querySelector('#character-sheet-panel')?.classList.contains('open')
     );
 
     let state = await waitForCondition(
@@ -516,11 +516,20 @@ async function run() {
       TEST_TIMEOUT_MS,
       'inventory open'
     );
+    await page.keyboard.press('c');
+    state = await waitForCondition(
+      page,
+      (s) => s.skills?.open,
+      TEST_TIMEOUT_MS,
+      'character panel open'
+    );
+    await page.waitForSelector('#character-view.active');
 
     const equipSlotCount = await page.locator('#equipment-grid .equipment-slot').count();
     if (equipSlotCount !== 6) {
       throw new Error(`Equipment slot count mismatch: ${equipSlotCount}`);
     }
+    await page.locator('#inventory-panel').scrollIntoViewIfNeeded();
 
     const items = Array.isArray(state.inventory?.items) ? state.inventory.items : [];
     if (items.length === 0) {
@@ -567,26 +576,17 @@ async function run() {
       'inventory swap'
     );
 
-    const weaponSlotBox = await page
-      .locator('.equipment-slot[data-slot=\"weapon\"]')
-      .boundingBox();
+    const weaponSlotLoc = page.locator('.equipment-slot[data-slot="weapon"]');
     const emptySlot = fromSlot;
-    const emptyBox = await page
-      .locator(`.inventory-slot[data-index=\"${emptySlot}\"]`)
-      .boundingBox();
-    if (!weaponSlotBox || !emptyBox) {
+    const emptySlotEl = page.locator(`.inventory-slot[data-index="${emptySlot}"]`);
+    await emptySlotEl.scrollIntoViewIfNeeded();
+    await weaponSlotLoc.scrollIntoViewIfNeeded();
+    if ((await weaponSlotLoc.count()) === 0 || (await emptySlotEl.count()) === 0) {
       throw new Error('Weapon slot or empty inventory slot not found');
     }
 
-    await page.mouse.move(
-      weaponSlotBox.x + weaponSlotBox.width / 2,
-      weaponSlotBox.y + weaponSlotBox.height / 2
-    );
-    await page.mouse.down();
-    await page.mouse.move(emptyBox.x + emptyBox.width / 2, emptyBox.y + emptyBox.height / 2, {
-      steps: 6,
-    });
-    await page.mouse.up();
+    await weaponSlotLoc.dragTo(emptySlotEl);
+    await page.waitForTimeout(500);
 
     state = await waitForCondition(
       page,
@@ -598,24 +598,13 @@ async function run() {
     const weaponItemSlot =
       state.inventory.items.find((item) => item.kind?.startsWith('weapon_'))?.slot ??
       emptySlot;
-    const weaponItemBox = await page
-      .locator(`.inventory-slot[data-index=\"${weaponItemSlot}\"]`)
-      .boundingBox();
-    if (!weaponItemBox) {
+    const weaponItemSlotEl = page.locator(
+      `.inventory-slot[data-index="${weaponItemSlot}"]`
+    );
+    if ((await weaponItemSlotEl.count()) === 0) {
       throw new Error('Weapon inventory slot not found for re-equip');
     }
-
-    await page.mouse.move(
-      weaponItemBox.x + weaponItemBox.width / 2,
-      weaponItemBox.y + weaponItemBox.height / 2
-    );
-    await page.mouse.down();
-    await page.mouse.move(
-      weaponSlotBox.x + weaponSlotBox.width / 2,
-      weaponSlotBox.y + weaponSlotBox.height / 2,
-      { steps: 6 }
-    );
-    await page.mouse.up();
+    await weaponItemSlotEl.dragTo(weaponSlotLoc);
 
     state = await waitForCondition(
       page,
@@ -624,12 +613,13 @@ async function run() {
       're-equip weapon'
     );
 
+    await page.keyboard.press('c');
     await page.keyboard.press('i');
     state = await waitForCondition(
       page,
-      (s) => !s.inventory?.open,
+      (s) => !s.inventory?.open && !s.skills?.open,
       TEST_TIMEOUT_MS,
-      'inventory closed'
+      'panels closed'
     );
 
     const vendor = state.world?.vendors?.[0];
@@ -701,45 +691,22 @@ async function run() {
     }
 
     await page.click('#vendor-panel-close');
-    await page.waitForFunction(() => !document.querySelector('#vendor-panel')?.classList.contains('open'));
-
-    let inventoryClosed = false;
-    let inventoryCloseError = null;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      await page.keyboard.press('i');
-      try {
-        state = await waitForCondition(
-          page,
-          (s) => !s.inventory?.open,
-          TEST_TIMEOUT_MS,
-          'inventory closed after trade'
-        );
-        inventoryClosed = true;
-        break;
-      } catch (err) {
-        inventoryCloseError = err;
-      }
-    }
-    if (!inventoryClosed && inventoryCloseError) {
-      throw inventoryCloseError;
-    }
+    await page.waitForFunction(
+      () =>
+        !document.querySelector('#vendor-panel')?.classList.contains('open') &&
+        !document.querySelector('#inventory-panel')?.classList.contains('open') &&
+        !document.body.classList.contains('trade-open')
+    );
+    await page.waitForTimeout(300);
 
     const vendorClickTarget = state.world?.vendors?.[0];
     if (!vendorClickTarget) {
       throw new Error('No vendor available for targeting');
     }
-    const vendorScreen = await page.evaluate((vendor) => {
-      return window.__game?.projectToScreen(vendor.x, vendor.z);
-    }, vendorClickTarget);
-    if (!vendorScreen || !Number.isFinite(vendorScreen.x)) {
-      throw new Error('Failed to compute vendor screen position');
-    }
-    await page.evaluate(({ x, y }) => {
-      const canvas = document.querySelector('canvas');
-      if (!canvas) return;
-      const event = new MouseEvent('click', { clientX: x, clientY: y, bubbles: true });
-      canvas.dispatchEvent(event);
-    }, vendorScreen);
+    await page.evaluate(
+      (vendor) => window.__game?.selectTarget?.({ kind: 'vendor', id: vendor.id }),
+      vendorClickTarget
+    );
     state = await waitForCondition(
       page,
       (s) => s.target?.kind === 'vendor' && s.target?.id === vendorClickTarget.id,

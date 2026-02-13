@@ -41,6 +41,7 @@ export function createInputHandler({
   isInventoryOpen,
   isSkillsOpen,
   onToggleInventory,
+  onToggleCharacter,
   onToggleSkills,
   onToggleFullscreen,
   onInteract,
@@ -113,6 +114,10 @@ export function createInputHandler({
     }
     if (key === 'i' && !event.repeat) {
       onToggleInventory?.();
+      return;
+    }
+    if (key === 'c' && !event.repeat) {
+      onToggleCharacter?.();
       return;
     }
     if (key === 'k' && !event.repeat) {

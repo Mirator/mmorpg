@@ -41,14 +41,23 @@ export function createUiState({
   onUiOpen,
   onRespawn,
 }) {
-  const skillsPanel = document.getElementById('skills-panel');
+  const inventoryPanel = document.getElementById('inventory-panel');
+  const characterSheetPanel = document.getElementById('character-sheet-panel');
+  const characterSheetClose = document.getElementById('character-sheet-close');
+  const characterView = document.getElementById('character-view');
+  const skillsView = document.getElementById('skills-view');
+  const sheetTabBtns = document.querySelectorAll('#sheet-bottom-tabs .sheet-tab-btn');
   const skillsClassEl = document.getElementById('skills-class');
   const skillsLevelEl = document.getElementById('skills-level');
   const skillsXpEl = document.getElementById('skills-xp');
   const skillsListEl = document.getElementById('skills-list');
-  const inventoryPanel = document.getElementById('inventory-panel');
   const inventoryGrid = document.getElementById('inventory-grid');
   const equipmentGrid = document.getElementById('equipment-grid');
+  const charStatHp = document.getElementById('char-stat-hp');
+  const charStatResource = document.getElementById('char-stat-resource');
+  const charStatLevel = document.getElementById('char-stat-level');
+  const charStatClass = document.getElementById('char-stat-class');
+  const charSheetCharMeta = document.getElementById('character-sheet-char-meta');
   const vendorDialog = document.getElementById('vendor-dialog');
   const vendorPanel = document.getElementById('vendor-panel');
   const vendorDialogName = document.getElementById('vendor-dialog-name');
@@ -67,7 +76,9 @@ export function createUiState({
   let equipmentUI = null;
   let vendorUI = null;
 
-  let skillsOpen = false;
+  let inventoryOpen = false;
+  let characterOpen = false;
+  let characterTab = 'character';
   let menuOpen = true;
   let deadOpen = false;
   const abilitySlots = [];
@@ -87,12 +98,34 @@ export function createUiState({
     return me?.classId ?? DEFAULT_CLASS_ID;
   }
 
-  function setSkillsOpen(open) {
-    skillsOpen = !!open;
-    skillsPanel?.classList.toggle('open', skillsOpen);
-    if (skillsOpen) {
+  function setInventoryOpen(next) {
+    inventoryOpen = !!next;
+    inventoryPanel?.classList.toggle('open', inventoryOpen);
+    document.body.classList.toggle('inventory-open', inventoryOpen);
+    inventoryUI?.setOpen?.(inventoryOpen);
+    if (inventoryOpen) {
       clearPrompt();
       onUiOpen?.();
+    }
+  }
+
+  function setCharacterOpen(next) {
+    characterOpen = !!next;
+    characterSheetPanel?.classList.toggle('open', characterOpen);
+    document.body.classList.toggle('character-open', characterOpen);
+    if (characterOpen) {
+      clearPrompt();
+      onUiOpen?.();
+    }
+  }
+
+  function setCharacterTab(tab) {
+    if (!['character', 'skills'].includes(tab)) return;
+    characterTab = tab;
+    characterView?.classList.toggle('active', tab === 'character');
+    skillsView?.classList.toggle('active', tab === 'skills');
+    for (const btn of sheetTabBtns ?? []) {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
     }
   }
 
@@ -109,16 +142,21 @@ export function createUiState({
   }
 
   function toggleSkills() {
-    if (menuOpen || isInventoryOpen() || isDialogOpen() || isTradeOpen()) return;
-    setSkillsOpen(!skillsOpen);
+    if (menuOpen || isDialogOpen() || isTradeOpen()) return;
+    if (characterOpen && characterTab === 'skills') {
+      setCharacterOpen(false);
+    } else {
+      setCharacterOpen(true);
+      setCharacterTab('skills');
+    }
   }
 
   function setMenuOpen(open) {
     menuOpen = !!open;
     document.body.classList.toggle('menu-open', menuOpen);
     if (menuOpen) {
-      setSkillsOpen(false);
       setInventoryOpen(false);
+      setCharacterOpen(false);
       clearPrompt();
       onUiOpen?.();
     }
@@ -190,7 +228,7 @@ export function createUiState({
   }
 
   function updateSkillsPanel(me) {
-    if (!skillsPanel || !skillsOpen) return;
+    if (!skillsListEl) return;
     const classId = getCurrentClassId(me);
     const klass = getClassById(classId);
     const weaponDef = getEquippedWeapon(me?.equipment, classId);
@@ -306,13 +344,14 @@ export function createUiState({
     });
     const closeTrade = () => {
       setInventoryOpen(false);
+      setCharacterOpen(false);
     };
     vendorCloseBtn?.addEventListener('click', closeTrade);
     vendorPanelCloseBtn?.addEventListener('click', closeTrade);
   }
 
   function isInventoryOpen() {
-    return inventoryUI?.isOpen?.() ?? false;
+    return inventoryOpen;
   }
 
   function isDialogOpen() {
@@ -324,41 +363,41 @@ export function createUiState({
   }
 
   function isSkillsOpen() {
-    return skillsOpen;
+    return characterOpen;
   }
 
   function isUiBlocking() {
     return (
       menuOpen ||
-      isInventoryOpen() ||
+      inventoryOpen ||
+      characterOpen ||
       isDialogOpen() ||
       isTradeOpen() ||
-      isSkillsOpen() ||
       deadOpen
     );
   }
 
-  function setInventoryOpen(next) {
-    if (!inventoryUI) return;
-    const open = !!next;
-    inventoryUI.setOpen(open);
-    if (open) {
-      clearPrompt();
-      onUiOpen?.();
-    }
+  function toggleInventory() {
+    if (menuOpen || isTradeOpen() || isDialogOpen()) return;
+    setInventoryOpen(!inventoryOpen);
   }
 
-  function toggleInventory() {
-    if (menuOpen || isTradeOpen() || isDialogOpen() || isSkillsOpen()) return;
-    setInventoryOpen(!isInventoryOpen());
+  function toggleCharacter() {
+    if (menuOpen || isTradeOpen() || isDialogOpen()) return;
+    if (characterOpen && characterTab === 'character') {
+      setCharacterOpen(false);
+    } else {
+      setCharacterOpen(true);
+      setCharacterTab('character');
+    }
   }
 
   function updateLocalUi({ me, worldConfig, serverNow }) {
     if (me) {
       const isDead = !!me.dead;
       if (isDead && !wasDead) {
-        setSkillsOpen(false);
         setInventoryOpen(false);
+        setCharacterOpen(false);
         vendorUI?.closeAll?.();
         clearPrompt();
         onUiOpen?.();
@@ -387,6 +426,13 @@ export function createUiState({
       if (inventoryCoinsEl) {
         inventoryCoinsEl.textContent = formatCurrency(me.currencyCopper ?? 0);
       }
+      const klass = getClassById(getCurrentClassId(me));
+      const resourceLabel = (me?.resourceType ?? 'stamina').replace(/^./, (c) => c.toUpperCase());
+      if (charStatHp) charStatHp.textContent = `${me.hp ?? 0} / ${me.maxHp ?? 0}`;
+      if (charStatResource) charStatResource.textContent = `${me.resource ?? 0} / ${me.resourceMax ?? 0} (${resourceLabel})`;
+      if (charStatLevel) charStatLevel.textContent = String(me.level ?? 1);
+      if (charStatClass) charStatClass.textContent = klass?.name ?? me?.classId ?? '--';
+      if (charSheetCharMeta) charSheetCharMeta.textContent = `Level ${me.level ?? 1} ${klass?.name ?? me?.classId ?? '--'}`;
       if (lastStats.hp !== null && me.hp < lastStats.hp) {
         flashDamage();
       }
@@ -440,6 +486,11 @@ export function createUiState({
       if (inventoryCoinsEl) {
         inventoryCoinsEl.textContent = '--';
       }
+      if (charStatHp) charStatHp.textContent = '--';
+      if (charStatResource) charStatResource.textContent = '--';
+      if (charStatLevel) charStatLevel.textContent = '--';
+      if (charStatClass) charStatClass.textContent = '--';
+      if (charSheetCharMeta) charSheetCharMeta.textContent = 'Level 1 --';
       lastStats.hp = null;
       lastStats.inv = null;
       lastStats.currencyCopper = null;
@@ -453,6 +504,19 @@ export function createUiState({
   buildAbilityBar();
   renderVendorPrices();
   setMenuOpen(true);
+  setCharacterTab('character');
+
+  characterSheetClose?.addEventListener('click', () => {
+    setCharacterOpen(false);
+  });
+  for (const btn of sheetTabBtns ?? []) {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      if (tab && ['character', 'skills'].includes(tab)) {
+        setCharacterTab(tab);
+      }
+    });
+  }
 
   deathRespawnBtn?.addEventListener('click', () => {
     onRespawn?.();
@@ -469,7 +533,8 @@ export function createUiState({
     updateSkillsPanel,
     setInventoryOpen,
     toggleInventory,
-    setSkillsOpen,
+    toggleCharacter,
+    setSkillsOpen: (open) => { if (open) { setCharacterOpen(true); setCharacterTab('skills'); } else setCharacterOpen(false); },
     toggleSkills,
     setMenuOpen,
     isInventoryOpen,

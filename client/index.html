@@ -117,7 +117,7 @@
       <div class="overlay-status">Status: <span id="status">connecting...</span></div>
       <div class="overlay-controls">
         WASD to move · Click to move · Click target/TAB to cycle enemies · E to interact · I for
-        inventory · K for skills · 1-0 for abilities
+        inventory · C for character · K for skills · 1-0 for abilities
       </div>
       <button id="signout-btn" class="overlay-btn">Sign out</button>
     </div>
@@ -140,31 +140,63 @@
       <div>FPS: <span id="fps">0</span></div>
       <div>X/Z: <span id="coords">0.0, 0.0</span></div>
     </div>
-    <div id="skills-panel" class="skills-panel">
-      <div class="skills-header">
-        <div class="skills-title">Skills</div>
-        <div class="skills-meta">
-          <div>Class: <span id="skills-class">--</span></div>
-          <div>Level: <span id="skills-level">1</span></div>
-          <div>XP: <span id="skills-xp">0/0</span></div>
-        </div>
-      </div>
-      <div id="skills-list" class="skills-list"></div>
-      <div class="skills-hint">Press K to close</div>
-    </div>
-    <div id="inventory-panel">
+    <div id="inventory-panel" class="inventory-panel">
       <div class="inventory-header">
         <div class="inventory-title">Inventory</div>
         <div class="inventory-meta">
           <div class="inventory-coins">Coins: <span id="inventory-coins">0g 0s 0c</span></div>
-          <div class="inventory-hint">Drag to swap · I to close</div>
+          <div class="inventory-hint">I to close · Drag to equipment to equip</div>
         </div>
       </div>
-      <div class="equipment-section">
-        <div class="equipment-title">Equipment</div>
-        <div id="equipment-grid" class="equipment-grid"></div>
-      </div>
       <div id="inventory-grid" class="inventory-grid"></div>
+    </div>
+    <div id="character-sheet-panel" class="character-sheet-panel">
+      <div class="character-sheet-header">
+        <div class="character-sheet-title" id="character-sheet-name">--</div>
+        <button id="character-sheet-close" class="character-sheet-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div id="sheet-tabs-content" class="sheet-tabs-content">
+        <div id="character-view" class="sheet-tab-view">
+          <div class="character-header">
+            <div class="character-portrait" id="character-portrait"></div>
+            <div class="character-info">
+              <div class="character-name" id="character-sheet-char-name">--</div>
+              <div class="character-meta" id="character-sheet-char-meta">Level 1 --</div>
+            </div>
+          </div>
+          <div class="character-paper-doll">
+            <div id="equipment-grid" class="equipment-grid equipment-grid-wow"></div>
+            <div class="character-model-placeholder"></div>
+          </div>
+          <div class="character-stats">
+            <div class="stats-section">
+              <div class="stats-title">Base Stats</div>
+              <div class="stats-row"><span>HP</span><span id="char-stat-hp">--</span></div>
+              <div class="stats-row"><span>Resource</span><span id="char-stat-resource">--</span></div>
+            </div>
+            <div class="stats-section">
+              <div class="stats-title">Combat</div>
+              <div class="stats-row"><span>Level</span><span id="char-stat-level">--</span></div>
+              <div class="stats-row"><span>Class</span><span id="char-stat-class">--</span></div>
+            </div>
+          </div>
+        </div>
+        <div id="skills-view" class="sheet-tab-view">
+          <div class="skills-header">
+            <div class="skills-title">Skills</div>
+            <div class="skills-meta">
+              <div>Class: <span id="skills-class">--</span></div>
+              <div>Level: <span id="skills-level">1</span></div>
+              <div>XP: <span id="skills-xp">0/0</span></div>
+            </div>
+          </div>
+          <div id="skills-list" class="skills-list"></div>
+        </div>
+      </div>
+      <div id="sheet-bottom-tabs" class="sheet-bottom-tabs">
+        <button class="sheet-tab-btn active" data-tab="character" type="button">Character</button>
+        <button class="sheet-tab-btn" data-tab="skills" type="button">Skills</button>
+      </div>
     </div>
     <div id="vendor-dialog" class="vendor-dialog">
       <div class="vendor-title" id="vendor-dialog-name">General Vendor</div>
