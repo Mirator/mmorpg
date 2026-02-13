@@ -344,6 +344,8 @@ export function createRenderSystem({ app }) {
     effectsSystem.update(now);
   }
 
+  const cameraLookDirection = new THREE.Vector3(-1, -1, -1).normalize();
+
   function updateCamera(viewPos, dt) {
     if (!viewPos) return null;
     cameraDesired.set(
@@ -354,7 +356,11 @@ export function createRenderSystem({ app }) {
     const lerpFactor = 1 - Math.exp(-CAMERA_LERP_SPEED * dt);
     camera.position.lerp(cameraDesired, lerpFactor);
     cameraTarget.set(viewPos.x, viewPos.y ?? 0, viewPos.z);
-    camera.lookAt(cameraTarget);
+    camera.lookAt(
+      camera.position.x + cameraLookDirection.x * 100,
+      camera.position.y + cameraLookDirection.y * 100,
+      camera.position.z + cameraLookDirection.z * 100
+    );
     camera.updateMatrixWorld();
     return cameraTarget;
   }

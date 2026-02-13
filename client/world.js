@@ -10,7 +10,7 @@ import {
   pickClips,
 } from './assets.js';
 
-const LOD_FAR_DISTANCE = 50;
+const LOD_FAR_DISTANCE = 63; // 50 * 1.25
 
 const COLORS = {
   ground: 0x1b2620,
