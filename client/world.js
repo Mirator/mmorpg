@@ -1,7 +1,9 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import {
+  ASSET_PATHS,
   assembleVendorModel,
   cloneSkinned,
+  getTexture,
   loadGltf,
   loadPlayerAnimations,
   normalizeToHeight,
@@ -113,16 +115,23 @@ function buildTileTexture() {
 
 function buildGround(mapSize) {
   const tileSize = 14;
-  const texture = buildTileTexture();
+  let texture = getTexture(ASSET_PATHS.groundTexture);
+  if (!texture) {
+    texture = buildTileTexture();
+  }
+  texture = texture.clone();
   texture.repeat.set(mapSize / tileSize, mapSize / tileSize);
+  if (texture.anisotropy !== undefined) {
+    texture.anisotropy = 4;
+  }
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(mapSize, mapSize),
     new THREE.MeshStandardMaterial({
       map: texture,
-      color: COLORS.ground,
-      emissive: 0x121a16,
-      emissiveIntensity: 0.35,
+      color: 0x6b9e5a,
+      emissive: 0x0a0e0c,
+      emissiveIntensity: 0.25,
       roughness: 1,
     })
   );

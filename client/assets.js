@@ -6,7 +6,10 @@ import { ASSET_PATHS, getPreloadAssetList } from './assetPaths.js';
 export { ASSET_PATHS };
 
 const gltfCache = new Map();
+const texturePromises = new Map();
+const resolvedTextures = new Map();
 const loader = new GLTFLoader();
+const textureLoader = new THREE.TextureLoader();
 
 export function loadGltf(url) {
   if (!gltfCache.has(url)) {
@@ -18,6 +21,32 @@ export function loadGltf(url) {
     );
   }
   return gltfCache.get(url);
+}
+
+export function loadTexture(url) {
+  if (!texturePromises.has(url)) {
+    texturePromises.set(
+      url,
+      new Promise((resolve, reject) => {
+        textureLoader.load(
+          url,
+          (tex) => {
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+            resolvedTextures.set(url, tex);
+            resolve(tex);
+          },
+          undefined,
+          reject
+        );
+      })
+    );
+  }
+  return texturePromises.get(url);
+}
+
+export function getTexture(url) {
+  return resolvedTextures.get(url) ?? null;
 }
 
 export function cloneSkinned(model) {
@@ -232,5 +261,6 @@ export async function preloadAllAssets() {
     loadPlayerAnimations(),
     ...list.mobs.map((url) => loadGltf(url)),
     ...list.environment.map((url) => loadGltf(url)),
+    ...(list.textures ?? []).map((url) => loadTexture(url)),
   ]);
 }

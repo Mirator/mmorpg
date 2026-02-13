@@ -60,6 +60,10 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 - `SESSION_COOKIE_SECURE` (`true` to force Secure cookies; default `true` in production)
 - `EXPOSE_AUTH_TOKEN` (`true` to include auth token in login/signup JSON response; default `false`)
 
+## Credits
+
+- Ground texture: [Low Poly Texture](https://opengameart.org/content/low-poly-texture) by freeze111 (CC-BY 4.0)
+
 ## Structure
 
 - `server/` Node server (entry: `server/index.js`)

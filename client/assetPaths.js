@@ -9,6 +9,7 @@ export const ASSET_PATHS = {
   monsters: {
     orc: `${ASSET_ROOT}/monsters/Orc.gltf`,
   },
+  groundTexture: '/assets/textures/grass.png',
   environment: {
     market: `${ASSET_ROOT}/environment/Market_FirstAge_Level1.gltf`,
     houseA: `${ASSET_ROOT}/environment/Houses_FirstAge_2_Level1.gltf`,
@@ -29,5 +30,6 @@ export function getPreloadAssetList() {
     vendor: [ASSET_PATHS.vendorModel],
     mobs: [ASSET_PATHS.monsters.orc],
     environment: Object.values(ASSET_PATHS.environment),
+    textures: [ASSET_PATHS.groundTexture],
   };
 }
