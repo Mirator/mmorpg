@@ -131,15 +131,6 @@
         <div id="target-hp-value" class="target-hp-value">--</div>
       </div>
     </div>
-    <div id="hud">
-      <div>Level: <span id="hud-level">1</span></div>
-      <div>HP: <span id="hud-hp">--</span></div>
-      <div>Inv: <span id="hud-inv">0</span></div>
-      <div>Coins: <span id="hud-coins">0g 0s 0c</span></div>
-      <div>Respawn: <span id="hud-respawn">--</span></div>
-      <div>FPS: <span id="fps">0</span></div>
-      <div>X/Z: <span id="coords">0.0, 0.0</span></div>
-    </div>
     <div id="inventory-panel" class="inventory-panel">
       <div class="inventory-header">
         <div class="inventory-title">Inventory</div>
@@ -244,6 +235,15 @@
       <div id="xp-bar-tooltip" class="xp-bar-tooltip" role="tooltip">
         <div id="xp-bar-value">--</div>
         <div id="xp-bar-remaining">--</div>
+      </div>
+    </div>
+    <div id="top-right-panel">
+      <div id="minimap-container">
+        <canvas id="minimap"></canvas>
+      </div>
+      <div id="hud">
+        <div>FPS: <span id="fps">0</span></div>
+        <div>X/Z: <span id="coords">0.0, 0.0</span></div>
       </div>
     </div>
     <script type="module" src="./client.js"></script>

@@ -14,6 +14,7 @@ import { splitCurrency } from '/shared/economy.js';
 import { xpToNext } from '/shared/progression.js';
 import { PLAYER_CONFIG } from '/shared/config.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
+import { createMinimap } from './minimap.js';
 
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
@@ -40,6 +41,7 @@ const MAX_SNAPSHOTS = 60;
 const DEFAULT_PLAYER_SPEED = PLAYER_CONFIG.speed;
 
 const renderSystem = createRenderSystem({ app });
+const minimap = createMinimap(document.getElementById('minimap-container'));
 const gameState = createGameState({
   interpDelayMs: INTERP_DELAY_MS,
   maxSnapshots: MAX_SNAPSHOTS,
@@ -355,6 +357,12 @@ function stepFrame(dt, now) {
   }
 
   renderSystem.renderFrame();
+  minimap.render({
+    playerPos: viewPos,
+    mobs: gameState.getLatestMobs(),
+    resources: gameState.getLatestResources(),
+    worldConfig: gameState.getWorldConfig(),
+  });
 }
 
 function animate() {
@@ -372,8 +380,12 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-window.addEventListener('resize', renderSystem.resize);
+window.addEventListener('resize', () => {
+  renderSystem.resize();
+  minimap.resize();
+});
 renderSystem.resize();
+minimap.resize();
 
 if (renderSystem.isWebGLReady()) {
   animate();
