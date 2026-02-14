@@ -192,7 +192,7 @@ Healing abilities use Healing Power (derived from Spirit; Priest gets ×1.1 bonu
 Final Damage = Raw Damage × (100 / (100 + Defense))
 ```
 
-Defense uses diminishing returns. Weakened debuff multiplies raw damage before defense. Incoming healing is not reduced by defense.
+Defense uses diminishing returns. Weakened debuff multiplies raw damage before defense.
 
 ---
 

@@ -141,6 +141,10 @@ export function createServer({ env = process.env } = {}) {
     ws.sendCombatLogToPlayer(playerId, entries);
   };
 
+  const onCombatEvent = (event, now) => {
+    ws.broadcastCombatEvent(event, now);
+  };
+
   const onPlayerDeath = (playerId, now) => {
     ws.sendCombatLogToPlayer(playerId, [
       {
@@ -162,6 +166,7 @@ export function createServer({ env = process.env } = {}) {
     onPlayerDamaged,
     onCombatLog,
     onPlayerDeath,
+    onCombatEvent,
   });
 
   function start() {

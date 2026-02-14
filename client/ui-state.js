@@ -87,6 +87,9 @@ export function createUiState({
   const deathScreen = document.getElementById('death-screen');
   const deathTimerEl = document.getElementById('death-timer');
   const deathRespawnBtn = document.getElementById('death-respawn-btn');
+  const castBarWrap = document.getElementById('cast-bar-wrap');
+  const castBarFill = document.getElementById('cast-bar-fill');
+  const castBarName = document.getElementById('cast-bar-name');
 
   let inventoryUI = null;
   let equipmentUI = null;
@@ -150,6 +153,31 @@ export function createUiState({
     deathScreen?.classList.toggle('open', deadOpen);
   }
 
+  function formatAbilityNameFromId(id) {
+    if (!id || typeof id !== 'string') return '--';
+    return id
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  function updateCastBar(me, serverNow) {
+    if (!castBarWrap || !castBarFill || !castBarName) return;
+    const cast = me?.cast;
+    if (!cast) {
+      castBarWrap.classList.add('hidden');
+      return;
+    }
+    castBarWrap.classList.remove('hidden');
+    const startedAt = cast.startedAt ?? serverNow;
+    const endsAt = cast.endsAt ?? serverNow + 1000;
+    const duration = Math.max(1, endsAt - startedAt);
+    const elapsed = Math.max(0, serverNow - startedAt);
+    const progress = Math.min(1, elapsed / duration);
+    castBarFill.style.width = `${(progress * 100).toFixed(1)}%`;
+    castBarName.textContent = formatAbilityNameFromId(cast.id);
+  }
+
   function formatDeathTimer(remainingMs) {
     const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
     const minutes = Math.floor(totalSeconds / 60);
@@ -182,6 +210,30 @@ export function createUiState({
     return menuOpen;
   }
 
+  function buildAbilityTooltip(ability) {
+    const parts = [];
+    if (ability.baseValue != null && ability.coefficient != null) {
+      parts.push(`Damage: ${ability.baseValue} + Power × ${ability.coefficient}`);
+    }
+    if (ability.resourceCost) {
+      const res = (ability.resourceCost ?? 0);
+      parts.push(`Cost: ${res}`);
+    }
+    if (ability.cooldownMs) {
+      parts.push(`CD: ${(ability.cooldownMs / 1000).toFixed(1)}s`);
+    }
+    if (ability.range) {
+      parts.push(`Range: ${ability.range}m`);
+    }
+    if (ability.requirePlacement) {
+      parts.push('Requires placement');
+    }
+    if (ability.radius) {
+      parts.push(`Radius: ${ability.radius}m`);
+    }
+    return parts.join(' · ') || ability.name;
+  }
+
   function buildAbilityBar() {
     if (!abilityBar) return;
     abilityBar.innerHTML = '';
@@ -197,8 +249,16 @@ export function createUiState({
       const name = document.createElement('div');
       name.className = 'ability-name';
       name.textContent = '';
+      const cooldownNum = document.createElement('div');
+      cooldownNum.className = 'ability-cooldown-num';
+      cooldownNum.textContent = '';
+      const tooltip = document.createElement('div');
+      tooltip.className = 'ability-tooltip';
+      tooltip.setAttribute('role', 'tooltip');
       el.appendChild(key);
       el.appendChild(name);
+      el.appendChild(cooldownNum);
+      el.appendChild(tooltip);
       el.addEventListener('click', () => {
         onAbilityClick?.(slot);
       });
@@ -207,12 +267,14 @@ export function createUiState({
     }
   }
 
-  function updateAbilityBar(me, serverNow) {
+  function updateAbilityBar(me, serverNow, globalCooldownMs = 900) {
     if (!abilityBar || abilitySlots.length === 0) return;
     const classId = getCurrentClassId(me);
     const weaponDef = getEquippedWeapon(me?.equipment, classId);
     const abilities = getAbilitiesForClass(classId, me?.level ?? 1, weaponDef);
     const abilityBySlot = new Map(abilities.map((ability) => [ability.slot, ability]));
+    const gcdEnd = me?.globalCooldownUntil ?? 0;
+    const gcdRemaining = Math.max(0, gcdEnd - serverNow);
 
     for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
       const ability = abilityBySlot.get(slot);
@@ -226,6 +288,10 @@ export function createUiState({
         slotEl.classList.add('empty');
         if (nameEl) nameEl.textContent = '';
         slotEl.style.setProperty('--cooldown', '0');
+        const tooltipEl = slotEl.querySelector('.ability-tooltip');
+        const cooldownNumEl = slotEl.querySelector('.ability-cooldown-num');
+        if (tooltipEl) tooltipEl.textContent = '';
+        if (cooldownNumEl) cooldownNumEl.textContent = '';
         continue;
       }
 
@@ -235,11 +301,28 @@ export function createUiState({
           ? me?.attackCooldownUntil ?? 0
           : me?.abilityCooldowns?.[ability.id] ?? 0;
       const cooldownEnd = Math.max(localCooldown, serverCooldown);
-      const remaining = Math.max(0, cooldownEnd - serverNow);
-      const fraction = ability.cooldownMs
-        ? Math.min(1, remaining / ability.cooldownMs)
+      let remaining = Math.max(0, cooldownEnd - serverNow);
+      if (!ability.exemptFromGCD && gcdRemaining > 0) {
+        remaining = Math.max(remaining, gcdRemaining);
+      }
+      const durationMs = ability.exemptFromGCD
+        ? ability.cooldownMs ?? 0
+        : Math.max(ability.cooldownMs ?? 0, globalCooldownMs);
+      const fraction = durationMs
+        ? Math.min(1, remaining / durationMs)
         : 0;
       slotEl.style.setProperty('--cooldown', fraction.toFixed(3));
+      const tooltipEl = slotEl.querySelector('.ability-tooltip');
+      const cooldownNumEl = slotEl.querySelector('.ability-cooldown-num');
+      if (tooltipEl) {
+        tooltipEl.textContent = buildAbilityTooltip(ability);
+      }
+      if (cooldownNumEl) {
+        cooldownNumEl.textContent =
+          remaining > 0 && remaining < 60000
+            ? `${(remaining / 1000).toFixed(1)}s`
+            : '';
+      }
     }
   }
 
@@ -431,6 +514,7 @@ export function createUiState({
       wasDead = isDead;
 
       updateHud(me, serverNow);
+      updateCastBar(me, serverNow);
       if (inventoryUI) {
         inventoryUI.setInventory(me.inventory ?? [], {
           slots: me.invSlots ?? worldConfig?.playerInvSlots ?? me.inventory?.length ?? 0,
@@ -507,6 +591,7 @@ export function createUiState({
         deathTimerEl.textContent = '--';
       }
       updateHud(null, serverNow);
+      updateCastBar(null, serverNow);
       if (inventoryUI) {
         inventoryUI.setInventory([], {
           slots: worldConfig?.playerInvSlots ?? 0,
@@ -569,10 +654,28 @@ export function createUiState({
     onRespawn?.();
   });
 
+  const ABILITY_FAIL_MESSAGES = {
+    no_target: 'No target selected',
+    out_of_range: 'Out of range',
+    no_placement: 'Click on the ground to place',
+    resource: 'Not enough resource',
+    cooldown: 'Ability on cooldown',
+    gcd: 'Global cooldown',
+    casting: 'Cannot use while casting',
+    unknown_ability: 'Unknown ability',
+    no_direction: 'Face an enemy to use',
+  };
+
+  function showAbilityError(reason, slot) {
+    const text = ABILITY_FAIL_MESSAGES[reason] ?? 'Ability failed';
+    showEvent(text);
+  }
+
   return {
     setStatus,
     showPrompt,
     clearPrompt,
+    showAbilityError,
     renderVendorPrices,
     updateLocalUi,
     updateTargetHud,

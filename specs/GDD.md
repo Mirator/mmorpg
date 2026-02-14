@@ -261,7 +261,8 @@ Shared config defaults:
   - attackDamagePerLevel: 2
   - radius: 0.8
 - Combat
-  - basicAttackDamage: 10
+  - basicAttackBaseValue: 10
+  - basicAttackCoefficient: 0.4
   - basicAttackCooldownMs: 900
 
 Server runtime defaults:

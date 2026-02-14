@@ -83,6 +83,112 @@ export function createEffectsSystem(scene) {
     });
   }
 
+  function spawnNova({ center, radius = 2.5, color = 0x88ccff, durationMs = 400, now = performance.now() }) {
+    if (!center) return;
+    const geometry = new THREE.RingGeometry(radius * 0.3, radius, 32);
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(center.x, (center.y ?? 0) + 0.05, center.z);
+    addEffect({
+      kind: 'nova',
+      mesh,
+      start: now,
+      duration: durationMs,
+    });
+  }
+
+  function spawnCone({ from, direction, coneDegrees = 90, range = 5, color = 0xff6633, durationMs = 400, now = performance.now() }) {
+    if (!from || !direction) return;
+    const angle = (coneDegrees * Math.PI) / 180;
+    const geometry = new THREE.ConeGeometry(range * Math.tan(angle / 2), range, 16, 1, true);
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    const rotY = Math.atan2(-direction.x, -direction.z);
+    mesh.rotation.set(-Math.PI / 2, rotY, 0);
+    mesh.position.set(from.x, (from.y ?? 0) + 0.1, from.z);
+    addEffect({
+      kind: 'cone',
+      mesh,
+      start: now,
+      duration: durationMs,
+    });
+  }
+
+  function spawnBuffAura({ center, color = 0xffdd66, durationMs = 600, now = performance.now() }) {
+    if (!center) return;
+    const geometry = new THREE.RingGeometry(0.4, 1.2, 24);
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(center.x, (center.y ?? 0) + 0.02, center.z);
+    addEffect({
+      kind: 'buffAura',
+      mesh,
+      start: now,
+      duration: durationMs,
+    });
+  }
+
+  function spawnDashTrail({ from, to, durationMs = 300, now = performance.now() }) {
+    if (!from || !to) return;
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    const dist = Math.hypot(dx, dz) || 0.001;
+    const geometry = new THREE.PlaneGeometry(dist, 0.4);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0x88aaff,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.rotation.z = -Math.atan2(dx, dz);
+    mesh.position.set((from.x + to.x) / 2, (from.y ?? 0) + 0.1, (from.z + to.z) / 2);
+    addEffect({
+      kind: 'dashTrail',
+      mesh,
+      start: now,
+      duration: durationMs,
+    });
+  }
+
+  function spawnHealRing({ center, radius = 5, color = 0xffdd66, durationMs = 500, now = performance.now() }) {
+    if (!center) return;
+    const geometry = new THREE.RingGeometry(radius * 0.5, radius, 32);
+    const material = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(center.x, (center.y ?? 0) + 0.05, center.z);
+    addEffect({
+      kind: 'healRing',
+      mesh,
+      start: now,
+      duration: durationMs,
+    });
+  }
+
   function update(now) {
     for (let i = effects.length - 1; i >= 0; i -= 1) {
       const effect = effects[i];
@@ -114,6 +220,11 @@ export function createEffectsSystem(scene) {
     spawnSlash,
     spawnProjectile,
     spawnImpact,
+    spawnNova,
+    spawnCone,
+    spawnBuffAura,
+    spawnDashTrail,
+    spawnHealRing,
     update,
   };
 }

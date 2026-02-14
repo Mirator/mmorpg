@@ -52,6 +52,10 @@ export function createInputHandler({
   onCycleTarget,
   pickTarget,
   onTradeTab,
+  getPlacementMode,
+  onPlacementConfirm,
+  onPlacementCancel,
+  onPlacementUpdate,
 }) {
   const keys = { w: false, a: false, s: false, d: false };
 
@@ -106,6 +110,12 @@ export function createInputHandler({
     if (isMenuOpen?.()) {
       return;
     }
+    if (key === 'escape' && !event.repeat) {
+      if (getPlacementMode?.()) {
+        onPlacementCancel?.();
+        return;
+      }
+    }
     if (key === 'tab' && !event.repeat) {
       event.preventDefault();
       if (isUiBlocking()) return;
@@ -153,11 +163,24 @@ export function createInputHandler({
   const mouse = new THREE.Vector2();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
+  function getGroundPoint(ndc) {
+    raycaster.setFromCamera(ndc, camera);
+    const point = new THREE.Vector3();
+    const hit = raycaster.ray.intersectPlane(groundPlane, point);
+    return hit ? { x: point.x, y: point.y ?? 0, z: point.z } : null;
+  }
+
   renderer.domElement.addEventListener('click', (event) => {
     if (isUiBlocking()) return;
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    const placement = getPlacementMode?.();
+    if (placement) {
+      const pos = getGroundPoint({ x: mouse.x, y: mouse.y });
+      if (pos) onPlacementConfirm?.(pos);
+      return;
+    }
     if (pickTarget) {
       const picked = pickTarget({ x: mouse.x, y: mouse.y });
       if (picked) {
@@ -168,12 +191,17 @@ export function createInputHandler({
     if (isMovementActive()) {
       return;
     }
-    raycaster.setFromCamera(mouse, camera);
-    const point = new THREE.Vector3();
-    const hit = raycaster.ray.intersectPlane(groundPlane, point);
-    if (hit) {
-      onMoveTarget?.({ x: point.x, y: point.y ?? 0, z: point.z });
-    }
+    const pos = getGroundPoint({ x: mouse.x, y: mouse.y });
+    if (pos) onMoveTarget?.(pos);
+  });
+
+  renderer.domElement.addEventListener('mousemove', (event) => {
+    if (!getPlacementMode?.() || !onPlacementUpdate) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    const pos = getGroundPoint({ x: mouse.x, y: mouse.y });
+    if (pos) onPlacementUpdate?.(pos);
   });
 
   return {

@@ -38,9 +38,12 @@ export const MOB_CONFIG = {
 };
 
 export const COMBAT_CONFIG = {
-  basicAttackDamage: 10,
+  basicAttackBaseValue: 10,
+  basicAttackCoefficient: 0.4,
   basicAttackCooldownMs: 900,
   targetSelectRange: 25,
+  globalCooldownMs: 900,
+  ccDrWindowMs: 10_000,
 };
 
 export const CHAT_CONFIG = {
@@ -79,8 +82,10 @@ export function getConfigSnapshot() {
       radius: MOB_CONFIG.radius,
     },
     combat: {
-      basicAttackDamage: COMBAT_CONFIG.basicAttackDamage,
+      basicAttackBaseValue: COMBAT_CONFIG.basicAttackBaseValue,
+      basicAttackCoefficient: COMBAT_CONFIG.basicAttackCoefficient,
       basicAttackCooldownMs: COMBAT_CONFIG.basicAttackCooldownMs,
+      globalCooldownMs: COMBAT_CONFIG.globalCooldownMs ?? 900,
       targetSelectRange: COMBAT_CONFIG.targetSelectRange,
     },
     vendor: {

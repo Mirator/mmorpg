@@ -211,6 +211,12 @@ export function createConnection({
             for (const event of events) {
               onCombatEvents(event, now, eventTime);
             }
+            return;
+          }
+
+          if (msg.type === 'abilityFailed' && typeof onAbilityFailed === 'function') {
+            onAbilityFailed(msg.reason, msg.slot);
+            return;
           }
 
           if (msg.type === 'chat' && typeof onChatMessage === 'function') {

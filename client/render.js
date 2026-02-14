@@ -129,6 +129,48 @@ export function createRenderSystem({ app }) {
   const effectsSystem = createEffectsSystem(scene);
   const mobRaycaster = new THREE.Raycaster();
 
+  let placementIndicator = null;
+  let placementIndicatorRadius = 2.5;
+
+  function setPlacementIndicator(visible, radius = 2.5, placementRange = 10) {
+    if (!visible) {
+      if (placementIndicator) {
+        scene.remove(placementIndicator);
+        placementIndicator.geometry.dispose();
+        placementIndicator.material.dispose();
+        placementIndicator = null;
+      }
+      return;
+    }
+    placementIndicatorRadius = radius;
+    if (placementIndicator) {
+      placementIndicator.geometry.dispose();
+      placementIndicator.geometry = new THREE.RingGeometry(radius * 0.8, radius, 32);
+    } else {
+      const geometry = new THREE.RingGeometry(radius * 0.8, radius, 32);
+      const material = new THREE.MeshBasicMaterial({
+        color: 0x66cc44,
+        transparent: true,
+        opacity: 0.5,
+        side: THREE.DoubleSide,
+      });
+      placementIndicator = new THREE.Mesh(geometry, material);
+      placementIndicator.rotation.x = -Math.PI / 2;
+      placementIndicator.position.y = 0.05;
+    }
+    if (!scene.children.includes(placementIndicator)) {
+      scene.add(placementIndicator);
+    }
+  }
+
+  function updatePlacementIndicator(pos, isValid) {
+    if (!placementIndicator || !pos) return;
+    placementIndicator.position.set(pos.x, 0.05, pos.z);
+    if (placementIndicator.material) {
+      placementIndicator.material.color.setHex(isValid ? 0x66cc44 : 0xcc4444);
+    }
+  }
+
   function resize() {
     if (!webGLReady) return;
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -662,5 +704,17 @@ export function createRenderSystem({ app }) {
       effectsSystem.spawnSlash({ from, to, durationMs, now }),
     spawnProjectile: (from, to, durationMs, now) =>
       effectsSystem.spawnProjectile({ from, to, durationMs, now }),
+    spawnNova: (center, radius, color, durationMs, now) =>
+      effectsSystem.spawnNova({ center, radius, color, durationMs, now }),
+    spawnCone: (from, direction, coneDegrees, range, color, durationMs, now) =>
+      effectsSystem.spawnCone({ from, direction, coneDegrees, range, color, durationMs, now }),
+    spawnBuffAura: (center, color, durationMs, now) =>
+      effectsSystem.spawnBuffAura({ center, color, durationMs, now }),
+    spawnDashTrail: (from, to, durationMs, now) =>
+      effectsSystem.spawnDashTrail({ from, to, durationMs, now }),
+    spawnHealRing: (center, radius, color, durationMs, now) =>
+      effectsSystem.spawnHealRing({ center, radius, color, durationMs, now }),
+    setPlacementIndicator,
+    updatePlacementIndicator,
   };
 }

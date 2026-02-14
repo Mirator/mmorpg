@@ -149,6 +149,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
           mob.targetId = null;
           mob.stunnedUntil = 0;
           mob.stunImmuneUntil = 0;
+          mob.rootedUntil = 0;
           mob.slowUntil = 0;
           mob.slowMultiplier = 1;
           mob.weakenedUntil = 0;
@@ -157,6 +158,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
           mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
           mob.damageBy = {};
           mob.supportBy = {};
+          mob.tauntedUntil = 0;
         }
       }
       continue;
@@ -180,6 +182,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
         mob.damageBy = {};
         mob.supportBy = {};
+        mob.tauntedUntil = 0;
       }
       continue;
     }
@@ -188,6 +191,8 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
     if (stunned) {
       continue;
     }
+
+    const rooted = Number.isFinite(mob.rootedUntil) && mob.rootedUntil > now;
 
     const slowMultiplier =
       Number.isFinite(mob.slowUntil) && mob.slowUntil > now
@@ -199,12 +204,21 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         : 1;
 
     let target = null;
-    let closestDist2 = aggroRadius * aggroRadius;
-    for (const player of alivePlayers) {
-      const dist2 = distance2(player.pos, mob.pos);
-      if (dist2 <= closestDist2) {
-        closestDist2 = dist2;
-        target = player;
+    const taunted = (mob.tauntedUntil ?? 0) > now;
+    if (taunted && mob.targetId) {
+      const taunter = alivePlayers.find((p) => p.id === mob.targetId);
+      if (taunter && distance2(taunter.pos, mob.pos) <= leashRadius * leashRadius) {
+        target = taunter;
+      }
+    }
+    if (!target) {
+      let closestDist2 = aggroRadius * aggroRadius;
+      for (const player of alivePlayers) {
+        const dist2 = distance2(player.pos, mob.pos);
+        if (dist2 <= closestDist2) {
+          closestDist2 = dist2;
+          target = player;
+        }
       }
     }
 
@@ -223,7 +237,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         mob.dir = randomDirection(rand);
         mob.nextDecisionAt = now + randomRange(rand, ...wanderDuration);
       }
-    } else if (mob.state === 'wander') {
+    } else if (mob.state === 'wander' && !rooted) {
       mob.pos.x += mob.dir.x * wanderSpeed * slowMultiplier * dt;
       mob.pos.z += mob.dir.z * wanderSpeed * slowMultiplier * dt;
       mob.pos = applyCollisions(mob.pos, world, mobRadius);
@@ -240,7 +254,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         mob.state = 'idle';
         mob.targetId = null;
         mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
-      } else if (dist > 0.01) {
+      } else if (dist > 0.01 && !rooted) {
         const step = (speed * slowMultiplier * dt) / dist;
         mob.pos.x += dx * step;
         mob.pos.z += dz * step;
@@ -256,7 +270,14 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         rawDamage *= weakenedMultiplier;
         rawDamage *= target.damageTakenMultiplier ?? 1;
         const derived = computeDerivedStats(target);
-        const finalDamage = Math.max(0, Math.floor(rawDamage * (100 / (100 + derived.physicalDefense))));
+        let finalDamage = Math.max(0, Math.floor(rawDamage * (100 / (100 + derived.physicalDefense))));
+        const absorb = (target.absorbUntil ?? 0) > now ? (target.absorbAmount ?? 0) : 0;
+        if (absorb > 0 && finalDamage > 0) {
+          const toAbsorb = Math.min(finalDamage, absorb);
+          target.absorbAmount = Math.max(0, (target.absorbAmount ?? 0) - toAbsorb);
+          finalDamage -= toAbsorb;
+          if ((target.absorbAmount ?? 0) <= 0) target.absorbUntil = 0;
+        }
         target.hp = Math.max(0, target.hp - finalDamage);
         if (finalDamage > 0) {
           target.combatTagUntil = now + 5000;

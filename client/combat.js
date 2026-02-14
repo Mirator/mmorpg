@@ -12,6 +12,7 @@ export function createCombat({
   ctx,
 }) {
   const combatEvents = [];
+  let placementMode = null;
 
   function recordCombatEvent(event, now) {
     if (!event) return;
@@ -104,6 +105,14 @@ export function createCombat({
     const abilities = getAbilitiesForClass(classId, currentMe?.level ?? 1, weaponDef);
     const ability = abilities.find((item) => item.slot === slot);
     if (!ability) return;
+    if (placementMode && placementMode.slot !== slot) {
+      cancelPlacement();
+    }
+    if (ability.requirePlacement) {
+      placementMode = { slot, ability };
+      renderSystem?.setPlacementIndicator?.(true, ability.radius ?? 2.5, ability.placementRange ?? 10);
+      return;
+    }
     if (ability.targetType === 'targeted') {
       if (ability.targetKind === 'player') {
         if (ctx.selectedTarget?.kind === 'player') {
@@ -133,6 +142,7 @@ export function createCombat({
         ? currentMe?.attackCooldownUntil ?? 0
         : currentMe?.abilityCooldowns?.[ability.id] ?? 0;
     if (Math.max(localCooldown, serverCooldown) > now) return;
+    if (!ability.exemptFromGCD && (currentMe?.globalCooldownUntil ?? 0) > now) return;
     const cost = ability.resourceCost ?? 0;
     if (cost > 0 && (currentMe?.resource ?? 0) < cost) return;
     const localCooldownDuration = ability.windUpMs ?? ability.cooldownMs ?? 0;
@@ -141,16 +151,116 @@ export function createCombat({
     sendWithSeq({ type: 'action', kind: 'ability', slot });
   }
 
+  const ABILITY_COLORS = {
+    frost_nova: 0x88ccff,
+    ground_slam: 0x8b7355,
+    meteor: 0xff6633,
+    snare_trap: 0x66cc44,
+    flame_wave: 0xff6633,
+    cleave: 0xffe2a8,
+    whirlwind: 0xffe2a8,
+    prayer_of_light: 0xffdd66,
+    firebolt: 0xff6633,
+    smite: 0xffdd66,
+    poison_arrow: 0x66cc44,
+    disengage_shot: 0x9fe3ff,
+    aimed_shot: 0x9fe3ff,
+    arcane_missiles: 0xaa66ff,
+    rapid_fire: 0x9fe3ff,
+    berserk: 0xff6633,
+    defensive_stance: 0x88aaff,
+    shield_wall: 0x88aaff,
+    ice_barrier: 0x88ccff,
+    eagle_eye: 0xffdd66,
+  };
+
   function handleCombatEvent(event, now, serverTime) {
-    if (!event || event.kind !== 'basic_attack') return;
+    if (!event) return;
     const timestamp = Number.isFinite(serverTime) ? serverTime : gameState.getServerNow();
     recordCombatEvent(event, timestamp);
-    renderSystem?.triggerAttack?.(event.attackerId, now, event.durationMs);
-    if (event.attackType === 'ranged') {
-      renderSystem.spawnProjectile(event.from, event.to, event.durationMs, now);
-    } else {
-      renderSystem.spawnSlash(event.from, event.to, event.durationMs, now);
+
+    if (event.kind === 'basic_attack') {
+      renderSystem?.triggerAttack?.(event.attackerId, now, event.durationMs);
+      if (event.attackType === 'ranged') {
+        renderSystem.spawnProjectile(event.from, event.to, event.durationMs, now);
+      } else {
+        renderSystem.spawnSlash(event.from, event.to, event.durationMs, now);
+      }
+      return;
     }
+
+    if (event.kind === 'ability' && event.abilityId && renderSystem) {
+      const color = ABILITY_COLORS[event.abilityId] ?? 0xaaaaaa;
+      const dur = event.durationMs ?? 400;
+      switch (event.effectType) {
+        case 'slash':
+          if (event.to) renderSystem.spawnSlash(event.from, event.to, dur, now);
+          break;
+        case 'projectile':
+          if (event.from && event.to) renderSystem.spawnProjectile(event.from, event.to, dur, now);
+          break;
+        case 'cone':
+          if (event.from && event.direction) {
+            renderSystem.spawnCone(
+              event.from,
+              event.direction,
+              event.coneDegrees ?? 90,
+              event.range ?? 5,
+              color,
+              dur,
+              now
+            );
+          }
+          break;
+        case 'nova':
+          if (event.center) {
+            renderSystem.spawnNova(event.center, event.radius ?? 2.5, color, dur, now);
+          }
+          break;
+        case 'healRing':
+          if (event.center) {
+            renderSystem.spawnHealRing(event.center, event.radius ?? 5, color, dur, now);
+          }
+          break;
+        case 'buffAura':
+          if (event.center) renderSystem.spawnBuffAura(event.center, color, dur, now);
+          break;
+        case 'dashTrail':
+          if (event.from && event.to) renderSystem.spawnDashTrail(event.from, event.to, dur, now);
+          break;
+        default:
+          if (event.from && event.to) renderSystem.spawnProjectile(event.from, event.to, dur, now);
+      }
+      renderSystem?.triggerAttack?.(event.attackerId, now, dur);
+    }
+  }
+
+  function getPlacementMode() {
+    return placementMode;
+  }
+
+  function confirmPlacement(pos) {
+    if (!placementMode || !pos) return;
+    const { slot } = placementMode;
+    placementMode = null;
+    renderSystem?.setPlacementIndicator?.(false);
+    sendWithSeq({ type: 'action', kind: 'ability', slot, placementX: pos.x, placementZ: pos.z });
+  }
+
+  function cancelPlacement() {
+    if (!placementMode) return;
+    placementMode = null;
+    renderSystem?.setPlacementIndicator?.(false);
+  }
+
+  function updatePlacementCursor(pos) {
+    if (!placementMode || !pos || !renderSystem?.updatePlacementIndicator) return;
+    const me = ctx.currentMe;
+    const range = placementMode.ability?.placementRange ?? 10;
+    const dist = me
+      ? Math.hypot(pos.x - (me.x ?? 0), pos.z - (me.z ?? 0))
+      : Infinity;
+    renderSystem.updatePlacementIndicator(pos, dist <= range);
   }
 
   return {
@@ -161,5 +271,9 @@ export function createCombat({
     pruneCombatEvents,
     getTargetSelectRange,
     getCombatEvents: () => combatEvents,
+    getPlacementMode,
+    confirmPlacement,
+    cancelPlacement,
+    updatePlacementCursor,
   };
 }

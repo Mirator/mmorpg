@@ -158,6 +158,7 @@ const connection = createConnection({
   ctx,
   onCombatEvents: (event, now, eventTime) =>
     combat.handleCombatEvent(event, now, eventTime),
+  onAbilityFailed: (reason, slot) => ui.showAbilityError(reason, slot),
   onChatMessage: (data) => {
     const channel = data?.channel ?? 'area';
     chat.addMessage(channel, data);
@@ -292,6 +293,10 @@ inputHandler = createInputHandler({
   onCycleTarget: combat.cycleTarget,
   pickTarget: (ndc) => renderSystem.pickTarget(ndc),
   onTradeTab: (tab) => ui.vendorUI?.setTab?.(tab),
+  getPlacementMode: () => combat.getPlacementMode(),
+  onPlacementConfirm: (pos) => combat.confirmPlacement(pos),
+  onPlacementCancel: () => combat.cancelPlacement(),
+  onPlacementUpdate: (pos) => combat.updatePlacementCursor(pos),
 });
 
 function handleInteract() {
@@ -389,7 +394,17 @@ function stepFrame(dt, now) {
   }
   ui.updateTargetHud(resolvedTarget);
 
-  ui.updateAbilityBar(ctx.currentMe, gameState.getServerNow());
+  ui.updateAbilityBar(
+    ctx.currentMe,
+    gameState.getServerNow(),
+    gameState.getConfigSnapshot()?.combat?.globalCooldownMs ?? 900
+  );
+
+  if (combat.getPlacementMode()) {
+    document.body.style.cursor = 'crosshair';
+  } else {
+    document.body.style.cursor = '';
+  }
   if (ui.isSkillsOpen()) {
     ui.updateSkillsPanel(ctx.currentMe);
   }
@@ -565,6 +580,7 @@ function buildTextState() {
           resourceMax: me.resourceMax ?? 0,
           resource: me.resource ?? 0,
           abilityCooldowns: me.abilityCooldowns ?? {},
+          globalCooldownUntil: me.globalCooldownUntil ?? 0,
           moveSpeedMultiplier: me.moveSpeedMultiplier ?? 1,
           equipment: me.equipment ?? null,
           weapon: weaponDef

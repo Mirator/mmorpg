@@ -152,7 +152,17 @@ export function parseClientMessage(raw) {
     if (raw.kind === 'ability') {
       const slot = Number(raw.slot);
       if (!Number.isInteger(slot) || slot < 1) return null;
-      return { type: 'action', kind: 'ability', slot, seq };
+      const placementX = raw.placementX !== undefined ? Number(raw.placementX) : undefined;
+      const placementZ = raw.placementZ !== undefined ? Number(raw.placementZ) : undefined;
+      return {
+        type: 'action',
+        kind: 'ability',
+        slot,
+        seq,
+        ...(Number.isFinite(placementX) && Number.isFinite(placementZ)
+          ? { placementX, placementZ }
+          : {}),
+      };
     }
     return null;
   }

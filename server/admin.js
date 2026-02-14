@@ -77,6 +77,16 @@ export function serializePlayerPrivate(player) {
     resourceMax: player.resourceMax ?? 0,
     resource: player.resource ?? 0,
     abilityCooldowns: player.abilityCooldowns ?? {},
+    globalCooldownUntil: player.globalCooldownUntil ?? 0,
+    cast: player.cast
+      ? {
+          id: player.cast.id,
+          endsAt: player.cast.endsAt ?? 0,
+          startedAt: player.cast.startedAt ?? 0,
+          targetId: player.cast.targetId ?? null,
+          firedTicks: player.cast.firedTicks ?? 0,
+        }
+      : null,
     moveSpeedMultiplier: player.moveSpeedMultiplier ?? 1,
     equipment: player.equipment ?? null,
     weaponKind: getEquippedWeapon(player.equipment, player.classId)?.kind ?? null,

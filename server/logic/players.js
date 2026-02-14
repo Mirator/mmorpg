@@ -45,6 +45,7 @@ export function createBasePlayerState({ world, spawn, classId }) {
     resourceMax,
     resource,
     abilityCooldowns: {},
+    globalCooldownUntil: 0,
     combatTagUntil: 0,
     lastMoveDir: null,
     movedThisTick: false,

@@ -4,9 +4,9 @@ import { stepResources } from './logic/resources.js';
 import { stepMobs } from './logic/mobs.js';
 import { clearInventory } from './logic/inventory.js';
 import { respawnPlayer } from './logic/players.js';
-import { stepPlayerResources, stepPlayerCast } from './logic/combat.js';
+import { stepPlayerResources, stepPlayerCast, stepDotTicks, stepHotTicks } from './logic/combat.js';
 
-export function createGameLoop({ players, world, resources, mobs, config, spawner, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath }) {
+export function createGameLoop({ players, world, resources, mobs, config, spawner, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent }) {
   const tickHz = config.tickHz;
   const dt = 1 / tickHz;
   const playerRadius = config.playerRadius;
@@ -77,10 +77,15 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
       }
 
       stepResources(resources, now);
+      stepDotTicks(mobs, now, config.mob?.respawnMs ?? 10_000, players);
+      stepHotTicks(players, now);
       stepMobs(mobs, Array.from(players.values()), world, dt, now, mobConfig);
 
       for (const player of players.values()) {
         const castResult = stepPlayerCast(player, mobs, now, config.mob.respawnMs, players);
+        if (castResult.event && typeof onCombatEvent === 'function') {
+          onCombatEvent(castResult.event, now);
+        }
         if (castResult.combatLog && typeof onCombatLog === 'function') {
           const damageEntries = [];
           if (castResult.combatLog.damageDealt != null && castResult.combatLog.targetName) {

@@ -128,6 +128,7 @@ function initCombatState(player) {
   player.resourceMax = resourceMax;
   player.resource = resourceType === 'rage' ? 0 : resourceMax;
   player.abilityCooldowns = {};
+  player.globalCooldownUntil = 0;
   player.combatTagUntil = 0;
   player.lastMoveDir = null;
   player.movedThisTick = false;
@@ -220,6 +221,7 @@ export function createWebSocketServer({
     if (!pos || !event) return false;
     const from = event.from;
     const to = event.to;
+    const center = event.center ?? from;
     const dxFrom = pos.x - (from?.x ?? 0);
     const dzFrom = pos.z - (from?.z ?? 0);
     if (dxFrom * dxFrom + dzFrom * dzFrom <= COMBAT_VFX_RADIUS2) return true;
@@ -227,6 +229,11 @@ export function createWebSocketServer({
       const dxTo = pos.x - (to.x ?? 0);
       const dzTo = pos.z - (to.z ?? 0);
       if (dxTo * dxTo + dzTo * dzTo <= COMBAT_VFX_RADIUS2) return true;
+    }
+    if (center && center !== from) {
+      const dxC = pos.x - (center.x ?? 0);
+      const dzC = pos.z - (center.z ?? 0);
+      if (dxC * dxC + dzC * dzC <= COMBAT_VFX_RADIUS2) return true;
     }
     return false;
   }
@@ -736,7 +743,12 @@ export function createWebSocketServer({
             world,
             now,
             respawnMs: config.mob.respawnMs,
+            placementX: msg.placementX,
+            placementZ: msg.placementZ,
           });
+          if (!result.success && result.reason) {
+            safeSend(player.ws, { type: 'abilityFailed', reason: result.reason, slot: msg.slot });
+          }
           if (result.event) {
             broadcastCombatEvent(result.event, now);
           }
@@ -890,5 +902,6 @@ export function createWebSocketServer({
     stopBroadcast,
     closeAll,
     sendCombatLogToPlayer,
+    broadcastCombatEvent,
   };
 }
