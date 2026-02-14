@@ -12,7 +12,8 @@ Open `http://localhost:3000` in your browser. Open multiple tabs to see multipla
 ## Admin
 
 Visit `http://localhost:3000/admin` for the admin dashboard. Provide the admin password via header
-`x-admin-pass`. Default password is `1234` (override with `ADMIN_PASSWORD`).
+`x-admin-pass`. On localhost, default is `1234` (override with `ADMIN_PASSWORD`). When binding to a
+non-localhost host, `ADMIN_PASSWORD` is **required** and the server will fail to start if unset.
 
 ## Database (Postgres + Prisma)
 
@@ -37,7 +38,7 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 ## Environment Variables
 
 - `PORT`, `HOST` (default `3000`, `127.0.0.1`)
-- `ADMIN_PASSWORD` (default `1234`)
+- `ADMIN_PASSWORD` (default `1234` on localhost only; **required** when HOST is not 127.0.0.1 or localhost)
 - `AUTO_MIGRATE_DEV` (`true` to auto-run `prisma migrate dev` on localhost; default `true`)
 - `DEV_ACCOUNT_USER` (default `test`, only when HOST is `127.0.0.1` or `localhost`)
 - `DEV_ACCOUNT_PASSWORD` (default `test1234`, only when HOST is `127.0.0.1` or `localhost`)
@@ -58,7 +59,7 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 - `SESSION_COOKIE_NAME` (default `mmorpg_session`)
 - `SESSION_COOKIE_SAMESITE` (`lax`, `strict`, or `none`; default `lax`)
 - `SESSION_COOKIE_SECURE` (`true` to force Secure cookies; default `true` in production)
-- `EXPOSE_AUTH_TOKEN` (`true` to include auth token in login/signup JSON response; default `false`)
+- `EXPOSE_AUTH_TOKEN` (`true` to include auth token in login/signup JSON response; default `false`; for dev/testing only; prefer cookie auth in production)
 
 ## Credits
 
@@ -103,9 +104,13 @@ unique (case-insensitive). The client uses HTTP auth endpoints before opening a 
 - `POST /api/characters` (session cookie or Bearer token) `{ name, classId }` → `{ character }`
 - `DELETE /api/characters/:id` (session cookie or Bearer token) → `{ ok: true }`
 
-Auth endpoints also set an HttpOnly session cookie; browsers should send cookies on same-origin requests.
+Auth endpoints set an HttpOnly session cookie by default. Browsers send cookies on same-origin
+requests. Cookie-based auth is the default and preferred method; `EXPOSE_AUTH_TOKEN` is for
+dev/testing only and should not be enabled in production.
 
 ### WebSocket
 
-Pass `token` and `characterId` as query params when opening the WebSocket. Use `?guest=1`
-for local/dev guest sessions.
+Auth uses a short-lived ticket (60s) obtained via `POST /api/ws-ticket` before connecting.
+The client fetches a ticket with `credentials: 'same-origin'` (session cookie), then opens the
+WebSocket with `?ticket=...&characterId=...`. This keeps tokens out of URLs. For guest sessions,
+use `?guest=1`.

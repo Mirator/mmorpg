@@ -36,6 +36,7 @@ import {
   setPlayerPartyId,
   getPendingInvite,
 } from './logic/party.js';
+import { validateAndConsumeTicket } from './wsTicket.js';
 
 function safeSend(ws, msg) {
   if (ws.readyState !== ws.OPEN) return;
@@ -145,9 +146,10 @@ function parseConnectionParams(req) {
     const url = new URL(req.url ?? '/', 'http://localhost');
     const characterId = normalizeId(url.searchParams.get('characterId'));
     const guest = url.searchParams.get('guest') === '1';
-    return { characterId, guest };
+    const ticket = url.searchParams.get('ticket')?.trim() || null;
+    return { characterId, guest, ticket };
   } catch {
-    return { characterId: null, guest: false };
+    return { characterId: null, guest: false, ticket: null };
   }
 }
 
@@ -313,8 +315,7 @@ export function createWebSocketServer({
     });
 
     (async () => {
-      const { characterId, guest } = parseConnectionParams(req);
-      const token = normalizeId(getCookieValue(req, config.sessionCookieName));
+      const { characterId, guest, ticket } = parseConnectionParams(req);
       const spawn = spawner.getSpawnPoint();
 
       let stored = null;
@@ -322,54 +323,84 @@ export function createWebSocketServer({
       let id = null;
 
       if (!guest) {
-        if (!token || !characterId) {
-          ws.close(1008, 'Auth required');
-          cleanupConnection();
-          return;
+        let ticketData = null;
+        if (ticket) {
+          ticketData = validateAndConsumeTicket(ticket);
         }
 
-        let session;
-        try {
-          session = await getSessionWithAccount(token);
-        } catch (err) {
-          console.error('Failed to load session:', err);
-          ws.close(1011, 'Auth unavailable');
-          cleanupConnection();
-          return;
-        }
+        if (ticketData) {
+          if (ticketData.characterId !== characterId) {
+            ws.close(1008, 'Invalid ticket');
+            cleanupConnection();
+            return;
+          }
+          try {
+            stored = await loadPlayer(characterId);
+          } catch (err) {
+            console.error('Failed to load player from DB:', err);
+            ws.close(1011, 'DB unavailable');
+            cleanupConnection();
+            return;
+          }
+          if (!stored || stored.accountId !== ticketData.accountId) {
+            ws.close(1008, 'Character not found');
+            cleanupConnection();
+            return;
+          }
+          account = { id: ticketData.accountId };
+          id = stored.id;
+          updateAccountLastSeen(account.id, new Date()).catch(() => {});
+        } else {
+          const token = normalizeId(getCookieValue(req, config.sessionCookieName));
+          if (!token || !characterId) {
+            ws.close(1008, 'Auth required');
+            cleanupConnection();
+            return;
+          }
 
-        if (!session || !session.account) {
-          ws.close(1008, 'Unauthorized');
-          cleanupConnection();
-          return;
-        }
+          let session;
+          try {
+            session = await getSessionWithAccount(token);
+          } catch (err) {
+            console.error('Failed to load session:', err);
+            ws.close(1011, 'Auth unavailable');
+            cleanupConnection();
+            return;
+          }
 
-        const now = new Date();
-        if (session.expiresAt && session.expiresAt <= now) {
-          ws.close(1008, 'Session expired');
-          cleanupConnection();
-          return;
-        }
+          if (!session || !session.account) {
+            ws.close(1008, 'Unauthorized');
+            cleanupConnection();
+            return;
+          }
 
-        account = session.account;
-        try {
-          stored = await loadPlayer(characterId);
-        } catch (err) {
-          console.error('Failed to load player from DB:', err);
-          ws.close(1011, 'DB unavailable');
-          cleanupConnection();
-          return;
-        }
+          const now = new Date();
+          if (session.expiresAt && session.expiresAt <= now) {
+            ws.close(1008, 'Session expired');
+            cleanupConnection();
+            return;
+          }
 
-        if (!stored || stored.accountId !== account.id) {
-          ws.close(1008, 'Character not found');
-          cleanupConnection();
-          return;
-        }
+          account = session.account;
+          try {
+            stored = await loadPlayer(characterId);
+          } catch (err) {
+            console.error('Failed to load player from DB:', err);
+            ws.close(1011, 'DB unavailable');
+            cleanupConnection();
+            return;
+          }
 
-        id = stored.id;
-        touchSession(token, now).catch(() => {});
-        updateAccountLastSeen(account.id, now).catch(() => {});
+          if (!stored || stored.accountId !== account.id) {
+            ws.close(1008, 'Character not found');
+            cleanupConnection();
+            return;
+          }
+
+          id = stored.id;
+          touchSession(token, now).catch(() => {});
+          updateAccountLastSeen(account.id, now).catch(() => {});
+        }
       } else {
         id = generatePlayerId();
       }

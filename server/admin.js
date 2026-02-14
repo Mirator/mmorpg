@@ -4,7 +4,8 @@ import { getEquippedWeapon } from '../shared/equipment.js';
 import { computeRawAttributes, computeDerivedStats } from '../shared/attributes.js';
 
 export function resolveAdminPassword(env = process.env) {
-  return env.ADMIN_PASSWORD ?? '1234';
+  const value = env.ADMIN_PASSWORD;
+  return (typeof value === 'string' && value.trim().length > 0) ? value.trim() : null;
 }
 
 export function serializePlayers(players) {

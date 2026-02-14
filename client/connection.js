@@ -1,15 +1,33 @@
 import { createNet } from './net.js';
 import { showErrorOverlay, hideErrorOverlay } from './error-overlay.js';
 
-function buildWsUrl({ character, guest }) {
+function buildWsUrl({ character, guest, ticket }) {
   const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
   const wsUrl = new URL(`${wsProtocol}://${location.host}`);
   if (guest) {
     wsUrl.searchParams.set('guest', '1');
   } else if (character) {
     wsUrl.searchParams.set('characterId', character.id);
+    if (ticket) {
+      wsUrl.searchParams.set('ticket', ticket);
+    }
   }
   return wsUrl.toString();
+}
+
+async function fetchWsTicket(characterId) {
+  const res = await fetch('/api/ws-ticket', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ characterId }),
+    credentials: 'same-origin',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to get connection ticket');
+  }
+  const data = await res.json();
+  return data.ticket ?? null;
 }
 
 export function createConnection({
@@ -78,12 +96,21 @@ export function createConnection({
     resetClientState();
   }
 
-  function start({ character, guest = false }, { manualStepping, virtualNow }) {
-    return new Promise((resolve, reject) => {
-      disconnect();
-      ctx.seq = 0;
+  async function start({ character, guest = false }, { manualStepping, virtualNow }) {
+    disconnect();
+    ctx.seq = 0;
 
-      const url = buildWsUrl({ character, guest });
+    let url;
+    if (guest) {
+      url = buildWsUrl({ character, guest });
+    } else if (character?.id) {
+      const ticket = await fetchWsTicket(character.id);
+      url = buildWsUrl({ character, guest, ticket });
+    } else {
+      return Promise.reject(new Error('Character required for authenticated connection'));
+    }
+
+    return new Promise((resolve, reject) => {
       let resolved = false;
       let disconnectHandled = false;
 

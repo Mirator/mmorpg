@@ -28,6 +28,7 @@ import {
 import { createBasePlayerState } from './logic/players.js';
 import { serializePlayerState } from './db/playerState.js';
 import { isValidClassId } from '../shared/classes.js';
+import { createTicket } from './wsTicket.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = path.resolve(__dirname, '../client');
@@ -369,6 +370,37 @@ export function createHttpApp({
     }
     clearSessionCookie(res, config);
     res.json({ ok: true });
+  });
+
+  app.post('/api/ws-ticket', requireAuth, async (req, res) => {
+    const characterId = typeof req.body?.characterId === 'string'
+      ? req.body.characterId.trim()
+      : '';
+    if (!characterId || characterId.length > 64 || !/^[a-zA-Z0-9._-]+$/.test(characterId)) {
+      sendError(res, 400, 'Invalid character.');
+      return;
+    }
+
+    let character;
+    try {
+      character = await findCharacterById(characterId);
+    } catch (err) {
+      if (sendDbError(res, err)) return;
+      console.error('WS ticket character lookup error:', err);
+      sendError(res, 500, 'Unable to create ticket.');
+      return;
+    }
+
+    if (!character || character.accountId !== req.account.id) {
+      sendError(res, 404, 'Character not found.');
+      return;
+    }
+
+    const ticket = createTicket({
+      accountId: req.account.id,
+      characterId: character.id,
+    });
+    res.json({ ticket });
   });
 
   app.get('/api/characters', requireAuth, async (req, res) => {

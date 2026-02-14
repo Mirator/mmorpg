@@ -1,6 +1,9 @@
 const ACCOUNT_KEY = 'mmorpg_account';
 const LAST_CHARACTER_PREFIX = 'mmorpg_last_character_';
 
+// Auth uses HttpOnly session cookie by default. Token is only stored in memory when the server
+// returns it (EXPOSE_AUTH_TOKEN=true, dev/testing only). Never store tokens in localStorage.
+
 export function createAuth({
   menu,
   ui,

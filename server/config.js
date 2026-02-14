@@ -70,6 +70,15 @@ export function getServerConfig(env = process.env) {
   const allowNoOriginRemote = parseBoolEnv(env.ALLOW_NO_ORIGIN_REMOTE);
   const adminPassword = resolveAdminPassword(env);
 
+  if (!isLocalhost && !adminPassword) {
+    throw new Error(
+      'ADMIN_PASSWORD is required when HOST is not 127.0.0.1 or localhost. ' +
+      'Set ADMIN_PASSWORD in your environment or bind to localhost for development.'
+    );
+  }
+
+  const effectiveAdminPassword = adminPassword ?? (isLocalhost ? '1234' : null);
+
   const sessionCookieName = env.SESSION_COOKIE_NAME ?? 'mmorpg_session';
   const sessionCookieSameSite = parseSameSiteEnv(env.SESSION_COOKIE_SAMESITE, 'lax');
   const sessionCookieSecure = env.SESSION_COOKIE_SECURE === undefined
@@ -99,7 +108,7 @@ export function getServerConfig(env = process.env) {
     persistIntervalMs,
     persistForceMs,
     persistPosEps,
-    adminPassword,
+    adminPassword: effectiveAdminPassword,
     isLocalhost,
     sessionCookieName,
     sessionCookieSameSite,
