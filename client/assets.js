@@ -251,16 +251,32 @@ export function pickClips(clips, overrides = {}) {
 /**
  * Preloads all game assets before entering the game.
  * Warms the loadGltf cache and player model/animations.
+ * @param {((loaded: number, total: number) => void)|undefined} onProgress - Called as each asset completes (loaded, total).
  */
-export async function preloadAllAssets() {
+export async function preloadAllAssets(onProgress) {
   const list = getPreloadAssetList();
 
-  await Promise.all([
+  const tasks = [
     assemblePlayerModel(),
     assembleVendorModel(),
     loadPlayerAnimations(),
     ...list.mobs.map((url) => loadGltf(url)),
     ...list.environment.map((url) => loadGltf(url)),
     ...(list.textures ?? []).map((url) => loadTexture(url)),
-  ]);
+  ];
+
+  const total = tasks.length;
+  let loaded = 0;
+
+  onProgress?.(0, total);
+
+  const wrapped = tasks.map((p) =>
+    p.then((v) => {
+      loaded++;
+      onProgress?.(loaded, total);
+      return v;
+    })
+  );
+
+  await Promise.all(wrapped);
 }

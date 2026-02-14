@@ -26,10 +26,19 @@ const signOutBtn = document.getElementById('signout-btn');
 const overlayEl = document.getElementById('overlay');
 const loadingScreenEl = document.getElementById('loading-screen');
 const loadingTextEl = document.getElementById('loading-text');
+const loadingProgressBarEl = document.querySelector('.loading-progress-bar');
 
-function showLoadingScreen(text = 'Loading...') {
+function showLoadingScreen(text = 'Loading...', progress) {
   if (loadingTextEl) loadingTextEl.textContent = text;
   loadingScreenEl?.classList.add('visible');
+  if (loadingProgressBarEl) {
+    if (typeof progress === 'number') {
+      loadingProgressBarEl.style.setProperty('--progress', String(progress));
+      loadingProgressBarEl.classList.remove('hidden');
+    } else {
+      loadingProgressBarEl.classList.add('hidden');
+    }
+  }
 }
 
 function hideLoadingScreen() {
@@ -259,9 +268,11 @@ function initPartyButtons() {
 initPartyButtons();
 
 auth.setOnConnectCharacter(async (character) => {
-  showLoadingScreen('Loading assets...');
+  showLoadingScreen('Loading assets...', 0);
   try {
-    await preloadAllAssets();
+    await preloadAllAssets((loaded, total) => {
+      showLoadingScreen('Loading assets...', Math.round((loaded / total) * 100));
+    });
     showLoadingScreen('Connecting...');
     await connection.start({ character }, { manualStepping, virtualNow });
   } finally {
@@ -758,9 +769,11 @@ if (isGuestSession) {
   menu.setOpen(false);
   auth.setGuestAccount();
   (async () => {
-    showLoadingScreen('Loading assets...');
+    showLoadingScreen('Loading assets...', 0);
     try {
-      await preloadAllAssets();
+      await preloadAllAssets((loaded, total) => {
+        showLoadingScreen('Loading assets...', Math.round((loaded / total) * 100));
+      });
       showLoadingScreen('Connecting...');
       await connection.start({ guest: true }, { manualStepping, virtualNow });
     } catch {
