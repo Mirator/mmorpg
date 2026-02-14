@@ -77,13 +77,28 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 npm test
 ```
 
-### E2E
+### E2E Testing
+
+**Prerequisites**
+
+- Postgres with `mmorpg_e2e` database (see [Database](#database-postgres--prisma) above)
+- `DATABASE_URL_E2E` in `.env` (see [.env.example](.env.example))
+- Playwright browsers: run once per machine:
+  ```bash
+  npx playwright install chromium
+  ```
+  (Or `npx playwright install` for all browsers. Without this, E2E will fail with "Executable doesn't exist".)
+
+**Run**
 
 ```bash
 npm run test:e2e
 ```
 
-Requires `DATABASE_URL_E2E` in `.env` and a Postgres database created for e2e.
+**Optional**
+
+- `E2E_PORT` (default `3001`) – port used by the E2E server
+- `E2E_TEST` / `E2E_SIMULATED_WORLD` – server-side flags used by the E2E script
 
 ## Protocol
 

@@ -26,8 +26,9 @@ export function createServer({ env = process.env } = {}) {
     ? createSimulatedWorld()
     : createWorldFromConfig(mapConfig);
   const resources = createResources(world.resourceNodes);
+  const mobCount = isE2eTest && useSimulatedWorld ? 0 : world.mobCount;
   const mobs = useSimulatedWorld
-    ? createMobs(world.mobCount, world)
+    ? createMobs(mobCount, world)
     : createMobsFromSpawns(world.mobSpawns, world);
   const players = new Map();
   const spawner = createSpawner(world);
@@ -78,7 +79,7 @@ export function createServer({ env = process.env } = {}) {
       },
       state: 'idle',
       targetId: null,
-      nextDecisionAt: 0,
+      nextDecisionAt: Number.MAX_SAFE_INTEGER,
       dir: { x: 1, z: 0 },
       attackCooldownUntil: 0,
       level: chaseMobLevel,
