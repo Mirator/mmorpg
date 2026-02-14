@@ -4,6 +4,7 @@ import {
   RESOURCE_CONFIG,
   PLAYER_CONFIG,
   COMBAT_CONFIG,
+  CHAT_CONFIG,
   getConfigSnapshot,
 } from '../shared/config.js';
 
@@ -120,6 +121,12 @@ export function getServerConfig(env = process.env) {
     },
     combat: {
       targetSelectRange: COMBAT_CONFIG.targetSelectRange,
+    },
+    chat: {
+      areaRadius: CHAT_CONFIG.areaRadius,
+      maxLength: CHAT_CONFIG.maxLength,
+      rateLimitMax: CHAT_CONFIG.rateLimitMax,
+      rateLimitIntervalMs: CHAT_CONFIG.rateLimitIntervalMs,
     },
     player: {
       maxHp: PLAYER_CONFIG.maxHp,

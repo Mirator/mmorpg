@@ -24,6 +24,8 @@ import { hydratePlayerState, migratePlayerState, serializePlayerState } from './
 import { createBasePlayerState, respawnPlayer } from './logic/players.js';
 import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
+import { addMessage as addChatMessage } from './logic/chat.js';
+import { sendCombatLog } from './logic/combatLog.js';
 
 function safeSend(ws, msg) {
   if (ws.readyState !== ws.OPEN) return;
@@ -262,6 +264,9 @@ export function createWebSocketServer({
       config.msgRateMax,
       config.msgRateIntervalMs
     );
+    const chatRateMax = config.chat?.rateLimitMax ?? 5;
+    const chatRateIntervalMs = config.chat?.rateLimitIntervalMs ?? 10_000;
+    const allowChatMessage = createMessageLimiter(chatRateMax, chatRateIntervalMs);
     let player = null;
     let playerId = null;
     let tracked = true;
@@ -494,6 +499,45 @@ export function createWebSocketServer({
           return;
         }
 
+        if (msg.type === 'chat') {
+          if (player.isGuest) return;
+          if (!allowChatMessage()) return;
+          const { channel, text } = msg;
+          if (channel === 'party') return;
+          const authorName = player.name ?? player.persistName ?? 'Unknown';
+          const authorId = player.id;
+          const now = Date.now();
+          const stored = addChatMessage(channel, authorId, authorName, text, now);
+          if (!stored) return;
+          const payload = {
+            type: 'chat',
+            channel: stored.channel,
+            authorId: stored.authorId,
+            author: stored.author,
+            text: stored.text,
+            timestamp: stored.timestamp,
+          };
+          const areaRadius = config.chat?.areaRadius ?? 80;
+          const radius2 = areaRadius * areaRadius;
+          if (channel === 'global' || channel === 'trade') {
+            for (const p of players.values()) {
+              if (p?.ws && !p.isGuest) safeSend(p.ws, payload);
+            }
+          } else if (channel === 'area') {
+            const sx = player.pos?.x ?? 0;
+            const sz = player.pos?.z ?? 0;
+            for (const p of players.values()) {
+              if (!p?.ws || p.isGuest) continue;
+              const dx = (p.pos?.x ?? 0) - sx;
+              const dz = (p.pos?.z ?? 0) - sz;
+              if (dx * dx + dz * dz <= radius2) {
+                safeSend(p.ws, payload);
+              }
+            }
+          }
+          return;
+        }
+
         if (player.dead) return;
 
         if (msg.type === 'input') {
@@ -617,6 +661,44 @@ export function createWebSocketServer({
           if (result.event) {
             broadcastCombatEvent(result.event, now);
           }
+          if (result.combatLog) {
+            const entries = [];
+            if (result.combatLog.damageDealt != null && result.combatLog.targetName) {
+              const abilityName = result.combatLog.abilityName ?? 'You';
+              const critSuffix = result.combatLog.isCrit ? ' (Critical!)' : '';
+              entries.push({
+                kind: 'damage_done',
+                text: `${abilityName} hit ${result.combatLog.targetName} for ${result.combatLog.damageDealt} damage${critSuffix}`,
+                t: now,
+              });
+            }
+            if (result.combatLog.healAmount != null && result.combatLog.healTarget) {
+              const target = result.combatLog.healTarget;
+              const targetText = target === 'yourself' ? 'yourself' : target;
+              entries.push({
+                kind: 'heal',
+                text: `You healed ${targetText} for ${result.combatLog.healAmount}`,
+                t: now,
+              });
+            }
+            if (result.combatLog.xpGain > 0 && result.combatLog.targetName) {
+              entries.push({
+                kind: 'xp_gain',
+                text: `You gained ${result.combatLog.xpGain} XP from killing ${result.combatLog.targetName}`,
+                t: now,
+              });
+            }
+            if (result.combatLog.leveledUp) {
+              entries.push({
+                kind: 'level_up',
+                text: 'You gained a level!',
+                t: now,
+              });
+            }
+            if (entries.length > 0) {
+              sendCombatLog(players, player.id, entries, safeSend);
+            }
+          }
           if (result.xpGain > 0 || result.leveledUp) {
             persistence.markDirty(player);
           }
@@ -703,6 +785,10 @@ export function createWebSocketServer({
     }
   }
 
+  function sendCombatLogToPlayer(playerId, entries) {
+    sendCombatLog(players, playerId, entries, safeSend);
+  }
+
   return {
     wss,
     startHeartbeat,
@@ -710,5 +796,6 @@ export function createWebSocketServer({
     startBroadcast,
     stopBroadcast,
     closeAll,
+    sendCombatLogToPlayer,
   };
 }

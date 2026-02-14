@@ -260,6 +260,10 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
             const max = Number.isFinite(target.resourceMax) ? target.resourceMax : 100;
             target.resource = clamp((target.resource ?? 0) + 4, 0, max);
           }
+          const onPlayerDamaged = config.onPlayerDamaged;
+          if (typeof onPlayerDamaged === 'function') {
+            onPlayerDamaged(target, mob, finalDamage, now);
+          }
         }
         mob.attackCooldownUntil = now + attackCooldownMs;
       }

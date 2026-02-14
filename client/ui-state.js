@@ -41,6 +41,7 @@ export function createUiState({
   onAbilityClick,
   onUiOpen,
   onRespawn,
+  isChatFocused,
 }) {
   const inventoryPanel = document.getElementById('inventory-panel');
   const characterSheetPanel = document.getElementById('character-sheet-panel');
@@ -388,7 +389,8 @@ export function createUiState({
       characterOpen ||
       isDialogOpen() ||
       isTradeOpen() ||
-      deadOpen
+      deadOpen ||
+      (typeof isChatFocused === 'function' && isChatFocused())
     );
   }
 

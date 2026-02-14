@@ -132,4 +132,38 @@ describe('protocol validation', () => {
       seq: undefined,
     });
   });
+
+  it('accepts chat message', () => {
+    expect(
+      parseClientMessage({ type: 'chat', channel: 'global', text: 'Hello world', seq: 5 })
+    ).toEqual({
+      type: 'chat',
+      channel: 'global',
+      text: 'Hello world',
+      seq: 5,
+    });
+    expect(
+      parseClientMessage({ type: 'chat', channel: 'area', text: ' Test ', seq: 1 })
+    ).toEqual({
+      type: 'chat',
+      channel: 'area',
+      text: 'Test',
+      seq: 1,
+    });
+  });
+
+  it('rejects invalid chat message', () => {
+    expect(parseClientMessage({ type: 'chat', channel: 'invalid', text: 'hi', seq: 1 })).toBe(
+      null
+    );
+    expect(parseClientMessage({ type: 'chat', channel: 'global', text: '', seq: 1 })).toBe(null);
+    expect(
+      parseClientMessage({
+        type: 'chat',
+        channel: 'global',
+        text: 'x'.repeat(201),
+        seq: 1,
+      })
+    ).toBe(null);
+  });
 });

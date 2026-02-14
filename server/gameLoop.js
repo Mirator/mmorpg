@@ -6,7 +6,7 @@ import { clearInventory } from './logic/inventory.js';
 import { respawnPlayer } from './logic/players.js';
 import { stepPlayerResources, stepPlayerCast } from './logic/combat.js';
 
-export function createGameLoop({ players, world, resources, mobs, config, spawner, markDirty }) {
+export function createGameLoop({ players, world, resources, mobs, config, spawner, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath }) {
   const tickHz = config.tickHz;
   const dt = 1 / tickHz;
   const playerRadius = config.playerRadius;
@@ -16,6 +16,7 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
     respawnMs: config.mob.respawnMs,
     attackDamageBase: config.mob.attackDamageBase,
     attackDamagePerLevel: config.mob.attackDamagePerLevel,
+    onPlayerDamaged,
   };
 
   function killPlayer(player, now) {
@@ -30,6 +31,9 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
     player.cast = null;
     player.keys = { w: false, a: false, s: false, d: false };
     markDirty(player);
+    if (typeof onPlayerDeath === 'function') {
+      onPlayerDeath(player.id, now);
+    }
   }
 
   let intervalId = null;
@@ -77,6 +81,35 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
 
       for (const player of players.values()) {
         const castResult = stepPlayerCast(player, mobs, now, config.mob.respawnMs);
+        if (castResult.combatLog && typeof onCombatLog === 'function') {
+          const entries = [];
+          if (castResult.combatLog.damageDealt != null && castResult.combatLog.targetName) {
+            const abilityName = castResult.combatLog.abilityName ?? 'You';
+            const critSuffix = castResult.combatLog.isCrit ? ' (Critical!)' : '';
+            entries.push({
+              kind: 'damage_done',
+              text: `${abilityName} hit ${castResult.combatLog.targetName} for ${castResult.combatLog.damageDealt} damage${critSuffix}`,
+              t: now,
+            });
+          }
+          if (castResult.combatLog.xpGain > 0 && castResult.combatLog.targetName) {
+            entries.push({
+              kind: 'xp_gain',
+              text: `You gained ${castResult.combatLog.xpGain} XP from killing ${castResult.combatLog.targetName}`,
+              t: now,
+            });
+          }
+          if (castResult.combatLog.leveledUp) {
+            entries.push({
+              kind: 'level_up',
+              text: 'You gained a level!',
+              t: now,
+            });
+          }
+          if (entries.length > 0) {
+            onCombatLog(player.id, entries);
+          }
+        }
         if (castResult.xpGain > 0 || castResult.leveledUp) {
           markDirty(player);
         }

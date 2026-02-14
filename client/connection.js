@@ -18,6 +18,9 @@ export function createConnection({
   ui,
   ctx,
   onCombatEvents,
+  onChatMessage,
+  onCombatLog,
+  onConnected,
   updateLocalUi,
   setWorld,
   loadCharacters,
@@ -181,6 +184,9 @@ export function createConnection({
               resolved = true;
               resolve();
             }
+            if (typeof onConnected === 'function') {
+              onConnected();
+            }
             return;
           }
 
@@ -204,6 +210,21 @@ export function createConnection({
             for (const event of events) {
               onCombatEvents(event, now, eventTime);
             }
+          }
+
+          if (msg.type === 'chat' && typeof onChatMessage === 'function') {
+            onChatMessage({
+              channel: msg.channel,
+              authorId: msg.authorId,
+              author: msg.author,
+              text: msg.text,
+              timestamp: msg.timestamp ?? Date.now(),
+            });
+          }
+
+          if (msg.type === 'combatLog' && typeof onCombatLog === 'function') {
+            const entries = Array.isArray(msg.entries) ? msg.entries : [];
+            onCombatLog(entries);
           }
         },
       });

@@ -15,6 +15,7 @@ import { xpToNext } from '/shared/progression.js';
 import { PLAYER_CONFIG } from '/shared/config.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 import { createMinimap } from './minimap.js';
+import { createChat } from './chat.js';
 
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
@@ -92,6 +93,13 @@ const authRef = { current: null };
 const connectionRef = { current: null };
 const combatRef = { current: null };
 
+const chat = createChat({
+  onSend: (channel, text) => {
+    sendWithSeq({ type: 'chat', channel, text });
+  },
+  isInParty: () => false,
+});
+
 const ui = createUiState({
   onInventorySwap: (from, to) => {
     sendWithSeq({ type: 'inventorySwap', from, to });
@@ -111,6 +119,7 @@ const ui = createUiState({
   onRespawn: () => {
     connectionRef.current?.sendRespawn();
   },
+  isChatFocused: () => chat.isChatFocused(),
 });
 
 const menu = createMenu({
@@ -146,6 +155,12 @@ const connection = createConnection({
   ctx,
   onCombatEvents: (event, now, eventTime) =>
     combat.handleCombatEvent(event, now, eventTime),
+  onChatMessage: (data) => {
+    const channel = data?.channel ?? 'area';
+    chat.addMessage(channel, data);
+  },
+  onCombatLog: (entries) => chat.addCombatLogEntries(entries),
+  onConnected: () => chat.addSystemMessage('Connected to game'),
   updateLocalUi,
   setWorld,
   loadCharacters: () => auth.loadCharacters(),

@@ -266,6 +266,20 @@
         <div>X/Z: <span id="coords">0.0, 0.0</span></div>
       </div>
     </div>
+    <div id="chat-panel" class="chat-panel">
+      <div class="chat-tabs">
+        <button class="chat-tab active" data-channel="general" type="button">General</button>
+        <button class="chat-tab" data-channel="area" type="button">Area</button>
+        <button class="chat-tab" data-channel="global" type="button">Global</button>
+        <button class="chat-tab" data-channel="combat" type="button">Combat</button>
+        <button class="chat-tab" data-channel="trade" type="button">Trade</button>
+        <button class="chat-tab" data-channel="party" type="button">Party</button>
+      </div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <div class="chat-input-wrap">
+        <input id="chat-input" type="text" placeholder="Type a message..." maxlength="200" />
+      </div>
+    </div>
     <script type="module" src="./client.js"></script>
   </body>
 </html>

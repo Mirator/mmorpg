@@ -120,6 +120,37 @@ export function createServer({ env = process.env } = {}) {
     persistence,
   });
 
+  function getMobDisplayName(mob) {
+    if (!mob) return 'Enemy';
+    const level = mob.level ?? 1;
+    return `Enemy (Lv.${level})`;
+  }
+
+  const onPlayerDamaged = (player, mob, damage, now) => {
+    const mobName = getMobDisplayName(mob);
+    ws.sendCombatLogToPlayer(player.id, [
+      {
+        kind: 'damage_received',
+        text: `${mobName} hit you for ${damage} damage`,
+        t: now,
+      },
+    ]);
+  };
+
+  const onCombatLog = (playerId, entries) => {
+    ws.sendCombatLogToPlayer(playerId, entries);
+  };
+
+  const onPlayerDeath = (playerId, now) => {
+    ws.sendCombatLogToPlayer(playerId, [
+      {
+        kind: 'death',
+        text: 'You died',
+        t: now,
+      },
+    ]);
+  };
+
   const gameLoop = createGameLoop({
     players,
     world,
@@ -128,6 +159,9 @@ export function createServer({ env = process.env } = {}) {
     config,
     spawner,
     markDirty: persistence.markDirty,
+    onPlayerDamaged,
+    onCombatLog,
+    onPlayerDeath,
   });
 
   function start() {

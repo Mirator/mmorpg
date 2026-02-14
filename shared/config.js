@@ -43,6 +43,13 @@ export const COMBAT_CONFIG = {
   targetSelectRange: 25,
 };
 
+export const CHAT_CONFIG = {
+  areaRadius: 80,
+  maxLength: 200,
+  rateLimitMax: 5,
+  rateLimitIntervalMs: 10_000,
+};
+
 export function getConfigSnapshot() {
   return {
     version: GAME_CONFIG_VERSION,
@@ -78,6 +85,12 @@ export function getConfigSnapshot() {
     },
     vendor: {
       interactRadius: VENDOR_CONFIG.interactRadius,
+    },
+    chat: {
+      areaRadius: CHAT_CONFIG.areaRadius,
+      maxLength: CHAT_CONFIG.maxLength,
+      rateLimitMax: CHAT_CONFIG.rateLimitMax,
+      rateLimitIntervalMs: CHAT_CONFIG.rateLimitIntervalMs,
     },
   };
 }

@@ -19,8 +19,12 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'inventorySwap', from: number, to: number, seq?: number }} InventorySwapMessage
  * @typedef {{ type: 'equipSwap', fromType: 'inventory' | 'equipment', fromSlot: number | string, toType: 'inventory' | 'equipment', toSlot: number | string, seq?: number }} EquipSwapMessage
  * @typedef {{ type: 'vendorSell', vendorId: string, slot: number, seq?: number }} VendorSellMessage
- * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage} ClientMessage
+ * @typedef {{ type: 'chat', channel: 'global' | 'area' | 'trade' | 'party', text: string, seq?: number }} ChatMessage
+ * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | ChatMessage} ClientMessage
  */
+
+const CHAT_CHANNELS = new Set(['global', 'area', 'trade', 'party']);
+const MAX_CHAT_TEXT_LENGTH = 200;
 
 const CLIENT_MESSAGE_TYPES = new Set([
   'hello',
@@ -33,6 +37,7 @@ const CLIENT_MESSAGE_TYPES = new Set([
   'inventorySwap',
   'equipSwap',
   'vendorSell',
+  'chat',
 ]);
 
 function isPlainObject(value) {
@@ -176,7 +181,17 @@ export function parseClientMessage(raw) {
     return { type: 'vendorSell', vendorId, slot, seq };
   }
 
+  if (raw.type === 'chat') {
+    const channel = raw.channel;
+    if (!CHAT_CHANNELS.has(channel)) return null;
+    const text = typeof raw.text === 'string' ? raw.text.trim() : '';
+    if (!text || text.length > MAX_CHAT_TEXT_LENGTH) return null;
+    return { type: 'chat', channel, text, seq };
+  }
+
   return null;
 }
+
+export { CHAT_CHANNELS, MAX_CHAT_TEXT_LENGTH };
 
 export const CLIENT_MESSAGE_TYPES_LIST = Array.from(CLIENT_MESSAGE_TYPES);
