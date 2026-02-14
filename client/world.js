@@ -24,6 +24,8 @@ const COLORS = {
   mob: 0xff4d4d,
   obstacle: 0x3a3f44,
   vendor: 0xffd54f,
+  corpse: 0x4a5568,
+  corpseCross: 0x718096,
 };
 
 const RESOURCE_TYPE_COLORS = {
@@ -243,6 +245,38 @@ function buildObstacleMesh(obstacle) {
   return mesh;
 }
 
+function buildCorpseMesh() {
+  const group = new THREE.Group();
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(0.6, 0.15, 0.4),
+    new THREE.MeshStandardMaterial({
+      color: COLORS.corpse,
+      roughness: 1,
+    })
+  );
+  base.position.y = 0.075;
+  group.add(base);
+  const cross = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.5, 0.08),
+    new THREE.MeshStandardMaterial({
+      color: COLORS.corpseCross,
+      roughness: 1,
+    })
+  );
+  cross.position.set(0, 0.4, 0);
+  group.add(cross);
+  const crossBar = new THREE.Mesh(
+    new THREE.BoxGeometry(0.35, 0.08, 0.08),
+    new THREE.MeshStandardMaterial({
+      color: COLORS.corpseCross,
+      roughness: 1,
+    })
+  );
+  crossBar.position.set(0, 0.55, 0);
+  group.add(crossBar);
+  return group;
+}
+
 function buildResourceMesh(type = 'crystal') {
   const colors = RESOURCE_TYPE_COLORS[type] ?? RESOURCE_TYPE_COLORS.crystal;
   const group = new THREE.Group();
@@ -396,11 +430,13 @@ export function initWorld(scene, world) {
     resourceMeshes: new Map(),
     mobMeshes: new Map(),
     mobControllers: new Map(),
+    corpseMeshes: new Map(),
     vendorMeshes,
     vendorControllers: new Map(),
     isActive: true,
     lastResources: [],
     lastMobs: [],
+    lastCorpses: [],
   };
 
   for (const vendor of world?.vendors ?? []) {
@@ -498,6 +534,33 @@ export function updateMobs(worldState, mobs) {
       worldState.group.remove(mesh);
       worldState.mobMeshes.delete(id);
       worldState.mobControllers.delete(id);
+    }
+  }
+}
+
+export function updateCorpses(worldState, corpses) {
+  if (!worldState) return;
+  worldState.lastCorpses = corpses;
+  const seen = new Set();
+
+  for (const corpse of corpses) {
+    seen.add(corpse.id);
+    let mesh = worldState.corpseMeshes.get(corpse.id);
+    if (!mesh) {
+      mesh = buildCorpseMesh();
+      worldState.corpseMeshes.set(corpse.id, mesh);
+      worldState.group.add(mesh);
+    }
+    const x = corpse.x ?? corpse.pos?.x ?? 0;
+    const y = corpse.y ?? corpse.pos?.y ?? 0;
+    const z = corpse.z ?? corpse.pos?.z ?? 0;
+    mesh.position.set(x, y, z);
+  }
+
+  for (const [id, mesh] of worldState.corpseMeshes.entries()) {
+    if (!seen.has(id)) {
+      worldState.group.remove(mesh);
+      worldState.corpseMeshes.delete(id);
     }
   }
 }

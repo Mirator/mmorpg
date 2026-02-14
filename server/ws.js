@@ -18,9 +18,11 @@ import {
   serializePlayerPrivate,
   serializeResources,
   serializeMobs,
+  serializeCorpses,
 } from './admin.js';
 import { worldSnapshot } from './logic/world.js';
 import { tryHarvest } from './logic/resources.js';
+import { tryLootCorpse } from './logic/corpses.js';
 import { tryUseAbility } from './logic/combat.js';
 import {
   addItem,
@@ -172,6 +174,7 @@ export function createWebSocketServer({
   world,
   resources,
   mobs,
+  corpses,
   players,
   spawner,
   persistence,
@@ -261,18 +264,28 @@ export function createWebSocketServer({
     );
   }
 
+  function filterCorpsesByAOI(corpsesArr, centerPos) {
+    if (!Array.isArray(corpsesArr)) return [];
+    return corpsesArr.filter((c) => {
+      const pos = c?.pos ?? { x: c?.x, z: c?.z };
+      return isInAOI(pos, centerPos);
+    });
+  }
+
   function buildPublicStateForPlayer(player, now) {
     const pos = player?.pos ?? { x: 0, z: 0 };
     const partyIds = getPartyMemberIds(player?.id);
     const filteredPlayers = filterPlayersByAOI(players, pos, partyIds);
     const filteredResources = filterResourcesByAOI(resources, pos);
     const filteredMobs = filterMobsByAOI(mobs, pos);
+    const filteredCorpses = filterCorpsesByAOI(corpses ?? [], pos);
     return {
       type: 'state',
       t: now,
       players: filteredPlayers,
       resources: serializeResources(filteredResources),
       mobs: serializeMobs(filteredMobs),
+      corpses: serializeCorpses(filteredCorpses),
     };
   }
 
@@ -338,17 +351,35 @@ export function createWebSocketServer({
       if (!currMobIds.has(m.id)) removedMobs.push(m.id);
     }
 
+    const deltaCorpses = [];
+    const removedCorpses = [];
+    const lastCorpseMap = resourceById(last.corpses);
+    const currCorpseIds = new Set();
+    for (const curr of currentState.corpses ?? []) {
+      currCorpseIds.add(curr.id);
+      const prev = lastCorpseMap.get(curr.id);
+      if (!prev || entityChanged(prev, curr)) {
+        deltaCorpses.push(curr);
+      }
+    }
+    for (const c of last.corpses ?? []) {
+      if (!currCorpseIds.has(c.id)) removedCorpses.push(c.id);
+    }
+
     const totalCurrent =
       (currentState.players ? Object.keys(currentState.players).length : 0) +
       (currentState.resources?.length ?? 0) +
-      (currentState.mobs?.length ?? 0);
+      (currentState.mobs?.length ?? 0) +
+      (currentState.corpses?.length ?? 0);
     const totalDelta =
       Object.keys(deltaPlayers).length +
       deltaResources.length +
       deltaMobs.length +
+      deltaCorpses.length +
       removedPlayers.length +
       removedResources.length +
-      removedMobs.length;
+      removedMobs.length +
+      removedCorpses.length;
     const sendFull =
       totalCurrent === 0 || totalDelta / Math.max(1, totalCurrent) >= DELTA_FULL_THRESHOLD;
 
@@ -363,6 +394,8 @@ export function createWebSocketServer({
     if (removedPlayers.length > 0) msg.removedPlayers = removedPlayers;
     if (removedResources.length > 0) msg.removedResources = removedResources;
     if (removedMobs.length > 0) msg.removedMobs = removedMobs;
+    if (deltaCorpses.length > 0) msg.corpses = deltaCorpses;
+    if (removedCorpses.length > 0) msg.removedCorpses = removedCorpses;
     return msg;
   }
 
@@ -373,6 +406,7 @@ export function createWebSocketServer({
       players: serializePlayersPublic(players),
       resources: serializeResources(resources),
       mobs: serializeMobs(mobs),
+      corpses: serializeCorpses(corpses ?? []),
     };
   }
 
@@ -888,6 +922,13 @@ export function createWebSocketServer({
             stackMax: player.invStackMax,
           });
           if (harvested) {
+            persistence.markDirty(player);
+            return;
+          }
+          const { looted } = tryLootCorpse(corpses ?? [], player, {
+            lootRadius: config.corpse?.lootRadius ?? 2.5,
+          });
+          if (looted) {
             persistence.markDirty(player);
           }
           return;

@@ -5,6 +5,7 @@ import {
   PLAYER_CONFIG,
   COMBAT_CONFIG,
   CHAT_CONFIG,
+  CORPSE_CONFIG,
   getConfigSnapshot,
 } from '../shared/config.js';
 
@@ -131,6 +132,10 @@ export function getServerConfig(env = process.env) {
     },
     combat: {
       targetSelectRange: COMBAT_CONFIG.targetSelectRange,
+    },
+    corpse: {
+      expiryMs: parseIntEnv(env.CORPSE_EXPIRY_MS, CORPSE_CONFIG.expiryMs),
+      lootRadius: CORPSE_CONFIG.lootRadius,
     },
     chat: {
       areaRadius: CHAT_CONFIG.areaRadius,

@@ -46,9 +46,10 @@ Movement:
 
 Death and respawn:
 - HP ≤ 0 triggers death.
-- Inventory is cleared on death.
+- Inventory is dropped at death location as a corpse; currency and equipment retained.
 - Respawn occurs after 1 minute at the next spawn point.
 - On respawn, HP is restored to max and attack cooldown is reset.
+- Return to corpse and press E to loot; corpses expire after 10 minutes.
 
 **Interaction Systems**
 Harvesting:

@@ -50,7 +50,7 @@ Constants: `COPPER_PER_SILVER = 100`, `SILVER_PER_GOLD = 100`, `COPPER_PER_GOLD 
 
 ## 2.3 Death
 
-Inventory is cleared on death. Currency is retained.
+On death, inventory is dropped at the death location as a **corpse**. Currency and equipment are retained. The player respawns at base after a timer. To recover items, the player must return to their corpse and press E (interact) within `corpseLootRadius` (default: 2.5). Only the corpse owner can loot. Corpses expire after `corpseExpiryMs` (default: 10 minutes); unclaimed items are lost.
 
 ---
 
@@ -216,5 +216,7 @@ Crafting consumes ingredients from inventory and produces output items. No locat
 | harvestRadius       | 2.2     | Distance to harvest resources  |
 | respawnMs           | 15,000  | Resource node respawn (ms)     |
 | vendorInteractRadius| 2.5     | Distance to interact with vendor |
+| corpseExpiryMs      | 600,000 | Corpse despawn (ms, 10 min)    |
+| corpseLootRadius    | 2.5     | Distance to loot corpse        |
 
 **Source:** [shared/config.js](shared/config.js), [server/logic/world.js](server/logic/world.js)

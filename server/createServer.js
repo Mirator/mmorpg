@@ -31,6 +31,7 @@ export function createServer({ env = process.env } = {}) {
     ? createMobs(mobCount, world)
     : createMobsFromSpawns(world.mobSpawns, world);
   const players = new Map();
+  const corpses = [];
   const spawner = createSpawner(world);
 
   if (isE2eTest) {
@@ -116,6 +117,7 @@ export function createServer({ env = process.env } = {}) {
     world,
     resources,
     mobs,
+    corpses,
     players,
     spawner,
     persistence,
@@ -150,7 +152,7 @@ export function createServer({ env = process.env } = {}) {
     ws.sendCombatLogToPlayer(playerId, [
       {
         kind: 'death',
-        text: 'You died',
+        text: 'You died. Return to your corpse to retrieve your items.',
         t: now,
       },
     ]);
@@ -161,6 +163,7 @@ export function createServer({ env = process.env } = {}) {
     world,
     resources,
     mobs,
+    corpses,
     config,
     spawner,
     markDirty: persistence.markDirty,

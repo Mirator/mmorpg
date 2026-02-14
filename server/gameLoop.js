@@ -2,11 +2,12 @@ import { stepPlayer } from './logic/movement.js';
 import { applyCollisions } from './logic/collision.js';
 import { stepResources } from './logic/resources.js';
 import { stepMobs } from './logic/mobs.js';
-import { clearInventory } from './logic/inventory.js';
+import { clearInventory, countInventory } from './logic/inventory.js';
 import { respawnPlayer } from './logic/players.js';
+import { createCorpse, stepCorpses } from './logic/corpses.js';
 import { stepPlayerResources, stepPlayerCast, stepDotTicks, stepHotTicks } from './logic/combat.js';
 
-export function createGameLoop({ players, world, resources, mobs, config, spawner, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent }) {
+export function createGameLoop({ players, world, resources, mobs, corpses, config, spawner, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent }) {
   const tickHz = config.tickHz;
   const dt = 1 / tickHz;
   const playerRadius = config.playerRadius;
@@ -19,10 +20,21 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
     onPlayerDamaged,
   };
 
+  const corpseExpiryMs = config.corpse?.expiryMs ?? 600_000;
+
   function killPlayer(player, now) {
     if (player.dead) return;
     player.dead = true;
     player.respawnAt = now + respawnMs;
+    if (corpses && Array.isArray(corpses) && player.inventory && countInventory(player.inventory) > 0) {
+      const corpse = createCorpse(
+        player.id,
+        player.pos,
+        player.inventory,
+        now + corpseExpiryMs
+      );
+      corpses.push(corpse);
+    }
     player.inv = 0;
     clearInventory(player.inventory);
     player.target = null;
@@ -77,6 +89,7 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
       }
 
       stepResources(resources, now);
+      if (corpses) stepCorpses(corpses, now);
       stepDotTicks(mobs, now, config.mob?.respawnMs ?? 10_000, players);
       stepHotTicks(players, now);
       stepMobs(mobs, Array.from(players.values()), world, dt, now, mobConfig);

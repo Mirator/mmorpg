@@ -76,6 +76,7 @@ export function createConnection({
     const removedPlayers = msg.removedPlayers ?? [];
     const removedResources = msg.removedResources ?? [];
     const removedMobs = msg.removedMobs ?? [];
+    const removedCorpses = msg.removedCorpses ?? [];
 
     if (msg.players != null || removedPlayers.length > 0) {
       if (isFull && msg.players) {
@@ -102,6 +103,14 @@ export function createConnection({
         gameState.mergeMobs(msg.mobs ?? [], removedMobs);
       }
       renderSystem.updateWorldMobs(gameState.getLatestMobs());
+    }
+    if (msg.corpses != null || removedCorpses.length > 0) {
+      if (isFull && msg.corpses) {
+        gameState.updateCorpses(msg.corpses);
+      } else {
+        gameState.mergeCorpses(msg.corpses ?? [], removedCorpses);
+      }
+      renderSystem.updateWorldCorpses(gameState.getLatestCorpses());
     }
   }
 

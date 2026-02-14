@@ -109,6 +109,19 @@ export function serializeResources(resources) {
   }));
 }
 
+export function serializeCorpses(corpses) {
+  if (!Array.isArray(corpses)) return [];
+  return corpses.map((c) => ({
+    id: c.id,
+    playerId: c.playerId,
+    x: c.pos.x,
+    y: c.pos.y ?? 0,
+    z: c.pos.z,
+    itemCount: (c.inventory ?? []).filter((s) => s).length,
+    expiresAt: c.expiresAt ?? 0,
+  }));
+}
+
 export function serializeMobs(mobs) {
   return mobs.map((m) => ({
     id: m.id,

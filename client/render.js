@@ -1,5 +1,5 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-import { initWorld, updateResources, updateMobs, animateWorld } from './world.js';
+import { initWorld, updateResources, updateMobs, updateCorpses, animateWorld } from './world.js';
 import {
   ASSET_PATHS,
   assemblePlayerModel,
@@ -356,6 +356,10 @@ export function createRenderSystem({ app }) {
     updateMobs(worldState, mobs);
   }
 
+  function updateWorldCorpses(corpses) {
+    updateCorpses(worldState, corpses);
+  }
+
   function animateWorldMeshes(now) {
     animateWorld(worldState, now);
   }
@@ -426,6 +430,9 @@ export function createRenderSystem({ app }) {
       setVisibleByDistance(mesh);
     }
     for (const mesh of worldState.resourceMeshes.values()) {
+      setVisibleByDistance(mesh);
+    }
+    for (const mesh of worldState.corpseMeshes?.values?.() ?? []) {
       setVisibleByDistance(mesh);
     }
     for (const mesh of worldState.mobMeshes.values()) {
@@ -693,6 +700,7 @@ export function createRenderSystem({ app }) {
     updateWorld,
     updateWorldResources,
     updateWorldMobs,
+    updateWorldCorpses,
     animateWorldMeshes,
     updateAnimations,
     triggerAttack,

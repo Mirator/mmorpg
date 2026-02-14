@@ -30,6 +30,11 @@ export const VENDOR_CONFIG = {
   interactRadius: 2.5,
 };
 
+export const CORPSE_CONFIG = {
+  expiryMs: 600_000, // 10 minutes
+  lootRadius: 2.5,
+};
+
 export const MOB_CONFIG = {
   respawnMs: 10_000,
   attackDamageBase: 6,
