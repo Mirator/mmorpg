@@ -47,7 +47,7 @@ Movement:
 Death and respawn:
 - HP ≤ 0 triggers death.
 - Inventory is cleared on death.
-- Respawn occurs after 5 seconds at the next spawn point.
+- Respawn occurs after 1 minute at the next spawn point.
 - On respawn, HP is restored to max and attack cooldown is reset.
 
 **Interaction Systems**
@@ -269,7 +269,7 @@ Server runtime defaults:
 - tickHz: 60
 - broadcastHz: 20
 - playerRadius: 0.6
-- respawnMs: 5000
+- respawnMs: 60000 (override via RESPAWN_MS env)
 
 Map config schema (default path: `server/data/world-map.json`):
 - `version` (number)

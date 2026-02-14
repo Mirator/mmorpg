@@ -36,14 +36,14 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
     }
   }
 
-  let intervalId = null;
+  let timeoutId = null;
+  let nextTickAt = 0;
+  const dtMs = dt * 1000;
 
-  function start() {
-    if (intervalId) return;
-    intervalId = setInterval(() => {
-      const now = Date.now();
+  function tick() {
+    const now = Date.now();
 
-      for (const player of players.values()) {
+    for (const player of players.values()) {
         const prevPos = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
         let respawned = false;
 
@@ -152,13 +152,22 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
           killPlayer(player, now);
         }
       }
-    }, dt * 1000);
+
+    nextTickAt += dtMs;
+    const delay = Math.max(0, nextTickAt - Date.now());
+    timeoutId = setTimeout(tick, delay);
+  }
+
+  function start() {
+    if (timeoutId) return;
+    nextTickAt = Date.now() + dtMs;
+    timeoutId = setTimeout(tick, dtMs);
   }
 
   function stop() {
-    if (!intervalId) return;
-    clearInterval(intervalId);
-    intervalId = null;
+    if (!timeoutId) return;
+    clearTimeout(timeoutId);
+    timeoutId = null;
   }
 
   return { start, stop };
