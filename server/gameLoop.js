@@ -67,7 +67,11 @@ export function createGameLoop({ players, world, resources, mobs, corpses, confi
         }
 
         if (!player.dead) {
-          const speed = world.playerSpeed * (player.moveSpeedMultiplier ?? 1);
+          const rooted = (player.rootedUntil ?? 0) > now;
+          const stunned = (player.stunnedUntil ?? 0) > now;
+          const canMove = !rooted && !stunned;
+          const slowMult = (player.slowUntil ?? 0) > now ? (player.slowMultiplier ?? 0.5) : 1;
+          const speed = canMove ? world.playerSpeed * (player.moveSpeedMultiplier ?? 1) * slowMult : 0;
           const result = stepPlayer(
             { pos: player.pos, target: player.target },
             { keys: player.keys },

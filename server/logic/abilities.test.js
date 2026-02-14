@@ -8,6 +8,7 @@ import {
   stepPlayerResources,
 } from './combat.js';
 import { stepMobs } from './mobs.js';
+import * as pvp from './pvp.js';
 
 function makeWorld() {
   return {
@@ -303,5 +304,137 @@ describe('class abilities', () => {
     fighter.combatTagUntil = 0;
     stepPlayerResources(fighter, 10_000, 1);
     expect(fighter.resource).toBe(45);
+  });
+
+  it('returns pvp_not_allowed when targeting player for damage without PvP', () => {
+    const fighter = makePlayer({ classId: 'fighter', level: 2, resource: 100 });
+    const target = makePlayer({ id: 'p2', classId: 'mage', level: 2, pos: { x: 1, y: 0, z: 0 } });
+    const players = new Map([[fighter.id, fighter], [target.id, target]]);
+    fighter.targetId = target.id;
+    fighter.targetKind = 'player';
+
+    const result = tryUseAbility({
+      player: fighter,
+      slot: 2,
+      mobs: [],
+      players,
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('pvp_not_allowed');
+    expect(target.hp).toBe(100);
+  });
+
+  it('PvP damage applies when isPvPAllowed returns true', () => {
+    vi.spyOn(pvp, 'isPvPAllowed').mockReturnValue(true);
+    const fighter = makePlayer({ classId: 'fighter', level: 2, resource: 100 });
+    const target = makePlayer({ id: 'p2', classId: 'mage', level: 2, pos: { x: 1, y: 0, z: 0 } });
+    const players = new Map([[fighter.id, fighter], [target.id, target]]);
+    fighter.targetId = target.id;
+    fighter.targetKind = 'player';
+
+    const result = tryUseAbility({
+      player: fighter,
+      slot: 2,
+      mobs: [],
+      players,
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+    expect(result.success).toBe(true);
+    expect(target.hp).toBeLessThan(100);
+    vi.restoreAllMocks();
+  });
+
+  it('CC diminishing returns: 4th application within 10s yields immune', () => {
+    vi.spyOn(pvp, 'isPvPAllowed').mockReturnValue(true);
+    const mage = makePlayer({ classId: 'mage', level: 3, resource: 200 });
+    const target = makePlayer({ id: 'p2', classId: 'fighter', level: 3, pos: { x: 1, y: 0, z: 0 } });
+    const players = new Map([[mage.id, mage], [target.id, target]]);
+
+    for (let i = 0; i < 4; i++) {
+      tryUseAbility({
+        player: mage,
+        slot: 3,
+        mobs: [],
+        players,
+        world: makeWorld(),
+        now: i * 500,
+        respawnMs: 10_000,
+      });
+    }
+    expect(target.slowUntil).toBeGreaterThan(0);
+    const afterThird = target.slowUntil;
+    tryUseAbility({
+      player: mage,
+      slot: 3,
+      mobs: [],
+      players,
+      world: makeWorld(),
+      now: 2000,
+      respawnMs: 10_000,
+    });
+    expect(target.slowUntil).toBe(afterThird);
+    vi.restoreAllMocks();
+  });
+
+  it('Salvation fails when target died in PvP', () => {
+    const priest = makePlayer({ classId: 'priest', level: 30, resource: 120 });
+    const deadAlly = makePlayer({
+      id: 'p2',
+      classId: 'fighter',
+      level: 2,
+      dead: true,
+      hp: 0,
+      maxHp: 100,
+      diedInPvPUntil: 999999,
+    });
+    const players = new Map([[priest.id, priest], [deadAlly.id, deadAlly]]);
+    priest.targetId = deadAlly.id;
+    priest.targetKind = 'player';
+
+    const result = tryUseAbility({
+      player: priest,
+      slot: 9,
+      mobs: [],
+      players,
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('salvation_pve_only');
+    expect(deadAlly.dead).toBe(true);
+  });
+
+  it('Salvation succeeds when target died in PvE', () => {
+    const priest = makePlayer({ classId: 'priest', level: 30, resource: 120 });
+    const deadAlly = makePlayer({
+      id: 'p2',
+      classId: 'fighter',
+      level: 2,
+      dead: true,
+      hp: 0,
+      maxHp: 100,
+    });
+    const players = new Map([[priest.id, priest], [deadAlly.id, deadAlly]]);
+    priest.targetId = deadAlly.id;
+    priest.targetKind = 'player';
+
+    const result = tryUseAbility({
+      player: priest,
+      slot: 9,
+      mobs: [],
+      players,
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+    expect(result.success).toBe(true);
+    expect(deadAlly.dead).toBe(false);
+    expect(deadAlly.hp).toBe(50);
   });
 });

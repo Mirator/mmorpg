@@ -15,6 +15,7 @@ import { getEquippedWeapon } from '../../shared/equipment.js';
 import { computeDerivedStats, computeHitChance } from '../../shared/attributes.js';
 import { getMobMaxHp } from './mobs.js';
 import { applyCollisions } from './collision.js';
+import { isPvPAllowed } from './pvp.js';
 
 export function getBasicAttackConfig(player) {
   const klass = getClassById(player?.classId);
@@ -69,26 +70,33 @@ function applyPvpCCDurationMultiplier(durationMs, ability, isPvP) {
 
 /**
  * Damage = baseValue + (Relevant Power × coefficient)
+ * @param {Object} player
+ * @param {Object} ability
+ * @param {number} [now]
+ * @param {boolean} [isPvP] - When true, use PvP variants of self-buffs (Berserk, Avatar, Eagle Eye)
  */
-function computeAbilityDamage(player, ability, now = 0) {
+function computeAbilityDamage(player, ability, now = 0, isPvP = false) {
   const baseValue = ability.baseValue ?? 0;
   const coefficient = ability.coefficient ?? 0;
   const derived = computeDerivedStats(player);
   let relevantPower = getRelevantPowerForAbility(derived, ability, player.classId);
   if ((player.avatarOfWarUntil ?? 0) > now && ability?.attackType === 'melee') {
-    relevantPower = Math.floor(relevantPower * (player.physicalPowerMultiplier ?? 1.3));
+    const powMult = isPvP ? (player.pvpPhysicalPowerMultiplier ?? 1.2) : (player.physicalPowerMultiplier ?? 1.3);
+    relevantPower = Math.floor(relevantPower * powMult);
   }
   let damage = Math.max(0, Math.floor(baseValue + relevantPower * coefficient));
   let critChance = derived.critChance ?? 0;
   if ((player.eagleEyeUntil ?? 0) > now) {
-    critChance = Math.min(0.4, critChance + (player.critChanceBonusPct ?? 20) / 100);
+    const critBonus = isPvP ? (player.pvpCritChanceBonusPct ?? 10) : (player.critChanceBonusPct ?? 20);
+    critChance = Math.min(0.4, critChance + critBonus / 100);
   }
   const isCrit = rollCrit(critChance);
   if (isCrit) {
     damage = Math.floor(damage * 2);
   }
   if ((player.berserkUntil ?? 0) > now) {
-    damage = Math.floor(damage * (player.damageDealtMultiplier ?? 1.25));
+    const dmgMult = isPvP ? (player.pvpDamageDealtMultiplier ?? 1.15) : (player.damageDealtMultiplier ?? 1.25);
+    damage = Math.floor(damage * dmgMult);
   }
   if ((player.bloodRageUntil ?? 0) > now) {
     damage = Math.floor(damage * (player.bloodRageDamageMultiplier ?? 1));
@@ -323,6 +331,34 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
   };
 }
 
+const DIED_IN_PVP_MS = 60_000;
+
+function applyDamageToPlayer({ targetPlayer, damage, attacker, now }) {
+  if (!targetPlayer || targetPlayer.dead) return { killed: false, damageDealt: 0 };
+  let dmg = Math.max(0, Math.floor(damage));
+  let mult = 1;
+  if ((targetPlayer.shieldWallUntil ?? 0) > now) {
+    mult = targetPlayer.shieldWallPvpDamageTakenMultiplier ?? 0.7;
+  } else if ((targetPlayer.defensiveStanceUntil ?? 0) > now) {
+    mult = targetPlayer.defensiveStancePvpDamageTakenMultiplier ?? 0.8;
+  }
+  dmg = Math.floor(dmg * mult);
+  const maxHp = targetPlayer.maxHp ?? targetPlayer.hp ?? 100;
+  targetPlayer.hp = Math.max(0, (targetPlayer.hp ?? maxHp) - dmg);
+  let killed = false;
+  if (targetPlayer.hp <= 0) {
+    targetPlayer.dead = true;
+    targetPlayer.respawnAt = now + 5000;
+    targetPlayer.diedInPvPUntil = now + DIED_IN_PVP_MS;
+    killed = true;
+    if (attacker?.targetId === targetPlayer.id) {
+      attacker.targetId = null;
+      attacker.targetKind = null;
+    }
+  }
+  return { killed, damageDealt: dmg };
+}
+
 export function findNearestMobInRange(mobs, pos, range) {
   if (!Array.isArray(mobs) || !pos) return null;
   let best = null;
@@ -502,8 +538,6 @@ function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs
   if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false };
   const dir = direction ?? getAbilityDirection(player, mobs);
   if (!dir) return { xpGain: 0, leveledUp: false, hit: false, noDirection: true };
-  const { damage: rawDmg, derived } = computeAbilityDamage(player, ability, now);
-  const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
   const halfAngle = (coneDegrees ?? 120) / 2;
   const cosThreshold = Math.cos((halfAngle * Math.PI) / 180);
   let xpGain = 0;
@@ -518,6 +552,8 @@ function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs
     if (dist <= 0.0001 || dist > range) continue;
     const dot = (dx / dist) * dir.x + (dz / dist) * dir.z;
     if (dot < cosThreshold) continue;
+    const { damage: rawDmg, derived } = computeAbilityDamage(player, ability, now, false);
+    const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
     if (!rollHit(derived.accuracy, 0)) continue;
     const result = applyDamageToMob({ mob, damage, attacker: player, now, respawnMs, players });
     if (result.xpGain) xpGain += result.xpGain;
@@ -531,24 +567,41 @@ function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs
     }
     hit = true;
   }
-  const xpGainByPlayer = Array.from(xpByPlayer.entries()).map(([playerId, v]) => ({
+  if (players?.forEach) {
+    players.forEach((targetPlayer) => {
+      if (!targetPlayer || targetPlayer.dead || targetPlayer.id === player.id) return;
+      if (!isPvPAllowed(player, targetPlayer, {})) return;
+      const dx = (targetPlayer.pos?.x ?? 0) - player.pos.x;
+      const dz = (targetPlayer.pos?.z ?? 0) - player.pos.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist <= 0.0001 || dist > range) return;
+      const dot = (dx / dist) * dir.x + (dz / dist) * dir.z;
+      if (dot < cosThreshold) return;
+      const { damage: rawDmg, derived } = computeAbilityDamage(player, ability, now, true);
+      const damage = applyPvpDamageMultiplier(rawDmg, ability, true);
+      if (!rollHit(derived.accuracy, 0)) return;
+      applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+      hit = true;
+    });
+  }
+  const xpGainByPlayerArr = Array.from(xpByPlayer.entries()).map(([playerId, v]) => ({
     playerId,
     xpGain: v.xpGain,
     leveledUp: v.leveledUp,
   }));
-  return { xpGain, leveledUp, hit, xpGainByPlayer };
+  return { xpGain, leveledUp, hit, xpGainByPlayer: xpGainByPlayerArr };
 }
 
 function applyNova({ player, mobs, radius, ability, slowPct, slowDurationMs, rootDurationMs, now, respawnMs, players, center }) {
   if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false, killed: 0 };
-  const { damage: rawDmg, derived } = computeAbilityDamage(player, ability, now);
-  const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
   const origin = center ?? player.pos;
   let xpGain = 0;
   let leveledUp = false;
   let hit = false;
   let killed = 0;
   const xpByPlayer = new Map();
+  const { damage: rawDmg, derived } = computeAbilityDamage(player, ability, now, false);
+  const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
   for (const mob of mobs) {
     if (!mob || mob.dead || mob.hp <= 0) continue;
     const dist = Math.hypot(mob.pos.x - origin.x, mob.pos.z - origin.z);
@@ -579,6 +632,35 @@ function applyNova({ player, mobs, radius, ability, slowPct, slowDurationMs, roo
       });
     }
     hit = true;
+  }
+  if (players?.forEach) {
+    const { damage: pvpDmg, derived: pvpDerived } = computeAbilityDamage(player, ability, now, true);
+    const pvpDamage = applyPvpDamageMultiplier(pvpDmg, ability, true);
+    players.forEach((targetPlayer) => {
+      if (!targetPlayer || targetPlayer.dead || targetPlayer.id === player.id) return;
+      if (!isPvPAllowed(player, targetPlayer, {})) return;
+      const dist = Math.hypot(
+        (targetPlayer.pos?.x ?? 0) - origin.x,
+        (targetPlayer.pos?.z ?? 0) - origin.z
+      );
+      if (dist > radius) return;
+      if (!rollHit(pvpDerived.accuracy, 0)) return;
+      applyDamageToPlayer({ targetPlayer, damage: pvpDamage, attacker: player, now });
+      if (rootDurationMs) {
+        const effectiveRootDuration = applyCCWithDR(targetPlayer, 'root', rootDurationMs, ability, true, now);
+        if (effectiveRootDuration > 0) {
+          targetPlayer.rootedUntil = now + effectiveRootDuration;
+        }
+      }
+      if (slowPct) {
+        const effectiveSlowDuration = applyCCWithDR(targetPlayer, 'slow', slowDurationMs, ability, true, now);
+        if (effectiveSlowDuration > 0) {
+          targetPlayer.slowUntil = now + effectiveSlowDuration;
+          targetPlayer.slowMultiplier = Math.max(0, 1 - slowPct / 100);
+        }
+      }
+      hit = true;
+    });
   }
   const xpGainByPlayer = Array.from(xpByPlayer.entries()).map(([playerId, v]) => ({
     playerId,
@@ -612,6 +694,12 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
   if (ability.targetType === 'targeted') {
     if (ability.targetKind === 'player') {
       targetPlayer = resolvePlayerTarget(player, players, ability.id === 'salvation');
+    } else if (ability.targetKind === 'any') {
+      if (player.targetKind === 'player') {
+        targetPlayer = resolvePlayerTarget(player, players, false);
+      } else {
+        targetMob = resolveMobTarget(player, mobs);
+      }
     } else {
       targetMob = resolveMobTarget(player, mobs);
     }
@@ -622,6 +710,15 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
   }
   if (ability.targetType === 'targeted' && ability.targetKind === 'player' && ability.id !== 'heal' && !targetPlayer) {
     return { success: false, reason: 'no_target' };
+  }
+  if (ability.targetType === 'targeted' && ability.targetKind === 'any' && !targetMob && !targetPlayer) {
+    return { success: false, reason: 'no_target' };
+  }
+  if (targetPlayer && targetPlayer !== player && ability.targetKind === 'any' && !isPvPAllowed(player, targetPlayer, {})) {
+    return { success: false, reason: 'pvp_not_allowed' };
+  }
+  if (ability.id === 'salvation' && targetPlayer?.dead && (targetPlayer.diedInPvPUntil ?? 0) > now) {
+    return { success: false, reason: 'salvation_pve_only' };
   }
 
   if (targetMob && !withinRange(player.pos, targetMob.pos, ability.range ?? 0)) {
@@ -842,27 +939,40 @@ function buildAbilityEvent({ player, ability, targetMob, targetPlayer, abilityDi
 function createAbilityHandlers() {
   return {
     shield_slam(ctx) {
-      const { player, ability, targetMob, mobs, players, now, respawnMs } = ctx;
-      if (!targetMob) return {};
-      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
-      const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
+      const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      const isPvP = !!targetPlayer;
+      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, isPvP);
+      const damage = applyPvpDamageMultiplier(rawDmg, ability, isPvP);
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
       let result = null;
       if (rollHit(derived.accuracy, 0)) {
-        result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
-        xpGain = result.xpGain;
-        leveledUp = result.leveledUp;
+        if (targetPlayer) {
+          result = applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+        } else {
+          result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
+          xpGain = result.xpGain;
+          leveledUp = result.leveledUp;
+        }
         hit = true;
       }
-      if (hit && (!Number.isFinite(targetMob.stunImmuneUntil) || targetMob.stunImmuneUntil <= now)) {
+      if (hit && targetMob && (!Number.isFinite(targetMob.stunImmuneUntil) || targetMob.stunImmuneUntil <= now)) {
         const stunDuration = applyCCWithDR(targetMob, 'stun', ability.stunDurationMs ?? 0, ability, false, now);
         if (stunDuration > 0) {
           targetMob.stunnedUntil = now + stunDuration;
           targetMob.stunImmuneUntil = now + (ability.stunImmunityMs ?? 0);
         }
       }
+      if (hit && targetPlayer && isPvP) {
+        const stunDuration = applyCCWithDR(targetPlayer, 'stun', ability.stunDurationMs ?? 0, ability, true, now);
+        if (stunDuration > 0) {
+          targetPlayer.stunnedUntil = now + stunDuration;
+        }
+      }
+      const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : getMobDisplayName(targetMob);
       return {
         xpGain,
         leveledUp,
@@ -870,7 +980,7 @@ function createAbilityHandlers() {
         combatLog: hit
           ? {
               damageDealt: damage,
-              targetName: getMobDisplayName(targetMob),
+              targetName,
               abilityName: ability.name,
               isCrit,
               xpGain,
@@ -883,26 +993,34 @@ function createAbilityHandlers() {
     defensive_stance(ctx) {
       const { player, ability } = ctx;
       player.defensiveStanceUntil = ctx.now + (ability.durationMs ?? 0);
+      player.defensiveStancePvpDamageTakenMultiplier = ability.pvpDamageTakenMultiplier ?? 0.8;
       player.moveSpeedMultiplier = ability.moveSpeedMultiplier ?? 0.8;
-      player.damageTakenMultiplier = ability.damageTakenMultiplier ?? 0.6;
+      player.damageTakenMultiplier = ability.damageTakenMultiplier ?? 0.7;
       return {};
     },
     power_strike(ctx) {
-      const { player, ability, targetMob, mobs, players, now, respawnMs, preResource } = ctx;
-      if (!targetMob) return {};
-      const { damage: baseDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
+      const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs, preResource } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      const isPvP = !!targetPlayer;
+      const { damage: baseDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, isPvP);
       const scaledDmg = preResource > 80 ? Math.round(baseDmg * 1.2) : baseDmg;
-      const damage = applyPvpDamageMultiplier(scaledDmg, ability, false);
+      const damage = applyPvpDamageMultiplier(scaledDmg, ability, isPvP);
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
       let result = null;
       if (rollHit(derived.accuracy, 0)) {
-        result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
-        xpGain = result.xpGain;
-        leveledUp = result.leveledUp;
+        if (targetPlayer) {
+          result = applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+        } else {
+          result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
+          xpGain = result.xpGain;
+          leveledUp = result.leveledUp;
+        }
         hit = true;
       }
+      const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : getMobDisplayName(targetMob);
       return {
         xpGain,
         leveledUp,
@@ -910,7 +1028,7 @@ function createAbilityHandlers() {
         combatLog: hit
           ? {
               damageDealt: damage,
-              targetName: getMobDisplayName(targetMob),
+              targetName,
               abilityName: ability.name,
               isCrit,
               xpGain,
@@ -969,7 +1087,7 @@ function createAbilityHandlers() {
       const coefficient = ability.coefficient ?? 0.9;
       const derived = computeDerivedStats(player);
       const rawHeal = Math.max(0, Math.floor(baseValue + derived.healingPower * coefficient));
-      const isPvPHeal = healTarget !== player && targetPlayer != null;
+      const isPvPHeal = healTarget !== player && targetPlayer != null && isPvPAllowed(player, healTarget, {});
       const healAmount = applyPvpHealMultiplier(rawHeal, ability, isPvPHeal);
       const maxHp = healTarget.maxHp ?? healTarget.hp ?? 0;
       healTarget.hp = clamp((healTarget.hp ?? 0) + healAmount, 0, maxHp);
@@ -1065,7 +1183,7 @@ function createAbilityHandlers() {
         if (!p || p.dead) continue;
         const dist = Math.hypot((p.pos?.x ?? 0) - (origin?.x ?? 0), (p.pos?.z ?? 0) - (origin?.z ?? 0));
         if (dist > radius) continue;
-        const isPvP = p !== player;
+        const isPvP = p !== player && isPvPAllowed(player, p, {});
         const heal = applyPvpHealMultiplier(rawHeal, ability, isPvP);
         p.hp = Math.min((p.hp ?? 0) + heal, p.maxHp ?? 100);
         totalHealed += heal;
@@ -1086,6 +1204,7 @@ function createAbilityHandlers() {
       targetPlayer.hp = Math.floor((targetPlayer.maxHp ?? 100) * 0.5);
       targetPlayer.dead = false;
       targetPlayer.respawnAt = 0;
+      targetPlayer.diedInPvPUntil = 0;
       return {
         combatLog: {
           healAmount: targetPlayer.hp,
@@ -1095,23 +1214,30 @@ function createAbilityHandlers() {
       };
     },
     smite(ctx) {
-      const { player, ability, targetMob, mobs, players, now, respawnMs } = ctx;
-      if (!targetMob) return {};
-      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, ctx.now);
-    const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
-    let hit = false;
-    let xpGain = 0;
-    let leveledUp = false;
-    let result = null;
-    if (rollHit(derived.accuracy, 0)) {
-      result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now: ctx.now, respawnMs, players });
-      xpGain = result.xpGain;
-      leveledUp = result.leveledUp;
-      hit = true;
-      const weakenedPct = ability.weakenedPct ?? 15;
-        targetMob.weakenedUntil = now + 4000;
-        targetMob.weakenedMultiplier = Math.max(0, 1 - weakenedPct / 100);
+      const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      const isPvP = !!targetPlayer;
+      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, isPvP);
+      const damage = applyPvpDamageMultiplier(rawDmg, ability, isPvP);
+      let hit = false;
+      let xpGain = 0;
+      let leveledUp = false;
+      let result = null;
+      if (rollHit(derived.accuracy, 0)) {
+        if (targetPlayer) {
+          result = applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+        } else {
+          result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
+          xpGain = result.xpGain;
+          leveledUp = result.leveledUp;
+          const weakenedPct = ability.weakenedPct ?? 15;
+          targetMob.weakenedUntil = now + 4000;
+          targetMob.weakenedMultiplier = Math.max(0, 1 - weakenedPct / 100);
+        }
+        hit = true;
       }
+      const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : getMobDisplayName(targetMob);
       return {
         xpGain,
         leveledUp,
@@ -1119,7 +1245,7 @@ function createAbilityHandlers() {
         combatLog: hit
           ? {
               damageDealt: damage,
-              targetName: getMobDisplayName(targetMob),
+              targetName,
               abilityName: ability.name,
               isCrit,
               xpGain,
@@ -1130,26 +1256,33 @@ function createAbilityHandlers() {
       };
     },
     firebolt(ctx) {
-      const { player, ability, targetMob, mobs, players, now, respawnMs } = ctx;
-      if (!targetMob) return {};
-      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
-      const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
+      const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      const isPvP = !!targetPlayer;
+      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, isPvP);
+      const damage = applyPvpDamageMultiplier(rawDmg, ability, isPvP);
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
       let result = null;
       if (rollHit(derived.accuracy, 0)) {
-        result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
-        xpGain = result.xpGain;
-        leveledUp = result.leveledUp;
-        hit = true;
-        if (result.killed && player.classId === 'mage') {
-          const refund = Math.floor((ability.resourceCost ?? 0) * 0.2);
-          if (refund > 0) {
-            player.resource = clampResource(player, (player.resource ?? 0) + refund);
+        if (targetPlayer) {
+          result = applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+        } else {
+          result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
+          xpGain = result.xpGain;
+          leveledUp = result.leveledUp;
+          if (result.killed && player.classId === 'mage') {
+            const refund = Math.floor((ability.resourceCost ?? 0) * 0.2);
+            if (refund > 0) {
+              player.resource = clampResource(player, (player.resource ?? 0) + refund);
+            }
           }
         }
+        hit = true;
       }
+      const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : getMobDisplayName(targetMob);
       return {
         xpGain,
         leveledUp,
@@ -1157,7 +1290,7 @@ function createAbilityHandlers() {
         combatLog: hit
           ? {
               damageDealt: damage,
-              targetName: getMobDisplayName(targetMob),
+              targetName,
               abilityName: ability.name,
               isCrit,
               xpGain,
@@ -1171,6 +1304,7 @@ function createAbilityHandlers() {
       const { player, ability } = ctx;
       player.berserkUntil = ctx.now + (ability.durationMs ?? 6000);
       player.damageDealtMultiplier = ability.damageDealtMultiplier ?? 1.25;
+      player.pvpDamageDealtMultiplier = ability.pvpDamageDealtMultiplier ?? 1.15;
       return {};
     },
     whirlwind(ctx) {
@@ -1202,22 +1336,29 @@ function createAbilityHandlers() {
       };
     },
     execute(ctx) {
-      const { player, ability, targetMob, mobs, players, now, respawnMs } = ctx;
-      if (!targetMob) return {};
-      const hpPct = (targetMob.hp ?? 0) / Math.max(1, targetMob.maxHp ?? 1);
-      const { damage: baseDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
+      const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      const isPvP = !!targetPlayer;
+      const hpPct = (target.hp ?? 0) / Math.max(1, target.maxHp ?? 1);
+      const { damage: baseDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, isPvP);
       const executeBonus = hpPct < (ability.executeThresholdPct ?? 30) / 100 ? 1.5 : 1;
-      const damage = applyPvpDamageMultiplier(Math.floor(baseDmg * executeBonus), ability, false);
+      const damage = applyPvpDamageMultiplier(Math.floor(baseDmg * executeBonus), ability, isPvP);
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
       let result = null;
       if (rollHit(derived.accuracy, 0)) {
-        result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
-        xpGain = result.xpGain;
-        leveledUp = result.leveledUp;
+        if (targetPlayer) {
+          result = applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+        } else {
+          result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
+          xpGain = result.xpGain;
+          leveledUp = result.leveledUp;
+        }
         hit = true;
       }
+      const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : getMobDisplayName(targetMob);
       return {
         xpGain,
         leveledUp,
@@ -1225,7 +1366,7 @@ function createAbilityHandlers() {
         combatLog: hit
           ? {
               damageDealt: damage,
-              targetName: getMobDisplayName(targetMob),
+              targetName,
               abilityName: ability.name,
               isCrit,
               xpGain,
@@ -1243,21 +1384,29 @@ function createAbilityHandlers() {
       return {};
     },
     interrupting_strike(ctx) {
-      const { player, ability, targetMob, mobs, players, now, respawnMs } = ctx;
-      if (!targetMob) return {};
-      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
-      const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
+      const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      const isPvP = !!targetPlayer;
+      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, isPvP);
+      const damage = applyPvpDamageMultiplier(rawDmg, ability, isPvP);
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
       let result = null;
       if (rollHit(derived.accuracy, 0)) {
-        result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
-        xpGain = result.xpGain;
-        leveledUp = result.leveledUp;
+        if (targetPlayer) {
+          result = applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+          targetPlayer.castingLockoutUntil = now + (ability.interruptLockoutMs ?? 2000);
+        } else {
+          result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
+          xpGain = result.xpGain;
+          leveledUp = result.leveledUp;
+          targetMob.castingLockoutUntil = now + (ability.interruptLockoutMs ?? 2000);
+        }
         hit = true;
-        targetMob.castingLockoutUntil = now + (ability.interruptLockoutMs ?? 2000);
       }
+      const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : getMobDisplayName(targetMob);
       return {
         xpGain,
         leveledUp,
@@ -1265,7 +1414,7 @@ function createAbilityHandlers() {
         combatLog: hit
           ? {
               damageDealt: damage,
-              targetName: getMobDisplayName(targetMob),
+              targetName,
               abilityName: ability.name,
               isCrit,
               xpGain,
@@ -1279,6 +1428,7 @@ function createAbilityHandlers() {
       const { player, ability } = ctx;
       player.avatarOfWarUntil = ctx.now + (ability.durationMs ?? 10000);
       player.physicalPowerMultiplier = ability.physicalPowerMultiplier ?? 1.3;
+      player.pvpPhysicalPowerMultiplier = ability.pvpPhysicalPowerMultiplier ?? 1.2;
       return {};
     },
     taunt(ctx) {
@@ -1292,6 +1442,7 @@ function createAbilityHandlers() {
       const { player, ability } = ctx;
       player.shieldWallUntil = ctx.now + (ability.durationMs ?? 3000);
       player.shieldWallDamageTakenMultiplier = ability.damageTakenMultiplier ?? 0.5;
+      player.shieldWallPvpDamageTakenMultiplier = ability.pvpDamageTakenMultiplier ?? 0.7;
       return {};
     },
     fortify(ctx) {
@@ -1335,21 +1486,29 @@ function createAbilityHandlers() {
       };
     },
     guardians_rebuke(ctx) {
-      const { player, ability, targetMob, mobs, players, now, respawnMs } = ctx;
-      if (!targetMob) return {};
-      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
-      const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
+      const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      const isPvP = !!targetPlayer;
+      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, isPvP);
+      const damage = applyPvpDamageMultiplier(rawDmg, ability, isPvP);
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
       let result = null;
       if (rollHit(derived.accuracy, 0)) {
-        result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
-        xpGain = result.xpGain;
-        leveledUp = result.leveledUp;
+        if (targetPlayer) {
+          result = applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+          targetPlayer.castingLockoutUntil = now + (ability.interruptLockoutMs ?? 2000);
+        } else {
+          result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
+          xpGain = result.xpGain;
+          leveledUp = result.leveledUp;
+          targetMob.castingLockoutUntil = now + (ability.interruptLockoutMs ?? 2000);
+        }
         hit = true;
-        targetMob.castingLockoutUntil = now + (ability.interruptLockoutMs ?? 2000);
       }
+      const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : getMobDisplayName(targetMob);
       return {
         xpGain,
         leveledUp,
@@ -1357,7 +1516,7 @@ function createAbilityHandlers() {
         combatLog: hit
           ? {
               damageDealt: damage,
-              targetName: getMobDisplayName(targetMob),
+              targetName,
               abilityName: ability.name,
               isCrit,
               xpGain,
@@ -1442,36 +1601,52 @@ function createAbilityHandlers() {
       };
     },
     mark_target(ctx) {
-      const { player, ability, targetMob } = ctx;
-      if (!targetMob) return {};
-      targetMob.markedByRangerId = player.id;
-      targetMob.markedUntil = ctx.now + (ability.durationMs ?? 10000);
-      targetMob.markDamageBonusPct = ability.markDamageBonusPct ?? 10;
+      const { player, ability, targetMob, targetPlayer } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      target.markedByRangerId = player.id;
+      target.markedUntil = ctx.now + (ability.durationMs ?? 10000);
+      target.markDamageBonusPct = ability.markDamageBonusPct ?? 10;
       return { hit: true };
     },
     disengage_shot(ctx) {
-      const { player, ability, targetMob, mobs, players, now, respawnMs } = ctx;
-      if (!targetMob) return {};
-      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
-      const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
+      const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      const isPvP = !!targetPlayer;
+      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, isPvP);
+      const damage = applyPvpDamageMultiplier(rawDmg, ability, isPvP);
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
       let result = null;
       if (rollHit(derived.accuracy, 0)) {
-        result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
-        xpGain = result.xpGain;
-        leveledUp = result.leveledUp;
+        if (targetPlayer) {
+          result = applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+          const kb = ability.knockbackDistance ?? 2;
+          const dx = targetPlayer.pos.x - player.pos.x;
+          const dz = targetPlayer.pos.z - player.pos.z;
+          const dist = Math.hypot(dx, dz) || 0.001;
+          const nx = dx / dist;
+          const nz = dz / dist;
+          targetPlayer.pos.x += nx * kb;
+          targetPlayer.pos.z += nz * kb;
+        } else {
+          result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
+          xpGain = result.xpGain;
+          leveledUp = result.leveledUp;
+          const kb = ability.knockbackDistance ?? 2;
+          const dx = targetMob.pos.x - player.pos.x;
+          const dz = targetMob.pos.z - player.pos.z;
+          const dist = Math.hypot(dx, dz) || 0.001;
+          const nx = dx / dist;
+          const nz = dz / dist;
+          targetMob.pos.x += nx * kb;
+          targetMob.pos.z += nz * kb;
+        }
         hit = true;
-        const kb = ability.knockbackDistance ?? 2;
-        const dx = targetMob.pos.x - player.pos.x;
-        const dz = targetMob.pos.z - player.pos.z;
-        const dist = Math.hypot(dx, dz) || 0.001;
-        const nx = dx / dist;
-        const nz = dz / dist;
-        targetMob.pos.x += nx * kb;
-        targetMob.pos.z += nz * kb;
       }
+      const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : getMobDisplayName(targetMob);
       return {
         xpGain,
         leveledUp,
@@ -1479,7 +1654,7 @@ function createAbilityHandlers() {
         combatLog: hit
           ? {
               damageDealt: damage,
-              targetName: getMobDisplayName(targetMob),
+              targetName,
               abilityName: ability.name,
               isCrit,
               xpGain,
@@ -1493,6 +1668,7 @@ function createAbilityHandlers() {
       const { player, ability } = ctx;
       player.eagleEyeUntil = ctx.now + (ability.durationMs ?? 8000);
       player.critChanceBonusPct = ability.critChanceBonusPct ?? 20;
+      player.pvpCritChanceBonusPct = ability.pvpCritChanceBonusPct ?? 10;
       return {};
     },
     flame_wave(ctx) {
@@ -1544,9 +1720,10 @@ function createAbilityHandlers() {
       return {};
     },
     counterspell(ctx) {
-      const { player, ability, targetMob, mobs, players, now, respawnMs } = ctx;
-      if (!targetMob) return {};
-      targetMob.castingLockoutUntil = now + (ability.interruptLockoutMs ?? 2000);
+      const { player, ability, targetMob, targetPlayer } = ctx;
+      const target = targetMob ?? targetPlayer;
+      if (!target) return {};
+      target.castingLockoutUntil = ctx.now + (ability.interruptLockoutMs ?? 2000);
       return { hit: true };
     },
     meteor(ctx) {
@@ -1659,7 +1836,7 @@ export function stepPlayerResources(player, now, dt) {
     player.damageTakenMultiplier = 1;
   } else if (stanceActive) {
     player.moveSpeedMultiplier = 0.8;
-    player.damageTakenMultiplier = 0.6;
+    player.damageTakenMultiplier = 0.7;
   } else {
     player.moveSpeedMultiplier = 1;
     player.damageTakenMultiplier = 1;
