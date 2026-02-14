@@ -152,3 +152,47 @@ export function getEquippedWeapon(equipment, classId) {
   const fallbackKind = getDefaultWeaponKind(classId);
   return getWeaponDef(fallbackKind);
 }
+
+/**
+ * Sum stats from all equipped items. Phase 1: returns zeros until items have stats.
+ * @param {Object} equipment - Equipment slot map
+ * @returns {{ str?: number, dex?: number, int?: number, vit?: number, spi?: number, armor?: number, magicResist?: number, accuracy?: number, evasion?: number }}
+ */
+export function getStatsFromEquipment(equipment) {
+  if (!equipment || typeof equipment !== 'object') {
+    return { str: 0, dex: 0, int: 0, vit: 0, spi: 0, armor: 0, magicResist: 0, accuracy: 0, evasion: 0 };
+  }
+  const stats = { str: 0, dex: 0, int: 0, vit: 0, spi: 0, armor: 0, magicResist: 0, accuracy: 0, evasion: 0 };
+  for (const slot of EQUIP_SLOTS) {
+    const item = equipment[slot];
+    if (!item) continue;
+    const def = getItemStats(item.kind);
+    if (def) {
+      stats.str += def.str ?? 0;
+      stats.dex += def.dex ?? 0;
+      stats.int += def.int ?? 0;
+      stats.vit += def.vit ?? 0;
+      stats.spi += def.spi ?? 0;
+      stats.armor += def.armor ?? 0;
+      stats.magicResist += def.magicResist ?? 0;
+      stats.accuracy += def.accuracy ?? 0;
+      stats.evasion += def.evasion ?? 0;
+    }
+  }
+  return stats;
+}
+
+/**
+ * Item stats by kind (spec Section 9). Training gear has small bonuses.
+ * @param {string} kind
+ * @returns {{ str?: number, dex?: number, int?: number, vit?: number, spi?: number, armor?: number, magicResist?: number, accuracy?: number, evasion?: number } | null}
+ */
+function getItemStats(kind) {
+  const ITEM_STATS = {
+    weapon_training_sword: { str: 2 },
+    weapon_training_bow: { dex: 2 },
+    weapon_training_staff: { int: 2 },
+    weapon_apprentice_wand: { int: 3, spi: 1 },
+  };
+  return ITEM_STATS[kind] ?? null;
+}

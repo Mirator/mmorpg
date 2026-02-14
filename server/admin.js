@@ -1,6 +1,7 @@
 import { worldSnapshot } from './logic/world.js';
 import { xpToNext } from '../shared/progression.js';
 import { getEquippedWeapon } from '../shared/equipment.js';
+import { computeRawAttributes, computeDerivedStats } from '../shared/attributes.js';
 
 export function resolveAdminPassword(env = process.env) {
   return env.ADMIN_PASSWORD ?? '1234';
@@ -56,6 +57,8 @@ export function serializePlayersPublic(players) {
 
 export function serializePlayerPrivate(player) {
   if (!player) return null;
+  const attributes = computeRawAttributes(player);
+  const derivedStats = computeDerivedStats(player);
   return {
     invCap: player.invCap,
     invSlots: player.invSlots,
@@ -77,6 +80,8 @@ export function serializePlayerPrivate(player) {
     moveSpeedMultiplier: player.moveSpeedMultiplier ?? 1,
     equipment: player.equipment ?? null,
     weaponKind: getEquippedWeapon(player.equipment, player.classId)?.kind ?? null,
+    attributes,
+    derivedStats,
   };
 }
 

@@ -7,6 +7,7 @@ import {
   isValidClassId,
   getResourceForClass,
 } from '../shared/classes.js';
+import { computeDerivedStats } from '../shared/attributes.js';
 import {
   serializePlayersPublic,
   serializePlayerPrivate,
@@ -106,8 +107,11 @@ function generatePlayerId() {
 function initCombatState(player) {
   if (!player) return;
   const resourceDef = getResourceForClass(player.classId);
-  const resourceMax = resourceDef?.max ?? 0;
   const resourceType = resourceDef?.type ?? null;
+  const isManaClass = resourceType === 'mana';
+  const resourceMax = isManaClass
+    ? computeDerivedStats(player).maxMana
+    : (resourceDef?.max ?? 0);
   player.resourceType = resourceType;
   player.resourceMax = resourceMax;
   player.resource = resourceType === 'rage' ? 0 : resourceMax;

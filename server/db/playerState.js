@@ -1,6 +1,7 @@
 import { createInventory, countInventory } from '../logic/inventory.js';
 import { DEFAULT_CLASS_ID, isValidClassId } from '../../shared/classes.js';
 import { normalizeEquipment } from '../../shared/equipment.js';
+import { computeDerivedStats } from '../../shared/attributes.js';
 
 export const PLAYER_STATE_VERSION = 2;
 
@@ -111,13 +112,6 @@ export function migratePlayerState(rawState, version) {
 
 export function hydratePlayerState(rawState, world, spawn) {
   const pos = sanitizePos(rawState?.pos, world, spawn);
-  const maxHp = toNumber(world?.playerMaxHp, 100);
-  let hp = toNumber(rawState?.hp, maxHp);
-  if (hp <= 0) {
-    hp = maxHp;
-  } else {
-    hp = clamp(hp, 1, maxHp);
-  }
 
   const invSlots = Math.max(0, Math.floor(toNumber(world?.playerInvSlots, 0)));
   const invStackMax = Math.max(1, Math.floor(toNumber(world?.playerInvStackMax, 1)));
@@ -133,6 +127,15 @@ export function hydratePlayerState(rawState, world, spawn) {
   const xp = Math.max(0, Math.floor(toNumber(rawState?.xp, 0)));
   const currencyCopper = Math.max(0, Math.floor(toNumber(rawState?.currencyCopper, 0)));
   const equipment = normalizeEquipment(rawState?.equipment, classId);
+
+  const derived = computeDerivedStats({ classId, level, equipment });
+  const maxHp = derived.maxHp;
+  let hp = toNumber(rawState?.hp, maxHp);
+  if (hp <= 0) {
+    hp = maxHp;
+  } else {
+    hp = clamp(hp, 1, maxHp);
+  }
 
   return {
     pos,

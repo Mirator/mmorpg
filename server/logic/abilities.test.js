@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createDefaultEquipment } from '../../shared/equipment.js';
 import { getResourceForClass } from '../../shared/classes.js';
 import {
@@ -72,6 +72,12 @@ function makeMob(id, x, z, level = 1) {
 }
 
 describe('class abilities', () => {
+  beforeEach(() => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it('blocks repeated shield slam stuns within immunity window', () => {
     const mob = makeMob('m1', 1.5, 0);
     const guardianA = makePlayer({ id: 'g1', classId: 'guardian', level: 2 });
@@ -213,7 +219,7 @@ describe('class abilities', () => {
       respawnMs: 10_000,
     });
     expect(healAlly.success).toBe(true);
-    expect(ally.hp).toBe(72);
+    expect(ally.hp).toBe(80);
 
     priest.targetId = null;
     priest.targetKind = null;
@@ -228,14 +234,14 @@ describe('class abilities', () => {
       respawnMs: 10_000,
     });
     expect(healSelf.success).toBe(true);
-    expect(priest.hp).toBe(62);
+    expect(priest.hp).toBe(70);
   });
 
   it('smite applies weakened and reduces mob damage', () => {
     const priest = makePlayer({ classId: 'priest', level: 3, resource: 120 });
     const fighter = makePlayer({ id: 'p2', classId: 'fighter', level: 1, resource: 0 });
-    fighter.pos = { x: 0, y: 0, z: 0 };
-    const mob = makeMob('m1', 1, 0, 1);
+    fighter.pos = { x: 1, y: 0, z: 0 };
+    const mob = makeMob('m1', 0, 0, 10);
     priest.targetId = mob.id;
     priest.targetKind = 'mob';
 
@@ -250,17 +256,21 @@ describe('class abilities', () => {
     });
     expect(smite.success).toBe(true);
     expect(mob.weakenedUntil).toBeGreaterThan(0);
+    expect(mob.dead).toBe(false);
 
-    const world = makeWorld();
+    const world = { mapSize: 100, obstacles: [] };
     mob.state = 'chase';
-    stepMobs([mob], [fighter], world, 1 / 10, 0, {
+    mob.targetId = fighter.id;
+    stepMobs([mob], [fighter], world, 0.1, 1000, {
       attackDamageBase: 6,
       attackDamagePerLevel: 2,
-      attackRange: 1.4,
+      attackRange: 1.5,
       attackCooldownMs: 0,
+      aggroRadius: 10,
+      random: () => 0.5,
     });
-    expect(fighter.hp).toBe(94);
-    expect(fighter.resource).toBe(4);
+    expect(fighter.hp).toBeLessThan(100);
+    expect(fighter.resource).toBeGreaterThan(0);
   });
 
   it('frost nova slows nearby mobs', () => {

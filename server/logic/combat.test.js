@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { tryBasicAttack } from './combat.js';
 
 function makePlayer(weaponKind) {
@@ -94,6 +94,7 @@ describe('combat', () => {
   });
 
   it('grants xp on kill without forcing a level up', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
     const player = makePlayer('weapon_training_sword');
     const mob = makeMob(1.2);
     mob.hp = 5;
@@ -109,5 +110,6 @@ describe('combat', () => {
     expect(result.leveledUp).toBe(false);
     expect(player.level).toBe(1);
     expect(player.xp).toBe(result.xpGain);
+    vi.restoreAllMocks();
   });
 });

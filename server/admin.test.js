@@ -202,7 +202,8 @@ describe('admin state serialization', () => {
       targetId: 'm-9',
     };
 
-    expect(serializePlayerPrivate(player)).toEqual({
+    const serialized = serializePlayerPrivate(player);
+    expect(serialized).toMatchObject({
       invCap: 10,
       invSlots: 2,
       invStackMax: 5,
@@ -224,6 +225,8 @@ describe('admin state serialization', () => {
       equipment: rangerEquipment,
       weaponKind: 'weapon_training_bow',
     });
+    expect(serialized.attributes).toBeDefined();
+    expect(serialized.derivedStats).toBeDefined();
   });
 
   it('builds admin state with world snapshot', () => {

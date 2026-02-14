@@ -75,6 +75,24 @@ export const CLASS_RESOURCES = {
   },
 };
 
+/** Base attributes per class (spec Section 2) */
+export const CLASS_BASE_ATTRIBUTES = {
+  fighter: { str: 12, dex: 8, int: 4, vit: 10, spi: 4 },
+  guardian: { str: 8, dex: 5, int: 4, vit: 14, spi: 6 },
+  mage: { str: 3, dex: 6, int: 14, vit: 6, spi: 10 },
+  priest: { str: 4, dex: 6, int: 10, vit: 8, spi: 14 },
+  ranger: { str: 6, dex: 14, int: 4, vit: 8, spi: 5 },
+};
+
+/** Primary and secondary attributes for +1/+0.5 per-level gain */
+export const CLASS_ATTRIBUTE_PROGRESSION = {
+  fighter: { primary: 'str', secondary: 'dex' },
+  guardian: { primary: 'vit', secondary: 'spi' },
+  mage: { primary: 'int', secondary: 'spi' },
+  priest: { primary: 'spi', secondary: 'int' },
+  ranger: { primary: 'dex', secondary: 'str' },
+};
+
 export const CLASSES = [
   {
     id: 'guardian',

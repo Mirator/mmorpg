@@ -6,6 +6,7 @@ import {
   getClassById,
 } from '/shared/classes.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
+import { computeRawAttributes, computeDerivedStats } from '/shared/attributes.js';
 import { totalXpForLevel, xpToNext } from '/shared/progression.js';
 import {
   setStatus,
@@ -55,6 +56,20 @@ export function createUiState({
   const equipmentGrid = document.getElementById('equipment-grid');
   const charStatHp = document.getElementById('char-stat-hp');
   const charStatResource = document.getElementById('char-stat-resource');
+  const charStatStr = document.getElementById('char-stat-str');
+  const charStatDex = document.getElementById('char-stat-dex');
+  const charStatInt = document.getElementById('char-stat-int');
+  const charStatVit = document.getElementById('char-stat-vit');
+  const charStatSpi = document.getElementById('char-stat-spi');
+  const charStatPhysPower = document.getElementById('char-stat-phys-power');
+  const charStatRangedPower = document.getElementById('char-stat-ranged-power');
+  const charStatMagicPower = document.getElementById('char-stat-magic-power');
+  const charStatHealingPower = document.getElementById('char-stat-healing-power');
+  const charStatCrit = document.getElementById('char-stat-crit');
+  const charStatAccuracy = document.getElementById('char-stat-accuracy');
+  const charStatEvasion = document.getElementById('char-stat-evasion');
+  const charStatPhysDef = document.getElementById('char-stat-phys-def');
+  const charStatMagicResist = document.getElementById('char-stat-magic-resist');
   const charStatLevel = document.getElementById('char-stat-level');
   const charStatClass = document.getElementById('char-stat-class');
   const charSheetCharMeta = document.getElementById('character-sheet-char-meta');
@@ -430,6 +445,22 @@ export function createUiState({
       const resourceLabel = (me?.resourceType ?? 'stamina').replace(/^./, (c) => c.toUpperCase());
       if (charStatHp) charStatHp.textContent = `${me.hp ?? 0} / ${me.maxHp ?? 0}`;
       if (charStatResource) charStatResource.textContent = `${me.resource ?? 0} / ${me.resourceMax ?? 0} (${resourceLabel})`;
+      const raw = me.attributes ?? computeRawAttributes(me);
+      const derived = me.derivedStats ?? computeDerivedStats(me);
+      if (charStatStr) charStatStr.textContent = String(Math.round(raw.str ?? 0));
+      if (charStatDex) charStatDex.textContent = String(Math.round(raw.dex ?? 0));
+      if (charStatInt) charStatInt.textContent = String(Math.round(raw.int ?? 0));
+      if (charStatVit) charStatVit.textContent = String(Math.round(raw.vit ?? 0));
+      if (charStatSpi) charStatSpi.textContent = String(Math.round(raw.spi ?? 0));
+      if (charStatPhysPower) charStatPhysPower.textContent = String(derived.physicalPower ?? 0);
+      if (charStatRangedPower) charStatRangedPower.textContent = String(derived.rangedPower ?? 0);
+      if (charStatMagicPower) charStatMagicPower.textContent = String(derived.magicPower ?? 0);
+      if (charStatHealingPower) charStatHealingPower.textContent = String(derived.healingPower ?? 0);
+      if (charStatCrit) charStatCrit.textContent = `${((derived.critChance ?? 0) * 100).toFixed(1)}%`;
+      if (charStatAccuracy) charStatAccuracy.textContent = String(derived.accuracy ?? 0);
+      if (charStatEvasion) charStatEvasion.textContent = String(derived.evasion ?? 0);
+      if (charStatPhysDef) charStatPhysDef.textContent = String(derived.physicalDefense ?? 0);
+      if (charStatMagicResist) charStatMagicResist.textContent = String(derived.magicResistance ?? 0);
       if (charStatLevel) charStatLevel.textContent = String(me.level ?? 1);
       if (charStatClass) charStatClass.textContent = klass?.name ?? me?.classId ?? '--';
       if (charSheetCharMeta) charSheetCharMeta.textContent = `Level ${me.level ?? 1} ${klass?.name ?? me?.classId ?? '--'}`;
@@ -488,6 +519,20 @@ export function createUiState({
       }
       if (charStatHp) charStatHp.textContent = '--';
       if (charStatResource) charStatResource.textContent = '--';
+      if (charStatStr) charStatStr.textContent = '--';
+      if (charStatDex) charStatDex.textContent = '--';
+      if (charStatInt) charStatInt.textContent = '--';
+      if (charStatVit) charStatVit.textContent = '--';
+      if (charStatSpi) charStatSpi.textContent = '--';
+      if (charStatPhysPower) charStatPhysPower.textContent = '--';
+      if (charStatRangedPower) charStatRangedPower.textContent = '--';
+      if (charStatMagicPower) charStatMagicPower.textContent = '--';
+      if (charStatHealingPower) charStatHealingPower.textContent = '--';
+      if (charStatCrit) charStatCrit.textContent = '--';
+      if (charStatAccuracy) charStatAccuracy.textContent = '--';
+      if (charStatEvasion) charStatEvasion.textContent = '--';
+      if (charStatPhysDef) charStatPhysDef.textContent = '--';
+      if (charStatMagicResist) charStatMagicResist.textContent = '--';
       if (charStatLevel) charStatLevel.textContent = '--';
       if (charStatClass) charStatClass.textContent = '--';
       if (charSheetCharMeta) charSheetCharMeta.textContent = 'Level 1 --';

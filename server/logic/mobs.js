@@ -1,6 +1,7 @@
 import { applyCollisions } from './collision.js';
 import { MAX_LEVEL } from '../../shared/progression.js';
 import { MOB_CONFIG } from '../../shared/config.js';
+import { computeDerivedStats } from '../../shared/attributes.js';
 
 function randomRange(rand, min, max) {
   return min + (max - min) * rand();
@@ -246,13 +247,14 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
       }
 
       if (dist <= attackRange && now >= mob.attackCooldownUntil) {
-        let damage =
+        let rawDamage =
           attackDamageBase + attackDamagePerLevel * (mob.level ?? 1);
-        damage *= weakenedMultiplier;
-        damage *= target.damageTakenMultiplier ?? 1;
-        damage = Math.max(0, Math.floor(damage));
-        target.hp = Math.max(0, target.hp - damage);
-        if (damage > 0) {
+        rawDamage *= weakenedMultiplier;
+        rawDamage *= target.damageTakenMultiplier ?? 1;
+        const derived = computeDerivedStats(target);
+        const finalDamage = Math.max(0, Math.floor(rawDamage * (100 / (100 + derived.physicalDefense))));
+        target.hp = Math.max(0, target.hp - finalDamage);
+        if (finalDamage > 0) {
           target.combatTagUntil = now + 5000;
           if (target.resourceType === 'rage') {
             const max = Number.isFinite(target.resourceMax) ? target.resourceMax : 100;

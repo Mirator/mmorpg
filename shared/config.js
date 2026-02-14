@@ -19,6 +19,7 @@ export const RESOURCE_CONFIG = {
 };
 
 export const PLAYER_CONFIG = {
+  /** @deprecated maxHp now comes from attributes (computeDerivedStats) */
   maxHp: 100,
   speed: 3,
   invSlots: 20,
