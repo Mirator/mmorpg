@@ -111,6 +111,12 @@ const ui = createUiState({
   onVendorSell: (slot, vendorId) => {
     sendWithSeq({ type: 'vendorSell', slot, vendorId });
   },
+  onVendorBuy: (kind, count, vendorId) => {
+    sendWithSeq({ type: 'vendorBuy', vendorId, kind, count });
+  },
+  onCraft: (recipeId, count) => {
+    sendWithSeq({ type: 'craft', recipeId, count });
+  },
   onAbilityClick: (slot) => {
     combatRef.current?.useAbility(slot);
   },

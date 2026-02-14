@@ -103,6 +103,7 @@ export function serializeResources(resources) {
     x: r.x,
     y: r.y ?? 0,
     z: r.z,
+    type: r.type ?? 'crystal',
     available: r.available,
     respawnAt: r.respawnAt,
   }));

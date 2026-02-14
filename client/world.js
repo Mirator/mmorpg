@@ -26,6 +26,12 @@ const COLORS = {
   vendor: 0xffd54f,
 };
 
+const RESOURCE_TYPE_COLORS = {
+  crystal: { active: 0x5ef2c2, dim: 0x1b2a28 },
+  ore: { active: 0x8b7355, dim: 0x3d3228 },
+  herb: { active: 0x5ec24e, dim: 0x1b2a1b },
+};
+
 let mobPrototypePromise = null;
 let vendorPrototypePromise = null;
 let vendorClipsPromise = null;
@@ -237,13 +243,14 @@ function buildObstacleMesh(obstacle) {
   return mesh;
 }
 
-function buildResourceMesh() {
+function buildResourceMesh(type = 'crystal') {
+  const colors = RESOURCE_TYPE_COLORS[type] ?? RESOURCE_TYPE_COLORS.crystal;
   const group = new THREE.Group();
   const crystal = new THREE.Mesh(
     new THREE.ConeGeometry(0.5, 1.6, 6),
     new THREE.MeshStandardMaterial({
-      color: COLORS.resource,
-      emissive: COLORS.resource,
+      color: colors.active,
+      emissive: colors.active,
       emissiveIntensity: 0.2,
       roughness: 0.4,
     })
@@ -251,6 +258,7 @@ function buildResourceMesh() {
   crystal.position.y = 0.8;
   group.add(crystal);
   group.userData.crystal = crystal;
+  group.userData.type = type;
   group.userData.pulseOffset = Math.random() * Math.PI * 2;
   return group;
 }
@@ -420,23 +428,29 @@ export function updateResources(worldState, resources) {
 
   for (const resource of resources) {
     seen.add(resource.id);
+    const resourceType = resource.type ?? 'crystal';
+    const colors = RESOURCE_TYPE_COLORS[resourceType] ?? RESOURCE_TYPE_COLORS.crystal;
     let mesh = worldState.resourceMeshes.get(resource.id);
     if (!mesh) {
-      mesh = buildResourceMesh();
+      mesh = buildResourceMesh(resourceType);
       worldState.resourceMeshes.set(resource.id, mesh);
       worldState.group.add(mesh);
+    } else if (mesh.userData.type !== resourceType) {
+      mesh.userData.type = resourceType;
+      mesh.userData.crystal.material.color.setHex(colors.active);
+      mesh.userData.crystal.material.emissive.setHex(colors.active);
     }
     mesh.position.set(resource.x, resource.y ?? 0, resource.z);
     mesh.userData.available = resource.available;
     const crystal = mesh.userData.crystal;
     if (crystal) {
       if (resource.available) {
-        crystal.material.color.setHex(COLORS.resource);
-        crystal.material.emissive.setHex(COLORS.resource);
+        crystal.material.color.setHex(colors.active);
+        crystal.material.emissive.setHex(colors.active);
         crystal.material.emissiveIntensity = 0.25;
       } else {
-        crystal.material.color.setHex(COLORS.resourceDim);
-        crystal.material.emissive.setHex(COLORS.resourceDim);
+        crystal.material.color.setHex(colors.dim);
+        crystal.material.emissive.setHex(colors.dim);
         crystal.material.emissiveIntensity = 0.05;
       }
     }

@@ -1,4 +1,8 @@
-import { formatCurrency, VENDOR_SELL_PRICES } from '/shared/economy.js';
+import {
+  formatCurrency,
+  VENDOR_SELL_PRICES,
+  VENDOR_BUY_ITEMS,
+} from '/shared/economy.js';
 import {
   ABILITY_SLOTS,
   DEFAULT_CLASS_ID,
@@ -20,6 +24,7 @@ import {
 import { createInventoryUI } from './inventory.js';
 import { createEquipmentUI } from './equipment.js';
 import { createVendorUI } from './vendor.js';
+import { createCraftingUI } from './crafting.js';
 
 function formatItemName(kind) {
   if (!kind) return 'Item';
@@ -38,6 +43,8 @@ export function createUiState({
   onInventorySwap,
   onEquipmentSwap,
   onVendorSell,
+  onVendorBuy,
+  onCraft,
   onAbilityClick,
   onUiOpen,
   onRespawn,
@@ -54,6 +61,10 @@ export function createUiState({
   const skillsXpEl = document.getElementById('skills-xp');
   const skillsListEl = document.getElementById('skills-list');
   const inventoryGrid = document.getElementById('inventory-grid');
+  const inventoryView = document.getElementById('inventory-view');
+  const craftView = document.getElementById('craft-view');
+  const craftRecipeListEl = document.getElementById('craft-recipe-list');
+  const inventoryTabBtns = document.querySelectorAll('.inventory-tab');
   const equipmentGrid = document.getElementById('equipment-grid');
   const charStatHp = document.getElementById('char-stat-hp');
   const charStatResource = document.getElementById('char-stat-resource');
@@ -82,6 +93,7 @@ export function createUiState({
   const vendorCloseBtn = document.getElementById('vendor-close-btn');
   const vendorPanelCloseBtn = document.getElementById('vendor-panel-close');
   const vendorPricesEl = document.getElementById('vendor-sell-prices');
+  const vendorBuyItemsEl = document.getElementById('vendor-buy-items');
   const inventoryCoinsEl = document.getElementById('inventory-coins');
   const abilityBar = document.getElementById('ability-bar');
   const deathScreen = document.getElementById('death-screen');
@@ -94,8 +106,10 @@ export function createUiState({
   let inventoryUI = null;
   let equipmentUI = null;
   let vendorUI = null;
+  let craftingUI = null;
 
   let inventoryOpen = false;
+  let inventoryTab = 'inventory';
   let characterOpen = false;
   let characterTab = 'character';
   let menuOpen = true;
@@ -145,6 +159,19 @@ export function createUiState({
     skillsView?.classList.toggle('active', tab === 'skills');
     for (const btn of sheetTabBtns ?? []) {
       btn.classList.toggle('active', btn.dataset.tab === tab);
+    }
+  }
+
+  function setInventoryTab(tab) {
+    if (!['inventory', 'craft'].includes(tab)) return;
+    inventoryTab = tab;
+    inventoryView?.classList.toggle('active', tab === 'inventory');
+    craftView?.classList.toggle('active', tab === 'craft');
+    for (const btn of inventoryTabBtns ?? []) {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    }
+    if (tab === 'craft') {
+      craftingUI?.render?.();
     }
   }
 
@@ -389,6 +416,42 @@ export function createUiState({
     }
   }
 
+  function renderVendorBuyItems() {
+    if (!vendorBuyItemsEl) return;
+    vendorBuyItemsEl.innerHTML = '';
+    const catalog = VENDOR_BUY_ITEMS ?? [];
+    if (catalog.length === 0) {
+      vendorBuyItemsEl.textContent = 'No items available.';
+      return;
+    }
+    for (const entry of catalog) {
+      const row = document.createElement('div');
+      row.className = 'vendor-buy-row';
+      const left = document.createElement('div');
+      left.className = 'vendor-buy-info';
+      const name = document.createElement('div');
+      name.className = 'vendor-buy-name';
+      name.textContent = entry.name;
+      const price = document.createElement('div');
+      price.className = 'vendor-buy-price';
+      price.textContent = formatCurrency(entry.priceCopper);
+      left.appendChild(name);
+      left.appendChild(price);
+      const btn = document.createElement('button');
+      btn.className = 'vendor-buy-btn';
+      btn.type = 'button';
+      btn.textContent = 'Buy';
+      btn.dataset.kind = entry.kind;
+      btn.addEventListener('click', () => {
+        const vendor = vendorUI?.getVendor?.();
+        if (vendor?.id) onVendorBuy?.(entry.kind, 1, vendor.id);
+      });
+      row.appendChild(left);
+      row.appendChild(btn);
+      vendorBuyItemsEl.appendChild(row);
+    }
+  }
+
   if (inventoryPanel && inventoryGrid) {
     inventoryUI = createInventoryUI({
       panel: inventoryPanel,
@@ -425,6 +488,13 @@ export function createUiState({
       onSwap: ({ fromType, fromSlot, toType, toSlot }) => {
         onEquipmentSwap?.({ fromType, fromSlot, toType, toSlot });
       },
+    });
+  }
+
+  if (craftRecipeListEl) {
+    craftingUI = createCraftingUI({
+      recipeListEl: craftRecipeListEl,
+      onCraft: (recipeId, count) => onCraft?.(recipeId, count),
     });
   }
 
@@ -521,6 +591,9 @@ export function createUiState({
           stackMax: me.invStackMax ?? worldConfig?.playerInvStackMax ?? 1,
         });
       }
+      if (craftingUI) {
+        craftingUI.setInventory(me.inventory ?? []);
+      }
       if (equipmentUI) {
         equipmentUI.setEquipment(me.equipment ?? {});
       }
@@ -598,6 +671,9 @@ export function createUiState({
           stackMax: worldConfig?.playerInvStackMax ?? 1,
         });
       }
+      if (craftingUI) {
+        craftingUI.setInventory([]);
+      }
       if (equipmentUI) {
         equipmentUI.setEquipment({});
       }
@@ -635,8 +711,19 @@ export function createUiState({
 
   buildAbilityBar();
   renderVendorPrices();
+  renderVendorBuyItems();
   setMenuOpen(true);
   setCharacterTab('character');
+  setInventoryTab('inventory');
+
+  for (const btn of inventoryTabBtns ?? []) {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      if (tab && ['inventory', 'craft'].includes(tab)) {
+        setInventoryTab(tab);
+      }
+    });
+  }
 
   characterSheetClose?.addEventListener('click', () => {
     setCharacterOpen(false);

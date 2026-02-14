@@ -1,7 +1,12 @@
 import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import { parseClientMessage } from '../shared/protocol.js';
-import { getSellPriceCopper } from '../shared/economy.js';
+import {
+  getSellPriceCopper,
+  getBuyPriceCopper,
+  getItemDisplayName,
+  VENDOR_BUY_ITEMS,
+} from '../shared/economy.js';
 import {
   DEFAULT_CLASS_ID,
   isValidClassId,
@@ -17,8 +22,15 @@ import {
 import { worldSnapshot } from './logic/world.js';
 import { tryHarvest } from './logic/resources.js';
 import { tryUseAbility } from './logic/combat.js';
-import { countInventory, swapInventorySlots } from './logic/inventory.js';
+import {
+  addItem,
+  consumeItems,
+  countInventory,
+  countItem,
+  swapInventorySlots,
+} from './logic/inventory.js';
 import { swapEquipment } from './logic/equipment.js';
+import { createWeaponItem, getWeaponDef } from '../shared/equipment.js';
 import { loadPlayer, savePlayer } from './db/playerRepo.js';
 import { hydratePlayerState, migratePlayerState, serializePlayerState } from './db/playerState.js';
 import { createBasePlayerState, respawnPlayer } from './logic/players.js';
@@ -37,6 +49,7 @@ import {
   getPendingInvite,
 } from './logic/party.js';
 import { validateAndConsumeTicket } from './wsTicket.js';
+import { getRecipeById } from '../shared/recipes.js';
 
 function safeSend(ws, msg) {
   if (ws.readyState !== ws.OPEN) return;
@@ -873,14 +886,6 @@ export function createWebSocketServer({
             harvestRadius: config.resource.harvestRadius,
             respawnMs: config.resource.respawnMs,
             stackMax: player.invStackMax,
-            itemKind: 'crystal',
-            itemName: 'Crystal',
-            makeItem: () => ({
-              id: `i${nextItemId++}`,
-              kind: 'crystal',
-              name: 'Crystal',
-              count: 1,
-            }),
           });
           if (harvested) {
             persistence.markDirty(player);
@@ -1013,6 +1018,102 @@ export function createWebSocketServer({
           player.inventory[msg.slot] = null;
           player.inv = countInventory(player.inventory);
           player.currencyCopper = (player.currencyCopper ?? 0) + total;
+          persistence.markDirty(player);
+          return;
+        }
+
+        if (msg.type === 'vendorBuy') {
+          const vendor = world.vendors?.find((v) => v.id === msg.vendorId);
+          if (!vendor) return;
+          const dist = Math.hypot(player.pos.x - vendor.x, player.pos.z - vendor.z);
+          const maxDist = world.vendorInteractRadius ?? 2.5;
+          if (dist > maxDist) return;
+          const catalogEntry = VENDOR_BUY_ITEMS.find((e) => e.kind === msg.kind);
+          if (!catalogEntry) return;
+          const priceCopper = getBuyPriceCopper(msg.kind);
+          if (!Number.isFinite(priceCopper) || priceCopper <= 0) return;
+          const count = Math.max(1, Math.min(Number(msg.count) || 1, 99));
+          const total = priceCopper * count;
+          const playerCopper = player.currencyCopper ?? 0;
+          if (playerCopper < total) return;
+          const stackMax = player.invStackMax ?? 20;
+          const weaponDef = getWeaponDef(msg.kind);
+          let item;
+          if (weaponDef) {
+            item = createWeaponItem(msg.kind);
+            if (!item) return;
+            for (let i = 1; i < count; i += 1) {
+              const extra = createWeaponItem(msg.kind);
+              if (!extra || !addItem(player.inventory, extra, stackMax)) return;
+            }
+          } else {
+            item = {
+              id: `i${nextItemId++}`,
+              kind: msg.kind,
+              name: catalogEntry.name,
+              count,
+            };
+          }
+          if (!addItem(player.inventory, item, stackMax)) return;
+          player.currencyCopper = playerCopper - total;
+          player.inv = countInventory(player.inventory);
+          persistence.markDirty(player);
+          return;
+        }
+
+        if (msg.type === 'craft') {
+          const recipe = getRecipeById(msg.recipeId);
+          if (!recipe) return;
+          const craftCount = msg.count ?? 1;
+          for (const input of recipe.inputs) {
+            const need = input.count * craftCount;
+            if (countItem(player.inventory, input.kind) < need) return;
+          }
+          const consumed = [];
+          for (const input of recipe.inputs) {
+            const need = input.count * craftCount;
+            if (!consumeItems(player.inventory, input.kind, need)) {
+              for (const c of consumed) {
+                addItem(player.inventory, c, player.invStackMax ?? 20);
+              }
+              return;
+            }
+            consumed.push({
+              id: `i${nextItemId++}`,
+              kind: input.kind,
+              name: getItemDisplayName(input.kind),
+              count: need,
+            });
+          }
+          const outputKind = recipe.output.kind;
+          const outputCount = (recipe.output.count ?? 1) * craftCount;
+          const weaponDef = getWeaponDef(outputKind);
+          let outputItem;
+          if (weaponDef) {
+            outputItem = createWeaponItem(outputKind);
+            if (!outputItem) {
+              for (const c of consumed) {
+                addItem(player.inventory, c, player.invStackMax ?? 20);
+              }
+              return;
+            }
+            outputItem.count = outputCount;
+          } else {
+            outputItem = {
+              id: `i${nextItemId++}`,
+              kind: outputKind,
+              name: getItemDisplayName(outputKind),
+              count: outputCount,
+            };
+          }
+          const stackMax = player.invStackMax ?? 20;
+          if (!addItem(player.inventory, outputItem, stackMax)) {
+            for (const c of consumed) {
+              addItem(player.inventory, c, stackMax);
+            }
+            return;
+          }
+          player.inv = countInventory(player.inventory);
           persistence.markDirty(player);
         }
       });

@@ -151,8 +151,17 @@
           <div class="inventory-coins">Coins: <span id="inventory-coins">0g 0s 0c</span></div>
           <div class="inventory-hint">I to close · Drag to equipment to equip</div>
         </div>
+        <div class="inventory-tabs">
+          <button class="inventory-tab active" data-tab="inventory" type="button">Inventory</button>
+          <button class="inventory-tab" data-tab="craft" type="button">Craft</button>
+        </div>
       </div>
-      <div id="inventory-grid" class="inventory-grid"></div>
+      <div id="inventory-view" class="inventory-view active">
+        <div id="inventory-grid" class="inventory-grid"></div>
+      </div>
+      <div id="craft-view" class="craft-view">
+        <div id="craft-recipe-list" class="craft-recipe-list"></div>
+      </div>
     </div>
     <div id="character-sheet-panel" class="character-sheet-panel">
       <div class="character-sheet-header">
@@ -239,7 +248,7 @@
       </div>
       <div class="vendor-body">
         <div class="vendor-view vendor-buy active">
-          <div class="vendor-empty">No items available.</div>
+          <div id="vendor-buy-items" class="vendor-buy-items"></div>
         </div>
         <div class="vendor-view vendor-sell">
           <div id="vendor-sell-prices" class="vendor-prices"></div>

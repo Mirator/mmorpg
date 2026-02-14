@@ -193,6 +193,10 @@ function getItemStats(kind) {
     weapon_training_bow: { dex: 2 },
     weapon_training_staff: { int: 2 },
     weapon_apprentice_wand: { int: 3, spi: 1 },
+    armor_head_cloth: { armor: 2 },
+    armor_chest_leather: { armor: 4 },
+    armor_legs_cloth: { armor: 2 },
+    armor_feet_leather: { armor: 2 },
   };
   return ITEM_STATS[kind] ?? null;
 }

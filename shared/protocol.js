@@ -19,11 +19,13 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'inventorySwap', from: number, to: number, seq?: number }} InventorySwapMessage
  * @typedef {{ type: 'equipSwap', fromType: 'inventory' | 'equipment', fromSlot: number | string, toType: 'inventory' | 'equipment', toSlot: number | string, seq?: number }} EquipSwapMessage
  * @typedef {{ type: 'vendorSell', vendorId: string, slot: number, seq?: number }} VendorSellMessage
+ * @typedef {{ type: 'vendorBuy', vendorId: string, kind: string, count?: number, seq?: number }} VendorBuyMessage
  * @typedef {{ type: 'chat', channel: 'global' | 'area' | 'trade' | 'party', text: string, seq?: number }} ChatMessage
  * @typedef {{ type: 'partyInvite', targetId: string, seq?: number }} PartyInviteMessage
  * @typedef {{ type: 'partyAccept', inviterId: string, seq?: number }} PartyAcceptMessage
  * @typedef {{ type: 'partyLeave', seq?: number }} PartyLeaveMessage
- * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | ChatMessage | PartyInviteMessage | PartyAcceptMessage | PartyLeaveMessage} ClientMessage
+ * @typedef {{ type: 'craft', recipeId: string, count?: number, seq?: number }} CraftMessage
+ * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | VendorBuyMessage | ChatMessage | PartyInviteMessage | PartyAcceptMessage | PartyLeaveMessage | CraftMessage} ClientMessage
  */
 
 const CHAT_CHANNELS = new Set(['global', 'area', 'trade', 'party']);
@@ -40,10 +42,12 @@ const CLIENT_MESSAGE_TYPES = new Set([
   'inventorySwap',
   'equipSwap',
   'vendorSell',
+  'vendorBuy',
   'chat',
   'partyInvite',
   'partyAccept',
   'partyLeave',
+  'craft',
 ]);
 
 function isPlainObject(value) {
@@ -197,6 +201,15 @@ export function parseClientMessage(raw) {
     return { type: 'vendorSell', vendorId, slot, seq };
   }
 
+  if (raw.type === 'vendorBuy') {
+    const vendorId = normalizeString(raw.vendorId);
+    const kind = normalizeString(raw.kind, 64);
+    if (!vendorId || !kind) return null;
+    const count = raw.count !== undefined ? Number(raw.count) : 1;
+    const safeCount = Number.isInteger(count) && count >= 1 ? Math.min(count, 99) : 1;
+    return { type: 'vendorBuy', vendorId, kind, count: safeCount, seq };
+  }
+
   if (raw.type === 'chat') {
     const channel = raw.channel;
     if (!CHAT_CHANNELS.has(channel)) return null;
@@ -219,6 +232,14 @@ export function parseClientMessage(raw) {
 
   if (raw.type === 'partyLeave') {
     return { type: 'partyLeave', seq };
+  }
+
+  if (raw.type === 'craft') {
+    const recipeId = normalizeString(raw.recipeId, 64);
+    if (!recipeId) return null;
+    const count = raw.count !== undefined ? Number(raw.count) : 1;
+    const safeCount = Number.isInteger(count) && count >= 1 ? Math.min(count, 99) : 1;
+    return { type: 'craft', recipeId, count: safeCount, seq };
   }
 
   return null;

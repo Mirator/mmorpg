@@ -75,6 +75,8 @@ function generateObstacles(rng) {
   return obstacles;
 }
 
+const RESOURCE_TYPES_LIST = ['crystal', 'ore', 'herb'];
+
 function generateResourceNodes(rng, obstacles) {
   const half = MAP_SIZE / 2;
   const nodes = [];
@@ -88,7 +90,8 @@ function generateResourceNodes(rng, obstacles) {
     const distFromBase = Math.sqrt(distance2(x, z, 0, 0));
     if (distFromBase < BASE_RADIUS + 6) continue;
     if (!farEnoughFromObstacles(x, z, obstacles, 6)) continue;
-    nodes.push({ id: `r${nodes.length + 1}`, x, y: 0, z });
+    const type = RESOURCE_TYPES_LIST[Math.floor(rng() * RESOURCE_TYPES_LIST.length)];
+    nodes.push({ id: `r${nodes.length + 1}`, x, y: 0, z, type });
   }
 
   return nodes;
@@ -169,6 +172,7 @@ export function createWorldFromConfig(mapConfig) {
     x: node.x,
     y: node.y ?? 0,
     z: node.z,
+    type: node.type ?? 'crystal',
   }));
   const spawnPoints = mapConfig.spawnPoints.map((point) => ({
     x: point.x,

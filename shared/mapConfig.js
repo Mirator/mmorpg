@@ -30,6 +30,8 @@ function normalizeList(raw, mapFn) {
   return raw.map((item) => mapFn(item));
 }
 
+const VALID_RESOURCE_TYPES = new Set(['crystal', 'ore', 'herb']);
+
 export function normalizeMapConfig(raw) {
   const config = isObject(raw) ? raw : {};
   return {
@@ -40,12 +42,16 @@ export function normalizeMapConfig(raw) {
     base: normalizeCircle(config.base),
     spawnPoints: normalizeList(config.spawnPoints, normalizePoint),
     obstacles: normalizeList(config.obstacles, (item) => normalizeCircle(item)),
-    resourceNodes: normalizeList(config.resourceNodes, (item) => ({
-      id: isObject(item) ? item.id ?? '' : '',
-      x: isObject(item) ? item.x ?? 0 : 0,
-      y: isObject(item) ? item.y ?? 0 : 0,
-      z: isObject(item) ? item.z ?? 0 : 0,
-    })),
+    resourceNodes: normalizeList(config.resourceNodes, (item) => {
+      const type = isObject(item) && typeof item.type === 'string' ? item.type.trim().toLowerCase() : 'crystal';
+      return {
+        id: isObject(item) ? item.id ?? '' : '',
+        x: isObject(item) ? item.x ?? 0 : 0,
+        y: isObject(item) ? item.y ?? 0 : 0,
+        z: isObject(item) ? item.z ?? 0 : 0,
+        type: VALID_RESOURCE_TYPES.has(type) ? type : 'crystal',
+      };
+    }),
     vendors: normalizeList(config.vendors, (item) => ({
       id: isObject(item) ? item.id ?? '' : '',
       name: isObject(item) ? item.name ?? '' : '',
@@ -174,6 +180,10 @@ export function validateMapConfig(config) {
     config.resourceNodes.forEach((node, index) => {
       validateId(errors, `resourceNodes[${index}]`, node?.id, seen);
       validatePoint(errors, `resourceNodes[${index}]`, node ?? {}, half, yMin, yMax);
+      const type = node?.type;
+      if (type !== undefined && type !== null && (!VALID_RESOURCE_TYPES.has(String(type).toLowerCase()))) {
+        addError(errors, `resourceNodes[${index}] type must be crystal, ore, or herb.`);
+      }
     });
   }
 

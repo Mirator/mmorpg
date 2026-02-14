@@ -1,4 +1,5 @@
 import { addItem, canAddItem, countInventory } from './inventory.js';
+import { getResourceConfig } from '../../shared/economy.js';
 
 function distance2(a, b) {
   const dx = a.x - b.x;
@@ -12,6 +13,7 @@ export function createResources(nodes) {
     x: node.x,
     y: node.y ?? 0,
     z: node.z,
+    type: node.type ?? 'crystal',
     available: true,
     respawnAt: 0,
   }));
@@ -30,20 +32,6 @@ export function tryHarvest(resources, player, now, config) {
   const harvestRadius = config.harvestRadius ?? 2;
   const respawnMs = config.respawnMs ?? 15_000;
   const stackMax = config.stackMax ?? player.invStackMax ?? 20;
-  const itemKind = config.itemKind ?? 'crystal';
-  const itemName = config.itemName ?? 'Crystal';
-  const makeItem =
-    config.makeItem ??
-    (() => ({
-      id: `item-${now}-${Math.random().toString(16).slice(2)}`,
-      kind: itemKind,
-      name: itemName,
-      count: 1,
-    }));
-
-  if (!player.inventory || !canAddItem(player.inventory, itemKind, stackMax)) {
-    return null;
-  }
 
   let closest = null;
   let closestDist2 = harvestRadius * harvestRadius;
@@ -58,6 +46,23 @@ export function tryHarvest(resources, player, now, config) {
   }
 
   if (!closest) return null;
+
+  const resourceType = closest.type ?? config.resourceType ?? 'crystal';
+  const resourceConfig = getResourceConfig(resourceType);
+  const itemKind = config.itemKind ?? resourceConfig.itemKind;
+  const itemName = config.itemName ?? resourceConfig.itemName;
+  const makeItem =
+    config.makeItem ??
+    (() => ({
+      id: `item-${now}-${Math.random().toString(16).slice(2)}`,
+      kind: itemKind,
+      name: itemName,
+      count: 1,
+    }));
+
+  if (!player.inventory || !canAddItem(player.inventory, itemKind, stackMax)) {
+    return null;
+  }
 
   const item = makeItem();
   if (!addItem(player.inventory, item, stackMax)) return null;

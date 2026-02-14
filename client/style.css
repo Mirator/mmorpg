@@ -1309,9 +1309,126 @@ body.menu-open #cast-bar-wrap {
 
 .inventory-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
+  gap: 8px;
   margin-bottom: 12px;
+}
+
+.inventory-tabs {
+  flex-basis: 100%;
+  display: flex;
+  gap: 6px;
+}
+
+.inventory-tab {
+  border: 1px solid rgba(77, 163, 255, 0.4);
+  background: rgba(77, 163, 255, 0.12);
+  color: #a8d4ff;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.inventory-tab.active {
+  background: rgba(77, 163, 255, 0.4);
+  color: #0b0f14;
+  border-color: rgba(77, 163, 255, 0.7);
+}
+
+.inventory-view,
+.craft-view {
+  display: none;
+}
+
+.inventory-view.active,
+.craft-view.active {
+  display: block;
+}
+
+.craft-recipe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.craft-recipe {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(77, 163, 255, 0.08);
+  border: 1px solid rgba(77, 163, 255, 0.25);
+}
+
+.craft-recipe-header {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.craft-ingredients {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.craft-ingredient {
+  color: var(--muted);
+}
+
+.craft-ingredient.insufficient {
+  color: var(--danger);
+}
+
+.craft-output {
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.craft-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.craft-count-input {
+  width: 56px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(77, 163, 255, 0.35);
+  background: rgba(8, 12, 16, 0.8);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.craft-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(94, 242, 194, 0.4);
+  background: rgba(94, 242, 194, 0.2);
+  color: #b8f5e0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.craft-btn:hover:not(:disabled) {
+  background: rgba(94, 242, 194, 0.35);
+}
+
+.craft-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .inventory-meta {
@@ -1808,6 +1925,58 @@ body.menu-open #cast-bar-wrap {
   color: var(--muted);
   padding: 18px 10px;
   text-align: center;
+}
+
+.vendor-buy-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.vendor-buy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 213, 79, 0.08);
+  border: 1px solid rgba(255, 213, 79, 0.2);
+}
+
+.vendor-buy-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vendor-buy-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.vendor-buy-price {
+  font-size: 12px;
+  color: #ffe9a8;
+}
+
+.vendor-buy-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  background: rgba(255, 213, 79, 0.25);
+  border: 1px solid rgba(255, 213, 79, 0.5);
+  color: #ffe9a8;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.vendor-buy-btn:hover {
+  background: rgba(255, 213, 79, 0.35);
 }
 
 .vendor-dropzone {

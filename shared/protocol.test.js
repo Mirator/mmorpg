@@ -118,6 +118,32 @@ describe('protocol validation', () => {
     });
   });
 
+  it('accepts vendorBuy message', () => {
+    expect(
+      parseClientMessage({ type: 'vendorBuy', vendorId: 'vendor-1', kind: 'weapon_training_sword' })
+    ).toEqual({
+      type: 'vendorBuy',
+      vendorId: 'vendor-1',
+      kind: 'weapon_training_sword',
+      count: 1,
+      seq: undefined,
+    });
+    expect(
+      parseClientMessage({
+        type: 'vendorBuy',
+        vendorId: 'v2',
+        kind: 'consumable_minor_health_potion',
+        count: 5,
+      })
+    ).toEqual({
+      type: 'vendorBuy',
+      vendorId: 'v2',
+      kind: 'consumable_minor_health_potion',
+      count: 5,
+      seq: undefined,
+    });
+  });
+
   it('rejects invalid classSelect message', () => {
     expect(parseClientMessage({ type: 'classSelect', classId: '' })).toBe(null);
   });
@@ -182,5 +208,29 @@ describe('protocol validation', () => {
         seq: 1,
       })
     ).toBe(null);
+  });
+
+  it('accepts craft message', () => {
+    expect(
+      parseClientMessage({ type: 'craft', recipeId: 'ore_crystal_sword', seq: 1 })
+    ).toEqual({
+      type: 'craft',
+      recipeId: 'ore_crystal_sword',
+      count: 1,
+      seq: 1,
+    });
+    expect(
+      parseClientMessage({ type: 'craft', recipeId: 'herb_health_potion', count: 5 })
+    ).toEqual({
+      type: 'craft',
+      recipeId: 'herb_health_potion',
+      count: 5,
+      seq: undefined,
+    });
+  });
+
+  it('rejects invalid craft message', () => {
+    expect(parseClientMessage({ type: 'craft', recipeId: '', seq: 1 })).toBe(null);
+    expect(parseClientMessage({ type: 'craft', recipeId: 123, seq: 1 })).toBe(null);
   });
 });
