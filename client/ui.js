@@ -12,12 +12,15 @@ const eventEl = document.getElementById('event');
 const damageFlashEl = document.getElementById('damage-flash');
 const xpBarEl = document.getElementById('xp-bar');
 const xpBarValueEl = document.getElementById('xp-bar-value');
-const xpBarRemainingEl = document.getElementById('xp-bar-remaining');
+const xpBarPercentEl = document.getElementById('xp-bar-percent');
 const overlayHpFillEl = document.getElementById('overlay-hp-fill');
 const overlayHpValueEl = document.getElementById('overlay-hp-value');
 const overlayStaminaFillEl = document.getElementById('overlay-stamina-fill');
 const overlayStaminaValueEl = document.getElementById('overlay-stamina-value');
 const overlayResourceLabelEl = document.getElementById('overlay-resource-label');
+const overlayLevelEl = document.getElementById('overlay-level');
+const overlayResourceBarEl = document.getElementById('overlay-resource-bar');
+const overlayPortraitEl = document.getElementById('overlay-portrait');
 const targetHudEl = document.getElementById('target-hud');
 const targetNameEl = document.getElementById('target-name');
 const targetMetaEl = document.getElementById('target-meta');
@@ -57,6 +60,7 @@ export function setStatus(text) {
 export function updateHud(player, now) {
   if (!player) {
     if (levelEl) levelEl.textContent = '--';
+    if (overlayLevelEl) overlayLevelEl.textContent = '--';
     if (hpEl) hpEl.textContent = '--';
     if (invEl) invEl.textContent = '--';
     if (coinsEl) coinsEl.textContent = '--';
@@ -68,15 +72,20 @@ export function updateHud(player, now) {
       xpBarEl.setAttribute('aria-valuetext', '--');
     }
     if (xpBarValueEl) xpBarValueEl.textContent = '--';
-    if (xpBarRemainingEl) xpBarRemainingEl.textContent = '--';
+    if (xpBarPercentEl) xpBarPercentEl.textContent = '--';
     setBar(overlayHpFillEl, overlayHpValueEl, null, null);
     if (overlayStaminaFillEl) overlayStaminaFillEl.style.width = '0%';
     if (overlayStaminaValueEl) overlayStaminaValueEl.textContent = '--';
     if (overlayResourceLabelEl) overlayResourceLabelEl.textContent = 'Resource';
+    if (overlayResourceBarEl) {
+      overlayResourceBarEl.classList.remove('resource-type-mana', 'resource-type-stamina', 'resource-type-rage', 'resource-type-focus');
+    }
+    if (overlayPortraitEl) overlayPortraitEl.removeAttribute('data-class');
     return;
   }
 
   if (levelEl) levelEl.textContent = `${player.level ?? 1}`;
+  if (overlayLevelEl) overlayLevelEl.textContent = `${player.level ?? 1}`;
   const needed = player.xpToNext ?? xpToNext(player.level ?? 1);
   const current = Math.max(0, player.xp ?? 0);
   const progress = needed > 0 ? Math.min(1, current / needed) : 1;
@@ -89,11 +98,12 @@ export function updateHud(player, now) {
     xpBarEl.setAttribute('aria-valuetext', needed ? `${current}/${needed}` : 'MAX');
   }
   if (xpBarValueEl) {
-    xpBarValueEl.textContent = needed ? `${current}/${needed}` : 'MAX';
+    xpBarValueEl.textContent = needed ? `${current} / ${needed} XP` : 'MAX';
   }
-  if (xpBarRemainingEl) {
-    xpBarRemainingEl.textContent = needed
-      ? `${Math.max(0, needed - current)} to next level`
+  if (xpBarPercentEl) {
+    const pct = needed > 0 ? Math.min(100, (current / needed) * 100) : 100;
+    xpBarPercentEl.textContent = needed
+      ? `${pct.toFixed(1)}%`
       : 'Max level';
   }
   if (hpEl) hpEl.textContent = `${player.hp ?? 0}`;
@@ -111,6 +121,14 @@ export function updateHud(player, now) {
   );
   if (overlayResourceLabelEl) {
     overlayResourceLabelEl.textContent = formatResourceLabel(player.resourceType);
+  }
+  if (overlayResourceBarEl) {
+    overlayResourceBarEl.classList.remove('resource-type-mana', 'resource-type-stamina', 'resource-type-rage', 'resource-type-focus');
+    const rt = player.resourceType;
+    if (rt) overlayResourceBarEl.classList.add(`resource-type-${rt}`);
+  }
+  if (overlayPortraitEl) {
+    overlayPortraitEl.setAttribute('data-class', player.classId ?? '');
   }
   if (invEl) {
     const inv = player.inv ?? 0;

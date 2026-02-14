@@ -7,6 +7,15 @@
   --muted: #9fb0c2;
   --accent: #4da3ff;
   --danger: #ff4d4d;
+  --frame-gold: #e8c547;
+  --frame-gold-dim: #b8962e;
+  --frame-health: #2ecc71;
+  --frame-health-dim: #27ae60;
+  --frame-mana: #3498db;
+  --frame-mana-dim: #2980b9;
+  --frame-stamina: #95a5a6;
+  --frame-rage: #e74c3c;
+  --frame-focus: #f39c12;
 }
 
 * {
@@ -264,82 +273,197 @@ body.menu-open #xp-bar {
   align-items: center;
 }
 
-#overlay {
+/* Player unit frame */
+#overlay.player-unit-frame {
   position: fixed;
   top: 16px;
   left: 16px;
-  width: min(280px, 88vw);
-  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: var(--panel);
-  border: 1px solid rgba(77, 163, 255, 0.3);
-  border-radius: 12px;
-  font-size: 13px;
-  line-height: 1.4;
-  letter-spacing: 0.2px;
-  backdrop-filter: blur(6px);
+  gap: 0;
+  width: min(260px, 88vw);
+  padding: 0;
+  background: transparent;
+  border: none;
   z-index: 20;
 }
 
-.overlay-block {
+.player-frame-main {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+}
+
+.player-frame-portrait-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 75px;
+  height: 75px;
+}
+
+.player-frame-portrait {
+  width: 75px;
+  height: 75px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(40, 35, 25, 0.95), rgba(20, 18, 12, 0.98));
+  border: 3px solid transparent;
+}
+
+.player-frame-portrait[data-class='guardian'] {
+  background: linear-gradient(145deg, rgba(52, 73, 94, 0.95), rgba(30, 45, 60, 0.98));
+}
+.player-frame-portrait[data-class='fighter'] {
+  background: linear-gradient(145deg, rgba(192, 57, 43, 0.6), rgba(138, 40, 30, 0.9));
+}
+.player-frame-portrait[data-class='ranger'] {
+  background: linear-gradient(145deg, rgba(39, 174, 96, 0.6), rgba(22, 120, 70, 0.9));
+}
+.player-frame-portrait[data-class='mage'] {
+  background: linear-gradient(145deg, rgba(52, 152, 219, 0.6), rgba(30, 90, 140, 0.9));
+}
+.player-frame-portrait[data-class='priest'] {
+  background: linear-gradient(145deg, rgba(241, 196, 15, 0.4), rgba(180, 140, 20, 0.85));
+}
+
+.player-frame-portrait {
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.1),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    0 0 0 2px rgba(184, 150, 46, 0.4);
+  overflow: hidden;
+}
+
+.player-frame-level {
+  position: absolute;
+  bottom: -2px;
+  left: -2px;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #c9a227, #8b6914);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1510;
+}
+
+.player-frame-info {
+  margin-left: -4px;
+  padding: 6px 10px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  height: 75px;
+  background: rgba(8, 6, 4, 0.85);
+  border: 2px solid transparent;
+  border-radius: 0 8px 8px 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 0 2px rgba(80, 70, 50, 0.5);
+}
+
+.player-frame-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--frame-gold);
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.player-frame-bar {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.overlay-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-}
-
-.overlay-name {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.overlay-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.overlay-bar-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.overlay-bar-value {
-  color: var(--text);
-}
-
-.overlay-bar-track {
+.player-frame-bar-track {
   position: relative;
-  height: 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(77, 163, 255, 0.25);
-  background: rgba(10, 16, 22, 0.9);
+  height: 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  background: rgba(10, 8, 6, 0.9);
   overflow: hidden;
 }
 
-.overlay-bar-track.muted {
-  border-color: rgba(159, 176, 194, 0.25);
-}
-
-.overlay-bar-fill {
+.player-frame-bar-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, rgba(77, 163, 255, 0.95), rgba(94, 242, 194, 0.9));
+  border-radius: 3px;
   transition: width 0.2s ease;
 }
 
-.overlay-bar-track.muted .overlay-bar-fill {
-  background: linear-gradient(90deg, rgba(159, 176, 194, 0.35), rgba(159, 176, 194, 0.6));
+.player-frame-bar.health .player-frame-bar-fill {
+  background: linear-gradient(90deg, var(--frame-health-dim), var(--frame-health));
+}
+
+.player-frame-bar.resource .player-frame-bar-fill {
+  background: linear-gradient(90deg, var(--frame-mana-dim), var(--frame-mana));
+}
+
+.player-frame-bar.resource.resource-type-stamina .player-frame-bar-fill {
+  background: linear-gradient(90deg, #7f8c8d, var(--frame-stamina));
+}
+
+.player-frame-bar.resource.resource-type-rage .player-frame-bar-fill {
+  background: linear-gradient(90deg, #c0392b, var(--frame-rage));
+}
+
+.player-frame-bar.resource.resource-type-focus .player-frame-bar-fill {
+  background: linear-gradient(90deg, #d68910, var(--frame-focus));
+}
+
+.player-frame-bar-text {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.player-frame-bar-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.player-frame-bar.health .player-frame-bar-value {
+  color: var(--frame-health);
+  font-weight: 600;
+}
+
+.player-frame-bar.resource .player-frame-bar-value {
+  color: var(--frame-mana);
+  font-weight: 600;
+}
+
+.player-frame-bar.resource.resource-type-stamina .player-frame-bar-value {
+  color: var(--frame-stamina);
+}
+
+.player-frame-bar.resource.resource-type-rage .player-frame-bar-value {
+  color: var(--frame-rage);
+}
+
+.player-frame-bar.resource.resource-type-focus .player-frame-bar-value {
+  color: var(--frame-focus);
+}
+
+.player-frame-footer {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(80, 70, 50, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .overlay-status {
@@ -367,10 +491,10 @@ body.menu-open #xp-bar {
 
 .overlay-btn {
   margin-top: 4px;
-  border: 1px solid rgba(77, 163, 255, 0.35);
-  border-radius: 10px;
+  border: 1px solid rgba(184, 150, 46, 0.4);
+  border-radius: 6px;
   padding: 6px 10px;
-  background: rgba(12, 18, 26, 0.9);
+  background: rgba(20, 18, 12, 0.9);
   color: var(--text);
   font-family: inherit;
   cursor: pointer;
@@ -874,34 +998,34 @@ body.menu-open #xp-bar {
   background: rgba(0, 0, 0, 0.2);
 }
 
-.equipment-grid-wow {
+.equipment-grid-slot {
   display: grid;
   grid-template-columns: repeat(2, minmax(56px, 1fr));
   grid-template-rows: auto auto auto;
   gap: 10px;
 }
 
-.equipment-grid-wow .equipment-slot[data-slot='head'] {
+.equipment-grid-slot .equipment-slot[data-slot='head'] {
   grid-column: 1;
   grid-row: 1;
 }
-.equipment-grid-wow .equipment-slot[data-slot='chest'] {
+.equipment-grid-slot .equipment-slot[data-slot='chest'] {
   grid-column: 1;
   grid-row: 2;
 }
-.equipment-grid-wow .equipment-slot[data-slot='legs'] {
+.equipment-grid-slot .equipment-slot[data-slot='legs'] {
   grid-column: 1;
   grid-row: 3;
 }
-.equipment-grid-wow .equipment-slot[data-slot='offhand'] {
+.equipment-grid-slot .equipment-slot[data-slot='offhand'] {
   grid-column: 2;
   grid-row: 1;
 }
-.equipment-grid-wow .equipment-slot[data-slot='feet'] {
+.equipment-grid-slot .equipment-slot[data-slot='feet'] {
   grid-column: 2;
   grid-row: 2;
 }
-.equipment-grid-wow .equipment-slot[data-slot='weapon'] {
+.equipment-grid-slot .equipment-slot[data-slot='weapon'] {
   grid-column: 2;
   grid-row: 3;
 }
@@ -1022,6 +1146,21 @@ body.menu-open #xp-bar {
   z-index: 14;
 }
 
+.xp-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent calc(100% - 1px),
+    rgba(255, 255, 255, 0.15) calc(100% - 1px),
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  background-size: calc(100% / 8) 100%;
+  background-repeat: repeat-x;
+}
+
 .xp-bar-fill {
   height: 100%;
   width: calc(var(--progress) * 100%);
@@ -1049,7 +1188,7 @@ body.menu-open #xp-bar {
 
 .xp-bar-tooltip div + div {
   margin-top: 2px;
-  color: var(--muted);
+  color: var(--accent);
 }
 
 .xp-bar:hover .xp-bar-tooltip,

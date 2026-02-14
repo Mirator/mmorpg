@@ -91,35 +91,42 @@
         <div id="loading-text" class="loading-text">Loading...</div>
       </div>
     </div>
-    <div id="overlay">
-      <div class="overlay-block">
-        <div class="overlay-label">Character</div>
-        <div id="overlay-character-name" class="overlay-name">--</div>
-      </div>
-      <div class="overlay-bar">
-        <div class="overlay-bar-header">
-          <span class="overlay-bar-label">HP</span>
-          <span id="overlay-hp-value" class="overlay-bar-value">--</span>
+    <div id="overlay" class="player-unit-frame">
+      <div class="player-frame-main">
+        <div class="player-frame-portrait-wrap">
+          <div class="player-frame-portrait" id="overlay-portrait"></div>
+          <div class="player-frame-level" id="overlay-level">--</div>
         </div>
-        <div class="overlay-bar-track">
-          <div id="overlay-hp-fill" class="overlay-bar-fill"></div>
+        <div class="player-frame-info">
+        <div class="player-frame-name" id="overlay-character-name">--</div>
+        <div class="player-frame-bar health">
+          <div class="player-frame-bar-track">
+            <div class="player-frame-bar-fill" id="overlay-hp-fill"></div>
+          </div>
+          <div class="player-frame-bar-text">
+            <span class="player-frame-bar-label">Health</span>
+            <span class="player-frame-bar-value" id="overlay-hp-value">--</span>
+          </div>
+        </div>
+        <div class="player-frame-bar resource" id="overlay-resource-bar">
+          <div class="player-frame-bar-track">
+            <div class="player-frame-bar-fill" id="overlay-stamina-fill"></div>
+          </div>
+          <div class="player-frame-bar-text">
+            <span class="player-frame-bar-label" id="overlay-resource-label">Resource</span>
+            <span class="player-frame-bar-value" id="overlay-stamina-value">--</span>
+          </div>
         </div>
       </div>
-      <div class="overlay-bar">
-        <div class="overlay-bar-header">
-          <span id="overlay-resource-label" class="overlay-bar-label">Resource</span>
-          <span id="overlay-stamina-value" class="overlay-bar-value">--</span>
-        </div>
-        <div class="overlay-bar-track muted">
-          <div id="overlay-stamina-fill" class="overlay-bar-fill"></div>
-        </div>
       </div>
-      <div class="overlay-status">Status: <span id="status">connecting...</span></div>
-      <div class="overlay-controls">
-        WASD to move · Click to move · Click target/TAB to cycle enemies · E to interact · I for
-        inventory · C for character · K for skills · 1-0 for abilities
+      <div class="player-frame-footer">
+        <div class="overlay-status">Status: <span id="status">connecting...</span></div>
+        <div class="overlay-controls">
+          WASD to move · Click to move · Click target/TAB to cycle enemies · E to interact · I for
+          inventory · C for character · K for skills · 1-0 for abilities
+        </div>
+        <button id="signout-btn" class="overlay-btn">Sign out</button>
       </div>
-      <button id="signout-btn" class="overlay-btn">Sign out</button>
     </div>
     <div id="target-hud" class="target-hud">
       <div id="target-name" class="target-name">--</div>
@@ -156,7 +163,7 @@
             </div>
           </div>
           <div class="character-paper-doll">
-            <div id="equipment-grid" class="equipment-grid equipment-grid-wow"></div>
+            <div id="equipment-grid" class="equipment-grid equipment-grid-slot"></div>
             <div class="character-model-placeholder"></div>
           </div>
           <div class="character-stats">
@@ -254,7 +261,7 @@
       <div id="xp-bar-fill" class="xp-bar-fill"></div>
       <div id="xp-bar-tooltip" class="xp-bar-tooltip" role="tooltip">
         <div id="xp-bar-value">--</div>
-        <div id="xp-bar-remaining">--</div>
+        <div id="xp-bar-percent">--</div>
       </div>
     </div>
     <div id="top-right-panel">
