@@ -1326,6 +1326,55 @@ body.menu-open #xp-bar {
   color: var(--text);
 }
 
+.party-panel {
+  position: fixed;
+  bottom: 242px;
+  left: 0;
+  width: 320px;
+  padding: 8px 12px;
+  border-radius: 12px 12px 0 0;
+  border: 1px solid rgba(77, 163, 255, 0.35);
+  border-bottom: none;
+  background: var(--panel);
+  z-index: 49;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.party-panel.hidden {
+  display: none;
+}
+.party-status {
+  font-size: 12px;
+  color: var(--muted);
+}
+.party-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(77, 163, 255, 0.4);
+  background: rgba(77, 163, 255, 0.15);
+  color: var(--text);
+  cursor: pointer;
+}
+.party-btn:hover {
+  background: rgba(77, 163, 255, 0.25);
+}
+.party-btn.small {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+.party-invite-toast {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.party-invite-toast.hidden {
+  display: none;
+}
+
 .chat-panel {
   position: fixed;
   bottom: 0;

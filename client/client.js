@@ -79,7 +79,7 @@ function updateLocalUi() {
   ctx.currentMe = me;
   if (me && Object.prototype.hasOwnProperty.call(me, 'targetId')) {
     if (me.targetId) {
-      ctx.selectedTarget = { kind: 'mob', id: me.targetId };
+      ctx.selectedTarget = { kind: me.targetKind ?? 'mob', id: me.targetId };
     } else if (ctx.selectedTarget?.kind === 'mob') {
       ctx.selectedTarget = null;
     }
@@ -87,6 +87,7 @@ function updateLocalUi() {
     ctx.selectedTarget = null;
   }
   ui.updateLocalUi({ me, worldConfig: gameState.getWorldConfig(), serverNow });
+  if (typeof updatePartyPanel === 'function') updatePartyPanel();
 }
 
 const authRef = { current: null };
@@ -97,7 +98,7 @@ const chat = createChat({
   onSend: (channel, text) => {
     sendWithSeq({ type: 'chat', channel, text });
   },
-  isInParty: () => false,
+  isInParty: () => !!ctx.currentMe?.partyId,
 });
 
 const ui = createUiState({
@@ -148,6 +149,8 @@ const combat = createCombat({
 });
 combatRef.current = combat;
 
+let pendingPartyInvite = null;
+
 const connection = createConnection({
   gameState,
   renderSystem,
@@ -161,6 +164,17 @@ const connection = createConnection({
   },
   onCombatLog: (entries) => chat.addCombatLogEntries(entries),
   onConnected: () => chat.addSystemMessage('Connected to game'),
+  onPartyInvite: (invite) => {
+    pendingPartyInvite = invite;
+    const panel = document.getElementById('party-panel');
+    const toast = document.getElementById('party-invite-toast');
+    const textEl = document.getElementById('party-invite-text');
+    if (panel && toast && textEl) {
+      panel.classList.remove('hidden');
+      toast.classList.remove('hidden');
+      textEl.textContent = `${invite.inviterName} invited you to party`;
+    }
+  },
   updateLocalUi,
   setWorld,
   loadCharacters: () => auth.loadCharacters(),
@@ -170,6 +184,72 @@ const connection = createConnection({
     isGuestSession ? { guest: true } : { character: auth.getCharacter() },
 });
 connectionRef.current = connection;
+
+function updatePartyPanel() {
+  const panel = document.getElementById('party-panel');
+  const toast = document.getElementById('party-invite-toast');
+  const statusEl = panel?.querySelector('.party-status');
+  const leaveBtn = document.getElementById('party-leave-btn');
+  const inviteBtn = document.getElementById('party-invite-btn');
+  const inParty = !!ctx.currentMe?.partyId;
+  const hasPlayerTarget = ctx.currentMe?.targetKind === 'player' && ctx.currentMe?.targetId;
+  const showPanel = inParty || !!pendingPartyInvite || hasPlayerTarget;
+  if (panel) {
+    panel.classList.toggle('hidden', !showPanel);
+  }
+  if (toast) {
+    toast.classList.toggle('hidden', !pendingPartyInvite);
+  }
+  if (statusEl) {
+    statusEl.style.display = inParty ? 'block' : 'none';
+  }
+  if (leaveBtn) {
+    leaveBtn.style.display = inParty ? 'inline-block' : 'none';
+  }
+  if (inviteBtn) {
+    inviteBtn.style.display = hasPlayerTarget ? 'inline-block' : 'none';
+  }
+}
+
+function initPartyButtons() {
+  const leaveBtn = document.getElementById('party-leave-btn');
+  const inviteBtn = document.getElementById('party-invite-btn');
+  const acceptBtn = document.getElementById('party-accept-btn');
+  const declineBtn = document.getElementById('party-decline-btn');
+  if (leaveBtn) {
+    leaveBtn.addEventListener('click', () => {
+      connection.sendPartyLeave();
+    });
+  }
+  if (inviteBtn) {
+    inviteBtn.addEventListener('click', () => {
+      const targetId = ctx.currentMe?.targetId;
+      if (targetId && ctx.currentMe?.targetKind === 'player') {
+        connection.sendPartyInvite(targetId);
+      }
+    });
+  }
+  if (acceptBtn) {
+    acceptBtn.addEventListener('click', () => {
+      if (pendingPartyInvite) {
+        connection.sendPartyAccept(pendingPartyInvite.inviterId);
+        pendingPartyInvite = null;
+        const toast = document.getElementById('party-invite-toast');
+        if (toast) toast.classList.add('hidden');
+      }
+    });
+  }
+  if (declineBtn) {
+    declineBtn.addEventListener('click', () => {
+      pendingPartyInvite = null;
+      const toast = document.getElementById('party-invite-toast');
+      if (toast) toast.classList.add('hidden');
+      const panel = document.getElementById('party-panel');
+      if (panel && !ctx.currentMe?.partyId) panel.classList.add('hidden');
+    });
+  }
+}
+initPartyButtons();
 
 auth.setOnConnectCharacter(async (character) => {
   showLoadingScreen('Loading assets...');

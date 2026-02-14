@@ -1,9 +1,7 @@
-export const MAX_LEVEL = 20;
+export const MAX_LEVEL = 30;
 
-const LEVEL_1_XP = 100;
-const CURVE_EARLY = 1.2;
-const CURVE_MID = 1.35;
-const CURVE_LATE = 1.6;
+const XP_K = 190;
+const MOB_XP_A = 23;
 
 function clampLevel(level) {
   if (!Number.isFinite(level)) return 1;
@@ -13,17 +11,7 @@ function clampLevel(level) {
 export function xpToNext(level) {
   const lvl = clampLevel(level);
   if (lvl >= MAX_LEVEL) return 0;
-
-  const xpAt5 = Math.round(LEVEL_1_XP * CURVE_EARLY ** (5 - 1));
-  const xpAt10 = Math.round(xpAt5 * CURVE_MID ** (10 - 5));
-
-  if (lvl <= 5) {
-    return Math.round(LEVEL_1_XP * CURVE_EARLY ** (lvl - 1));
-  }
-  if (lvl <= 10) {
-    return Math.round(xpAt5 * CURVE_MID ** (lvl - 5));
-  }
-  return Math.round(xpAt10 * CURVE_LATE ** (lvl - 10));
+  return Math.round(XP_K * lvl * lvl);
 }
 
 export function totalXpForLevel(level, xp = 0) {
@@ -55,11 +43,33 @@ export function addXp({ level, xp }, amount) {
 }
 
 export function calculateMobXp(mobLevel, playerLevel) {
+  const { baseXp, mult } = getMobXpBaseAndMult(mobLevel, playerLevel);
+  if (baseXp === 0) return 0;
+  return Math.max(0, Math.floor(baseXp * mult));
+}
+
+/**
+ * Get base XP and level-diff multiplier for mob kill (for party pool calculation).
+ * @param {number} mobLevel
+ * @param {number} playerLevel
+ * @returns {{ baseXp: number, mult: number }}
+ */
+export function getMobXpBaseAndMult(mobLevel, playerLevel) {
   const mob = clampLevel(mobLevel);
   const player = clampLevel(playerLevel);
   const diff = mob - player;
-  if (Math.abs(diff) > 5) return 0;
-  const base = 20 * mob;
-  const multiplier = Math.max(0.1, 1 + diff * 0.2);
-  return Math.max(0, Math.floor(base * multiplier + 1e-6));
+  if (diff <= -10) return { baseXp: 0, mult: 1 };
+  const baseXp = Math.floor(MOB_XP_A * mob);
+  const mult = Math.max(0.25, Math.min(1.75, 1 + 0.12 * diff));
+  return { baseXp, mult };
+}
+
+/**
+ * Party bonus multiplier: 1 + 0.35 * (n - 1) for n >= 1.
+ * @param {number} partySize
+ * @returns {number}
+ */
+export function partyBonus(partySize) {
+  const n = Math.max(1, Math.floor(partySize ?? 1));
+  return 1 + 0.35 * (n - 1);
 }

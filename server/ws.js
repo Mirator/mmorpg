@@ -26,6 +26,16 @@ import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
 import { addMessage as addChatMessage } from './logic/chat.js';
 import { sendCombatLog } from './logic/combatLog.js';
+import {
+  createParty,
+  invitePlayer,
+  acceptInvite,
+  leaveParty,
+  getPartyForPlayer,
+  getPartyMembers,
+  setPlayerPartyId,
+  getPendingInvite,
+} from './logic/party.js';
 
 function safeSend(ws, msg) {
   if (ws.readyState !== ws.OPEN) return;
@@ -284,6 +294,7 @@ export function createWebSocketServer({
     ws.on('close', () => {
       const isCurrent = player && players.get(playerId) === player;
       if (isCurrent) {
+        leaveParty(playerId, players);
         players.delete(playerId);
       }
       cleanupConnection();
@@ -388,6 +399,7 @@ export function createWebSocketServer({
           accountId: stored.accountId ?? null,
           name: stored.name ?? null,
           nameLower: stored.nameLower ?? null,
+          partyId: null,
         };
         initCombatState(basePlayer);
 
@@ -429,6 +441,7 @@ export function createWebSocketServer({
           accountId: account?.id ?? null,
           name: stored?.name ?? null,
           nameLower: stored?.nameLower ?? null,
+          partyId: null,
         };
         initCombatState(basePlayer);
       }
@@ -499,11 +512,77 @@ export function createWebSocketServer({
           return;
         }
 
+        if (msg.type === 'partyInvite') {
+          if (player.isGuest) return;
+          const target = players.get(msg.targetId);
+          if (!target || !target.ws || target.dead) return;
+          const party = getPartyForPlayer(player.id, players);
+          const partyId = party ? party.id : createParty(player.id, players);
+          if (!partyId) return;
+          const result = invitePlayer(partyId, player.id, msg.targetId, players);
+          if (result.ok && target.ws) {
+            safeSend(target.ws, {
+              type: 'partyInviteReceived',
+              inviterId: player.id,
+              inviterName: player.name ?? player.persistName ?? 'Unknown',
+            });
+          }
+          return;
+        }
+
+        if (msg.type === 'partyAccept') {
+          if (player.isGuest) return;
+          const result = acceptInvite(player.id, msg.inviterId);
+          if (result.ok && result.partyId) {
+            setPlayerPartyId(player, result.partyId);
+            persistence.markDirty(player);
+            const memberIds = getPartyMembers(result.partyId);
+            for (const mid of memberIds) {
+              const m = players.get(mid);
+              if (m?.ws) sendPrivateState(m.ws, m, Date.now());
+            }
+          }
+          return;
+        }
+
+        if (msg.type === 'partyLeave') {
+          const partyBefore = getPartyForPlayer(player.id, players);
+          leaveParty(player.id, players);
+          persistence.markDirty(player);
+          sendPrivateState(ws, player, Date.now());
+          if (partyBefore) {
+            for (const mid of partyBefore.memberIds) {
+              if (mid === player.id) continue;
+              const m = players.get(mid);
+              if (m?.ws) sendPrivateState(m.ws, m, Date.now());
+            }
+          }
+          return;
+        }
+
         if (msg.type === 'chat') {
           if (player.isGuest) return;
           if (!allowChatMessage()) return;
           const { channel, text } = msg;
-          if (channel === 'party') return;
+          if (channel === 'party') {
+            const party = getPartyForPlayer(player.id, players);
+            if (!party) return;
+            const stored = addChatMessage(channel, player.id, player.name ?? player.persistName ?? 'Unknown', text, Date.now());
+            if (!stored) return;
+            const payload = {
+              type: 'chat',
+              channel: stored.channel,
+              authorId: stored.authorId,
+              author: stored.author,
+              text: stored.text,
+              timestamp: stored.timestamp,
+            };
+            for (const mid of party.memberIds) {
+              const m = players.get(mid);
+              if (m?.ws && !m.isGuest) safeSend(m.ws, payload);
+            }
+            return;
+          }
           const authorName = player.name ?? player.persistName ?? 'Unknown';
           const authorId = player.id;
           const now = Date.now();
@@ -662,11 +741,11 @@ export function createWebSocketServer({
             broadcastCombatEvent(result.event, now);
           }
           if (result.combatLog) {
-            const entries = [];
+            const damageEntries = [];
             if (result.combatLog.damageDealt != null && result.combatLog.targetName) {
               const abilityName = result.combatLog.abilityName ?? 'You';
               const critSuffix = result.combatLog.isCrit ? ' (Critical!)' : '';
-              entries.push({
+              damageEntries.push({
                 kind: 'damage_done',
                 text: `${abilityName} hit ${result.combatLog.targetName} for ${result.combatLog.damageDealt} damage${critSuffix}`,
                 t: now,
@@ -675,31 +754,45 @@ export function createWebSocketServer({
             if (result.combatLog.healAmount != null && result.combatLog.healTarget) {
               const target = result.combatLog.healTarget;
               const targetText = target === 'yourself' ? 'yourself' : target;
-              entries.push({
+              damageEntries.push({
                 kind: 'heal',
                 text: `You healed ${targetText} for ${result.combatLog.healAmount}`,
                 t: now,
               });
             }
-            if (result.combatLog.xpGain > 0 && result.combatLog.targetName) {
-              entries.push({
-                kind: 'xp_gain',
-                text: `You gained ${result.combatLog.xpGain} XP from killing ${result.combatLog.targetName}`,
-                t: now,
-              });
+            if (damageEntries.length > 0) {
+              sendCombatLog(players, player.id, damageEntries, safeSend);
             }
-            if (result.combatLog.leveledUp) {
-              entries.push({
-                kind: 'level_up',
-                text: 'You gained a level!',
-                t: now,
-              });
-            }
-            if (entries.length > 0) {
-              sendCombatLog(players, player.id, entries, safeSend);
+            const xpGainByPlayer = result.combatLog.xpGainByPlayer ?? [];
+            for (const p of xpGainByPlayer) {
+              const xpEntries = [];
+              if (p.xpGain > 0 && result.combatLog.targetName) {
+                xpEntries.push({
+                  kind: 'xp_gain',
+                  text: `You gained ${p.xpGain} XP from killing ${result.combatLog.targetName}`,
+                  t: now,
+                });
+              }
+              if (p.leveledUp) {
+                xpEntries.push({
+                  kind: 'level_up',
+                  text: 'You gained a level!',
+                  t: now,
+                });
+              }
+              if (xpEntries.length > 0) {
+                sendCombatLog(players, p.playerId, xpEntries, safeSend);
+              }
             }
           }
-          if (result.xpGain > 0 || result.leveledUp) {
+          const xpGainByPlayer = result.combatLog?.xpGainByPlayer ?? [];
+          for (const p of xpGainByPlayer) {
+            const targetPlayer = players.get(p.playerId);
+            if (targetPlayer && (p.xpGain > 0 || p.leveledUp)) {
+              persistence.markDirty(targetPlayer);
+            }
+          }
+          if (xpGainByPlayer.length === 0 && (result.xpGain > 0 || result.leveledUp)) {
             persistence.markDirty(player);
           }
           return;

@@ -21,6 +21,7 @@ export function createConnection({
   onChatMessage,
   onCombatLog,
   onConnected,
+  onPartyInvite,
   updateLocalUi,
   setWorld,
   loadCharacters,
@@ -226,6 +227,13 @@ export function createConnection({
             const entries = Array.isArray(msg.entries) ? msg.entries : [];
             onCombatLog(entries);
           }
+
+          if (msg.type === 'partyInviteReceived' && typeof onPartyInvite === 'function') {
+            onPartyInvite({
+              inviterId: msg.inviterId,
+              inviterName: msg.inviterName ?? 'Unknown',
+            });
+          }
         },
       });
       ctx.net = localNet;
@@ -254,6 +262,18 @@ export function createConnection({
     sendWithSeq({ type: 'respawn' });
   }
 
+  function sendPartyInvite(targetId) {
+    if (targetId) sendWithSeq({ type: 'partyInvite', targetId });
+  }
+
+  function sendPartyAccept(inviterId) {
+    if (inviterId) sendWithSeq({ type: 'partyAccept', inviterId });
+  }
+
+  function sendPartyLeave() {
+    sendWithSeq({ type: 'partyLeave' });
+  }
+
   return {
     start,
     disconnect,
@@ -262,5 +282,8 @@ export function createConnection({
     sendInteract,
     sendMoveTarget,
     sendRespawn,
+    sendPartyInvite,
+    sendPartyAccept,
+    sendPartyLeave,
   };
 }

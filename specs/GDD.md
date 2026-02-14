@@ -116,14 +116,14 @@ Mobs:
 
 Mob levels:
 - Level scales with distance from base.
-- Max level: 20
+- Max level: 30
 - Max HP formula: 20 + 8 × level
 
 XP and leveling:
 - XP is awarded on mob kill.
-- XP gain uses mob level vs player level with reduced rewards outside ±3 levels.
-- Level cap: 20
-- XP to next level increases by a tiered exponential curve.
+- XP gain uses mob level vs player level with a smooth multiplier (clamp 0.25–1.75).
+- Level cap: 30
+- XP to next level uses a quadratic curve (XP_K × lvl²).
 
 **UI And UX**
 HUD:

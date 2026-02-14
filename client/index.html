@@ -266,6 +266,16 @@
         <div>X/Z: <span id="coords">0.0, 0.0</span></div>
       </div>
     </div>
+    <div id="party-panel" class="party-panel hidden">
+      <div class="party-status">In party</div>
+      <button id="party-leave-btn" class="party-btn" type="button">Leave Party</button>
+      <button id="party-invite-btn" class="party-btn" type="button" style="display: none">Invite to Party</button>
+      <div id="party-invite-toast" class="party-invite-toast hidden">
+        <span id="party-invite-text"></span>
+        <button id="party-accept-btn" class="party-btn small" type="button">Accept</button>
+        <button id="party-decline-btn" class="party-btn ghost small" type="button">Decline</button>
+      </div>
+    </div>
     <div id="chat-panel" class="chat-panel">
       <div class="chat-tabs">
         <button class="chat-tab active" data-channel="general" type="button">General</button>

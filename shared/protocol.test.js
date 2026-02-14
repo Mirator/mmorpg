@@ -152,6 +152,23 @@ describe('protocol validation', () => {
     });
   });
 
+  it('accepts party messages', () => {
+    expect(parseClientMessage({ type: 'partyInvite', targetId: 'p-123', seq: 1 })).toEqual({
+      type: 'partyInvite',
+      targetId: 'p-123',
+      seq: 1,
+    });
+    expect(parseClientMessage({ type: 'partyAccept', inviterId: 'p-456', seq: 2 })).toEqual({
+      type: 'partyAccept',
+      inviterId: 'p-456',
+      seq: 2,
+    });
+    expect(parseClientMessage({ type: 'partyLeave', seq: 3 })).toEqual({
+      type: 'partyLeave',
+      seq: 3,
+    });
+  });
+
   it('rejects invalid chat message', () => {
     expect(parseClientMessage({ type: 'chat', channel: 'invalid', text: 'hi', seq: 1 })).toBe(
       null

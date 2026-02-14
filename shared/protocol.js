@@ -20,7 +20,10 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'equipSwap', fromType: 'inventory' | 'equipment', fromSlot: number | string, toType: 'inventory' | 'equipment', toSlot: number | string, seq?: number }} EquipSwapMessage
  * @typedef {{ type: 'vendorSell', vendorId: string, slot: number, seq?: number }} VendorSellMessage
  * @typedef {{ type: 'chat', channel: 'global' | 'area' | 'trade' | 'party', text: string, seq?: number }} ChatMessage
- * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | ChatMessage} ClientMessage
+ * @typedef {{ type: 'partyInvite', targetId: string, seq?: number }} PartyInviteMessage
+ * @typedef {{ type: 'partyAccept', inviterId: string, seq?: number }} PartyAcceptMessage
+ * @typedef {{ type: 'partyLeave', seq?: number }} PartyLeaveMessage
+ * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | ChatMessage | PartyInviteMessage | PartyAcceptMessage | PartyLeaveMessage} ClientMessage
  */
 
 const CHAT_CHANNELS = new Set(['global', 'area', 'trade', 'party']);
@@ -38,6 +41,9 @@ const CLIENT_MESSAGE_TYPES = new Set([
   'equipSwap',
   'vendorSell',
   'chat',
+  'partyInvite',
+  'partyAccept',
+  'partyLeave',
 ]);
 
 function isPlainObject(value) {
@@ -187,6 +193,22 @@ export function parseClientMessage(raw) {
     const text = typeof raw.text === 'string' ? raw.text.trim() : '';
     if (!text || text.length > MAX_CHAT_TEXT_LENGTH) return null;
     return { type: 'chat', channel, text, seq };
+  }
+
+  if (raw.type === 'partyInvite') {
+    const targetId = normalizeString(raw.targetId);
+    if (!targetId) return null;
+    return { type: 'partyInvite', targetId, seq };
+  }
+
+  if (raw.type === 'partyAccept') {
+    const inviterId = normalizeString(raw.inviterId);
+    if (!inviterId) return null;
+    return { type: 'partyAccept', inviterId, seq };
+  }
+
+  if (raw.type === 'partyLeave') {
+    return { type: 'partyLeave', seq };
   }
 
   return null;

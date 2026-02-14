@@ -82,6 +82,7 @@ export function serializePlayerPrivate(player) {
     weaponKind: getEquippedWeapon(player.equipment, player.classId)?.kind ?? null,
     attributes,
     derivedStats,
+    partyId: player.partyId ?? null,
   };
 }
 

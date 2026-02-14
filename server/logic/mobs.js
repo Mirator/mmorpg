@@ -155,6 +155,8 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
           mob.weakenedMultiplier = 1;
           mob.attackCooldownUntil = 0;
           mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
+          mob.damageBy = {};
+          mob.supportBy = {};
         }
       }
       continue;
@@ -176,6 +178,8 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         mob.weakenedMultiplier = 1;
         mob.attackCooldownUntil = 0;
         mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
+        mob.damageBy = {};
+        mob.supportBy = {};
       }
       continue;
     }

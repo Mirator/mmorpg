@@ -80,37 +80,51 @@ export function createGameLoop({ players, world, resources, mobs, config, spawne
       stepMobs(mobs, Array.from(players.values()), world, dt, now, mobConfig);
 
       for (const player of players.values()) {
-        const castResult = stepPlayerCast(player, mobs, now, config.mob.respawnMs);
+        const castResult = stepPlayerCast(player, mobs, now, config.mob.respawnMs, players);
         if (castResult.combatLog && typeof onCombatLog === 'function') {
-          const entries = [];
+          const damageEntries = [];
           if (castResult.combatLog.damageDealt != null && castResult.combatLog.targetName) {
             const abilityName = castResult.combatLog.abilityName ?? 'You';
             const critSuffix = castResult.combatLog.isCrit ? ' (Critical!)' : '';
-            entries.push({
+            damageEntries.push({
               kind: 'damage_done',
               text: `${abilityName} hit ${castResult.combatLog.targetName} for ${castResult.combatLog.damageDealt} damage${critSuffix}`,
               t: now,
             });
           }
-          if (castResult.combatLog.xpGain > 0 && castResult.combatLog.targetName) {
-            entries.push({
-              kind: 'xp_gain',
-              text: `You gained ${castResult.combatLog.xpGain} XP from killing ${castResult.combatLog.targetName}`,
-              t: now,
-            });
+          if (damageEntries.length > 0) {
+            onCombatLog(player.id, damageEntries);
           }
-          if (castResult.combatLog.leveledUp) {
-            entries.push({
-              kind: 'level_up',
-              text: 'You gained a level!',
-              t: now,
-            });
-          }
-          if (entries.length > 0) {
-            onCombatLog(player.id, entries);
+          const xpGainByPlayer = castResult.combatLog.xpGainByPlayer ?? [];
+          for (const p of xpGainByPlayer) {
+            const xpEntries = [];
+            if (p.xpGain > 0 && castResult.combatLog.targetName) {
+              xpEntries.push({
+                kind: 'xp_gain',
+                text: `You gained ${p.xpGain} XP from killing ${castResult.combatLog.targetName}`,
+                t: now,
+              });
+            }
+            if (p.leveledUp) {
+              xpEntries.push({
+                kind: 'level_up',
+                text: 'You gained a level!',
+                t: now,
+              });
+            }
+            if (xpEntries.length > 0) {
+              onCombatLog(p.playerId, xpEntries);
+            }
           }
         }
-        if (castResult.xpGain > 0 || castResult.leveledUp) {
+        const xpGainByPlayer = castResult.combatLog?.xpGainByPlayer ?? [];
+        for (const p of xpGainByPlayer) {
+          const targetPlayer = players.get(p.playerId);
+          if (targetPlayer && (p.xpGain > 0 || p.leveledUp)) {
+            markDirty(targetPlayer);
+          }
+        }
+        if (xpGainByPlayer.length === 0 && (castResult.xpGain > 0 || castResult.leveledUp)) {
           markDirty(player);
         }
         stepPlayerResources(player, now, dt);

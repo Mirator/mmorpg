@@ -1,4 +1,10 @@
-import { addXp, calculateMobXp } from '../../shared/progression.js';
+import {
+  addXp,
+  calculateMobXp,
+  getMobXpBaseAndMult,
+  partyBonus,
+} from '../../shared/progression.js';
+import { getPartyForPlayer } from './party.js';
 import {
   getClassById,
   getAbilitiesForClass,
@@ -149,8 +155,14 @@ function getAbilityDirection(player, mobs) {
   return null;
 }
 
-function applyDamageToMob({ mob, damage, attacker, now, respawnMs }) {
-  if (!mob) return { xpGain: 0, leveledUp: false, killed: false };
+const XP_RANGE_METERS = 35;
+const XP_RANGE2 = XP_RANGE_METERS * XP_RANGE_METERS;
+const DAMAGE_ELIGIBILITY_PCT = 0.10;
+const ANTI_BOOST_GAP = 3;
+const ANTI_BOOST_RATE = 0.08;
+
+function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
+  if (!mob) return { xpGain: 0, leveledUp: false, killed: false, xpGainByPlayer: [] };
   if (!Number.isFinite(mob.maxHp)) {
     mob.maxHp = getMobMaxHp(mob.level ?? 1);
   }
@@ -158,10 +170,14 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs }) {
     mob.hp = mob.maxHp;
   }
 
-  mob.hp = Math.max(0, mob.hp - Math.max(0, Math.floor(damage)));
+  const dmg = Math.max(0, Math.floor(damage));
+  if (attacker?.id && dmg > 0) {
+    mob.damageBy = mob.damageBy ?? {};
+    mob.damageBy[attacker.id] = (mob.damageBy[attacker.id] ?? 0) + dmg;
+  }
+  mob.hp = Math.max(0, mob.hp - dmg);
 
-  let xpGain = 0;
-  let leveledUp = false;
+  let xpGainByPlayer = [];
   let killed = false;
   if (mob.hp <= 0) {
     mob.dead = true;
@@ -170,12 +186,76 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs }) {
     mob.respawnAt = now + (respawnMs ?? 10_000);
     killed = true;
 
-    if (attacker) {
-      if (attacker.targetId === mob.id) {
-        attacker.targetId = null;
-        attacker.targetKind = null;
+    if (attacker?.targetId === mob.id) {
+      attacker.targetId = null;
+      attacker.targetKind = null;
+    }
+
+    const party = players?.get ? getPartyForPlayer(attacker?.id, players) : null;
+    const usePartyXp = party && party.memberIds.length >= 2;
+
+    if (usePartyXp && players) {
+      const { baseXp, mult } = getMobXpBaseAndMult(mob.level ?? 1, attacker?.level ?? 1);
+      const totalXpPool = Math.floor(baseXp * mult * partyBonus(party.memberIds.length));
+      const mobPos = mob.pos ?? mob;
+      const damageThreshold = (mob.maxHp ?? 0) * DAMAGE_ELIGIBILITY_PCT;
+      const totalDamage = Object.values(mob.damageBy ?? {}).reduce((s, v) => s + v, 0);
+      const totalSupport = Object.values(mob.supportBy ?? {}).reduce((s, v) => s + v, 0);
+
+      const eligible = [];
+      for (const pid of party.memberIds) {
+        const p = players.get(pid);
+        if (!p || p.dead) continue;
+        const dx = (p.pos?.x ?? 0) - (mobPos.x ?? 0);
+        const dz = (p.pos?.z ?? 0) - (mobPos.z ?? 0);
+        if (dx * dx + dz * dz > XP_RANGE2) continue;
+        const dmgDealt = (mob.damageBy ?? {})[pid] ?? 0;
+        const supportCount = (mob.supportBy ?? {})[pid] ?? 0;
+        if (dmgDealt < damageThreshold && supportCount === 0) continue;
+        eligible.push({
+          playerId: pid,
+          player: p,
+          damageShare: totalDamage > 0 ? dmgDealt / totalDamage : 0,
+          supportShare: totalSupport > 0 ? supportCount / totalSupport : 0,
+        });
       }
-      xpGain = calculateMobXp(mob.level ?? 1, attacker.level ?? 1);
+
+      if (eligible.length > 0 && totalXpPool > 0) {
+        const partyAvgLevel =
+          eligible.reduce((s, e) => s + (e.player?.level ?? 1), 0) / eligible.length;
+        let sumWeights = 0;
+        for (const e of eligible) {
+          e.weight = e.damageShare + 0.5 * e.supportShare;
+          sumWeights += e.weight;
+        }
+        if (sumWeights > 0) {
+          for (const e of eligible) {
+            const xpShare = totalXpPool * (e.weight / sumWeights);
+            const gap = Math.max(0, partyAvgLevel - (e.player?.level ?? 1) - ANTI_BOOST_GAP);
+            const damp = Math.max(0.10, Math.min(1, 1 - ANTI_BOOST_RATE * gap));
+            const xpFinal = Math.max(0, Math.floor(xpShare * damp));
+            if (xpFinal > 0 && e.player) {
+              const beforeLevel = e.player.level ?? 1;
+              const result = addXp(
+                { level: e.player.level ?? 1, xp: e.player.xp ?? 0 },
+                xpFinal
+              );
+              e.player.level = result.level;
+              e.player.xp = result.xp;
+              xpGainByPlayer.push({
+                playerId: e.playerId,
+                xpGain: xpFinal,
+                leveledUp: result.level > beforeLevel,
+              });
+              if (result.level > beforeLevel) {
+                syncDerivedStatsOnLevelUp(e.player, true);
+              }
+            }
+          }
+        }
+      }
+    } else if (attacker) {
+      const xpGain = calculateMobXp(mob.level ?? 1, attacker.level ?? 1);
       if (xpGain > 0) {
         const beforeLevel = attacker.level ?? 1;
         const result = addXp(
@@ -184,12 +264,20 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs }) {
         );
         attacker.level = result.level;
         attacker.xp = result.xp;
-        leveledUp = attacker.level > beforeLevel;
+        const leveledUp = result.level > beforeLevel;
+        xpGainByPlayer = [{ playerId: attacker.id, xpGain, leveledUp }];
+        if (leveledUp) syncDerivedStatsOnLevelUp(attacker, true);
       }
     }
   }
 
-  return { xpGain, leveledUp, killed };
+  const attackerEntry = xpGainByPlayer.find((e) => e.playerId === attacker?.id);
+  return {
+    xpGain: attackerEntry?.xpGain ?? 0,
+    leveledUp: attackerEntry?.leveledUp ?? false,
+    killed,
+    xpGainByPlayer,
+  };
 }
 
 export function findNearestMobInRange(mobs, pos, range) {
@@ -207,7 +295,7 @@ export function findNearestMobInRange(mobs, pos, range) {
   return best;
 }
 
-export function tryBasicAttack({ player, mobs, now, respawnMs }) {
+export function tryBasicAttack({ player, mobs, now, respawnMs, players }) {
   if (!player || player.dead) return { success: false };
   const config = getBasicAttackConfig(player);
   if (now < (player.attackCooldownUntil ?? 0)) {
@@ -249,8 +337,9 @@ export function tryBasicAttack({ player, mobs, now, respawnMs }) {
         attacker: player,
         now,
         respawnMs,
+        players,
       })
-    : { xpGain: 0, leveledUp: false, killed: false };
+    : { xpGain: 0, leveledUp: false, killed: false, xpGainByPlayer: [] };
 
   if (hit) {
     tagCombat(player, now);
@@ -281,6 +370,7 @@ export function tryBasicAttack({ player, mobs, now, respawnMs }) {
           isCrit,
           xpGain: damageResult.xpGain,
           leveledUp: damageResult.leveledUp,
+          xpGainByPlayer: damageResult.xpGainByPlayer ?? [],
         }
       : null,
     event: {
@@ -336,7 +426,7 @@ function withinRange(origin, target, range) {
   return distance2(origin, target) <= range * range;
 }
 
-function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs, direction }) {
+function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs, direction, players }) {
   if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false };
   const dir = direction ?? getAbilityDirection(player, mobs);
   if (!dir) return { xpGain: 0, leveledUp: false, hit: false, noDirection: true };
@@ -346,6 +436,7 @@ function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs
   let xpGain = 0;
   let leveledUp = false;
   let hit = false;
+  const xpByPlayer = new Map();
   for (const mob of mobs) {
     if (!mob || mob.dead || mob.hp <= 0) continue;
     const dx = mob.pos.x - player.pos.x;
@@ -355,27 +446,40 @@ function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs
     const dot = (dx / dist) * dir.x + (dz / dist) * dir.z;
     if (dot < cosThreshold) continue;
     if (!rollHit(derived.accuracy, 0)) continue;
-    const result = applyDamageToMob({ mob, damage, attacker: player, now, respawnMs });
+    const result = applyDamageToMob({ mob, damage, attacker: player, now, respawnMs, players });
     if (result.xpGain) xpGain += result.xpGain;
     if (result.leveledUp) leveledUp = true;
+    for (const p of result.xpGainByPlayer ?? []) {
+      const cur = xpByPlayer.get(p.playerId) ?? { xpGain: 0, leveledUp: false };
+      xpByPlayer.set(p.playerId, {
+        xpGain: cur.xpGain + p.xpGain,
+        leveledUp: cur.leveledUp || p.leveledUp,
+      });
+    }
     hit = true;
   }
-  return { xpGain, leveledUp, hit };
+  const xpGainByPlayer = Array.from(xpByPlayer.entries()).map(([playerId, v]) => ({
+    playerId,
+    xpGain: v.xpGain,
+    leveledUp: v.leveledUp,
+  }));
+  return { xpGain, leveledUp, hit, xpGainByPlayer };
 }
 
-function applyNova({ player, mobs, radius, ability, slowPct, slowDurationMs, now, respawnMs }) {
+function applyNova({ player, mobs, radius, ability, slowPct, slowDurationMs, now, respawnMs, players }) {
   if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false, killed: 0 };
   const { damage, derived } = computeAbilityDamage(player, ability);
   let xpGain = 0;
   let leveledUp = false;
   let hit = false;
   let killed = 0;
+  const xpByPlayer = new Map();
   for (const mob of mobs) {
     if (!mob || mob.dead || mob.hp <= 0) continue;
     const dist = Math.hypot(mob.pos.x - player.pos.x, mob.pos.z - player.pos.z);
     if (dist > radius) continue;
     if (!rollHit(derived.accuracy, 0)) continue;
-    const result = applyDamageToMob({ mob, damage, attacker: player, now, respawnMs });
+    const result = applyDamageToMob({ mob, damage, attacker: player, now, respawnMs, players });
     if (slowPct) {
       mob.slowUntil = now + slowDurationMs;
       mob.slowMultiplier = Math.max(0, 1 - slowPct / 100);
@@ -383,9 +487,21 @@ function applyNova({ player, mobs, radius, ability, slowPct, slowDurationMs, now
     if (result.xpGain) xpGain += result.xpGain;
     if (result.leveledUp) leveledUp = true;
     if (result.killed) killed += 1;
+    for (const p of result.xpGainByPlayer ?? []) {
+      const cur = xpByPlayer.get(p.playerId) ?? { xpGain: 0, leveledUp: false };
+      xpByPlayer.set(p.playerId, {
+        xpGain: cur.xpGain + p.xpGain,
+        leveledUp: cur.leveledUp || p.leveledUp,
+      });
+    }
     hit = true;
   }
-  return { xpGain, leveledUp, hit, killed };
+  const xpGainByPlayer = Array.from(xpByPlayer.entries()).map(([playerId, v]) => ({
+    playerId,
+    xpGain: v.xpGain,
+    leveledUp: v.leveledUp,
+  }));
+  return { xpGain, leveledUp, hit, killed, xpGainByPlayer };
 }
 
 export function tryUseAbility({ player, slot, mobs, players, world, now, respawnMs }) {
@@ -394,7 +510,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
   if (!ability) return { success: false, reason: 'unknown_ability' };
   if (player.cast) return { success: false, reason: 'casting' };
   if (ability.id === 'basic_attack') {
-    return tryBasicAttack({ player, mobs, now, respawnMs });
+    return tryBasicAttack({ player, mobs, now, respawnMs, players });
   }
   const cooldownUntil = getAbilityCooldownUntil(player, ability.id);
   if (now < cooldownUntil) return { success: false, reason: 'cooldown' };
@@ -456,7 +572,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
     const { damage, derived, isCrit } = computeAbilityDamage(player, ability);
     const targetEvasion = 0;
     if (rollHit(derived.accuracy, targetEvasion)) {
-      const result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs });
+      const result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
       xpGain = result.xpGain;
       leveledUp = result.leveledUp;
       hit = true;
@@ -467,6 +583,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
         isCrit,
         xpGain: result.xpGain,
         leveledUp: result.leveledUp,
+        xpGainByPlayer: result.xpGainByPlayer,
       };
       syncDerivedStatsOnLevelUp(player, result.leveledUp);
     }
@@ -482,7 +599,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
     const { damage: baseDmg, derived, isCrit } = computeAbilityDamage(player, ability);
     const damage = preResource > 80 ? Math.round(baseDmg * 1.2) : baseDmg;
     if (rollHit(derived.accuracy, 0)) {
-      const result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs });
+      const result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
       xpGain = result.xpGain;
       leveledUp = result.leveledUp;
       hit = true;
@@ -493,6 +610,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
         isCrit,
         xpGain: result.xpGain,
         leveledUp: result.leveledUp,
+        xpGainByPlayer: result.xpGainByPlayer,
       };
       syncDerivedStatsOnLevelUp(player, result.leveledUp);
     }
@@ -506,6 +624,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
       now,
       respawnMs,
       direction: abilityDir,
+      players,
     });
     xpGain = result.xpGain;
     leveledUp = result.leveledUp;
@@ -515,6 +634,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
         targetName: 'Enemies',
         xpGain: result.xpGain,
         leveledUp: result.leveledUp,
+        xpGainByPlayer: result.xpGainByPlayer ?? [],
       };
     }
     syncDerivedStatsOnLevelUp(player, result.leveledUp);
@@ -541,10 +661,17 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
       healAmount,
       healTarget: healTargetName,
     };
+    if (healTarget !== player && healTarget.targetKind === 'mob' && healTarget.targetId && (healTarget.combatTagUntil ?? 0) > now) {
+      const supportMob = Array.isArray(mobs) ? mobs.find((m) => m.id === healTarget.targetId) : null;
+      if (supportMob && !supportMob.dead && supportMob.hp > 0) {
+        supportMob.supportBy = supportMob.supportBy ?? {};
+        supportMob.supportBy[player.id] = (supportMob.supportBy[player.id] ?? 0) + 1;
+      }
+    }
   } else if (ability.id === 'smite' && targetMob) {
     const { damage, derived, isCrit } = computeAbilityDamage(player, ability);
     if (rollHit(derived.accuracy, 0)) {
-      const result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs });
+      const result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
       xpGain = result.xpGain;
       leveledUp = result.leveledUp;
       hit = true;
@@ -555,6 +682,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
         isCrit,
         xpGain: result.xpGain,
         leveledUp: result.leveledUp,
+        xpGainByPlayer: result.xpGainByPlayer,
       };
       syncDerivedStatsOnLevelUp(player, result.leveledUp);
       const weakenedPct = ability.weakenedPct ?? 15;
@@ -564,7 +692,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
   } else if (ability.id === 'firebolt' && targetMob) {
     const { damage, derived, isCrit } = computeAbilityDamage(player, ability);
     if (rollHit(derived.accuracy, 0)) {
-      const result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs });
+      const result = applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
       xpGain = result.xpGain;
       leveledUp = result.leveledUp;
       hit = true;
@@ -575,6 +703,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
         isCrit,
         xpGain: result.xpGain,
         leveledUp: result.leveledUp,
+        xpGainByPlayer: result.xpGainByPlayer,
       };
       syncDerivedStatsOnLevelUp(player, result.leveledUp);
       if (result.killed && player.classId === 'mage') {
@@ -588,6 +717,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
     const result = applyNova({
       player,
       mobs,
+      players,
       radius: ability.radius ?? 0,
       ability,
       slowPct: ability.slowPct ?? 0,
@@ -603,6 +733,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
         targetName: 'Enemies',
         xpGain: result.xpGain,
         leveledUp: result.leveledUp,
+        xpGainByPlayer: result.xpGainByPlayer ?? [],
       };
     }
     syncDerivedStatsOnLevelUp(player, result.leveledUp);
@@ -672,7 +803,7 @@ export function stepPlayerResources(player, now, dt) {
   }
 }
 
-export function stepPlayerCast(player, mobs, now, respawnMs) {
+export function stepPlayerCast(player, mobs, now, respawnMs, players) {
   if (!player?.cast) return { xpGain: 0, leveledUp: false };
   const cast = player.cast;
   if (player.dead) {
@@ -716,7 +847,7 @@ export function stepPlayerCast(player, mobs, now, respawnMs) {
     if (withinRange(player.pos, target.pos, ability.range ?? 0)) {
       const { damage, derived, isCrit } = computeAbilityDamage(player, ability);
       if (rollHit(derived.accuracy, 0)) {
-        const result = applyDamageToMob({ mob: target, damage, attacker: player, now, respawnMs });
+        const result = applyDamageToMob({ mob: target, damage, attacker: player, now, respawnMs, players });
         xpGain = result.xpGain;
         leveledUp = result.leveledUp;
         combatLog = {
@@ -726,6 +857,7 @@ export function stepPlayerCast(player, mobs, now, respawnMs) {
           isCrit,
           xpGain: result.xpGain,
           leveledUp: result.leveledUp,
+          xpGainByPlayer: result.xpGainByPlayer,
         };
         syncDerivedStatsOnLevelUp(player, result.leveledUp);
         tagCombat(player, now);

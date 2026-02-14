@@ -53,6 +53,7 @@ export function createBasePlayerState({ world, spawn, classId }) {
     damageTakenMultiplier: 1,
     slowImmuneUntil: 0,
     defensiveStanceUntil: 0,
+    partyId: null,
   };
 }
 
