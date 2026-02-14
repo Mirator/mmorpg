@@ -69,6 +69,38 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     latestMobs = Array.isArray(mobs) ? mobs : [];
   }
 
+  function mergePlayers(players, removedIds = []) {
+    if (!players || typeof players !== 'object') return;
+    latestPlayers = { ...latestPlayers, ...players };
+    for (const id of removedIds) {
+      delete latestPlayers[id];
+    }
+  }
+
+  function mergeResources(resources, removedIds = []) {
+    if (!Array.isArray(resources)) return;
+    const byId = new Map(latestResources.map((r) => [r.id, { ...r }]));
+    for (const r of resources) {
+      if (r?.id != null) byId.set(r.id, { ...r });
+    }
+    for (const id of removedIds) {
+      byId.delete(id);
+    }
+    latestResources = Array.from(byId.values());
+  }
+
+  function mergeMobs(mobs, removedIds = []) {
+    if (!Array.isArray(mobs)) return;
+    const byId = new Map(latestMobs.map((m) => [m.id, { ...m }]));
+    for (const m of mobs) {
+      if (m?.id != null) byId.set(m.id, { ...m });
+    }
+    for (const id of removedIds) {
+      byId.delete(id);
+    }
+    latestMobs = Array.from(byId.values());
+  }
+
   function getLocalPlayer() {
     const publicPlayer = latestPlayers?.[myId];
     if (!publicPlayer) return null;
@@ -181,6 +213,9 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     getLatestPlayers: () => latestPlayers,
     getLatestResources: () => latestResources,
     getLatestMobs: () => latestMobs,
+    mergePlayers,
+    mergeResources,
+    mergeMobs,
     getWorldConfig: () => worldConfig,
     getConfigSnapshot: () => configSnapshot,
   };

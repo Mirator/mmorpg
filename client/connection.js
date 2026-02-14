@@ -1,5 +1,5 @@
 import { createNet } from './net.js';
-import { showErrorOverlay, hideErrorOverlay } from './error-overlay.js';
+import { showErrorOverlay, hideErrorOverlay, updateErrorOverlayMessage } from './error-overlay.js';
 
 function buildWsUrl({ character, guest, ticket }) {
   const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -72,18 +72,36 @@ export function createConnection({
         setWorld(msg.world);
       }
     }
-    if (msg.players) {
-      gameState.pushSnapshot(msg.players, now);
-      renderSystem.syncPlayers(Object.keys(msg.players));
+    const isFull = msg.full === true;
+    const removedPlayers = msg.removedPlayers ?? [];
+    const removedResources = msg.removedResources ?? [];
+    const removedMobs = msg.removedMobs ?? [];
+
+    if (msg.players != null || removedPlayers.length > 0) {
+      if (isFull && msg.players) {
+        gameState.pushSnapshot(msg.players, now);
+      } else {
+        gameState.mergePlayers(msg.players ?? {}, removedPlayers);
+        gameState.pushSnapshot(gameState.getLatestPlayers(), now);
+      }
+      renderSystem.syncPlayers(Object.keys(gameState.getLatestPlayers()));
       updateLocalUi();
     }
-    if (msg.resources) {
-      gameState.updateResources(msg.resources);
-      renderSystem.updateWorldResources(msg.resources);
+    if (msg.resources != null || removedResources.length > 0) {
+      if (isFull && msg.resources) {
+        gameState.updateResources(msg.resources);
+      } else {
+        gameState.mergeResources(msg.resources ?? [], removedResources);
+      }
+      renderSystem.updateWorldResources(gameState.getLatestResources());
     }
-    if (msg.mobs) {
-      gameState.updateMobs(msg.mobs);
-      renderSystem.updateWorldMobs(msg.mobs);
+    if (msg.mobs != null || removedMobs.length > 0) {
+      if (isFull && msg.mobs) {
+        gameState.updateMobs(msg.mobs);
+      } else {
+        gameState.mergeMobs(msg.mobs ?? [], removedMobs);
+      }
+      renderSystem.updateWorldMobs(gameState.getLatestMobs());
     }
   }
 
@@ -96,7 +114,29 @@ export function createConnection({
     resetClientState();
   }
 
-  async function start({ character, guest = false }, { manualStepping, virtualNow }) {
+  async function reconnectWithBackoff(
+    params,
+    { manualStepping, virtualNow, minDelayMs = 1000, maxDelayMs = 30_000, maxAttempts = 10 } = {}
+  ) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const delayMs = attempt === 1 ? 0 : Math.min(maxDelayMs, minDelayMs * Math.pow(2, attempt - 2));
+      if (delayMs > 0) {
+        updateErrorOverlayMessage(
+          `Retrying in ${Math.ceil(delayMs / 1000)}s… (attempt ${attempt}/${maxAttempts})`
+        );
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
+      try {
+        await start(params, { manualStepping, virtualNow });
+        hideErrorOverlay();
+        return;
+      } catch {
+        if (attempt === maxAttempts) throw new Error('Reconnect failed');
+      }
+    }
+  }
+
+  async function start({ character, guest = false }, { manualStepping, virtualNow } = {}) {
     disconnect();
     ctx.seq = 0;
 
@@ -129,9 +169,8 @@ export function createConnection({
             {
               label: 'Reconnect',
               onClick: () => {
-                hideErrorOverlay();
                 const params = getReconnectParams?.() ?? { guest };
-                start(params, { manualStepping, virtualNow }).catch(() => {
+                reconnectWithBackoff(params, { manualStepping, virtualNow }).catch(() => {
                   showErrorOverlay({
                     title: 'Reconnect failed',
                     message: 'Check your network and try again.',

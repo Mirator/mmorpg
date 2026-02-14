@@ -197,6 +197,162 @@ export function createWebSocketServer({
     }
   }
 
+  const aoiRadius = config.aoiRadius ?? 80;
+  const aoiRadius2 = aoiRadius * aoiRadius;
+
+  function isInAOI(pos, centerPos, radius2 = aoiRadius2) {
+    if (!pos || !centerPos) return false;
+    const dx = (pos.x ?? 0) - (centerPos.x ?? 0);
+    const dz = (pos.z ?? 0) - (centerPos.z ?? 0);
+    return dx * dx + dz * dz <= radius2;
+  }
+
+  function getPartyMemberIds(playerId) {
+    const party = getPartyForPlayer(playerId, players);
+    return party ? party.memberIds : [];
+  }
+
+  function filterPlayersByAOI(playersMap, centerPos, includeIds) {
+    const out = {};
+    const includeSet = new Set(includeIds ?? []);
+    for (const [id, p] of playersMap.entries()) {
+      if (!p?.pos) continue;
+      if (includeSet.has(id) || isInAOI(p.pos, centerPos)) {
+        out[id] = {
+          x: p.pos.x,
+          y: p.pos.y,
+          z: p.pos.z,
+          hp: p.hp,
+          maxHp: p.maxHp,
+          inv: p.inv,
+          currencyCopper: p.currencyCopper ?? 0,
+          dead: p.dead,
+          classId: p.classId ?? null,
+          level: p.level ?? 1,
+          name: p.name ?? null,
+        };
+      }
+    }
+    return out;
+  }
+
+  function filterResourcesByAOI(resourcesArr, centerPos) {
+    return resourcesArr.filter((r) =>
+      isInAOI({ x: r.x, z: r.z }, centerPos)
+    );
+  }
+
+  function filterMobsByAOI(mobsArr, centerPos) {
+    return mobsArr.filter((m) =>
+      isInAOI(m?.pos ?? { x: m.x, z: m.z }, centerPos)
+    );
+  }
+
+  function buildPublicStateForPlayer(player, now) {
+    const pos = player?.pos ?? { x: 0, z: 0 };
+    const partyIds = getPartyMemberIds(player?.id);
+    const filteredPlayers = filterPlayersByAOI(players, pos, partyIds);
+    const filteredResources = filterResourcesByAOI(resources, pos);
+    const filteredMobs = filterMobsByAOI(mobs, pos);
+    return {
+      type: 'state',
+      t: now,
+      players: filteredPlayers,
+      resources: serializeResources(filteredResources),
+      mobs: serializeMobs(filteredMobs),
+    };
+  }
+
+  const lastSentByPlayer = new Map();
+  const DELTA_FULL_THRESHOLD = 0.8;
+
+  function entityChanged(a, b) {
+    return JSON.stringify(a) !== JSON.stringify(b);
+  }
+
+  function buildDeltaState(player, currentState, now) {
+    const last = lastSentByPlayer.get(player.id);
+    if (!last) {
+      return { ...currentState, full: true };
+    }
+
+    const deltaPlayers = {};
+    const removedPlayers = [];
+    for (const [id, curr] of Object.entries(currentState.players)) {
+      const prev = last.players?.[id];
+      if (!prev || entityChanged(prev, curr)) {
+        deltaPlayers[id] = curr;
+      }
+    }
+    for (const id of Object.keys(last.players ?? {})) {
+      if (!(id in (currentState.players ?? {}))) {
+        removedPlayers.push(id);
+      }
+    }
+
+    const deltaResources = [];
+    const removedResources = [];
+    const resourceById = (arr) => {
+      const m = new Map();
+      for (const r of arr ?? []) m.set(r.id, r);
+      return m;
+    };
+    const lastResMap = resourceById(last.resources);
+    const currResIds = new Set();
+    for (const curr of currentState.resources ?? []) {
+      currResIds.add(curr.id);
+      const prev = lastResMap.get(curr.id);
+      if (!prev || entityChanged(prev, curr)) {
+        deltaResources.push(curr);
+      }
+    }
+    for (const r of last.resources ?? []) {
+      if (!currResIds.has(r.id)) removedResources.push(r.id);
+    }
+
+    const deltaMobs = [];
+    const removedMobs = [];
+    const lastMobMap = resourceById(last.mobs);
+    const currMobIds = new Set();
+    for (const curr of currentState.mobs ?? []) {
+      currMobIds.add(curr.id);
+      const prev = lastMobMap.get(curr.id);
+      if (!prev || entityChanged(prev, curr)) {
+        deltaMobs.push(curr);
+      }
+    }
+    for (const m of last.mobs ?? []) {
+      if (!currMobIds.has(m.id)) removedMobs.push(m.id);
+    }
+
+    const totalCurrent =
+      (currentState.players ? Object.keys(currentState.players).length : 0) +
+      (currentState.resources?.length ?? 0) +
+      (currentState.mobs?.length ?? 0);
+    const totalDelta =
+      Object.keys(deltaPlayers).length +
+      deltaResources.length +
+      deltaMobs.length +
+      removedPlayers.length +
+      removedResources.length +
+      removedMobs.length;
+    const sendFull =
+      totalCurrent === 0 || totalDelta / Math.max(1, totalCurrent) >= DELTA_FULL_THRESHOLD;
+
+    if (sendFull) {
+      return { ...currentState, full: true };
+    }
+
+    const msg = { type: 'state', t: now };
+    if (Object.keys(deltaPlayers).length > 0) msg.players = deltaPlayers;
+    if (deltaResources.length > 0) msg.resources = deltaResources;
+    if (deltaMobs.length > 0) msg.mobs = deltaMobs;
+    if (removedPlayers.length > 0) msg.removedPlayers = removedPlayers;
+    if (removedResources.length > 0) msg.removedResources = removedResources;
+    if (removedMobs.length > 0) msg.removedMobs = removedMobs;
+    return msg;
+  }
+
   function buildPublicState(now) {
     return {
       type: 'state',
@@ -303,6 +459,7 @@ export function createWebSocketServer({
     ws.on('close', () => {
       const isCurrent = player && players.get(playerId) === player;
       if (isCurrent) {
+        lastSentByPlayer.delete(playerId);
         leaveParty(playerId, players);
         players.delete(playerId);
       }
@@ -505,15 +662,14 @@ export function createWebSocketServer({
       player = basePlayer;
 
       const now = Date.now();
+      const initialState = buildPublicStateForPlayer(basePlayer, now);
+      lastSentByPlayer.set(id, initialState);
       safeSend(ws, {
         type: 'welcome',
         id,
         snapshot: {
-          t: now,
+          ...initialState,
           world: worldSnapshot(world),
-          players: serializePlayersPublic(players),
-          resources: serializeResources(resources),
-          mobs: serializeMobs(mobs),
         },
         config: config.configSnapshot,
       });
@@ -896,10 +1052,11 @@ export function createWebSocketServer({
     broadcastId = setInterval(() => {
       if (players.size === 0) return;
       const now = Date.now();
-      const state = buildPublicState(now);
-      const stateString = JSON.stringify(state);
       for (const player of players.values()) {
-        safeSendRaw(player.ws, stateString);
+        const currentState = buildPublicStateForPlayer(player, now);
+        const stateToSend = buildDeltaState(player, currentState, now);
+        lastSentByPlayer.set(player.id, currentState);
+        safeSendRaw(player.ws, JSON.stringify(stateToSend));
         sendPrivateState(player.ws, player, now);
       }
     }, broadcastIntervalMs);

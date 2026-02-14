@@ -116,6 +116,7 @@ export function getServerConfig(env = process.env) {
     exposeAuthToken,
     tickHz: 60,
     broadcastHz: 20,
+    aoiRadius: CHAT_CONFIG.areaRadius ?? 80,
     playerRadius: 0.6,
     respawnMs: parseIntEnv(env.RESPAWN_MS, 60_000),
     resource: {

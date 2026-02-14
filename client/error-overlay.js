@@ -24,3 +24,7 @@ export function showErrorOverlay({ title = 'Something went wrong', message = '',
 export function hideErrorOverlay() {
   overlayEl?.classList.remove('visible');
 }
+
+export function updateErrorOverlayMessage(message) {
+  if (messageEl) messageEl.textContent = message;
+}
