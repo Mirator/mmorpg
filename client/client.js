@@ -411,6 +411,9 @@ function stepFrame(dt, now) {
     coordsEl.textContent = '--, --, --';
   }
 
+  const interpolatedMobs = gameState.renderInterpolatedMobs(now);
+  renderSystem.updateWorldMobs(interpolatedMobs);
+
   renderSystem.animateWorldMeshes(now);
   const players = gameState.getLatestPlayers();
   const deadPlayerIds = new Set();

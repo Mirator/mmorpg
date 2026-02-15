@@ -102,7 +102,7 @@ export function createConnection({
       } else {
         gameState.mergeMobs(msg.mobs ?? [], removedMobs);
       }
-      renderSystem.updateWorldMobs(gameState.getLatestMobs());
+      gameState.pushMobSnapshot(gameState.getLatestMobs(), now);
     }
     if (msg.corpses != null || removedCorpses.length > 0) {
       if (isFull && msg.corpses) {

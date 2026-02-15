@@ -337,6 +337,14 @@ function buildMobMesh(worldState, mob) {
   group.userData.placeholder = placeholder;
   group.userData.mobType = mobType;
 
+  const targetHelper = new THREE.Mesh(
+    new THREE.SphereGeometry(1.8, 16, 16),
+    new THREE.MeshBasicMaterial()
+  );
+  targetHelper.position.y = 1.0;
+  targetHelper.layers.set(1);
+  group.add(targetHelper);
+
   hydrateMobMesh(worldState, mobId, mobType, group).catch((err) => {
     console.warn('[world] Failed to load mob model:', err);
   });
@@ -601,7 +609,10 @@ async function hydrateMobMesh(worldState, mobId, mobType, group) {
   const model = cloneSkinned(gltf.scene);
   const targetHeight = MOB_TARGET_HEIGHTS[type] ?? 1.6;
   normalizeToHeight(model, targetHeight);
-  group.clear();
+  if (group.userData.placeholder) {
+    group.remove(group.userData.placeholder);
+    group.userData.placeholder = null;
+  }
   group.add(model);
 
   const clipSet = pickClips(gltf.animations ?? [], {

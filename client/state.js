@@ -2,6 +2,7 @@ import { applyWASD } from '/shared/math.js';
 
 export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs }) {
   const snapshots = [];
+  const mobSnapshots = [];
   let latestPlayers = {};
   let latestMe = null;
   let latestResources = [];
@@ -55,6 +56,18 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     }
     while (snapshots.length > 2 && now - snapshots[0].t > maxSnapshotAgeMs) {
       snapshots.shift();
+    }
+  }
+
+  function pushMobSnapshot(mobs, now) {
+    const arr = Array.isArray(mobs) ? mobs : [];
+    mobSnapshots.push({ t: now, mobs: arr.map((m) => ({ ...m })) });
+
+    while (mobSnapshots.length > maxSnapshots) {
+      mobSnapshots.shift();
+    }
+    while (mobSnapshots.length > 2 && now - mobSnapshots[0].t > maxSnapshotAgeMs) {
+      mobSnapshots.shift();
     }
   }
 
@@ -163,6 +176,43 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     return { positions, localPos };
   }
 
+  function renderInterpolatedMobs(now) {
+    if (mobSnapshots.length === 0) return latestMobs;
+
+    const renderTime = now - interpDelayMs;
+    while (mobSnapshots.length >= 2 && mobSnapshots[1].t <= renderTime) {
+      mobSnapshots.shift();
+    }
+
+    const older = mobSnapshots[0];
+    const newer = mobSnapshots[1] ?? mobSnapshots[0];
+    const span = newer.t - older.t;
+    let alpha = 0;
+    if (span > 0) {
+      alpha = (renderTime - older.t) / span;
+    }
+    alpha = Math.max(0, Math.min(1, alpha));
+
+    const olderById = new Map(older.mobs.map((m) => [m.id, m]));
+    const result = [];
+
+    for (const newMob of newer.mobs) {
+      const oldMob = olderById.get(newMob.id);
+      const x = oldMob
+        ? oldMob.x + (newMob.x - oldMob.x) * alpha
+        : newMob.x;
+      const y = oldMob
+        ? (oldMob.y ?? 0) + ((newMob.y ?? 0) - (oldMob.y ?? 0)) * alpha
+        : newMob.y ?? 0;
+      const z = oldMob
+        ? oldMob.z + (newMob.z - oldMob.z) * alpha
+        : newMob.z;
+      result.push({ ...newMob, x, y, z });
+    }
+
+    return result;
+  }
+
   function updateLocalPrediction(dt, serverPos, inputKeys, speed) {
     if (!serverPos) return null;
 
@@ -211,10 +261,13 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     updateMobs,
     getLocalPlayer,
     renderInterpolatedPlayers,
+    pushMobSnapshot,
+    renderInterpolatedMobs,
     updateLocalPrediction,
     resetPrediction,
     reset: () => {
       snapshots.length = 0;
+      mobSnapshots.length = 0;
       latestPlayers = {};
       latestMe = null;
       latestResources = [];

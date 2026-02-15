@@ -128,6 +128,7 @@ export function createRenderSystem({ app }) {
   let worldState = null;
   const effectsSystem = createEffectsSystem(scene);
   const mobRaycaster = new THREE.Raycaster();
+  mobRaycaster.layers.enable(1);
 
   let placementIndicator = null;
   let placementIndicatorRadius = 2.5;
@@ -647,6 +648,8 @@ export function createRenderSystem({ app }) {
     controller.active = name;
   }
 
+  const WALK_HYSTERESIS_MS = 180;
+
   function updateControllerMap(controllers, meshes, dt, now, deadPlayerIds) {
     if (!controllers || !meshes) return;
     for (const [id, controller] of controllers.entries()) {
@@ -658,22 +661,31 @@ export function createRenderSystem({ app }) {
       const isDead = deadPlayerIds && deadPlayerIds.has(id);
       const isAttacking = controller.actions?.attack && controller.attackUntil && now < controller.attackUntil;
       const wantsWalk = speed > 0.1;
+      const inWalkHysteresis =
+        controller.active === 'walk' &&
+        controller.walkUntil != null &&
+        now < controller.walkUntil;
+      const effectiveWantsWalk = wantsWalk || inWalkHysteresis;
       const useWalkCycle = controller.walkCycle && !controller.actions?.walk;
 
       if (isDead && controller.actions?.death) {
         playAction(controller, 'death');
       } else if (isAttacking) {
         playAction(controller, 'attack');
-      } else if (wantsWalk && controller.actions?.walk) {
+      } else if (effectiveWantsWalk && controller.actions?.walk) {
+        if (controller.active !== 'walk') {
+          controller.walkUntil = now + WALK_HYSTERESIS_MS;
+        }
         playAction(controller, 'walk');
       } else if (controller.actions?.idle) {
+        controller.walkUntil = 0;
         playAction(controller, 'idle');
       }
 
       controller.mixer?.update(dt);
 
       if (useWalkCycle && !isAttacking && !isDead) {
-        if (wantsWalk) {
+        if (effectiveWantsWalk) {
           applyWalkCycle(controller.walkCycle, now, speed);
         } else if (controller.walkCycle.wasWalking) {
           resetWalkCycle(controller.walkCycle);
