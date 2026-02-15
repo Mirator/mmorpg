@@ -23,6 +23,8 @@ describe('world from map config', () => {
     expect(world.vendors).toHaveLength(1);
     expect(world.vendors[0]).toMatchObject({ id: 'vendor-1', name: 'Vendor', x: 6, y: 0, z: -2 });
     expect(Array.isArray(world.vendors[0].buyItems)).toBe(true);
-    expect(world.mobSpawns).toEqual([{ id: 'm1', x: 18, y: 0, z: 9, mobType: 'orc' }]);
+    expect(world.mobSpawns).toEqual([
+      { id: 'm1', x: 18, y: 0, z: 9, mobType: 'orc', aggressive: true, level: undefined, levelVariance: 0 },
+    ]);
   });
 });

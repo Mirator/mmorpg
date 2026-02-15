@@ -47,12 +47,14 @@ export function normalizeMapConfig(raw) {
     obstacles: normalizeList(config.obstacles, (item) => normalizeCircle(item)),
     resourceNodes: normalizeList(config.resourceNodes, (item) => {
       const type = isObject(item) && typeof item.type === 'string' ? item.type.trim().toLowerCase() : 'crystal';
+      const respawnMs = isObject(item) && Number.isFinite(item.respawnMs) ? item.respawnMs : undefined;
       return {
         id: isObject(item) ? item.id ?? '' : '',
         x: isObject(item) ? item.x ?? 0 : 0,
         y: isObject(item) ? item.y ?? 0 : 0,
         z: isObject(item) ? item.z ?? 0 : 0,
         type: VALID_RESOURCE_TYPES.has(type) ? type : 'crystal',
+        respawnMs,
       };
     }),
     vendors: normalizeList(config.vendors, (item) => {
@@ -74,13 +76,22 @@ export function normalizeMapConfig(raw) {
         buyItems: buyItems && buyItems.length > 0 ? buyItems : undefined,
       };
     }),
-    mobSpawns: normalizeList(config.mobSpawns, (item) => ({
-      id: isObject(item) ? item.id ?? '' : '',
-      x: isObject(item) ? item.x ?? 0 : 0,
-      y: isObject(item) ? item.y ?? 0 : 0,
-      z: isObject(item) ? item.z ?? 0 : 0,
-      mobType: isObject(item) && typeof item.mobType === 'string' ? item.mobType.trim().toLowerCase() : 'orc',
-    })),
+    mobSpawns: normalizeList(config.mobSpawns, (item) => {
+      const raw = isObject(item) ? item : {};
+      const aggressive = raw.aggressive !== false;
+      const level = Number.isFinite(raw.level) ? raw.level : undefined;
+      const levelVariance = Number.isFinite(raw.levelVariance) && raw.levelVariance >= 0 ? raw.levelVariance : 0;
+      return {
+        id: raw.id ?? '',
+        x: raw.x ?? 0,
+        y: raw.y ?? 0,
+        z: raw.z ?? 0,
+        mobType: typeof raw.mobType === 'string' ? raw.mobType.trim().toLowerCase() : 'orc',
+        aggressive,
+        level,
+        levelVariance,
+      };
+    }),
   };
 }
 

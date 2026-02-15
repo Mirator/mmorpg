@@ -1,4 +1,5 @@
 export const MAX_LEVEL = 30;
+export const MOB_MAX_LEVEL = 35;
 
 const XP_K = 190;
 const MOB_XP_A = 23;
@@ -6,6 +7,11 @@ const MOB_XP_A = 23;
 function clampLevel(level) {
   if (!Number.isFinite(level)) return 1;
   return Math.max(1, Math.min(MAX_LEVEL, Math.floor(level)));
+}
+
+export function clampMobLevel(level) {
+  if (!Number.isFinite(level)) return 1;
+  return Math.max(1, Math.min(MOB_MAX_LEVEL, Math.floor(level)));
 }
 
 export function xpToNext(level) {

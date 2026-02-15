@@ -1,5 +1,5 @@
 import { applyCollisions } from './collision.js';
-import { MAX_LEVEL } from '../../shared/progression.js';
+import { MOB_MAX_LEVEL, clampMobLevel } from '../../shared/progression.js';
 import { MOB_TYPES, getMobStats } from '../../shared/entityTypes.js';
 import { computeDerivedStats } from '../../shared/attributes.js';
 
@@ -34,23 +34,18 @@ function isSpawnValid(x, z, world) {
   return true;
 }
 
-function clampLevel(level) {
-  if (!Number.isFinite(level)) return 1;
-  return Math.max(1, Math.min(MAX_LEVEL, Math.floor(level)));
-}
-
 export function getMobLevelForPosition(pos, world) {
   const maxDist = (world?.mapSize ?? 400) / 2;
   const base = world?.base ?? { x: 0, z: 0 };
   const dist = Math.hypot(pos.x - base.x, pos.z - base.z);
   const t = maxDist > 0 ? Math.min(1, dist / maxDist) : 0;
-  const level = 1 + Math.floor(t * (MAX_LEVEL - 1));
-  return clampLevel(level);
+  const level = 1 + Math.floor(t * (MOB_MAX_LEVEL - 1));
+  return clampMobLevel(level);
 }
 
-export function getMobMaxHp(level) {
-  const lvl = clampLevel(level);
-  return 20 + 8 * lvl;
+export function getMobMaxHp(level, mobType) {
+  const lvl = mobType === 'dummy' ? 1 : clampMobLevel(level);
+  return mobType === 'dummy' ? 1 : 20 + 8 * lvl;
 }
 
 export function createMobs(count, world, options = {}) {
@@ -66,8 +61,8 @@ export function createMobs(count, world, options = {}) {
     const z = randomRange(rand, -half, half);
     if (!isSpawnValid(x, z, world)) continue;
     const level = getMobLevelForPosition({ x, z }, world);
-    const maxHp = getMobMaxHp(level);
     const mobType = MOB_TYPES[Math.floor(rand() * MOB_TYPES.length)];
+    const maxHp = getMobMaxHp(level, mobType);
     mobs.push({
       id: `m${mobs.length + 1}`,
       pos: { x, y: 0, z },
@@ -95,18 +90,32 @@ export function createMobs(count, world, options = {}) {
   return mobs;
 }
 
+function resolveMobLevel(spawn, pos, world, rand) {
+  if (Number.isFinite(spawn.level)) {
+    const base = clampMobLevel(spawn.level);
+    const variance = Math.max(0, Math.floor(spawn.levelVariance ?? 0));
+    if (variance > 0) {
+      const offset = Math.floor(rand() * (2 * variance + 1)) - variance;
+      return clampMobLevel(base + offset);
+    }
+    return base;
+  }
+  return getMobLevelForPosition(pos, world);
+}
+
 export function createMobsFromSpawns(spawns, world, options = {}) {
   const rand = options.random ?? Math.random;
   const list = Array.isArray(spawns) ? spawns : [];
   return list.map((spawn, index) => {
     const x = spawn.x ?? 0;
     const z = spawn.z ?? 0;
-    const level = getMobLevelForPosition({ x, z }, world);
-    const maxHp = getMobMaxHp(level);
-    const y = spawn.y ?? 0;
+    const pos = { x, y: spawn.y ?? 0, z };
+    const level = resolveMobLevel(spawn, pos, world, rand);
+    const mobType = spawn.mobType ?? 'orc';
+    const maxHp = getMobMaxHp(level, mobType);
     return {
       id: spawn.id ?? `m${index + 1}`,
-      pos: { x, y, z },
+      pos: { x, y: pos.y, z },
       state: 'idle',
       targetId: null,
       nextDecisionAt: 0,
@@ -117,7 +126,8 @@ export function createMobsFromSpawns(spawns, world, options = {}) {
       maxHp,
       dead: false,
       respawnAt: 0,
-      mobType: spawn.mobType ?? 'orc',
+      mobType,
+      aggressive: spawn.aggressive !== false,
     };
   });
 }
@@ -134,6 +144,24 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
   const alivePlayers = players.filter((p) => !p.dead);
 
   for (const mob of mobs) {
+    const isDummy = mob.mobType === 'dummy';
+    const isPassive = mob.aggressive === false;
+    if (isDummy) {
+      if (mob.dead) {
+        const stats = getMobStats('dummy');
+        const respawnMs = config.respawnMs ?? stats.respawnMs;
+        if (!mob.respawnAt) mob.respawnAt = now + respawnMs;
+        if (now >= mob.respawnAt) {
+          mob.dead = false;
+          mob.hp = 1;
+          mob.maxHp = 1;
+          mob.respawnAt = 0;
+          mob.state = 'idle';
+          mob.targetId = null;
+        }
+      }
+      continue;
+    }
     const stats = getMobStats(mob.mobType);
     const speed = config.speed ?? stats.speed;
     const wanderSpeed = config.wanderSpeed ?? stats.wanderSpeed;
@@ -149,7 +177,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         }
         if (mob.respawnAt && now >= mob.respawnAt) {
           mob.dead = false;
-          mob.hp = mob.maxHp ?? getMobMaxHp(mob.level ?? 1);
+          mob.hp = mob.maxHp ?? getMobMaxHp(mob.level ?? 1, mob.mobType);
           mob.state = 'idle';
           mob.targetId = null;
           mob.stunnedUntil = 0;
@@ -174,7 +202,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
       }
       if (mob.respawnAt && now >= mob.respawnAt) {
         mob.dead = false;
-        mob.hp = mob.maxHp ?? getMobMaxHp(mob.level ?? 1);
+        mob.hp = mob.maxHp ?? getMobMaxHp(mob.level ?? 1, mob.mobType);
         mob.state = 'idle';
         mob.targetId = null;
         mob.stunnedUntil = 0;
@@ -209,20 +237,22 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         : 1;
 
     let target = null;
-    const taunted = (mob.tauntedUntil ?? 0) > now;
-    if (taunted && mob.targetId) {
-      const taunter = alivePlayers.find((p) => p.id === mob.targetId);
-      if (taunter && distance2(taunter.pos, mob.pos) <= leashRadius * leashRadius) {
-        target = taunter;
+    if (!isPassive) {
+      const taunted = (mob.tauntedUntil ?? 0) > now;
+      if (taunted && mob.targetId) {
+        const taunter = alivePlayers.find((p) => p.id === mob.targetId);
+        if (taunter && distance2(taunter.pos, mob.pos) <= leashRadius * leashRadius) {
+          target = taunter;
+        }
       }
-    }
-    if (!target) {
-      let closestDist2 = aggroRadius * aggroRadius;
-      for (const player of alivePlayers) {
-        const dist2 = distance2(player.pos, mob.pos);
-        if (dist2 <= closestDist2) {
-          closestDist2 = dist2;
-          target = player;
+      if (!target) {
+        let closestDist2 = aggroRadius * aggroRadius;
+        for (const player of alivePlayers) {
+          const dist2 = distance2(player.pos, mob.pos);
+          if (dist2 <= closestDist2) {
+            closestDist2 = dist2;
+            target = player;
+          }
         }
       }
     }

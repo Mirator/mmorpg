@@ -45,7 +45,8 @@ describe('assetPaths', () => {
 
     expect(list).toHaveProperty('environment');
     expect(Array.isArray(list.environment)).toBe(true);
-    expect(list.environment).toHaveLength(6);
+    expect(list.environment).toHaveLength(7);
+    expect(list.environment).toContain(ASSET_PATHS.environment.bellTower);
     expect(list.environment).toContain(ASSET_PATHS.environment.market);
     expect(list.environment).toContain(ASSET_PATHS.environment.houseA);
     expect(list.environment).toContain(ASSET_PATHS.environment.houseB);

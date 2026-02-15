@@ -714,12 +714,14 @@ async function loadEnvironmentModels(worldState, envGroup, base, obstacles) {
   if (!worldState?.isActive) return;
   const ring = (base?.radius ?? 8) + 6;
   const diag = ring * 0.7;
+  const towerRadius = 65;
   const placements = [
     { key: 'market', x: base.x + ring, z: base.z, rotation: Math.PI / 2, height: 4.8 },
     { key: 'barracks', x: base.x - ring, z: base.z, rotation: -Math.PI / 2, height: 5.6 },
     { key: 'storage', x: base.x, z: base.z + ring, rotation: Math.PI, height: 4.4 },
     { key: 'houseA', x: base.x, z: base.z - ring, rotation: 0, height: 3.6 },
     { key: 'houseB', x: base.x + diag, z: base.z + diag, rotation: Math.PI / 4, height: 3.8 },
+    { key: 'bellTower', x: base.x, z: base.z + towerRadius, rotation: 0, height: 8 },
   ];
 
   await Promise.all([

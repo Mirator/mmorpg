@@ -48,7 +48,7 @@ export function createServer({ env = process.env } = {}) {
       respawnAt: 0,
     });
     const testMobLevel = 4;
-    const testMobMaxHp = getMobMaxHp(testMobLevel);
+    const testMobMaxHp = getMobMaxHp(testMobLevel, 'orc');
     mobs.unshift({
       id: 'm-test',
       pos: {
@@ -70,7 +70,7 @@ export function createServer({ env = process.env } = {}) {
     });
 
     const chaseMobLevel = 2;
-    const chaseMaxHp = getMobMaxHp(chaseMobLevel);
+    const chaseMaxHp = getMobMaxHp(chaseMobLevel, 'orc');
     mobs.unshift({
       id: 'm-chase',
       pos: {

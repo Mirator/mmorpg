@@ -42,6 +42,7 @@ The game has a **single world/location** (no zones or multiple maps). All world 
 | resourceNodes[].id | string | yes | Unique ID (e.g. r1, r2) |
 | resourceNodes[].x, .y?, .z | number | yes | Position |
 | resourceNodes[].type | string | no | One of: crystal, ore, herb, tree, flower (default: crystal) |
+| resourceNodes[].respawnMs | number | no | Per-node respawn override (ms). If absent, uses type default |
 | vendors | array | yes | NPC vendors |
 | vendors[].id | string | yes | Unique ID |
 | vendors[].name | string | yes | Display name |
@@ -50,7 +51,10 @@ The game has a **single world/location** (no zones or multiple maps). All world 
 | mobSpawns | array | yes | Mob spawn points |
 | mobSpawns[].id | string | yes | Unique ID (e.g. m1, m2) |
 | mobSpawns[].x, .y?, .z | number | yes | Position |
-| mobSpawns[].mobType | string | no | One of: orc, demon, yeti, tribal, wolf, fox, bull, stag (default: orc) |
+| mobSpawns[].mobType | string | no | One of: orc, demon, yeti, tribal, wolf, fox, bull, stag, dummy (default: orc) |
+| mobSpawns[].aggressive | boolean | no | If false, mob never aggroes (default: true) |
+| mobSpawns[].level | number | no | Predetermined level (1–35). If absent, derived from distance |
+| mobSpawns[].levelVariance | number | no | If > 0, randomize level ± variance (clamped 1–35). 0 = fixed |
 
 ---
 
@@ -68,6 +72,7 @@ The game has a **single world/location** (no zones or multiple maps). All world 
 | fox | `/assets/animals/Fox.gltf` | Ultimate Animated Animals |
 | bull | `/assets/animals/Bull.gltf` | Ultimate Animated Animals |
 | stag | `/assets/animals/Stag.gltf` | Ultimate Animated Animals |
+| dummy | `/assets/environment/Practice_Dummy.glb` | Training dummy (1 HP, 0 damage, stationary) |
 
 **Usage:**
 - Map config `mobSpawns[].mobType` selects which model spawns at each point
@@ -87,8 +92,9 @@ The game has a **single world/location** (no zones or multiple maps). All world 
 | fox | 3 | 1 | 2.8 | 1.8 | 5,000 |
 | bull | 12 | 3 | 1.6 | 0.8 | 18,000 |
 | stag | 5 | 2 | 2.4 | 1.5 | 9,000 |
+| dummy | 0 | 0 | 0 | 0 | 3,000 |
 
-Use `getMobStats(mobType)` to resolve stats.
+Use `getMobStats(mobType)` to resolve stats. Dummy: 1 HP, no damage, no movement, no aggro.
 
 ---
 

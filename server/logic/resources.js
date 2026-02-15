@@ -14,6 +14,7 @@ export function createResources(nodes) {
     y: node.y ?? 0,
     z: node.z,
     type: node.type ?? 'crystal',
+    respawnMs: node.respawnMs,
     available: true,
     respawnAt: 0,
   }));
@@ -67,9 +68,9 @@ export function tryHarvest(resources, player, now, config) {
   const item = makeItem();
   if (!addItem(player.inventory, item, stackMax)) return null;
 
-  const respawnMsForType = getResourceRespawnMs(resourceType, respawnMs);
+  const respawnMsForNode = closest.respawnMs ?? getResourceRespawnMs(resourceType, respawnMs);
   closest.available = false;
-  closest.respawnAt = now + respawnMsForType;
+  closest.respawnAt = now + respawnMsForNode;
   player.inv = countInventory(player.inventory);
   return closest;
 }

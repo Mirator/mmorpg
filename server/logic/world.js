@@ -175,6 +175,7 @@ export function createWorldFromConfig(mapConfig) {
     y: node.y ?? 0,
     z: node.z,
     type: node.type ?? 'crystal',
+    respawnMs: node.respawnMs,
   }));
   const spawnPoints = mapConfig.spawnPoints.map((point) => ({
     x: point.x,
@@ -198,6 +199,9 @@ export function createWorldFromConfig(mapConfig) {
     y: spawn.y ?? 0,
     z: spawn.z,
     mobType: spawn.mobType ?? 'orc',
+    aggressive: spawn.aggressive !== false,
+    level: spawn.level,
+    levelVariance: spawn.levelVariance ?? 0,
   }));
 
   return {

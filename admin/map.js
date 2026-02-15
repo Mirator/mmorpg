@@ -45,6 +45,7 @@ const FIELD_DEFS = {
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
     { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
+    { key: 'respawnMs', label: 'Respawn (ms)', type: 'number', step: '1000', optional: true },
   ],
   vendors: [
     { key: 'id', label: 'ID', type: 'text' },
@@ -59,6 +60,9 @@ const FIELD_DEFS = {
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
     { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
+    { key: 'aggressive', label: 'Aggressive', type: 'select', options: [true, false] },
+    { key: 'level', label: 'Level', type: 'number', step: '1', optional: true },
+    { key: 'levelVariance', label: 'Level ±', type: 'number', step: '1', optional: true },
   ],
 };
 
@@ -394,10 +398,14 @@ function renderList(container, type, items, fields) {
     const fieldsWrap = document.createElement('div');
     fieldsWrap.className = 'row-fields';
     fields.forEach((field) => {
-      const value =
-        field.type === 'number'
-          ? formatNumber(item[field.key])
-          : item[field.key] ?? (field.options?.[0] ?? '');
+      let value;
+      if (field.type === 'number') {
+        value = Number.isFinite(item[field.key]) ? formatNumber(item[field.key]) : '';
+      } else if (field.type === 'select' && (field.options?.[0] === true || field.options?.[0] === false)) {
+        value = item[field.key] === false ? 'false' : 'true';
+      } else {
+        value = item[field.key] ?? (field.options?.[0] ?? '');
+      }
       const fieldNode = buildField({
         label: field.label,
         value,
@@ -423,12 +431,12 @@ function buildField({ label, value, type, step, options, data }) {
     control = document.createElement('select');
     for (const opt of options) {
       const option = document.createElement('option');
-      option.value = opt;
-      option.textContent = opt;
-      if (opt === (value ?? '')) option.selected = true;
+      option.value = String(opt);
+      option.textContent = String(opt);
+      if (String(opt) === String(value ?? '')) option.selected = true;
       control.appendChild(option);
     }
-    if (!control.value && options[0]) control.value = options[0];
+    if (!control.value && options[0] !== undefined) control.value = String(options[0]);
   } else {
     control = document.createElement('input');
     control.type = type ?? 'text';
@@ -669,8 +677,15 @@ function handleFieldChange(event) {
   if (!Number.isFinite(index)) return;
 
   const isNumber = isInput && target.type === 'number';
-  const value = isNumber ? Number.parseFloat(target.value) : target.value;
-  if (isNumber && !Number.isFinite(value)) return;
+  let value;
+  if (isNumber) {
+    const parsed = Number.parseFloat(target.value);
+    value = Number.isFinite(parsed) ? parsed : undefined;
+  } else if (isSelect && field === 'aggressive') {
+    value = target.value === 'true';
+  } else {
+    value = target.value;
+  }
   updateField({ type, index, field, value });
 }
 

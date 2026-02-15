@@ -20,6 +20,7 @@ export const ASSET_PATHS = {
     fox: `/assets/animals/Fox.gltf`,
     bull: `/assets/animals/Bull.gltf`,
     stag: `/assets/animals/Stag.gltf`,
+    dummy: `${ENV_ROOT}/Practice_Dummy.glb`,
   },
   groundTexture: '/assets/textures/grass.png',
   rocks: [
@@ -28,6 +29,7 @@ export const ASSET_PATHS = {
     `${NATURE_ROOT}/Rock_Medium_3.gltf`,
   ],
   environment: {
+    bellTower: `${ENV_ROOT}/Bell_Tower.glb`,
     market: `${ENV_ROOT}/Inn.glb`,
     houseA: `${ENV_ROOT}/House_1.glb`,
     houseB: `${ENV_ROOT}/House_2.glb`,

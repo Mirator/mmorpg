@@ -13,6 +13,7 @@ export const MOB_TYPES = [
   'fox',
   'bull',
   'stag',
+  'dummy',
 ];
 
 /** Resource type keys from economy (single source of truth for harvest output). */
@@ -37,6 +38,7 @@ export const MOB_STATS = {
   fox: { attackDamageBase: 3, attackDamagePerLevel: 1, speed: 2.8, wanderSpeed: 1.8, respawnMs: 5_000, radius: 0.6 },
   bull: { attackDamageBase: 12, attackDamagePerLevel: 3, speed: 1.6, wanderSpeed: 0.8, respawnMs: 18_000, radius: 1.0 },
   stag: { attackDamageBase: 5, attackDamagePerLevel: 2, speed: 2.4, wanderSpeed: 1.5, respawnMs: 9_000, radius: 0.8 },
+  dummy: { attackDamageBase: 0, attackDamagePerLevel: 0, speed: 0, wanderSpeed: 0, respawnMs: 3_000, radius: 0.6 },
 };
 
 /**

@@ -213,7 +213,7 @@ const ANTI_BOOST_RATE = 0.08;
 function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
   if (!mob) return { xpGain: 0, leveledUp: false, killed: false, xpGainByPlayer: [] };
   if (!Number.isFinite(mob.maxHp)) {
-    mob.maxHp = getMobMaxHp(mob.level ?? 1);
+    mob.maxHp = getMobMaxHp(mob.level ?? 1, mob.mobType);
   }
   if (!Number.isFinite(mob.hp)) {
     mob.hp = mob.maxHp;
