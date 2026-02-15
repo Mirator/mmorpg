@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * Core attributes system per specs/mmorpg_attributes_combat_spec.md
+ * Core attributes system per specs/combat/mmorpg_attributes_combat_spec.md
  * STR, DEX, INT, VIT, SPI with class multipliers and derived combat stats.
  */
 

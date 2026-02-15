@@ -14,6 +14,7 @@ import { COMBAT_CONFIG } from '../../shared/config.js';
 import { getEquippedWeapon } from '../../shared/equipment.js';
 import { computeDerivedStats, computeHitChance } from '../../shared/attributes.js';
 import { getMobMaxHp } from './mobs.js';
+import { getMobStats } from '../../shared/entityTypes.js';
 import { applyCollisions } from './collision.js';
 import { isPvPAllowed } from './pvp.js';
 import { createAbilityHandlers } from './combat/abilityHandlers.js';
@@ -235,7 +236,8 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
     mob.dead = true;
     mob.state = 'dead';
     mob.targetId = null;
-    mob.respawnAt = now + (respawnMs ?? 10_000);
+    const mobRespawnMs = mob.mobType ? getMobStats(mob.mobType).respawnMs : (respawnMs ?? 10_000);
+    mob.respawnAt = now + mobRespawnMs;
     killed = true;
 
     if (attacker?.targetId === mob.id) {

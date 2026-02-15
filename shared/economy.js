@@ -25,11 +25,11 @@ export const VENDOR_BUY_ITEMS = [
 ];
 
 export const RESOURCE_TYPES = {
-  crystal: { itemKind: 'crystal', itemName: 'Crystal', sellPrice: 10 },
-  ore: { itemKind: 'ore', itemName: 'Iron Ore', sellPrice: 15 },
-  herb: { itemKind: 'herb', itemName: 'Healing Herb', sellPrice: 12 },
-  tree: { itemKind: 'wood', itemName: 'Wood', sellPrice: 8 },
-  flower: { itemKind: 'flower', itemName: 'Flower', sellPrice: 10 },
+  crystal: { itemKind: 'crystal', itemName: 'Crystal', sellPrice: 10, respawnMs: 15_000 },
+  ore: { itemKind: 'ore', itemName: 'Iron Ore', sellPrice: 15, respawnMs: 20_000 },
+  herb: { itemKind: 'herb', itemName: 'Healing Herb', sellPrice: 12, respawnMs: 12_000 },
+  tree: { itemKind: 'wood', itemName: 'Wood', sellPrice: 8, respawnMs: 25_000 },
+  flower: { itemKind: 'flower', itemName: 'Flower', sellPrice: 10, respawnMs: 10_000 },
 };
 
 /**
@@ -59,9 +59,43 @@ export function getVendorCatalog() {
   return [...VENDOR_BUY_ITEMS];
 }
 
+/**
+ * Resolve vendor buy catalog. If vendor has buyItems, use those (with price override).
+ * Otherwise fall back to global VENDOR_BUY_ITEMS.
+ * @param {{ buyItems?: Array<{ kind: string; priceCopper?: number }> }} [vendorConfig]
+ * @returns {{ kind: string; name: string; priceCopper: number; category?: string }[]}
+ */
+export function resolveVendorBuyItems(vendorConfig) {
+  const items = vendorConfig?.buyItems;
+  if (!Array.isArray(items) || items.length === 0) {
+    return [...VENDOR_BUY_ITEMS];
+  }
+  return items.map((entry) => {
+    const global = VENDOR_BUY_ITEMS.find((e) => e.kind === entry.kind);
+    const priceCopper = Number.isFinite(entry.priceCopper) ? entry.priceCopper : (global?.priceCopper ?? getBuyPriceCopper(entry.kind));
+    return {
+      kind: entry.kind,
+      name: global?.name ?? getItemDisplayName(entry.kind),
+      priceCopper,
+      category: global?.category,
+    };
+  });
+}
+
 export function getResourceConfig(type) {
   if (!type) return RESOURCE_TYPES.crystal;
   return RESOURCE_TYPES[type] ?? RESOURCE_TYPES.crystal;
+}
+
+/**
+ * Get respawn time in ms for a resource type.
+ * @param {string} [type]
+ * @param {number} [defaultMs]
+ * @returns {number}
+ */
+export function getResourceRespawnMs(type, defaultMs = 15_000) {
+  const config = getResourceConfig(type);
+  return Number(config.respawnMs) || defaultMs;
 }
 
 export function getSellPriceCopper(kind) {

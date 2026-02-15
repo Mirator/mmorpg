@@ -1,5 +1,10 @@
 // @ts-check
 
+import { VALID_MOB_TYPES, VALID_RESOURCE_TYPES } from './entityTypes.js';
+import { VENDOR_BUY_ITEMS } from './economy.js';
+
+const VALID_VENDOR_BUY_KINDS = new Set(VENDOR_BUY_ITEMS.map((e) => e.kind));
+
 export const MAP_CONFIG_VERSION = 1;
 
 function isObject(value) {
@@ -30,8 +35,6 @@ function normalizeList(raw, mapFn) {
   return raw.map((item) => mapFn(item));
 }
 
-const VALID_RESOURCE_TYPES = new Set(['crystal', 'ore', 'herb', 'tree', 'flower']);
-
 export function normalizeMapConfig(raw) {
   const config = isObject(raw) ? raw : {};
   return {
@@ -52,13 +55,25 @@ export function normalizeMapConfig(raw) {
         type: VALID_RESOURCE_TYPES.has(type) ? type : 'crystal',
       };
     }),
-    vendors: normalizeList(config.vendors, (item) => ({
-      id: isObject(item) ? item.id ?? '' : '',
-      name: isObject(item) ? item.name ?? '' : '',
-      x: isObject(item) ? item.x ?? 0 : 0,
-      y: isObject(item) ? item.y ?? 0 : 0,
-      z: isObject(item) ? item.z ?? 0 : 0,
-    })),
+    vendors: normalizeList(config.vendors, (item) => {
+      const raw = isObject(item) ? item : {};
+      const buyItems = Array.isArray(raw.buyItems)
+        ? raw.buyItems
+            .filter((e) => isObject(e) && typeof e.kind === 'string' && VALID_VENDOR_BUY_KINDS.has(e.kind.trim()))
+            .map((e) => ({
+              kind: e.kind.trim(),
+              priceCopper: Number.isFinite(e.priceCopper) ? e.priceCopper : undefined,
+            }))
+        : undefined;
+      return {
+        id: raw.id ?? '',
+        name: raw.name ?? '',
+        x: raw.x ?? 0,
+        y: raw.y ?? 0,
+        z: raw.z ?? 0,
+        buyItems: buyItems && buyItems.length > 0 ? buyItems : undefined,
+      };
+    }),
     mobSpawns: normalizeList(config.mobSpawns, (item) => ({
       id: isObject(item) ? item.id ?? '' : '',
       x: isObject(item) ? item.x ?? 0 : 0,
@@ -182,8 +197,8 @@ export function validateMapConfig(config) {
       validateId(errors, `resourceNodes[${index}]`, node?.id, seen);
       validatePoint(errors, `resourceNodes[${index}]`, node ?? {}, half, yMin, yMax);
       const type = node?.type;
-      if (type !== undefined && type !== null && (!VALID_RESOURCE_TYPES.has(String(type).toLowerCase()))) {
-        addError(errors, `resourceNodes[${index}] type must be crystal, ore, herb, tree, or flower.`);
+      if (type !== undefined && type !== null && !VALID_RESOURCE_TYPES.has(String(type).toLowerCase())) {
+        addError(errors, `resourceNodes[${index}] type must be one of: ${[...VALID_RESOURCE_TYPES].join(', ')}.`);
       }
     });
   }
@@ -198,6 +213,15 @@ export function validateMapConfig(config) {
         addError(errors, `vendors[${index}] name must be a non-empty string.`);
       }
       validatePoint(errors, `vendors[${index}]`, vendor ?? {}, half, yMin, yMax);
+      const buyItems = vendor?.buyItems;
+      if (Array.isArray(buyItems)) {
+        buyItems.forEach((entry, bi) => {
+          const kind = entry?.kind;
+          if (!kind || typeof kind !== 'string' || !VALID_VENDOR_BUY_KINDS.has(kind.trim())) {
+            addError(errors, `vendors[${index}] buyItems[${bi}] kind must be a valid buy item kind.`);
+          }
+        });
+      }
     });
   }
 
@@ -208,6 +232,10 @@ export function validateMapConfig(config) {
     config.mobSpawns.forEach((spawn, index) => {
       validateId(errors, `mobSpawns[${index}]`, spawn?.id, seen);
       validatePoint(errors, `mobSpawns[${index}]`, spawn ?? {}, half, yMin, yMax);
+      const mobType = spawn?.mobType;
+      if (mobType !== undefined && mobType !== null && !VALID_MOB_TYPES.has(String(mobType).toLowerCase())) {
+        addError(errors, `mobSpawns[${index}] mobType must be one of: ${[...VALID_MOB_TYPES].join(', ')}.`);
+      }
     });
   }
 

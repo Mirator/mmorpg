@@ -1,8 +1,4 @@
-import {
-  getSellPriceCopper,
-  getBuyPriceCopper,
-  VENDOR_BUY_ITEMS,
-} from '../../../shared/economy.js';
+import { getSellPriceCopper } from '../../../shared/economy.js';
 import { createWeaponItem, getWeaponDef } from '../../../shared/equipment.js';
 import { addItem } from '../../logic/inventory.js';
 import { countInventory } from '../../logic/inventory.js';
@@ -34,9 +30,10 @@ export function handleVendorBuy(ctx) {
   const dist = Math.hypot(player.pos.x - vendor.x, player.pos.z - vendor.z);
   const maxDist = world.vendorInteractRadius ?? 2.5;
   if (dist > maxDist) return;
-  const catalogEntry = VENDOR_BUY_ITEMS.find((e) => e.kind === msg.kind);
+  const catalog = vendor.buyItems ?? [];
+  const catalogEntry = catalog.find((e) => e.kind === msg.kind);
   if (!catalogEntry) return;
-  const priceCopper = getBuyPriceCopper(msg.kind);
+  const priceCopper = catalogEntry.priceCopper ?? 0;
   if (!Number.isFinite(priceCopper) || priceCopper <= 0) return;
   const count = Math.max(1, Math.min(Number(msg.count) || 1, 99));
   const total = priceCopper * count;

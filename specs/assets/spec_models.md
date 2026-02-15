@@ -1,6 +1,6 @@
 # 3D Models Specification
 
-This document lists all available 3D models in the game, their asset paths, and expected usage. Asset paths are configured in [client/assetPaths.js](../client/assetPaths.js).
+This document lists all available 3D models in the game, their asset paths, and expected usage. Asset paths are configured in [client/assetPaths.js](../../client/assetPaths.js).
 
 ---
 

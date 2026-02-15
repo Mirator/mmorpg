@@ -30,7 +30,7 @@ describe('resources', () => {
     expect(player.inv).toBe(1);
     expect(player.inventory[0]).toMatchObject({ kind: 'crystal', count: 1 });
     expect(resources[0].available).toBe(false);
-    expect(resources[0].respawnAt).toBe(6000);
+    expect(resources[0].respawnAt).toBe(16000);
   });
 
   it('does not harvest when inventory is full', () => {

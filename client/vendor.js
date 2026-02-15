@@ -1,4 +1,4 @@
-export function createVendorUI({ dialog, panel, dialogName, panelName, tradeButton, closeButton, panelCloseButton }) {
+export function createVendorUI({ dialog, panel, dialogName, panelName, tradeButton, closeButton, panelCloseButton, onTradeOpen }) {
   let dialogOpen = false;
   let tradeOpen = false;
   let activeTab = 'buy';
@@ -51,6 +51,7 @@ export function createVendorUI({ dialog, panel, dialogName, panelName, tradeButt
     setTab('buy');
     setDialogOpen(false);
     setTradeOpen(true);
+    onTradeOpen?.();
   }
 
   function closeAll() {

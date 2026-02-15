@@ -15,8 +15,8 @@ Specification for chat channels and all log types (combat log, chat, system).
 | **trade** | Yes | Trade chat. | 500 |
 | **party** | Yes (when in party) | Party chat. Reserved for future party system. | 500 |
 
-**Client:** [client/chat.js](client/chat.js) – `messagesByChannel`, `WRITABLE_CHANNELS`, `GENERAL_SENDS_TO`  
-**Server:** [server/logic/chat.js](server/logic/chat.js) – `CHAT_BUFFER_SIZES`
+**Client:** [client/chat.js](../../client/chat.js) – `messagesByChannel`, `WRITABLE_CHANNELS`, `GENERAL_SENDS_TO`  
+**Server:** [server/logic/chat.js](../../server/logic/chat.js) – `CHAT_BUFFER_SIZES`
 
 ---
 
@@ -36,8 +36,8 @@ All combat log entries are sent via `combatLog` WebSocket message. Each entry ha
 - `Slash hit Enemy (Lv.1) for 18 damage`
 
 **Where emitted:**
-- [server/ws.js](server/ws.js) – `tryUseAbility` result (basic attack, shield_slam, power_strike, smite, firebolt)
-- [server/gameLoop.js](server/gameLoop.js) – `stepPlayerCast` result (aimed_shot completion)
+- [server/ws.js](../../server/ws.js) – `tryUseAbility` result (basic attack, shield_slam, power_strike, smite, firebolt)
+- [server/gameLoop.js](../../server/gameLoop.js) – `stepPlayerCast` result (aimed_shot completion)
 
 **Shown in:** Combat tab only (not General)
 
@@ -53,7 +53,7 @@ All combat log entries are sent via `combatLog` WebSocket message. Each entry ha
 - `Enemy (Lv.3) hit you for 12 damage`
 
 **Where emitted:**
-- [server/createServer.js](server/createServer.js) – `onPlayerDamaged` callback from mobs.js
+- [server/createServer.js](../../server/createServer.js) – `onPlayerDamaged` callback from mobs.js
 
 **Shown in:** Combat tab only (not General)
 
@@ -70,7 +70,7 @@ All combat log entries are sent via `combatLog` WebSocket message. Each entry ha
 - `You healed Bob for 38`
 
 **Where emitted:**
-- [server/ws.js](server/ws.js) – `tryUseAbility` result (heal ability)
+- [server/ws.js](../../server/ws.js) – `tryUseAbility` result (heal ability)
 
 **Shown in:** Combat tab only (not General)
 
@@ -87,8 +87,8 @@ All combat log entries are sent via `combatLog` WebSocket message. Each entry ha
 - `You gained 120 XP from killing Enemies` (cleave/frost_nova multi-kill)
 
 **Where emitted:**
-- [server/ws.js](server/ws.js) – `tryUseAbility` result
-- [server/gameLoop.js](server/gameLoop.js) – `stepPlayerCast` result
+- [server/ws.js](../../server/ws.js) – `tryUseAbility` result
+- [server/gameLoop.js](../../server/gameLoop.js) – `stepPlayerCast` result
 
 **Shown in:** Combat tab and General tab
 
@@ -101,8 +101,8 @@ All combat log entries are sent via `combatLog` WebSocket message. Each entry ha
 **Text format:** `You gained a level!`
 
 **Where emitted:**
-- [server/ws.js](server/ws.js) – `tryUseAbility` result
-- [server/gameLoop.js](server/gameLoop.js) – `stepPlayerCast` result
+- [server/ws.js](../../server/ws.js) – `tryUseAbility` result
+- [server/gameLoop.js](../../server/gameLoop.js) – `stepPlayerCast` result
 
 **Shown in:** Combat tab and General tab
 
@@ -115,7 +115,7 @@ All combat log entries are sent via `combatLog` WebSocket message. Each entry ha
 **Text format:** `You died`
 
 **Where emitted:**
-- [server/createServer.js](server/createServer.js) – `onPlayerDeath` callback from gameLoop.js `killPlayer()`
+- [server/createServer.js](../../server/createServer.js) – `onPlayerDeath` callback from gameLoop.js `killPlayer()`
 
 **Shown in:** Combat tab and General tab
 
@@ -133,7 +133,7 @@ Not shown in General:
 - `damage_received`
 - `heal`
 
-**Client:** [client/chat.js](client/chat.js) – `GENERAL_COMBAT_KINDS`
+**Client:** [client/chat.js](../../client/chat.js) – `GENERAL_COMBAT_KINDS`
 
 ---
 

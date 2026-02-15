@@ -1,6 +1,6 @@
 import { applyCollisions } from './collision.js';
 import { MAX_LEVEL } from '../../shared/progression.js';
-import { MOB_CONFIG } from '../../shared/config.js';
+import { MOB_TYPES, getMobStats } from '../../shared/entityTypes.js';
 import { computeDerivedStats } from '../../shared/attributes.js';
 
 function randomRange(rand, min, max) {
@@ -67,8 +67,7 @@ export function createMobs(count, world, options = {}) {
     if (!isSpawnValid(x, z, world)) continue;
     const level = getMobLevelForPosition({ x, z }, world);
     const maxHp = getMobMaxHp(level);
-    const mobTypes = ['orc', 'demon', 'yeti', 'tribal', 'wolf', 'fox', 'bull', 'stag'];
-    const mobType = mobTypes[Math.floor(rand() * mobTypes.length)];
+    const mobType = MOB_TYPES[Math.floor(rand() * MOB_TYPES.length)];
     mobs.push({
       id: `m${mobs.length + 1}`,
       pos: { x, y: 0, z },
@@ -125,22 +124,24 @@ export function createMobsFromSpawns(spawns, world, options = {}) {
 
 export function stepMobs(mobs, players, world, dt, now, config = {}) {
   const rand = config.random ?? Math.random;
-  const speed = config.speed ?? 2.2;
-  const wanderSpeed = config.wanderSpeed ?? 1.4;
   const aggroRadius = config.aggroRadius ?? 12;
   const leashRadius = config.leashRadius ?? 18;
   const attackRange = config.attackRange ?? 1.4;
-  const attackDamageBase = config.attackDamageBase ?? MOB_CONFIG.attackDamageBase;
-  const attackDamagePerLevel = config.attackDamagePerLevel ?? MOB_CONFIG.attackDamagePerLevel;
   const attackCooldownMs = config.attackCooldownMs ?? 900;
   const idleDuration = config.idleDurationMs ?? [1200, 2800];
   const wanderDuration = config.wanderDurationMs ?? [1500, 3200];
-  const mobRadius = config.mobRadius ?? MOB_CONFIG.radius;
-  const respawnMs = config.respawnMs ?? MOB_CONFIG.respawnMs;
 
   const alivePlayers = players.filter((p) => !p.dead);
 
   for (const mob of mobs) {
+    const stats = getMobStats(mob.mobType);
+    const speed = config.speed ?? stats.speed;
+    const wanderSpeed = config.wanderSpeed ?? stats.wanderSpeed;
+    const attackDamageBase = config.attackDamageBase ?? stats.attackDamageBase;
+    const attackDamagePerLevel = config.attackDamagePerLevel ?? stats.attackDamagePerLevel;
+    const mobRadius = config.mobRadius ?? stats.radius;
+    const respawnMs = config.respawnMs ?? stats.respawnMs;
+
     if (mob.testId) {
       if (mob.dead) {
         if (!mob.respawnAt) {

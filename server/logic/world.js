@@ -6,6 +6,7 @@ import {
   MOB_CONFIG,
 } from '../../shared/config.js';
 import { validateMapConfig } from '../../shared/mapConfig.js';
+import { resolveVendorBuyItems } from '../../shared/economy.js';
 
 const WORLD_SEED = WORLD_CONFIG.seed;
 
@@ -125,6 +126,7 @@ export function createSimulatedWorld() {
       x: base.x + base.radius + 4,
       y: 0,
       z: base.z - 2,
+      buyItems: resolveVendorBuyItems({}),
     },
   ];
 
@@ -179,13 +181,17 @@ export function createWorldFromConfig(mapConfig) {
     y: point.y ?? 0,
     z: point.z,
   }));
-  const vendors = mapConfig.vendors.map((vendor) => ({
-    id: vendor.id,
-    name: vendor.name,
-    x: vendor.x,
-    y: vendor.y ?? 0,
-    z: vendor.z,
-  }));
+  const vendors = mapConfig.vendors.map((vendor) => {
+    const buyItems = resolveVendorBuyItems(vendor);
+    return {
+      id: vendor.id,
+      name: vendor.name,
+      x: vendor.x,
+      y: vendor.y ?? 0,
+      z: vendor.z,
+      buyItems,
+    };
+  });
   const mobSpawns = mapConfig.mobSpawns.map((spawn) => ({
     id: spawn.id,
     x: spawn.x,

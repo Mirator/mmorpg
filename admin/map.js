@@ -1,3 +1,5 @@
+import { MOB_TYPES, RESOURCE_TYPE_LIST } from '/shared/entityTypes.js';
+
 const form = document.getElementById('auth-form');
 const passInput = document.getElementById('admin-pass');
 const statusEl = document.getElementById('status');
@@ -39,6 +41,7 @@ const FIELD_DEFS = {
   ],
   resourceNodes: [
     { key: 'id', label: 'ID', type: 'text' },
+    { key: 'type', label: 'Type', type: 'select', options: RESOURCE_TYPE_LIST },
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
     { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
@@ -52,6 +55,7 @@ const FIELD_DEFS = {
   ],
   mobSpawns: [
     { key: 'id', label: 'ID', type: 'text' },
+    { key: 'mobType', label: 'Mob', type: 'select', options: MOB_TYPES },
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
     { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
@@ -393,12 +397,13 @@ function renderList(container, type, items, fields) {
       const value =
         field.type === 'number'
           ? formatNumber(item[field.key])
-          : item[field.key] ?? '';
+          : item[field.key] ?? (field.options?.[0] ?? '');
       const fieldNode = buildField({
         label: field.label,
         value,
         type: field.type,
         step: field.step,
+        options: field.options,
         data: { type, index, field: field.key },
       });
       fieldsWrap.appendChild(fieldNode);
@@ -408,21 +413,34 @@ function renderList(container, type, items, fields) {
   });
 }
 
-function buildField({ label, value, type, step, data }) {
+function buildField({ label, value, type, step, options, data }) {
   const wrapper = document.createElement('label');
   wrapper.className = 'field';
   const span = document.createElement('span');
   span.textContent = label;
-  const input = document.createElement('input');
-  input.type = type;
-  if (type === 'number') {
-    input.step = step ?? '0.1';
+  let control;
+  if (type === 'select' && Array.isArray(options)) {
+    control = document.createElement('select');
+    for (const opt of options) {
+      const option = document.createElement('option');
+      option.value = opt;
+      option.textContent = opt;
+      if (opt === (value ?? '')) option.selected = true;
+      control.appendChild(option);
+    }
+    if (!control.value && options[0]) control.value = options[0];
+  } else {
+    control = document.createElement('input');
+    control.type = type ?? 'text';
+    if (type === 'number') {
+      control.step = step ?? '0.1';
+    }
+    control.value = value ?? '';
   }
-  input.value = value ?? '';
-  if (data?.type) input.dataset.type = data.type;
-  if (data?.index !== undefined) input.dataset.index = String(data.index);
-  if (data?.field) input.dataset.field = data.field;
-  wrapper.append(span, input);
+  if (data?.type) control.dataset.type = data.type;
+  if (data?.index !== undefined) control.dataset.index = String(data.index);
+  if (data?.field) control.dataset.field = data.field;
+  wrapper.append(span, control);
   return wrapper;
 }
 
@@ -462,6 +480,7 @@ function addItem(type) {
   } else if (type === 'resourceNodes') {
     item = {
       id: getNextId(list, 'r'),
+      type: RESOURCE_TYPE_LIST[0] ?? 'crystal',
       x: base.x + offset + 10,
       y: base.y ?? 0,
       z: base.z,
@@ -477,6 +496,7 @@ function addItem(type) {
   } else if (type === 'mobSpawns') {
     item = {
       id: getNextId(list, 'm'),
+      mobType: MOB_TYPES[0] ?? 'orc',
       x: base.x + offset + 16,
       y: base.y ?? 0,
       z: base.z,
@@ -621,9 +641,11 @@ window.addEventListener('mouseup', () => {
   setSaveStatus('Unsaved changes', 'warning');
 });
 
-sidebar.addEventListener('input', (event) => {
+function handleFieldChange(event) {
   const target = event.target;
-  if (!(target instanceof HTMLInputElement)) return;
+  const isInput = target instanceof HTMLInputElement;
+  const isSelect = target instanceof HTMLSelectElement;
+  if (!isInput && !isSelect) return;
   const type = target.dataset.type;
   const field = target.dataset.field;
   if (!type || !field) return;
@@ -646,11 +668,14 @@ sidebar.addEventListener('input', (event) => {
   const index = Number.parseInt(target.dataset.index ?? '', 10);
   if (!Number.isFinite(index)) return;
 
-  const isNumber = target.type === 'number';
+  const isNumber = isInput && target.type === 'number';
   const value = isNumber ? Number.parseFloat(target.value) : target.value;
   if (isNumber && !Number.isFinite(value)) return;
   updateField({ type, index, field, value });
-});
+}
+
+sidebar.addEventListener('input', handleFieldChange);
+sidebar.addEventListener('change', handleFieldChange);
 
 sidebar.addEventListener('click', (event) => {
   const target = event.target;

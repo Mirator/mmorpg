@@ -274,7 +274,8 @@ export function createUiState({
   function renderVendorBuyItems() {
     if (!vendorBuyItemsEl) return;
     vendorBuyItemsEl.innerHTML = '';
-    const catalog = VENDOR_BUY_ITEMS ?? [];
+    const vendor = vendorUI?.getVendor?.();
+    const catalog = vendor?.buyItems ?? VENDOR_BUY_ITEMS ?? [];
     if (catalog.length === 0) {
       vendorBuyItemsEl.textContent = 'No items available.';
       return;
@@ -362,6 +363,7 @@ export function createUiState({
       tradeButton: vendorTradeBtn,
       closeButton: vendorCloseBtn,
       panelCloseButton: vendorPanelCloseBtn,
+      onTradeOpen: () => renderVendorBuyItems(),
     });
     vendorTradeBtn?.addEventListener('click', () => {
       setInventoryOpen(true);

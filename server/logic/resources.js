@@ -1,5 +1,5 @@
 import { addItem, canAddItem, countInventory } from './inventory.js';
-import { getResourceConfig } from '../../shared/economy.js';
+import { getResourceConfig, getResourceRespawnMs } from '../../shared/economy.js';
 
 function distance2(a, b) {
   const dx = a.x - b.x;
@@ -67,8 +67,9 @@ export function tryHarvest(resources, player, now, config) {
   const item = makeItem();
   if (!addItem(player.inventory, item, stackMax)) return null;
 
+  const respawnMsForType = getResourceRespawnMs(resourceType, respawnMs);
   closest.available = false;
-  closest.respawnAt = now + respawnMs;
+  closest.respawnAt = now + respawnMsForType;
   player.inv = countInventory(player.inventory);
   return closest;
 }
