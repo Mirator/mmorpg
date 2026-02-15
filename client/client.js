@@ -10,7 +10,7 @@ import { createCombat } from './combat.js';
 import { preloadAllAssets } from './assets.js';
 import { resolveTarget } from './targeting.js';
 import { getAbilitiesForClass } from '/shared/classes.js';
-import { splitCurrency } from '/shared/economy.js';
+import { splitCurrency, getResourceConfig } from '/shared/economy.js';
 import { xpToNext } from '/shared/progression.js';
 import { PLAYER_CONFIG } from '/shared/config.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
@@ -479,20 +479,23 @@ function stepFrame(dt, now) {
         ? gameState.getWorldConfig().playerInvSlots * gameState.getWorldConfig().playerInvStackMax
         : 5);
     const inv = localState?.inv ?? 0;
-    let near = false;
+    let nearestResource = null;
+    const radiusSq = radius * radius;
     if (!localState?.dead && inv < invCap) {
       for (const resource of gameState.getLatestResources()) {
         if (!resource.available) continue;
         const dx = resource.x - viewPos.x;
         const dz = resource.z - viewPos.z;
-        if (dx * dx + dz * dz <= radius * radius) {
-          near = true;
-          break;
+        const distSq = dx * dx + dz * dz;
+        if (distSq <= radiusSq && (!nearestResource || distSq < nearestResource.distSq)) {
+          nearestResource = { ...resource, distSq };
         }
       }
     }
-    if (near) {
-      ui.showPrompt('Press E to harvest');
+    if (nearestResource) {
+      const resourceType = nearestResource.type ?? 'crystal';
+      const itemName = getResourceConfig(resourceType).itemName ?? 'Resource';
+      ui.showPrompt(`Press E to harvest ${itemName}`);
     } else {
       ui.clearPrompt();
     }
