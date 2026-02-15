@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap');
+
+:root {
+  --bg: #0b0f14;
+  --panel: rgba(6, 12, 18, 0.72);
+  --text: #e6edf3;
+  --muted: #9fb0c2;
+  --accent: #4da3ff;
+  --danger: #ff4d4d;
+  --frame-gold: #e8c547;
+  --frame-gold-dim: #b8962e;
+  --frame-health: #2ecc71;
+  --frame-health-dim: #27ae60;
+  --frame-mana: #3498db;
+  --frame-mana-dim: #2980b9;
+  --frame-stamina: #95a5a6;
+  --frame-rage: #e74c3c;
+  --frame-focus: #f39c12;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--text);
+}
+
+canvas {
+  display: block;
+}
+
+body.menu-open #chat-panel,
+body.menu-open #overlay,
+body.menu-open #top-right-panel,
+body.menu-open #target-hud,
+body.menu-open #prompt,
+body.menu-open #event,
+body.menu-open #damage-flash,
+body.menu-open #inventory-panel,
+body.menu-open #character-sheet-panel,
+body.menu-open #vendor-dialog,
+body.menu-open #vendor-panel,
+body.menu-open #ability-bar,
+body.menu-open #xp-bar,
+body.menu-open #cast-bar-wrap,
+body.pause-menu-open #chat-panel,
+body.pause-menu-open #overlay,
+body.pause-menu-open #top-right-panel,
+body.pause-menu-open #target-hud,
+body.pause-menu-open #prompt,
+body.pause-menu-open #event,
+body.pause-menu-open #damage-flash,
+body.pause-menu-open #inventory-panel,
+body.pause-menu-open #character-sheet-panel,
+body.pause-menu-open #vendor-dialog,
+body.pause-menu-open #vendor-panel,
+body.pause-menu-open #ability-bar,
+body.pause-menu-open #xp-bar,
+body.pause-menu-open #cast-bar-wrap {
+  opacity: 0;
+  pointer-events: none;
+}

@@ -2,12 +2,6 @@ import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import { parseClientMessage } from '../shared/protocol.js';
 import {
-  getSellPriceCopper,
-  getBuyPriceCopper,
-  getItemDisplayName,
-  VENDOR_BUY_ITEMS,
-} from '../shared/economy.js';
-import {
   DEFAULT_CLASS_ID,
   isValidClassId,
   getResourceForClass,
@@ -21,18 +15,7 @@ import {
   serializeCorpses,
 } from './admin.js';
 import { worldSnapshot } from './logic/world.js';
-import { tryHarvest } from './logic/resources.js';
-import { tryLootCorpse } from './logic/corpses.js';
-import { tryUseAbility } from './logic/combat.js';
-import {
-  addItem,
-  consumeItems,
-  countInventory,
-  countItem,
-  swapInventorySlots,
-} from './logic/inventory.js';
-import { swapEquipment } from './logic/equipment.js';
-import { createWeaponItem, getWeaponDef } from '../shared/equipment.js';
+import { countInventory } from './logic/inventory.js';
 import { loadPlayer, savePlayer } from './db/playerRepo.js';
 import { hydratePlayerState, migratePlayerState, serializePlayerState } from './db/playerState.js';
 import { createBasePlayerState, respawnPlayer } from './logic/players.js';
@@ -40,18 +23,9 @@ import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
 import { addMessage as addChatMessage } from './logic/chat.js';
 import { sendCombatLog } from './logic/combatLog.js';
-import {
-  createParty,
-  invitePlayer,
-  acceptInvite,
-  leaveParty,
-  getPartyForPlayer,
-  getPartyMembers,
-  setPlayerPartyId,
-  getPendingInvite,
-} from './logic/party.js';
+import { leaveParty, getPartyForPlayer } from './logic/party.js';
 import { validateAndConsumeTicket } from './wsTicket.js';
-import { getRecipeById } from '../shared/recipes.js';
+import { createMessageHandlers } from './ws/handlers/index.js';
 
 function safeSend(ws, msg) {
   if (ws.readyState !== ws.OPEN) return;
@@ -186,7 +160,7 @@ export function createWebSocketServer({
   });
 
   const connectionsByIp = new Map();
-  let nextItemId = 1;
+  const nextItemIdRef = { current: 1 };
 
   function isAllowedOrigin(origin) {
     if (!origin) {
@@ -722,6 +696,8 @@ export function createWebSocketServer({
       });
       sendPrivateState(ws, player, now);
 
+      const msgHandlers = createMessageHandlers();
+
       ws.on('message', (data) => {
         if (!allowMessage()) {
           ws.close(1008, 'Rate limit');
@@ -746,416 +722,33 @@ export function createWebSocketServer({
           player.lastInputSeq = msg.seq;
         }
 
-        if (msg.type === 'respawn') {
-          if (player.dead) {
-            respawnPlayer(player, spawner.getSpawnPoint(), persistence.markDirty);
-          }
-          return;
-        }
+        if (player.dead && msg.type !== 'respawn') return;
 
-        if (msg.type === 'partyInvite') {
-          if (player.isGuest) return;
-          const target = players.get(msg.targetId);
-          if (!target || !target.ws || target.dead) return;
-          const party = getPartyForPlayer(player.id, players);
-          const partyId = party ? party.id : createParty(player.id, players);
-          if (!partyId) return;
-          const result = invitePlayer(partyId, player.id, msg.targetId, players);
-          if (result.ok && target.ws) {
-            safeSend(target.ws, {
-              type: 'partyInviteReceived',
-              inviterId: player.id,
-              inviterName: player.name ?? player.persistName ?? 'Unknown',
-            });
-          }
-          return;
-        }
-
-        if (msg.type === 'partyAccept') {
-          if (player.isGuest) return;
-          const result = acceptInvite(player.id, msg.inviterId);
-          if (result.ok && result.partyId) {
-            setPlayerPartyId(player, result.partyId);
-            persistence.markDirty(player);
-            const memberIds = getPartyMembers(result.partyId);
-            for (const mid of memberIds) {
-              const m = players.get(mid);
-              if (m?.ws) sendPrivateState(m.ws, m, Date.now());
-            }
-          }
-          return;
-        }
-
-        if (msg.type === 'partyLeave') {
-          const partyBefore = getPartyForPlayer(player.id, players);
-          leaveParty(player.id, players);
-          persistence.markDirty(player);
-          sendPrivateState(ws, player, Date.now());
-          if (partyBefore) {
-            for (const mid of partyBefore.memberIds) {
-              if (mid === player.id) continue;
-              const m = players.get(mid);
-              if (m?.ws) sendPrivateState(m.ws, m, Date.now());
-            }
-          }
-          return;
-        }
-
-        if (msg.type === 'chat') {
-          if (player.isGuest) return;
-          if (!allowChatMessage()) return;
-          const { channel, text } = msg;
-          if (channel === 'party') {
-            const party = getPartyForPlayer(player.id, players);
-            if (!party) return;
-            const stored = addChatMessage(channel, player.id, player.name ?? player.persistName ?? 'Unknown', text, Date.now());
-            if (!stored) return;
-            const payload = {
-              type: 'chat',
-              channel: stored.channel,
-              authorId: stored.authorId,
-              author: stored.author,
-              text: stored.text,
-              timestamp: stored.timestamp,
-            };
-            for (const mid of party.memberIds) {
-              const m = players.get(mid);
-              if (m?.ws && !m.isGuest) safeSend(m.ws, payload);
-            }
+        const ctx = {
+          player,
+          players,
+          mobs,
+          resources,
+          corpses,
+          world,
+          config,
+          spawner,
+          persistence,
+          msg,
+          ws,
+          safeSend,
+          sendPrivateState,
+          broadcastCombatEvent,
+          allowChatMessage,
+          initCombatState,
+          countInventory,
+          nextItemIdRef,
+        };
+        for (const [match, handle] of msgHandlers) {
+          if (match(msg)) {
+            handle(ctx);
             return;
           }
-          const authorName = player.name ?? player.persistName ?? 'Unknown';
-          const authorId = player.id;
-          const now = Date.now();
-          const stored = addChatMessage(channel, authorId, authorName, text, now);
-          if (!stored) return;
-          const payload = {
-            type: 'chat',
-            channel: stored.channel,
-            authorId: stored.authorId,
-            author: stored.author,
-            text: stored.text,
-            timestamp: stored.timestamp,
-          };
-          const areaRadius = config.chat?.areaRadius ?? 80;
-          const radius2 = areaRadius * areaRadius;
-          if (channel === 'global' || channel === 'trade') {
-            for (const p of players.values()) {
-              if (p?.ws && !p.isGuest) safeSend(p.ws, payload);
-            }
-          } else if (channel === 'area') {
-            const sx = player.pos?.x ?? 0;
-            const sz = player.pos?.z ?? 0;
-            for (const p of players.values()) {
-              if (!p?.ws || p.isGuest) continue;
-              const dx = (p.pos?.x ?? 0) - sx;
-              const dz = (p.pos?.z ?? 0) - sz;
-              if (dx * dx + dz * dz <= radius2) {
-                safeSend(p.ws, payload);
-              }
-            }
-          }
-          return;
-        }
-
-        if (player.dead) return;
-
-        if (msg.type === 'input') {
-          player.keys = msg.keys;
-          return;
-        }
-
-        if (msg.type === 'moveTarget') {
-          player.target = { x: msg.x, y: msg.y ?? 0, z: msg.z };
-          return;
-        }
-
-        if (msg.type === 'targetSelect') {
-          if (!msg.targetId) {
-            player.targetId = null;
-            player.targetKind = null;
-            return;
-          }
-          const targetKind = msg.targetKind === 'player' ? 'player' : 'mob';
-          const maxDist = config.combat?.targetSelectRange ?? 25;
-          if (targetKind === 'player') {
-            const targetPlayer = players.get(msg.targetId);
-            if (!targetPlayer || targetPlayer.dead) {
-              player.targetId = null;
-              player.targetKind = null;
-              return;
-            }
-            const dx = targetPlayer.pos.x - player.pos.x;
-            const dz = targetPlayer.pos.z - player.pos.z;
-            if (dx * dx + dz * dz > maxDist * maxDist) {
-              player.targetId = null;
-              player.targetKind = null;
-              return;
-            }
-            player.targetId = targetPlayer.id;
-            player.targetKind = 'player';
-            return;
-          }
-
-          const target = mobs.find((mob) => mob.id === msg.targetId);
-          if (!target || target.dead || target.hp <= 0) {
-            player.targetId = null;
-            player.targetKind = null;
-            return;
-          }
-          const dx = target.pos.x - player.pos.x;
-          const dz = target.pos.z - player.pos.z;
-          if (dx * dx + dz * dz > maxDist * maxDist) {
-            player.targetId = null;
-            player.targetKind = null;
-            return;
-          }
-          player.targetId = target.id;
-          player.targetKind = 'mob';
-          return;
-        }
-
-        if (msg.type === 'action' && msg.kind === 'interact') {
-          const harvested = tryHarvest(resources, player, Date.now(), {
-            harvestRadius: config.resource.harvestRadius,
-            respawnMs: config.resource.respawnMs,
-            stackMax: player.invStackMax,
-          });
-          if (harvested) {
-            persistence.markDirty(player);
-            return;
-          }
-          const { looted } = tryLootCorpse(corpses ?? [], player, {
-            lootRadius: config.corpse?.lootRadius ?? 2.5,
-          });
-          if (looted) {
-            persistence.markDirty(player);
-          }
-          return;
-        }
-
-        if (msg.type === 'classSelect') {
-          if (!isValidClassId(msg.classId)) return;
-          player.classId = msg.classId;
-          initCombatState(player);
-          persistence.markDirty(player);
-          return;
-        }
-
-        if (msg.type === 'inventorySwap') {
-          const swapped = swapInventorySlots(player.inventory, msg.from, msg.to);
-          if (swapped) {
-            persistence.markDirty(player);
-          }
-          return;
-        }
-
-        if (msg.type === 'equipSwap') {
-          const swapped = swapEquipment({
-            inventory: player.inventory,
-            equipment: player.equipment,
-            fromType: msg.fromType,
-            fromSlot: msg.fromSlot,
-            toType: msg.toType,
-            toSlot: msg.toSlot,
-          });
-          if (swapped) {
-            player.inv = countInventory(player.inventory);
-            persistence.markDirty(player);
-          }
-          return;
-        }
-
-        if (msg.type === 'action' && msg.kind === 'ability') {
-          const now = Date.now();
-          const result = tryUseAbility({
-            player,
-            slot: msg.slot,
-            mobs,
-            players,
-            world,
-            now,
-            respawnMs: config.mob.respawnMs,
-            placementX: msg.placementX,
-            placementZ: msg.placementZ,
-          });
-          if (!result.success && result.reason) {
-            safeSend(player.ws, { type: 'abilityFailed', reason: result.reason, slot: msg.slot });
-          }
-          if (result.event) {
-            broadcastCombatEvent(result.event, now);
-          }
-          if (result.combatLog) {
-            const damageEntries = [];
-            if (result.combatLog.damageDealt != null && result.combatLog.targetName) {
-              const abilityName = result.combatLog.abilityName ?? 'You';
-              const critSuffix = result.combatLog.isCrit ? ' (Critical!)' : '';
-              damageEntries.push({
-                kind: 'damage_done',
-                text: `${abilityName} hit ${result.combatLog.targetName} for ${result.combatLog.damageDealt} damage${critSuffix}`,
-                t: now,
-              });
-            }
-            if (result.combatLog.healAmount != null && result.combatLog.healTarget) {
-              const target = result.combatLog.healTarget;
-              const targetText = target === 'yourself' ? 'yourself' : target;
-              damageEntries.push({
-                kind: 'heal',
-                text: `You healed ${targetText} for ${result.combatLog.healAmount}`,
-                t: now,
-              });
-            }
-            if (damageEntries.length > 0) {
-              sendCombatLog(players, player.id, damageEntries, safeSend);
-            }
-            const xpGainByPlayer = result.combatLog.xpGainByPlayer ?? [];
-            for (const p of xpGainByPlayer) {
-              const xpEntries = [];
-              if (p.xpGain > 0 && result.combatLog.targetName) {
-                xpEntries.push({
-                  kind: 'xp_gain',
-                  text: `You gained ${p.xpGain} XP from killing ${result.combatLog.targetName}`,
-                  t: now,
-                });
-              }
-              if (p.leveledUp) {
-                xpEntries.push({
-                  kind: 'level_up',
-                  text: 'You gained a level!',
-                  t: now,
-                });
-              }
-              if (xpEntries.length > 0) {
-                sendCombatLog(players, p.playerId, xpEntries, safeSend);
-              }
-            }
-          }
-          const xpGainByPlayer = result.combatLog?.xpGainByPlayer ?? [];
-          for (const p of xpGainByPlayer) {
-            const targetPlayer = players.get(p.playerId);
-            if (targetPlayer && (p.xpGain > 0 || p.leveledUp)) {
-              persistence.markDirty(targetPlayer);
-            }
-          }
-          if (xpGainByPlayer.length === 0 && (result.xpGain > 0 || result.leveledUp)) {
-            persistence.markDirty(player);
-          }
-          return;
-        }
-
-        if (msg.type === 'vendorSell') {
-          const vendor = world.vendors?.find((v) => v.id === msg.vendorId);
-          if (!vendor) return;
-          if (msg.slot < 0 || msg.slot >= player.inventory.length) return;
-          const item = player.inventory[msg.slot];
-          if (!item) return;
-          const dist = Math.hypot(player.pos.x - vendor.x, player.pos.z - vendor.z);
-          const maxDist = world.vendorInteractRadius ?? 2.5;
-          if (dist > maxDist) return;
-          const unitPrice = getSellPriceCopper(item.kind);
-          if (!Number.isFinite(unitPrice) || unitPrice <= 0) return;
-          const count = Math.max(1, Number(item.count) || 1);
-          const total = Math.floor(unitPrice * count);
-          player.inventory[msg.slot] = null;
-          player.inv = countInventory(player.inventory);
-          player.currencyCopper = (player.currencyCopper ?? 0) + total;
-          persistence.markDirty(player);
-          return;
-        }
-
-        if (msg.type === 'vendorBuy') {
-          const vendor = world.vendors?.find((v) => v.id === msg.vendorId);
-          if (!vendor) return;
-          const dist = Math.hypot(player.pos.x - vendor.x, player.pos.z - vendor.z);
-          const maxDist = world.vendorInteractRadius ?? 2.5;
-          if (dist > maxDist) return;
-          const catalogEntry = VENDOR_BUY_ITEMS.find((e) => e.kind === msg.kind);
-          if (!catalogEntry) return;
-          const priceCopper = getBuyPriceCopper(msg.kind);
-          if (!Number.isFinite(priceCopper) || priceCopper <= 0) return;
-          const count = Math.max(1, Math.min(Number(msg.count) || 1, 99));
-          const total = priceCopper * count;
-          const playerCopper = player.currencyCopper ?? 0;
-          if (playerCopper < total) return;
-          const stackMax = player.invStackMax ?? 20;
-          const weaponDef = getWeaponDef(msg.kind);
-          let item;
-          if (weaponDef) {
-            item = createWeaponItem(msg.kind);
-            if (!item) return;
-            for (let i = 1; i < count; i += 1) {
-              const extra = createWeaponItem(msg.kind);
-              if (!extra || !addItem(player.inventory, extra, stackMax)) return;
-            }
-          } else {
-            item = {
-              id: `i${nextItemId++}`,
-              kind: msg.kind,
-              name: catalogEntry.name,
-              count,
-            };
-          }
-          if (!addItem(player.inventory, item, stackMax)) return;
-          player.currencyCopper = playerCopper - total;
-          player.inv = countInventory(player.inventory);
-          persistence.markDirty(player);
-          return;
-        }
-
-        if (msg.type === 'craft') {
-          const recipe = getRecipeById(msg.recipeId);
-          if (!recipe) return;
-          const craftCount = msg.count ?? 1;
-          for (const input of recipe.inputs) {
-            const need = input.count * craftCount;
-            if (countItem(player.inventory, input.kind) < need) return;
-          }
-          const consumed = [];
-          for (const input of recipe.inputs) {
-            const need = input.count * craftCount;
-            if (!consumeItems(player.inventory, input.kind, need)) {
-              for (const c of consumed) {
-                addItem(player.inventory, c, player.invStackMax ?? 20);
-              }
-              return;
-            }
-            consumed.push({
-              id: `i${nextItemId++}`,
-              kind: input.kind,
-              name: getItemDisplayName(input.kind),
-              count: need,
-            });
-          }
-          const outputKind = recipe.output.kind;
-          const outputCount = (recipe.output.count ?? 1) * craftCount;
-          const weaponDef = getWeaponDef(outputKind);
-          let outputItem;
-          if (weaponDef) {
-            outputItem = createWeaponItem(outputKind);
-            if (!outputItem) {
-              for (const c of consumed) {
-                addItem(player.inventory, c, player.invStackMax ?? 20);
-              }
-              return;
-            }
-            outputItem.count = outputCount;
-          } else {
-            outputItem = {
-              id: `i${nextItemId++}`,
-              kind: outputKind,
-              name: getItemDisplayName(outputKind),
-              count: outputCount,
-            };
-          }
-          const stackMax = player.invStackMax ?? 20;
-          if (!addItem(player.inventory, outputItem, stackMax)) {
-            for (const c of consumed) {
-              addItem(player.inventory, c, stackMax);
-            }
-            return;
-          }
-          player.inv = countInventory(player.inventory);
-          persistence.markDirty(player);
         }
       });
     })().catch((err) => {
