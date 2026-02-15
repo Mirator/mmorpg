@@ -223,14 +223,7 @@ function buildVillage(base) {
 
 function buildObstacleMesh(obstacle) {
   const group = new THREE.Group();
-  const placeholder = new THREE.Mesh(
-    new THREE.CylinderGeometry(obstacle.r, obstacle.r, 2.4, 10),
-    new THREE.MeshStandardMaterial({ color: COLORS.obstacle, roughness: 1 })
-  );
-  placeholder.position.y = 1.2;
-  group.add(placeholder);
   group.position.set(obstacle.x, obstacle.y ?? 0, obstacle.z);
-  group.userData.placeholder = placeholder;
   group.userData.obstacle = obstacle;
   return group;
 }
@@ -480,7 +473,7 @@ export function initWorld(scene, world) {
   group.add(ground, baseMesh, envGroup, ...obstacleMeshes);
   scene.add(group);
 
-  loadEnvironmentModels(worldState, envGroup, base, worldState.obstacles).catch(
+  loadEnvironmentModels(worldState, envGroup, base).catch(
     (err) => {
       console.warn('[world] Failed to load environment models:', err);
     }
@@ -644,21 +637,6 @@ async function addEnvironmentModel(worldState, envGroup, key, placement) {
   envGroup.add(lod);
 }
 
-async function addTreeClusters(worldState, envGroup, obstacles) {
-  if (!worldState?.isActive) return;
-  const gltf = await getEnvironmentPrototype('trees');
-  if (!worldState.isActive) return;
-  const picks = Array.isArray(obstacles) ? obstacles.slice(0, 4) : [];
-  for (const obstacle of picks) {
-    const model = cloneStatic(gltf.scene);
-    normalizeToHeight(model, 5);
-    const lod = createLODModel(model, 'cone');
-    lod.position.set(obstacle.x + 2, obstacle.y ?? 0, obstacle.z + 2);
-    lod.rotation.y = (Math.random() * Math.PI) / 2;
-    envGroup.add(lod);
-  }
-}
-
 async function loadObstacleRocks(worldState) {
   if (!worldState?.isActive || !ASSET_PATHS.rocks?.length) return;
   const rockUrls = ASSET_PATHS.rocks;
@@ -666,9 +644,8 @@ async function loadObstacleRocks(worldState) {
   if (!worldState.isActive) return;
 
   for (const mesh of worldState.obstacleMeshes) {
-    const placeholder = mesh.userData?.placeholder;
     const obstacle = mesh.userData?.obstacle;
-    if (!placeholder || !obstacle) continue;
+    if (!obstacle) continue;
 
     const idx = Math.floor(Math.random() * rockPrototypes.length);
     const gltf = rockPrototypes[idx];
@@ -682,14 +659,12 @@ async function loadObstacleRocks(worldState) {
     const scale = targetSize / Math.max(size.x, size.y, size.z);
     model.scale.setScalar(scale);
     model.position.y = -box.min.y * scale;
-    mesh.remove(placeholder);
-    mesh.userData.placeholder = null;
     mesh.add(model);
     mesh.rotation.y = Math.random() * Math.PI * 2;
   }
 }
 
-async function loadEnvironmentModels(worldState, envGroup, base, obstacles) {
+async function loadEnvironmentModels(worldState, envGroup, base) {
   if (!worldState?.isActive) return;
   const ring = (base?.radius ?? 8) + 6;
   const diag = ring * 0.7;
@@ -710,7 +685,6 @@ async function loadEnvironmentModels(worldState, envGroup, base, obstacles) {
     loadObstacleRocks(worldState),
   ]);
 
-  await addTreeClusters(worldState, envGroup, obstacles);
   if (worldState.isActive) worldState.envReady = true;
 }
 
