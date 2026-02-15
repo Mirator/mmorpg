@@ -28,6 +28,13 @@ const COLORS = {
   corpseCross: 0x718096,
 };
 
+const MOB_TARGET_HEIGHTS = {
+  wolf: 0.6,
+  fox: 0.5,
+  stag: 0.9,
+  bull: 1.0,
+};
+
 const RESOURCE_TYPE_COLORS = {
   crystal: { active: 0x5ef2c2, dim: 0x1b2a28 },
   ore: { active: 0x8b7355, dim: 0x3d3228 },
@@ -197,35 +204,6 @@ function buildVillage(base) {
   plaza.position.y = 0.03;
   village.add(plaza);
   village.userData.plaza = plaza;
-
-  const hutCount = 6;
-  const hutRadius = base.radius * 0.65;
-  for (let i = 0; i < hutCount; i += 1) {
-    const angle = (i / hutCount) * Math.PI * 2;
-    const hx = Math.cos(angle) * hutRadius;
-    const hz = Math.sin(angle) * hutRadius;
-    const hut = new THREE.Group();
-    const walls = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.1, 1.1, 1.6, 8),
-      new THREE.MeshStandardMaterial({
-        color: 0x6d5841,
-        roughness: 1,
-      })
-    );
-    walls.position.y = 0.8;
-    const roof = new THREE.Mesh(
-      new THREE.ConeGeometry(1.4, 1.2, 8),
-      new THREE.MeshStandardMaterial({
-        color: 0x8c3f2d,
-        roughness: 0.7,
-      })
-    );
-    roof.position.y = 2;
-    hut.add(walls, roof);
-    hut.position.set(hx, 0, hz);
-    hut.userData.placeholder = true;
-    village.add(hut);
-  }
 
   const totem = new THREE.Mesh(
     new THREE.CylinderGeometry(0.4, 0.5, 1.6, 10),
@@ -628,7 +606,8 @@ async function hydrateMobMesh(worldState, mobId, mobType, group) {
   if (worldState.mobMeshes.get(mobId) !== group) return;
 
   const model = cloneSkinned(gltf.scene);
-  normalizeToHeight(model, 1.6);
+  const targetHeight = MOB_TARGET_HEIGHTS[type] ?? 1.6;
+  normalizeToHeight(model, targetHeight);
   group.clear();
   group.add(model);
 
