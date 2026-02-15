@@ -97,9 +97,11 @@ describe('mobs', () => {
   });
 
   it('respawns dead mobs after respawn timer', () => {
+    const spawnPos = { x: 0, y: 0, z: 0 };
     const mob = {
       id: 'm1',
-      pos: { x: 0, y: 0, z: 0 },
+      pos: { x: 10, y: 0, z: 10 },
+      spawnPos,
       state: 'dead',
       targetId: null,
       nextDecisionAt: 0,
@@ -110,6 +112,7 @@ describe('mobs', () => {
       maxHp: 44,
       dead: true,
       respawnAt: 1000,
+      mobType: 'orc',
     };
 
     stepMobs([mob], [], { mapSize: 100, obstacles: [] }, 0.1, 1500, {
@@ -120,6 +123,7 @@ describe('mobs', () => {
     expect(mob.dead).toBe(false);
     expect(mob.hp).toBe(mob.maxHp);
     expect(mob.state).toBe('idle');
+    expect(mob.pos).toEqual(spawnPos);
   });
 
   it('assigns level and maxHp to spawned mobs', () => {
@@ -147,5 +151,6 @@ describe('mobs', () => {
     expect(mobs).toHaveLength(1);
     expect(mobs[0].id).toBe('m1');
     expect(mobs[0].pos).toEqual({ x: 10, y: 0, z: -5 });
+    expect(mobs[0].spawnPos).toEqual({ x: 10, y: 0, z: -5 });
   });
 });

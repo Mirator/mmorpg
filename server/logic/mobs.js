@@ -22,6 +22,17 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+const SPAWN_OFFSET_RADIUS = 0.5;
+function getRespawnPos(spawnPos, rand) {
+  const dx = (rand() * 2 - 1) * SPAWN_OFFSET_RADIUS;
+  const dz = (rand() * 2 - 1) * SPAWN_OFFSET_RADIUS;
+  return {
+    x: spawnPos.x + dx,
+    y: spawnPos.y ?? 0,
+    z: spawnPos.z + dz,
+  };
+}
+
 function isSpawnValid(x, z, world) {
   const distFromBase = Math.hypot(x - world.base.x, z - world.base.z);
   if (distFromBase < world.base.radius + 8) return false;
@@ -63,9 +74,11 @@ export function createMobs(count, world, options = {}) {
     const level = getMobLevelForPosition({ x, z }, world);
     const mobType = MOB_TYPES[Math.floor(rand() * MOB_TYPES.length)];
     const maxHp = getMobMaxHp(level, mobType);
+    const pos = { x, y: 0, z };
     mobs.push({
       id: `m${mobs.length + 1}`,
-      pos: { x, y: 0, z },
+      pos: { ...pos },
+      spawnPos: { ...pos },
       state: 'idle',
       targetId: null,
       nextDecisionAt: 0,
@@ -113,9 +126,11 @@ export function createMobsFromSpawns(spawns, world, options = {}) {
     const level = resolveMobLevel(spawn, pos, world, rand);
     const mobType = spawn.mobType ?? 'orc';
     const maxHp = getMobMaxHp(level, mobType);
+    const spawnPos = { x, y: pos.y, z };
     return {
       id: spawn.id ?? `m${index + 1}`,
-      pos: { x, y: pos.y, z },
+      pos: { ...spawnPos },
+      spawnPos,
       state: 'idle',
       targetId: null,
       nextDecisionAt: 0,
@@ -158,6 +173,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
           mob.respawnAt = 0;
           mob.state = 'idle';
           mob.targetId = null;
+          if (mob.spawnPos) mob.pos = getRespawnPos(mob.spawnPos, rand);
         }
       }
       continue;
@@ -192,6 +208,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
           mob.damageBy = {};
           mob.supportBy = {};
           mob.tauntedUntil = 0;
+          if (mob.spawnPos) mob.pos = getRespawnPos(mob.spawnPos, rand);
         }
       }
       continue;
@@ -216,6 +233,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         mob.damageBy = {};
         mob.supportBy = {};
         mob.tauntedUntil = 0;
+        if (mob.spawnPos) mob.pos = getRespawnPos(mob.spawnPos, rand);
       }
       continue;
     }

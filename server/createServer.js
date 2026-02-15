@@ -49,13 +49,15 @@ export function createServer({ env = process.env } = {}) {
     });
     const testMobLevel = 4;
     const testMobMaxHp = getMobMaxHp(testMobLevel, 'orc');
+    const mTestPos = {
+      x: world.base.x + world.base.radius + 12,
+      y: 0,
+      z: world.base.z,
+    };
     mobs.unshift({
       id: 'm-test',
-      pos: {
-        x: world.base.x + world.base.radius + 12,
-        y: 0,
-        z: world.base.z,
-      },
+      pos: { ...mTestPos },
+      spawnPos: mTestPos,
       testId: 'm-test',
       state: 'idle',
       targetId: null,
@@ -71,13 +73,15 @@ export function createServer({ env = process.env } = {}) {
 
     const chaseMobLevel = 2;
     const chaseMaxHp = getMobMaxHp(chaseMobLevel, 'orc');
+    const mChasePos = {
+      x: world.base.x - (world.base.radius + 12),
+      y: 0,
+      z: world.base.z,
+    };
     mobs.unshift({
       id: 'm-chase',
-      pos: {
-        x: world.base.x - (world.base.radius + 12),
-        y: 0,
-        z: world.base.z,
-      },
+      pos: { ...mChasePos },
+      spawnPos: mChasePos,
       state: 'idle',
       targetId: null,
       nextDecisionAt: Number.MAX_SAFE_INTEGER,
