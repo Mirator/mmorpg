@@ -1,5 +1,5 @@
 **Title**
-MMORPG Game Design Document (Current Functionality)
+Rising Ages Game Design Document (Current Functionality)
 
 **Purpose**
 This document describes the game as it exists today in the codebase. It is meant to capture current functionality for extension in future work. It does not include planned features, speculative design, or dev/testing hooks.

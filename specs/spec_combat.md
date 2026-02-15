@@ -1,6 +1,6 @@
 # Game Specification
 
-**Project:** Class-Based Tab/Hybrid MMORPG  
+**Project:** Rising Ages  
 **Classes:** Fighter, Guardian, Mage, Priest, Ranger
 
 This document describes the implemented attribute system, combat mechanics, and item schema as they exist in the codebase.

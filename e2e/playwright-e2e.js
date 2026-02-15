@@ -308,7 +308,7 @@ async function run() {
 
     await page.waitForSelector('#overlay');
     const overlayText = await page.locator('#overlay').innerText();
-    if (overlayText.includes('MMORPG MVP')) {
+    if (overlayText.includes('Rising Ages')) {
       throw new Error('Overlay still includes title text');
     }
     if (overlayText.toLowerCase().includes('account')) {
