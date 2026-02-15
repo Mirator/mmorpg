@@ -10,6 +10,7 @@
   <body>
     <div id="app"></div>
     <div id="menu" class="menu open" data-step="auth" data-tab="signin">
+      <div class="menu-hero">MMORPG MVP</div>
       <div class="menu-card menu-auth">
         <div class="menu-brand">MMORPG MVP</div>
         <div class="menu-subtitle">Sign in to continue your journey.</div>
@@ -132,9 +133,8 @@
         <div class="overlay-status">Status: <span id="status">connecting...</span></div>
         <div class="overlay-controls">
           WASD to move · Click to move · Click target/TAB to cycle enemies · E to interact · I for
-          inventory · C for character · K for skills · 1-0 for abilities
+          inventory · C for character · K for skills · 1-0 for abilities · ESC for menu
         </div>
-        <button id="signout-btn" class="overlay-btn">Sign out</button>
       </div>
     </div>
     <div id="target-hud" class="target-hud">
@@ -299,6 +299,26 @@
         <span id="party-invite-text"></span>
         <button id="party-accept-btn" class="party-btn small" type="button">Accept</button>
         <button id="party-decline-btn" class="party-btn ghost small" type="button">Decline</button>
+      </div>
+    </div>
+    <div id="pause-menu" class="pause-menu" aria-hidden="true">
+      <div class="pause-menu-backdrop"></div>
+      <div class="pause-menu-card">
+        <div class="pause-menu-main" id="pause-menu-main">
+          <div class="pause-menu-title">Game Menu</div>
+          <div class="pause-menu-actions">
+            <button id="pause-resume-btn" class="menu-primary" type="button">Resume</button>
+            <button id="pause-options-btn" class="menu-secondary" type="button">Options</button>
+            <button id="pause-controls-btn" class="menu-secondary" type="button">Controls</button>
+            <button id="pause-character-btn" class="menu-secondary" type="button">Return to Character Screen</button>
+            <button id="pause-signout-btn" class="menu-ghost" type="button">Sign Out</button>
+          </div>
+        </div>
+        <div class="pause-menu-controls hidden" id="pause-menu-controls">
+          <div class="pause-menu-title">Controls</div>
+          <div class="controls-list" id="controls-list"></div>
+          <button id="pause-controls-back-btn" class="menu-ghost" type="button">Back</button>
+        </div>
       </div>
     </div>
     <div id="chat-panel" class="chat-panel">

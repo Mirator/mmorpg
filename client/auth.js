@@ -196,6 +196,23 @@ export function createAuth({
     }
   }
 
+  async function returnToCharacterSelect() {
+    onDisconnect?.();
+    currentCharacter = null;
+    ui.setStatus?.('menu');
+    try {
+      await loadCharacters();
+    } catch (err) {
+      clearSessionState();
+      menu.setAccount(null);
+      menu.setStep('auth');
+      menu.setTab('signin');
+      menu.setOpen(true);
+      ui.setMenuOpen(true);
+      ui.setStatus?.('menu');
+    }
+  }
+
   async function signOut() {
     menu.setLoading(true);
     try {
@@ -271,6 +288,7 @@ export function createAuth({
     signIn,
     signUp,
     signOut,
+    returnToCharacterSelect,
     createCharacter,
     deleteCharacter,
     connectCharacter,

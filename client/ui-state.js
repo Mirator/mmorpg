@@ -113,6 +113,7 @@ export function createUiState({
   let characterOpen = false;
   let characterTab = 'character';
   let menuOpen = true;
+  let pauseMenuOpen = false;
   let deadOpen = false;
   const abilitySlots = [];
   const localCooldowns = new Map();
@@ -235,6 +236,15 @@ export function createUiState({
 
   function isMenuOpen() {
     return menuOpen;
+  }
+
+  function setPauseMenuOpen(open) {
+    pauseMenuOpen = !!open;
+    document.body.classList.toggle('pause-menu-open', pauseMenuOpen);
+  }
+
+  function isPauseMenuOpen() {
+    return pauseMenuOpen;
   }
 
   function buildAbilityTooltip(ability) {
@@ -538,6 +548,7 @@ export function createUiState({
   function isUiBlocking() {
     return (
       menuOpen ||
+      pauseMenuOpen ||
       inventoryOpen ||
       characterOpen ||
       isDialogOpen() ||
@@ -774,10 +785,12 @@ export function createUiState({
     setSkillsOpen: (open) => { if (open) { setCharacterOpen(true); setCharacterTab('skills'); } else setCharacterOpen(false); },
     toggleSkills,
     setMenuOpen,
+    setPauseMenuOpen,
+    isMenuOpen,
+    isPauseMenuOpen,
     isInventoryOpen,
     isDialogOpen,
     isTradeOpen,
-    isMenuOpen,
     isSkillsOpen,
     isUiBlocking,
     getCurrentClassId,

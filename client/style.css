@@ -52,7 +52,21 @@ body.menu-open #vendor-dialog,
 body.menu-open #vendor-panel,
 body.menu-open #ability-bar,
 body.menu-open #xp-bar,
-body.menu-open #cast-bar-wrap {
+body.menu-open #cast-bar-wrap,
+body.pause-menu-open #chat-panel,
+body.pause-menu-open #overlay,
+body.pause-menu-open #top-right-panel,
+body.pause-menu-open #target-hud,
+body.pause-menu-open #prompt,
+body.pause-menu-open #event,
+body.pause-menu-open #damage-flash,
+body.pause-menu-open #inventory-panel,
+body.pause-menu-open #character-sheet-panel,
+body.pause-menu-open #vendor-dialog,
+body.pause-menu-open #vendor-panel,
+body.pause-menu-open #ability-bar,
+body.pause-menu-open #xp-bar,
+body.pause-menu-open #cast-bar-wrap {
   opacity: 0;
   pointer-events: none;
 }
@@ -61,14 +75,27 @@ body.menu-open #cast-bar-wrap {
   position: fixed;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: radial-gradient(circle at top, rgba(16, 24, 34, 0.92), rgba(4, 8, 12, 0.96));
+  background: radial-gradient(ellipse at center, rgba(8, 14, 22, 0.98), rgba(2, 6, 10, 0.99));
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
   z-index: 60;
+}
+
+.menu-hero {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 600;
+  color: var(--text);
+  text-shadow: 0 0 40px rgba(77, 163, 255, 0.3);
+  letter-spacing: 0.02em;
 }
 
 .menu.open {
@@ -215,6 +242,106 @@ body.menu-open #cast-bar-wrap {
   display: flex;
   gap: 10px;
   justify-content: space-between;
+}
+
+/* Pause menu (in-game ESC) */
+.pause-menu {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 65;
+}
+
+.pause-menu.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pause-menu-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(8, 14, 22, 0.95), rgba(2, 6, 10, 0.98));
+}
+
+.pause-menu-card {
+  position: relative;
+  width: min(420px, 92vw);
+  padding: 28px;
+  border-radius: 18px;
+  border: 1px solid rgba(77, 163, 255, 0.35);
+  background: radial-gradient(circle at 20% 20%, rgba(26, 38, 52, 0.95), rgba(10, 14, 20, 0.98));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+.pause-menu-main,
+.pause-menu-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pause-menu-controls.hidden {
+  display: none;
+}
+
+.pause-menu-main.hidden {
+  display: none;
+}
+
+.pause-menu-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.pause-menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pause-menu-actions .menu-primary,
+.pause-menu-actions .menu-secondary,
+.pause-menu-actions .menu-ghost {
+  width: 100%;
+  text-align: center;
+}
+
+.controls-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(12, 18, 26, 0.6);
+  border: 1px solid rgba(77, 163, 255, 0.2);
+}
+
+.controls-row kbd {
+  font-family: inherit;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(77, 163, 255, 0.15);
+  border: 1px solid rgba(77, 163, 255, 0.35);
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .menu-error {

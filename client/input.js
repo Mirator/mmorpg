@@ -36,6 +36,7 @@ export function createInputHandler({
   camera,
   isUiBlocking,
   isMenuOpen,
+  isPauseMenuOpen,
   isDialogOpen,
   isTradeOpen,
   isInventoryOpen,
@@ -56,6 +57,7 @@ export function createInputHandler({
   onPlacementConfirm,
   onPlacementCancel,
   onPlacementUpdate,
+  onTogglePauseMenu,
 }) {
   const keys = { w: false, a: false, s: false, d: false };
 
@@ -111,10 +113,16 @@ export function createInputHandler({
       return;
     }
     if (key === 'escape' && !event.repeat) {
+      if (isPauseMenuOpen?.()) {
+        onTogglePauseMenu?.();
+        return;
+      }
       if (getPlacementMode?.()) {
         onPlacementCancel?.();
         return;
       }
+      onTogglePauseMenu?.();
+      return;
     }
     if (key === 'tab' && !event.repeat) {
       event.preventDefault();

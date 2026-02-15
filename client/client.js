@@ -16,13 +16,13 @@ import { PLAYER_CONFIG } from '/shared/config.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 import { createMinimap } from './minimap.js';
 import { createChat } from './chat.js';
+import { createPauseMenu } from './pause-menu.js';
 
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
 const coordsEl = document.getElementById('coords');
 const accountNameEl = document.getElementById('account-name');
 const characterNameEl = document.getElementById('overlay-character-name');
-const signOutBtn = document.getElementById('signout-btn');
 const overlayEl = document.getElementById('overlay');
 const loadingScreenEl = document.getElementById('loading-screen');
 const loadingTextEl = document.getElementById('loading-text');
@@ -284,6 +284,25 @@ auth.setOnDisconnect(() => connection.disconnect());
 const urlParams = new URLSearchParams(window.location.search);
 const isGuestSession = urlParams.get('guest') === '1';
 
+const pauseMenu = createPauseMenu({
+  onResume: () => {
+    pauseMenu.setOpen(false);
+  },
+  onOptions: () => {
+    /* placeholder */
+  },
+  onReturnToCharacterScreen: () => {
+    pauseMenu.setOpen(false);
+    auth.returnToCharacterSelect();
+  },
+  onSignOut: () => {
+    pauseMenu.setOpen(false);
+    auth.signOut();
+  },
+  isGuest: isGuestSession,
+  setPauseMenuOpen: ui.setPauseMenuOpen,
+});
+
 let lastFrameTime = performance.now();
 let fpsLastTime = lastFrameTime;
 let fpsFrameCount = 0;
@@ -295,6 +314,7 @@ inputHandler = createInputHandler({
   camera: renderSystem.camera,
   isUiBlocking: ui.isUiBlocking,
   isMenuOpen: ui.isMenuOpen,
+  isPauseMenuOpen: ui.isPauseMenuOpen,
   isDialogOpen: ui.isDialogOpen,
   isTradeOpen: ui.isTradeOpen,
   isInventoryOpen: ui.isInventoryOpen,
@@ -314,6 +334,15 @@ inputHandler = createInputHandler({
   onPlacementConfirm: (pos) => combat.confirmPlacement(pos),
   onPlacementCancel: () => combat.cancelPlacement(),
   onPlacementUpdate: (pos) => combat.updatePlacementCursor(pos),
+  onTogglePauseMenu: () => {
+    if (ctx.net && !ui.isMenuOpen()) {
+      if (pauseMenu.isOpen()) {
+        pauseMenu.handleEscape();
+      } else {
+        pauseMenu.setOpen(true);
+      }
+    }
+  },
 });
 
 function handleInteract() {
@@ -747,12 +776,6 @@ function getNearestVendor(pos) {
     }
   }
   return { vendor: bestVendor, distance: bestDist };
-}
-
-if (signOutBtn) {
-  signOutBtn.addEventListener('click', () => {
-    auth.signOut();
-  });
 }
 
 if (overlayEl) {
