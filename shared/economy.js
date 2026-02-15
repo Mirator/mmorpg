@@ -6,6 +6,8 @@ export const VENDOR_SELL_PRICES = {
   crystal: 10,
   ore: 15,
   herb: 12,
+  wood: 8,
+  flower: 10,
 };
 
 /** @type {{ kind: string, name: string, priceCopper: number, category?: string }[]} */
@@ -26,6 +28,8 @@ export const RESOURCE_TYPES = {
   crystal: { itemKind: 'crystal', itemName: 'Crystal', sellPrice: 10 },
   ore: { itemKind: 'ore', itemName: 'Iron Ore', sellPrice: 15 },
   herb: { itemKind: 'herb', itemName: 'Healing Herb', sellPrice: 12 },
+  tree: { itemKind: 'wood', itemName: 'Wood', sellPrice: 8 },
+  flower: { itemKind: 'flower', itemName: 'Flower', sellPrice: 10 },
 };
 
 /**

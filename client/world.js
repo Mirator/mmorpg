@@ -32,9 +32,11 @@ const RESOURCE_TYPE_COLORS = {
   crystal: { active: 0x5ef2c2, dim: 0x1b2a28 },
   ore: { active: 0x8b7355, dim: 0x3d3228 },
   herb: { active: 0x5ec24e, dim: 0x1b2a1b },
+  tree: { active: 0x8b6914, dim: 0x3d3228 },
+  flower: { active: 0xe85d9a, dim: 0x4a2a35 },
 };
 
-let mobPrototypePromise = null;
+const mobPrototypeCache = new Map();
 let vendorPrototypePromise = null;
 let vendorClipsPromise = null;
 const environmentCache = new Map();
@@ -90,11 +92,13 @@ function createLODModel(fullModel, impostorType = 'box') {
   return lod;
 }
 
-function getMobPrototype() {
-  if (!mobPrototypePromise) {
-    mobPrototypePromise = loadGltf(ASSET_PATHS.monsters.orc);
+function getMobPrototype(mobType) {
+  const type = mobType ?? 'orc';
+  const url = ASSET_PATHS.monsters[type] ?? ASSET_PATHS.monsters.orc;
+  if (!mobPrototypeCache.has(type)) {
+    mobPrototypeCache.set(type, loadGltf(url));
   }
-  return mobPrototypePromise;
+  return mobPrototypeCache.get(type);
 }
 
 function getEnvironmentPrototype(key) {
@@ -192,6 +196,7 @@ function buildVillage(base) {
   plaza.rotation.x = -Math.PI / 2;
   plaza.position.y = 0.03;
   village.add(plaza);
+  village.userData.plaza = plaza;
 
   const hutCount = 6;
   const hutRadius = base.radius * 0.65;
@@ -218,6 +223,7 @@ function buildVillage(base) {
     roof.position.y = 2;
     hut.add(walls, roof);
     hut.position.set(hx, 0, hz);
+    hut.userData.placeholder = true;
     village.add(hut);
   }
 
@@ -233,16 +239,22 @@ function buildVillage(base) {
   village.add(totem);
 
   village.position.set(base.x, base.y ?? 0, base.z);
+  village.userData.base = base;
   return village;
 }
 
 function buildObstacleMesh(obstacle) {
-  const mesh = new THREE.Mesh(
+  const group = new THREE.Group();
+  const placeholder = new THREE.Mesh(
     new THREE.CylinderGeometry(obstacle.r, obstacle.r, 2.4, 10),
     new THREE.MeshStandardMaterial({ color: COLORS.obstacle, roughness: 1 })
   );
-  mesh.position.set(obstacle.x, obstacle.y ?? 1.2, obstacle.z);
-  return mesh;
+  placeholder.position.y = 1.2;
+  group.add(placeholder);
+  group.position.set(obstacle.x, obstacle.y ?? 0, obstacle.z);
+  group.userData.placeholder = placeholder;
+  group.userData.obstacle = obstacle;
+  return group;
 }
 
 function buildCorpseMesh() {
@@ -280,7 +292,7 @@ function buildCorpseMesh() {
 function buildResourceMesh(type = 'crystal') {
   const colors = RESOURCE_TYPE_COLORS[type] ?? RESOURCE_TYPE_COLORS.crystal;
   const group = new THREE.Group();
-  const crystal = new THREE.Mesh(
+  const placeholder = new THREE.Mesh(
     new THREE.ConeGeometry(0.5, 1.6, 6),
     new THREE.MeshStandardMaterial({
       color: colors.active,
@@ -289,15 +301,56 @@ function buildResourceMesh(type = 'crystal') {
       roughness: 0.4,
     })
   );
-  crystal.position.y = 0.8;
-  group.add(crystal);
-  group.userData.crystal = crystal;
+  placeholder.position.y = 0.8;
+  group.add(placeholder);
+  group.userData.crystal = placeholder;
+  group.userData.placeholder = placeholder;
   group.userData.type = type;
   group.userData.pulseOffset = Math.random() * Math.PI * 2;
+
+  hydrateResourceMesh(type, group).catch((err) => {
+    console.warn('[world] Failed to load resource node model:', err);
+  });
+
   return group;
 }
 
-function buildMobMesh(worldState, mobId) {
+function applyResourceMaterialColors(ref, colors, available) {
+  if (!ref) return;
+  const intensity = available ? 0.25 : 0.05;
+  const color = available ? colors.active : colors.dim;
+  const mats = [];
+  if (ref.isMesh && ref.material) {
+    mats.push(...(Array.isArray(ref.material) ? ref.material : [ref.material]));
+  }
+  ref.traverse?.((n) => {
+    if (n?.isMesh && n.material) mats.push(...(Array.isArray(n.material) ? n.material : [n.material]));
+  });
+  mats.forEach((m) => {
+    if (m.color) m.color.setHex(color);
+    if (m.emissive) m.emissive.setHex(color);
+    if (m.emissiveIntensity !== undefined) m.emissiveIntensity = intensity;
+  });
+}
+
+async function hydrateResourceMesh(type, group) {
+  const url = ASSET_PATHS.resourceNodes?.[type] ?? ASSET_PATHS.resourceNodes?.crystal;
+  if (!url) return;
+  const gltf = await loadGltf(url);
+  if (!gltf?.scene) return;
+  const model = gltf.scene.clone(true);
+  normalizeToHeight(model, 1.6);
+  model.position.y = 0.8;
+  group.remove(group.userData.placeholder);
+  group.userData.placeholder = null;
+  group.userData.crystal = model;
+  group.add(model);
+  group.rotation.y = Math.random() * Math.PI * 2;
+}
+
+function buildMobMesh(worldState, mob) {
+  const mobId = mob?.id;
+  const mobType = mob?.mobType ?? 'orc';
   const group = new THREE.Group();
   const placeholder = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.5, 1.0, 4, 8),
@@ -311,8 +364,9 @@ function buildMobMesh(worldState, mobId) {
   placeholder.position.y = 1.1;
   group.add(placeholder);
   group.userData.placeholder = placeholder;
+  group.userData.mobType = mobType;
 
-  hydrateMobMesh(worldState, mobId, group).catch((err) => {
+  hydrateMobMesh(worldState, mobId, mobType, group).catch((err) => {
     console.warn('[world] Failed to load mob model:', err);
   });
 
@@ -473,23 +527,11 @@ export function updateResources(worldState, resources) {
       worldState.group.add(mesh);
     } else if (mesh.userData.type !== resourceType) {
       mesh.userData.type = resourceType;
-      mesh.userData.crystal.material.color.setHex(colors.active);
-      mesh.userData.crystal.material.emissive.setHex(colors.active);
+      applyResourceMaterialColors(mesh.userData.crystal, colors, true);
     }
     mesh.position.set(resource.x, resource.y ?? 0, resource.z);
     mesh.userData.available = resource.available;
-    const crystal = mesh.userData.crystal;
-    if (crystal) {
-      if (resource.available) {
-        crystal.material.color.setHex(colors.active);
-        crystal.material.emissive.setHex(colors.active);
-        crystal.material.emissiveIntensity = 0.25;
-      } else {
-        crystal.material.color.setHex(colors.dim);
-        crystal.material.emissive.setHex(colors.dim);
-        crystal.material.emissiveIntensity = 0.05;
-      }
-    }
+    applyResourceMaterialColors(mesh.userData.crystal, colors, resource.available);
   }
 
   for (const [id, mesh] of worldState.resourceMeshes.entries()) {
@@ -510,7 +552,7 @@ export function updateMobs(worldState, mobs) {
     seen.add(mob.id);
     let mesh = worldState.mobMeshes.get(mob.id);
     if (!mesh) {
-      mesh = buildMobMesh(worldState, mob.id);
+      mesh = buildMobMesh(worldState, mob);
       worldState.mobMeshes.set(mob.id, mesh);
       worldState.group.add(mesh);
     }
@@ -578,9 +620,10 @@ function createMobActions(mixer, clipSet) {
   return actions;
 }
 
-async function hydrateMobMesh(worldState, mobId, group) {
+async function hydrateMobMesh(worldState, mobId, mobType, group) {
   if (!worldState?.isActive) return;
-  const gltf = await getMobPrototype();
+  const type = mobType ?? group.userData?.mobType ?? 'orc';
+  const gltf = await getMobPrototype(type);
   if (!worldState.isActive) return;
   if (worldState.mobMeshes.get(mobId) !== group) return;
 
@@ -637,6 +680,36 @@ async function addTreeClusters(worldState, envGroup, obstacles) {
   }
 }
 
+async function loadObstacleRocks(worldState) {
+  if (!worldState?.isActive || !ASSET_PATHS.rocks?.length) return;
+  const rockUrls = ASSET_PATHS.rocks;
+  const rockPrototypes = await Promise.all(rockUrls.map((url) => loadGltf(url)));
+  if (!worldState.isActive) return;
+
+  for (const mesh of worldState.obstacleMeshes) {
+    const placeholder = mesh.userData?.placeholder;
+    const obstacle = mesh.userData?.obstacle;
+    if (!placeholder || !obstacle) continue;
+
+    const idx = Math.floor(Math.random() * rockPrototypes.length);
+    const gltf = rockPrototypes[idx];
+    if (!gltf?.scene) continue;
+
+    const model = cloneStatic(gltf.scene);
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const targetSize = (obstacle.r ?? 1.5) * 2.5;
+    const scale = targetSize / Math.max(size.x, size.y, size.z);
+    model.scale.setScalar(scale);
+    model.position.y = -box.min.y * scale;
+    mesh.remove(placeholder);
+    mesh.userData.placeholder = null;
+    mesh.add(model);
+    mesh.rotation.y = Math.random() * Math.PI * 2;
+  }
+}
+
 async function loadEnvironmentModels(worldState, envGroup, base, obstacles) {
   if (!worldState?.isActive) return;
   const ring = (base?.radius ?? 8) + 6;
@@ -649,11 +722,12 @@ async function loadEnvironmentModels(worldState, envGroup, base, obstacles) {
     { key: 'houseB', x: base.x + diag, z: base.z + diag, rotation: Math.PI / 4, height: 3.8 },
   ];
 
-  await Promise.all(
-    placements.map((placement) =>
+  await Promise.all([
+    ...placements.map((placement) =>
       addEnvironmentModel(worldState, envGroup, placement.key, placement)
-    )
-  );
+    ),
+    loadObstacleRocks(worldState),
+  ]);
 
   await addTreeClusters(worldState, envGroup, obstacles);
   if (worldState.isActive) worldState.envReady = true;

@@ -127,6 +127,7 @@ describe('admin state serialization', () => {
         maxHp: 0,
         dead: false,
         respawnAt: 0,
+        mobType: 'orc',
       },
     ]);
   });

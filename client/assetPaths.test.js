@@ -19,10 +19,11 @@ describe('assetPaths', () => {
     expect(ASSET_PATHS.environment).toHaveProperty('trees');
   });
 
-  it('ASSET_PATHS uses /assets/quaternius root', () => {
-    expect(ASSET_PATHS.playerModel).toMatch(/^\/assets\/quaternius\//);
-    expect(ASSET_PATHS.monsters.orc).toMatch(/^\/assets\/quaternius\//);
-    expect(ASSET_PATHS.environment.market).toMatch(/^\/assets\/quaternius\//);
+  it('ASSET_PATHS uses /assets/ root for models and environment', () => {
+    expect(ASSET_PATHS.playerModel).toMatch(/^\/assets\//);
+    expect(ASSET_PATHS.monsters.orc).toMatch(/^\/assets\//);
+    expect(ASSET_PATHS.environment.market).toMatch(/^\/assets\//);
+    expect(ASSET_PATHS.environment.trees).toMatch(/^\/assets\//);
   });
 
   it('getPreloadAssetList returns player, mobs, and environment', () => {
@@ -39,8 +40,8 @@ describe('assetPaths', () => {
 
     expect(list).toHaveProperty('mobs');
     expect(Array.isArray(list.mobs)).toBe(true);
-    expect(list.mobs).toHaveLength(1);
-    expect(list.mobs[0]).toBe(ASSET_PATHS.monsters.orc);
+    expect(list.mobs.length).toBeGreaterThanOrEqual(1);
+    expect(list.mobs).toContain(ASSET_PATHS.monsters.orc);
 
     expect(list).toHaveProperty('environment');
     expect(Array.isArray(list.environment)).toBe(true);

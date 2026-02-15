@@ -135,6 +135,7 @@ export function serializeMobs(mobs) {
     maxHp: m.maxHp ?? 0,
     dead: !!m.dead,
     respawnAt: m.respawnAt ?? 0,
+    mobType: m.mobType ?? 'orc',
   }));
 }
 

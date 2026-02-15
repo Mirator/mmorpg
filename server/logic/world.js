@@ -75,7 +75,7 @@ function generateObstacles(rng) {
   return obstacles;
 }
 
-const RESOURCE_TYPES_LIST = ['crystal', 'ore', 'herb'];
+const RESOURCE_TYPES_LIST = ['crystal', 'ore', 'herb', 'tree', 'flower'];
 
 function generateResourceNodes(rng, obstacles) {
   const half = MAP_SIZE / 2;
@@ -191,6 +191,7 @@ export function createWorldFromConfig(mapConfig) {
     x: spawn.x,
     y: spawn.y ?? 0,
     z: spawn.z,
+    mobType: spawn.mobType ?? 'orc',
   }));
 
   return {

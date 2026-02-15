@@ -67,6 +67,8 @@ export function createMobs(count, world, options = {}) {
     if (!isSpawnValid(x, z, world)) continue;
     const level = getMobLevelForPosition({ x, z }, world);
     const maxHp = getMobMaxHp(level);
+    const mobTypes = ['orc', 'demon', 'yeti', 'tribal', 'wolf', 'fox', 'bull', 'stag'];
+    const mobType = mobTypes[Math.floor(rand() * mobTypes.length)];
     mobs.push({
       id: `m${mobs.length + 1}`,
       pos: { x, y: 0, z },
@@ -80,6 +82,7 @@ export function createMobs(count, world, options = {}) {
       maxHp,
       dead: false,
       respawnAt: 0,
+      mobType,
     });
   }
 
@@ -115,6 +118,7 @@ export function createMobsFromSpawns(spawns, world, options = {}) {
       maxHp,
       dead: false,
       respawnAt: 0,
+      mobType: spawn.mobType ?? 'orc',
     };
   });
 }

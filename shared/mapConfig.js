@@ -30,7 +30,7 @@ function normalizeList(raw, mapFn) {
   return raw.map((item) => mapFn(item));
 }
 
-const VALID_RESOURCE_TYPES = new Set(['crystal', 'ore', 'herb']);
+const VALID_RESOURCE_TYPES = new Set(['crystal', 'ore', 'herb', 'tree', 'flower']);
 
 export function normalizeMapConfig(raw) {
   const config = isObject(raw) ? raw : {};
@@ -64,6 +64,7 @@ export function normalizeMapConfig(raw) {
       x: isObject(item) ? item.x ?? 0 : 0,
       y: isObject(item) ? item.y ?? 0 : 0,
       z: isObject(item) ? item.z ?? 0 : 0,
+      mobType: isObject(item) && typeof item.mobType === 'string' ? item.mobType.trim().toLowerCase() : 'orc',
     })),
   };
 }
@@ -182,7 +183,7 @@ export function validateMapConfig(config) {
       validatePoint(errors, `resourceNodes[${index}]`, node ?? {}, half, yMin, yMax);
       const type = node?.type;
       if (type !== undefined && type !== null && (!VALID_RESOURCE_TYPES.has(String(type).toLowerCase()))) {
-        addError(errors, `resourceNodes[${index}] type must be crystal, ore, or herb.`);
+        addError(errors, `resourceNodes[${index}] type must be crystal, ore, herb, tree, or flower.`);
       }
     });
   }

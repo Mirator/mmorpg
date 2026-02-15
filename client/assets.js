@@ -262,6 +262,8 @@ export async function preloadAllAssets(onProgress) {
     loadPlayerAnimations(),
     ...list.mobs.map((url) => loadGltf(url)),
     ...list.environment.map((url) => loadGltf(url)),
+    ...(list.rocks ?? []).map((url) => loadGltf(url)),
+    ...(list.resourceNodes ?? []).map((url) => loadGltf(url)),
     ...(list.textures ?? []).map((url) => loadTexture(url)),
   ];
 
