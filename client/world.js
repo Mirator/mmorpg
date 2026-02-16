@@ -31,7 +31,7 @@ const COLORS = {
 const MOB_TARGET_HEIGHTS = {
   wolf: 0.6,
   fox: 0.5,
-  stag: 0.9,
+  stag: 1.8,
   bull: 1.0,
 };
 
