@@ -33,6 +33,7 @@ Models are selected by `mobType` from spawn config. Used in `buildMobMesh` / `hy
 | fox | `/assets/animals/Fox.gltf` | Fox |
 | bull | `/assets/animals/Bull.gltf` | Bull |
 | stag | `/assets/animals/Stag.gltf` | Stag |
+| dummy | `/assets/environment/Practice_Dummy.glb` | Practice Dummy |
 
 **Source:** Ultimate Monsters, Ultimate Animated Animals (quaternius)
 
@@ -166,7 +167,7 @@ Assets preloaded at game entry (see `getPreloadAssetList`):
 
 1. Player (assemble + animations)
 2. Vendor model
-3. Mob models (all 8)
+3. Mob models (all 9, including dummy)
 4. Environment models (6)
 5. Rocks (3)
 6. Resource node models (Crystal1, Crystal2, Crystal3)

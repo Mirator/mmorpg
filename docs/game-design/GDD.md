@@ -55,16 +55,16 @@ Death and respawn:
 Harvesting:
 - Press E near an available resource node.
 - Harvest radius: 2.2 units.
-- Item gained: `Crystal` (kind `crystal`, count 1).
-- Resource node becomes unavailable and respawns after 15 seconds.
+- Item gained depends on node type (`crystal`, `ore`, `herb`, `tree`, `flower`).
+- Resource node becomes unavailable and respawns on a per-type timer.
 - Harvest is blocked if inventory cannot accept the item.
 
 Vendor interaction:
 - Press E near a vendor within 2.5 units to open dialog.
-- Trade panel opens from dialog and allows selling.
+- Trade panel opens from dialog and supports selling and buying.
 - Sell by dragging an item to the vendor drop zone.
 - Only items with a configured price can be sold.
-- Buy tab exists in UI but no buying is implemented.
+- Buy tab lists the nearby vendor catalog; purchases validate range, price, and inventory capacity.
 
 **Inventory And Equipment**
 Inventory:
@@ -92,6 +92,10 @@ Currency model:
 
 Sell prices:
 - Crystal: 10 copper
+- Iron Ore: 15 copper
+- Healing Herb: 12 copper
+- Wood: 8 copper
+- Flower: 10 copper
 
 Selling rules:
 - Item removed from inventory.
@@ -197,16 +201,24 @@ Map editor:
 - Validation errors displayed in UI
 
 **Appendix A: WebSocket Protocol**
+For the full authoritative message contract, see `docs/network/spec_protocol.md`.  
+The list below is a quick gameplay-facing subset.
+
 Client → server messages:
 - `hello` `{ type: 'hello', seq? }`
 - `input` `{ type: 'input', keys: { w, a, s, d }, seq? }`
 - `moveTarget` `{ type: 'moveTarget', x, z, seq? }`
+- `targetSelect` `{ type: 'targetSelect', targetId?, targetKind?, seq? }`
 - `action` (interact) `{ type: 'action', kind: 'interact', seq? }`
-- `action` (ability) `{ type: 'action', kind: 'ability', slot, seq? }`
+- `action` (ability) `{ type: 'action', kind: 'ability', slot, placementX?, placementZ?, seq? }`
 - `classSelect` `{ type: 'classSelect', classId, seq? }`
 - `inventorySwap` `{ type: 'inventorySwap', from, to, seq? }`
 - `equipSwap` `{ type: 'equipSwap', fromType, fromSlot, toType, toSlot, seq? }`
 - `vendorSell` `{ type: 'vendorSell', vendorId, slot, seq? }`
+- `vendorBuy` `{ type: 'vendorBuy', vendorId, kind, count?, seq? }`
+- `chat` `{ type: 'chat', channel, text, seq? }`
+- `partyInvite` / `partyAccept` / `partyLeave`
+- `craft` `{ type: 'craft', recipeId, count?, seq? }`
 
 Server → client messages:
 - `welcome`
@@ -220,6 +232,14 @@ Server → client messages:
   - `data` contains private fields (inventory, currency, equipment, XP)
 - `combatEvent`
   - `{ type: 'combatEvent', t, events: [ ... ] }`
+- `abilityFailed`
+  - `{ type: 'abilityFailed', reason, slot }`
+- `chat`
+  - `{ type: 'chat', channel, authorId, author, text, timestamp }`
+- `combatLog`
+  - `{ type: 'combatLog', entries: [ ... ] }`
+- `partyInviteReceived`
+  - `{ type: 'partyInviteReceived', inviterId, inviterName }`
 
 **Appendix B: HTTP API**
 Auth:

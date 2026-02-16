@@ -101,6 +101,8 @@ Resource nodes are placed in the world (from map config). Each node has:
 | crystal| 10c   |
 | ore    | 15c   |
 | herb   | 12c   |
+| wood   | 8c    |
+| flower | 10c   |
 
 - Item is removed from inventory; copper is added to player
 

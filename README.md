@@ -74,6 +74,7 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 ## Docs
 
 - `README.md` is the quickstart and operational reference.
+- `docs/README.md` is the canonical documentation index (single docs root).
 - `docs/ARCHITECTURE.md` describes module boundaries and data flow.
 - `docs/TESTING.md` documents unit/E2E workflow and failure artifacts.
 

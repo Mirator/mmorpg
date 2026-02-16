@@ -168,7 +168,7 @@ The map editor supports:
 - Editing map size, base position/radius
 - Adding/removing spawn points, obstacles, resource nodes, vendors, mob spawns
 - **resourceNodes:** id, x, y, z, **type** (dropdown: crystal, ore, herb, tree, flower)
-- **mobSpawns:** id, x, y, z, **mobType** (dropdown: orc, demon, yeti, tribal, wolf, fox, bull, stag)
+- **mobSpawns:** id, x, y, z, **mobType** (dropdown: orc, demon, yeti, tribal, wolf, fox, bull, stag, dummy)
 
 Options for type and mobType come from [shared/entityTypes.js](../../shared/entityTypes.js).
 
