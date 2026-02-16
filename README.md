@@ -71,6 +71,12 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 - `client/` Web client assets
 - `shared/` Shared constants + protocol/schema helpers
 
+## Docs
+
+- `README.md` is the quickstart and operational reference.
+- `docs/ARCHITECTURE.md` describes module boundaries and data flow.
+- `docs/TESTING.md` documents unit/E2E workflow and failure artifacts.
+
 ## Test
 
 ```bash

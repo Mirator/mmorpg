@@ -3,12 +3,10 @@ import { WebSocketServer } from 'ws';
 import { parseClientMessage } from '../shared/protocol.js';
 import {
   DEFAULT_CLASS_ID,
-  isValidClassId,
   getResourceForClass,
 } from '../shared/classes.js';
 import { computeDerivedStats } from '../shared/attributes.js';
 import {
-  serializePlayersPublic,
   serializePlayerPrivate,
   serializeResources,
   serializeMobs,
@@ -18,14 +16,17 @@ import { worldSnapshot } from './logic/world.js';
 import { countInventory } from './logic/inventory.js';
 import { loadPlayer, savePlayer } from './db/playerRepo.js';
 import { hydratePlayerState, migratePlayerState, serializePlayerState } from './db/playerState.js';
-import { createBasePlayerState, respawnPlayer } from './logic/players.js';
+import { createBasePlayerState } from './logic/players.js';
 import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
-import { addMessage as addChatMessage } from './logic/chat.js';
 import { sendCombatLog } from './logic/combatLog.js';
 import { leaveParty, getPartyForPlayer } from './logic/party.js';
 import { validateAndConsumeTicket } from './wsTicket.js';
 import { createMessageHandlers } from './ws/handlers/index.js';
+import { getCookieValue, normalizeId } from './authParsing.js';
+
+// Ownership boundary: this module owns WS connection lifecycle, auth gating, and AOI broadcasts.
+// Gameplay message behavior should stay in server/ws/handlers/* to keep this file transport-focused.
 
 function safeSend(ws, msg) {
   if (ws.readyState !== ws.OPEN) return;
@@ -74,31 +75,6 @@ function createMessageLimiter(max, intervalMs) {
   };
 }
 
-function normalizeId(raw) {
-  if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim();
-  if (!trimmed || trimmed.length > 64) return null;
-  if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) return null;
-  return trimmed;
-}
-
-function getCookieValue(req, name) {
-  const header = req?.headers?.cookie;
-  if (!header || typeof header !== 'string') return null;
-  const parts = header.split(';');
-  for (const part of parts) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    const eq = trimmed.indexOf('=');
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    if (key !== name) continue;
-    const value = trimmed.slice(eq + 1).trim();
-    return value ? decodeURIComponent(value) : '';
-  }
-  return null;
-}
-
 function generatePlayerId() {
   if (typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -128,6 +104,44 @@ function initCombatState(player) {
   player.slowImmuneUntil = 0;
   player.defensiveStanceUntil = 0;
   player.targetKind = null;
+}
+
+function createRuntimePlayer({
+  id,
+  ws,
+  state,
+  accountId,
+  name,
+  nameLower,
+}) {
+  return {
+    id,
+    ws,
+    pos: state.pos,
+    target: null,
+    keys: { w: false, a: false, s: false, d: false },
+    lastInputSeq: 0,
+    hp: state.hp,
+    maxHp: state.maxHp,
+    inv: state.inv,
+    invCap: state.invCap,
+    invSlots: state.invSlots,
+    invStackMax: state.invStackMax,
+    inventory: state.inventory,
+    currencyCopper: state.currencyCopper,
+    equipment: state.equipment,
+    dead: false,
+    respawnAt: 0,
+    targetId: null,
+    classId: state.classId,
+    level: state.level,
+    xp: state.xp,
+    attackCooldownUntil: 0,
+    accountId: accountId ?? null,
+    name: name ?? null,
+    nameLower: nameLower ?? null,
+    partyId: null,
+  };
 }
 
 function parseConnectionParams(req) {
@@ -373,17 +387,6 @@ export function createWebSocketServer({
     return msg;
   }
 
-  function buildPublicState(now) {
-    return {
-      type: 'state',
-      t: now,
-      players: serializePlayersPublic(players),
-      resources: serializeResources(resources),
-      mobs: serializeMobs(mobs),
-      corpses: serializeCorpses(corpses ?? []),
-    };
-  }
-
   function sendPrivateState(ws, player, now) {
     safeSend(ws, {
       type: 'me',
@@ -589,34 +592,14 @@ export function createWebSocketServer({
       if (stored?.state) {
         const migrated = migratePlayerState(stored.state, stored.stateVersion);
         const hydrated = hydratePlayerState(migrated.state, world, spawn);
-        basePlayer = {
+        basePlayer = createRuntimePlayer({
           id,
           ws,
-          pos: hydrated.pos,
-          target: null,
-          keys: { w: false, a: false, s: false, d: false },
-          lastInputSeq: 0,
-          hp: hydrated.hp,
-          maxHp: hydrated.maxHp,
-          inv: hydrated.inv,
-          invCap: hydrated.invCap,
-          invSlots: hydrated.invSlots,
-          invStackMax: hydrated.invStackMax,
-          inventory: hydrated.inventory,
-          currencyCopper: hydrated.currencyCopper,
-          equipment: hydrated.equipment,
-          dead: false,
-          respawnAt: 0,
-          targetId: null,
-          classId: hydrated.classId,
-          level: hydrated.level,
-          xp: hydrated.xp,
-          attackCooldownUntil: 0,
-          accountId: stored.accountId ?? null,
-          name: stored.name ?? null,
-          nameLower: stored.nameLower ?? null,
-          partyId: null,
-        };
+          state: hydrated,
+          accountId: stored.accountId,
+          name: stored.name,
+          nameLower: stored.nameLower,
+        });
         initCombatState(basePlayer);
 
         if (!guest && migrated.didUpgrade) {
@@ -631,34 +614,14 @@ export function createWebSocketServer({
           spawn,
           classId: DEFAULT_CLASS_ID,
         });
-        basePlayer = {
+        basePlayer = createRuntimePlayer({
           id,
           ws,
-          pos: baseState.pos,
-          target: null,
-          keys: { w: false, a: false, s: false, d: false },
-          lastInputSeq: 0,
-          hp: baseState.hp,
-          maxHp: baseState.maxHp,
-          inv: baseState.inv,
-          invCap: baseState.invCap,
-          invSlots: baseState.invSlots,
-          invStackMax: baseState.invStackMax,
-          inventory: baseState.inventory,
-          currencyCopper: baseState.currencyCopper,
-          equipment: baseState.equipment,
-          dead: false,
-          respawnAt: 0,
-          targetId: null,
-          classId: baseState.classId,
-          level: baseState.level,
-          xp: baseState.xp,
-          attackCooldownUntil: 0,
-          accountId: account?.id ?? null,
-          name: stored?.name ?? null,
-          nameLower: stored?.nameLower ?? null,
-          partyId: null,
-        };
+          state: baseState,
+          accountId: account?.id,
+          name: stored?.name,
+          nameLower: stored?.nameLower,
+        });
         initCombatState(basePlayer);
       }
 

@@ -19,6 +19,9 @@ import { applyCollisions } from './collision.js';
 import { isPvPAllowed } from './pvp.js';
 import { createAbilityHandlers } from './combat/abilityHandlers.js';
 
+// Ownership boundary: this module is the server-authoritative combat rules engine.
+// Transport/session concerns belong in WS/HTTP layers, not in combat logic.
+
 export function getBasicAttackConfig(player) {
   const klass = getClassById(player?.classId);
   const weaponDef = getEquippedWeapon(player?.equipment, player?.classId);

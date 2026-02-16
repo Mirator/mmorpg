@@ -14,13 +14,16 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
 .party-panel.hidden {
   display: none;
 }
+
 .party-status {
   font-size: 12px;
   color: var(--muted);
 }
+
 .party-btn {
   padding: 4px 10px;
   font-size: 12px;
@@ -30,19 +33,23 @@
   color: var(--text);
   cursor: pointer;
 }
+
 .party-btn:hover {
   background: rgba(77, 163, 255, 0.25);
 }
+
 .party-btn.small {
   padding: 2px 8px;
   font-size: 11px;
 }
+
 .party-invite-toast {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
+
 .party-invite-toast.hidden {
   display: none;
 }
@@ -181,5 +188,3 @@
   opacity: 0.6;
   pointer-events: none;
 }
-
-.vendor-panel {

@@ -18,6 +18,9 @@ import { createMinimap } from './minimap.js';
 import { createChat } from './chat.js';
 import { createPauseMenu } from './pause-menu.js';
 
+// Ownership boundary: this file composes subsystems; domain logic should stay in focused modules
+// (connection/auth/ui-state/combat/input) rather than growing orchestration complexity here.
+
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
 const coordsEl = document.getElementById('coords');

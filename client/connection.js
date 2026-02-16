@@ -36,6 +36,7 @@ export function createConnection({
   ui,
   ctx,
   onCombatEvents,
+  onAbilityFailed,
   onChatMessage,
   onCombatLog,
   onConnected,

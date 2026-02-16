@@ -6,6 +6,7 @@ import { clearInventory, countInventory } from './logic/inventory.js';
 import { respawnPlayer } from './logic/players.js';
 import { createCorpse, stepCorpses } from './logic/corpses.js';
 import { stepPlayerResources, stepPlayerCast, stepDotTicks, stepHotTicks } from './logic/combat.js';
+import { buildCombatLogDispatch } from './logic/combatLogEntries.js';
 
 export function createGameLoop({ players, world, resources, mobs, corpses, config, spawner, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent }) {
   const tickHz = config.tickHz;
@@ -104,38 +105,13 @@ export function createGameLoop({ players, world, resources, mobs, corpses, confi
           onCombatEvent(castResult.event, now);
         }
         if (castResult.combatLog && typeof onCombatLog === 'function') {
-          const damageEntries = [];
-          if (castResult.combatLog.damageDealt != null && castResult.combatLog.targetName) {
-            const abilityName = castResult.combatLog.abilityName ?? 'You';
-            const critSuffix = castResult.combatLog.isCrit ? ' (Critical!)' : '';
-            damageEntries.push({
-              kind: 'damage_done',
-              text: `${abilityName} hit ${castResult.combatLog.targetName} for ${castResult.combatLog.damageDealt} damage${critSuffix}`,
-              t: now,
-            });
+          const { actorEntries, xpEntriesByPlayer } = buildCombatLogDispatch(castResult.combatLog, now);
+          if (actorEntries.length > 0) {
+            onCombatLog(player.id, actorEntries);
           }
-          if (damageEntries.length > 0) {
-            onCombatLog(player.id, damageEntries);
-          }
-          const xpGainByPlayer = castResult.combatLog.xpGainByPlayer ?? [];
-          for (const p of xpGainByPlayer) {
-            const xpEntries = [];
-            if (p.xpGain > 0 && castResult.combatLog.targetName) {
-              xpEntries.push({
-                kind: 'xp_gain',
-                text: `You gained ${p.xpGain} XP from killing ${castResult.combatLog.targetName}`,
-                t: now,
-              });
-            }
-            if (p.leveledUp) {
-              xpEntries.push({
-                kind: 'level_up',
-                text: 'You gained a level!',
-                t: now,
-              });
-            }
-            if (xpEntries.length > 0) {
-              onCombatLog(p.playerId, xpEntries);
+          for (const xp of xpEntriesByPlayer) {
+            if (xp.entries.length > 0) {
+              onCombatLog(xp.playerId, xp.entries);
             }
           }
         }

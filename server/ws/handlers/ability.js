@@ -1,5 +1,6 @@
 import { tryUseAbility } from '../../logic/combat.js';
 import { sendCombatLog } from '../../logic/combatLog.js';
+import { buildCombatLogDispatch } from '../../logic/combatLogEntries.js';
 
 export function handleAbility(ctx) {
   const {
@@ -31,47 +32,13 @@ export function handleAbility(ctx) {
     broadcastCombatEvent(result.event, now);
   }
   if (result.combatLog) {
-    const damageEntries = [];
-    if (result.combatLog.damageDealt != null && result.combatLog.targetName) {
-      const abilityName = result.combatLog.abilityName ?? 'You';
-      const critSuffix = result.combatLog.isCrit ? ' (Critical!)' : '';
-      damageEntries.push({
-        kind: 'damage_done',
-        text: `${abilityName} hit ${result.combatLog.targetName} for ${result.combatLog.damageDealt} damage${critSuffix}`,
-        t: now,
-      });
+    const { actorEntries, xpEntriesByPlayer } = buildCombatLogDispatch(result.combatLog, now);
+    if (actorEntries.length > 0) {
+      sendCombatLog(players, player.id, actorEntries, ctx.safeSend);
     }
-    if (result.combatLog.healAmount != null && result.combatLog.healTarget) {
-      const target = result.combatLog.healTarget;
-      const targetText = target === 'yourself' ? 'yourself' : target;
-      damageEntries.push({
-        kind: 'heal',
-        text: `You healed ${targetText} for ${result.combatLog.healAmount}`,
-        t: now,
-      });
-    }
-    if (damageEntries.length > 0) {
-      sendCombatLog(players, player.id, damageEntries, ctx.safeSend);
-    }
-    const xpGainByPlayer = result.combatLog.xpGainByPlayer ?? [];
-    for (const p of xpGainByPlayer) {
-      const xpEntries = [];
-      if (p.xpGain > 0 && result.combatLog.targetName) {
-        xpEntries.push({
-          kind: 'xp_gain',
-          text: `You gained ${p.xpGain} XP from killing ${result.combatLog.targetName}`,
-          t: now,
-        });
-      }
-      if (p.leveledUp) {
-        xpEntries.push({
-          kind: 'level_up',
-          text: 'You gained a level!',
-          t: now,
-        });
-      }
-      if (xpEntries.length > 0) {
-        sendCombatLog(players, p.playerId, xpEntries, ctx.safeSend);
+    for (const xp of xpEntriesByPlayer) {
+      if (xp.entries.length > 0) {
+        sendCombatLog(players, xp.playerId, xp.entries, ctx.safeSend);
       }
     }
   }

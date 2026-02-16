@@ -29,6 +29,7 @@ import { createBasePlayerState } from './logic/players.js';
 import { serializePlayerState } from './db/playerState.js';
 import { isValidClassId } from '../shared/classes.js';
 import { createTicket } from './wsTicket.js';
+import { getCookieValue, normalizeId } from './authParsing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = path.resolve(__dirname, '../client');
@@ -46,23 +47,6 @@ function getBearerToken(req) {
   if (!auth.startsWith(prefix)) return null;
   const token = auth.slice(prefix.length).trim();
   return token.length > 0 ? token : null;
-}
-
-function getCookieValue(req, name) {
-  const header = req?.headers?.cookie;
-  if (!header || typeof header !== 'string') return null;
-  const parts = header.split(';');
-  for (const part of parts) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    const eq = trimmed.indexOf('=');
-    if (eq === -1) continue;
-    const key = trimmed.slice(0, eq).trim();
-    if (key !== name) continue;
-    const value = trimmed.slice(eq + 1).trim();
-    return value ? decodeURIComponent(value) : '';
-  }
-  return null;
 }
 
 function setSessionCookie(res, token, config) {
@@ -321,8 +305,8 @@ export function createHttpApp({
 
   async function requireAuth(req, res, next) {
     const token =
-      getBearerToken(req) ??
-      getCookieValue(req, config.sessionCookieName);
+      normalizeId(getBearerToken(req)) ??
+      normalizeId(getCookieValue(req, config.sessionCookieName));
     if (!token) {
       sendError(res, 401, 'Unauthorized');
       return;
@@ -373,10 +357,8 @@ export function createHttpApp({
   });
 
   app.post('/api/ws-ticket', requireAuth, async (req, res) => {
-    const characterId = typeof req.body?.characterId === 'string'
-      ? req.body.characterId.trim()
-      : '';
-    if (!characterId || characterId.length > 64 || !/^[a-zA-Z0-9._-]+$/.test(characterId)) {
+    const characterId = normalizeId(req.body?.characterId);
+    if (!characterId) {
       sendError(res, 400, 'Invalid character.');
       return;
     }

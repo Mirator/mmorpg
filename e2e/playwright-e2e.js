@@ -1,25 +1,143 @@
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   BASE_URL,
   DATABASE_URL_E2E,
   DEATH_TIMEOUT_MS,
-  LOADING_TIMEOUT_MS,
   PORT,
   TEST_TIMEOUT_MS,
   advance,
   distance,
   getState,
-  getMenuStatus,
   hasLineOfSight,
   resetE2eDatabase,
-  segmentDistanceToPoint,
   sleep,
   waitForCondition,
   waitForLoadingScreenToDisappear,
   waitForMenuStepOrError,
   waitForServer,
 } from './helpers.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const E2E_ARTIFACT_DIR = path.resolve(__dirname, '../output/e2e');
+const DESKTOP_VIEWPORT = { width: 1280, height: 720 };
+const SMALL_VIEWPORT = { width: 560, height: 840 };
+
+function sanitizeToken(value) {
+  const normalized = String(value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return normalized || 'run';
+}
+
+async function readVendorMetrics(page) {
+  return page.evaluate(() => {
+    function readBounds(selector) {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      return {
+        selector,
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+      };
+    }
+
+    const tabs = Array.from(document.querySelectorAll('.vendor-tab')).map((tab) => {
+      const rect = tab.getBoundingClientRect();
+      return {
+        tab: tab.dataset.tab ?? null,
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+      };
+    });
+
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      tradeOpen: document.body.classList.contains('trade-open'),
+      panel: readBounds('#vendor-panel'),
+      closeButton: readBounds('#vendor-panel-close'),
+      tabs,
+    };
+  });
+}
+
+function isClickableInViewport(rect, viewport) {
+  if (!rect || !viewport) return false;
+  if (rect.width < 2 || rect.height < 2) return false;
+  if (rect.left < 0 || rect.top < 0) return false;
+  if (rect.right > viewport.width || rect.bottom > viewport.height) return false;
+  return true;
+}
+
+async function assertVendorControlsInViewport(page, label) {
+  const metrics = await readVendorMetrics(page);
+  const buyTab = metrics.tabs.find((tab) => tab.tab === 'buy') ?? null;
+  const sellTab = metrics.tabs.find((tab) => tab.tab === 'sell') ?? null;
+
+  for (const [name, rect] of [
+    ['vendor panel', metrics.panel],
+    ['vendor close button', metrics.closeButton],
+    ['vendor buy tab', buyTab],
+    ['vendor sell tab', sellTab],
+  ]) {
+    if (!isClickableInViewport(rect, metrics.viewport)) {
+      throw new Error(`${label}: ${name} is not fully inside viewport`);
+    }
+  }
+}
+
+async function writeFailureArtifacts({ page, stage, error }) {
+  fs.mkdirSync(E2E_ARTIFACT_DIR, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const prefix = `${stamp}-${sanitizeToken(stage)}`;
+  const errorPath = path.join(E2E_ARTIFACT_DIR, `${prefix}.error.txt`);
+
+  fs.writeFileSync(
+    errorPath,
+    [
+      `stage: ${stage}`,
+      `message: ${error?.message ?? String(error)}`,
+      '',
+      error?.stack ?? '',
+    ].join('\n'),
+    'utf8'
+  );
+
+  if (!page || page.isClosed()) return;
+
+  const screenshotPath = path.join(E2E_ARTIFACT_DIR, `${prefix}.screenshot.png`);
+  const statePath = path.join(E2E_ARTIFACT_DIR, `${prefix}.render-state.json`);
+  const vendorMetricsPath = path.join(E2E_ARTIFACT_DIR, `${prefix}.vendor-metrics.json`);
+
+  await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
+
+  const stateText = await page
+    .evaluate(() => {
+      if (typeof window.render_game_to_text === 'function') {
+        return window.render_game_to_text();
+      }
+      return null;
+    })
+    .catch(() => null);
+  fs.writeFileSync(statePath, stateText ?? 'null', 'utf8');
+
+  const metrics = await readVendorMetrics(page).catch(() => null);
+  fs.writeFileSync(vendorMetricsPath, JSON.stringify(metrics, null, 2), 'utf8');
+}
 
 async function run() {
   resetE2eDatabase();
@@ -34,14 +152,24 @@ async function run() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
+  let browser = null;
+  let context = null;
+  let page = null;
+  let stage = 'boot';
+
   try {
+    stage = 'wait-server';
     await waitForServer(server);
 
-    const browser = await chromium.launch({
+    stage = 'launch-browser';
+    browser = await chromium.launch({
       headless: true,
       args: ['--use-gl=angle', '--use-angle=swiftshader'],
     });
-    const page = await browser.newPage();
+    context = await browser.newContext({
+      viewport: DESKTOP_VIEWPORT,
+    });
+    page = await context.newPage();
     await page.addInitScript(() => {
       if (!localStorage.getItem('e2e_clear_done')) {
         localStorage.clear();
@@ -73,6 +201,7 @@ async function run() {
       }
     });
 
+    stage = 'auth-flow';
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(500);
     await page.waitForFunction(() => window.__game && typeof window.__game.moveTo === 'function');
@@ -414,6 +543,7 @@ async function run() {
       'panels closed'
     );
 
+    stage = 'vendor-trade-desktop';
     const vendor = state.world?.vendors?.[0];
     if (!vendor) {
       throw new Error('No vendor found in world snapshot');
@@ -435,6 +565,7 @@ async function run() {
     await page.waitForSelector('#vendor-dialog.open');
     await page.click('#vendor-trade-btn');
     await page.waitForSelector('#vendor-panel.open');
+    await assertVendorControlsInViewport(page, 'desktop vendor layout');
 
     await page.click('.vendor-tab[data-tab=\"sell\"]');
     await page.waitForFunction(() => {
@@ -491,6 +622,34 @@ async function run() {
     );
     await page.waitForTimeout(300);
 
+    stage = 'vendor-trade-small-viewport';
+    await page.setViewportSize(SMALL_VIEWPORT);
+    await page.waitForTimeout(120);
+    await page.keyboard.press('e');
+    await page.waitForSelector('#vendor-dialog.open');
+    await page.click('#vendor-trade-btn');
+    await page.waitForSelector('#vendor-panel.open');
+    await assertVendorControlsInViewport(page, 'small viewport vendor layout');
+    await page.click('.vendor-tab[data-tab=\"buy\"]');
+    await page.waitForFunction(() => {
+      const buy = document.querySelector('.vendor-buy');
+      return buy?.classList.contains('active');
+    });
+    await page.click('.vendor-tab[data-tab=\"sell\"]');
+    await page.waitForFunction(() => {
+      const sell = document.querySelector('.vendor-sell');
+      return sell?.classList.contains('active');
+    });
+    await page.click('#vendor-panel-close');
+    await page.waitForFunction(
+      () =>
+        !document.querySelector('#vendor-panel')?.classList.contains('open') &&
+        !document.body.classList.contains('trade-open')
+    );
+    await page.setViewportSize(DESKTOP_VIEWPORT);
+    await page.waitForTimeout(120);
+
+    stage = 'targeting-and-combat';
     const vendorClickTarget = state.world?.vendors?.[0];
     if (!vendorClickTarget) {
       throw new Error('No vendor available for targeting');
@@ -701,9 +860,12 @@ async function run() {
     if (consoleErrors.length) {
       throw new Error(`Console errors: ${consoleErrors.join('\n')}`);
     }
-
-    await browser.close();
+  } catch (err) {
+    await writeFailureArtifacts({ page, stage, error: err });
+    throw err;
   } finally {
+    await context?.close().catch(() => {});
+    await browser?.close().catch(() => {});
     server.kill('SIGTERM');
   }
 }
