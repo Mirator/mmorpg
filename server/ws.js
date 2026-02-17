@@ -21,6 +21,8 @@ import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
 import { sendCombatLog } from './logic/combatLog.js';
 import { leaveParty, getPartyForPlayer } from './logic/party.js';
+import { endDuel } from './logic/duel.js';
+import { endTradeSession, getTradePartner } from './logic/trade.js';
 import { validateAndConsumeTicket } from './wsTicket.js';
 import { createMessageHandlers } from './ws/handlers/index.js';
 import { getCookieValue, normalizeId } from './authParsing.js';
@@ -166,6 +168,7 @@ export function createWebSocketServer({
   players,
   spawner,
   persistence,
+  nextItemIdRef = { current: 1 },
 }) {
   const wss = new WebSocketServer({
     noServer: true,
@@ -174,7 +177,6 @@ export function createWebSocketServer({
   });
 
   const connectionsByIp = new Map();
-  const nextItemIdRef = { current: 1 };
 
   function isAllowedOrigin(origin) {
     if (!origin) {
@@ -484,6 +486,23 @@ export function createWebSocketServer({
       const isCurrent = player && players.get(playerId) === player;
       if (isCurrent) {
         lastSentByPlayer.delete(playerId);
+        const duelOpponent = endDuel(player, players);
+        if (duelOpponent) {
+          persistence.markDirty(duelOpponent);
+          if (duelOpponent.ws) {
+            safeSend(duelOpponent.ws, { type: 'duelEnded', reason: 'disconnect' });
+            sendPrivateState(duelOpponent.ws, duelOpponent, Date.now());
+          }
+        }
+        const tradePartner = getTradePartner(player);
+        if (tradePartner) {
+          endTradeSession(player, true);
+          persistence.markDirty(tradePartner);
+          if (tradePartner.ws) {
+            safeSend(tradePartner.ws, { type: 'tradeCancelled' });
+            sendPrivateState(tradePartner.ws, tradePartner, Date.now());
+          }
+        }
         leaveParty(playerId, players);
         players.delete(playerId);
       }
@@ -685,7 +704,7 @@ export function createWebSocketServer({
           player.lastInputSeq = msg.seq;
         }
 
-        if (player.dead && msg.type !== 'respawn') return;
+        if (player.dead && msg.type !== 'respawn' && msg.type !== 'ping') return;
 
         const ctx = {
           player,
@@ -780,6 +799,18 @@ export function createWebSocketServer({
     sendCombatLog(players, playerId, entries, safeSend);
   }
 
+  function notifyDuelEnded(player, opponent, reason) {
+    const now = Date.now();
+    if (player?.ws) {
+      safeSend(player.ws, { type: 'duelEnded', reason });
+      sendPrivateState(player.ws, player, now);
+    }
+    if (opponent?.ws) {
+      safeSend(opponent.ws, { type: 'duelEnded', reason });
+      sendPrivateState(opponent.ws, opponent, now);
+    }
+  }
+
   return {
     wss,
     startHeartbeat,
@@ -789,5 +820,6 @@ export function createWebSocketServer({
     closeAll,
     sendCombatLogToPlayer,
     broadcastCombatEvent,
+    notifyDuelEnded,
   };
 }

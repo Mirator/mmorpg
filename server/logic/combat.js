@@ -18,6 +18,7 @@ import { getMobStats } from '../../shared/entityTypes.js';
 import { applyCollisions } from './collision.js';
 import { isPvPAllowed } from './pvp.js';
 import { createAbilityHandlers } from './combat/abilityHandlers.js';
+import { rollAndGrantLoot } from './loot.js';
 
 // Ownership boundary: this module is the server-authoritative combat rules engine.
 // Transport/session concerns belong in WS/HTTP layers, not in combat logic.
@@ -213,7 +214,14 @@ const DAMAGE_ELIGIBILITY_PCT = 0.10;
 const ANTI_BOOST_GAP = 3;
 const ANTI_BOOST_RATE = 0.08;
 
+let _lootContext = null;
+
+export function setLootContext(ctx) {
+  _lootContext = ctx ?? null;
+}
+
 function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
+  const lootContext = _lootContext;
   if (!mob) return { xpGain: 0, leveledUp: false, killed: false, xpGainByPlayer: [] };
   if (!Number.isFinite(mob.maxHp)) {
     mob.maxHp = getMobMaxHp(mob.level ?? 1, mob.mobType);
@@ -325,6 +333,17 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
         xpGainByPlayer = [{ playerId: attacker.id, xpGain, leveledUp }];
         if (leveledUp) syncDerivedStatsOnLevelUp(attacker, true);
       }
+    }
+
+    if (attacker && lootContext?.nextItemIdRef) {
+      const stackMax = Number.isFinite(attacker.invStackMax) ? attacker.invStackMax : 20;
+      rollAndGrantLoot(
+        mob,
+        attacker,
+        lootContext.nextItemIdRef,
+        lootContext.rand,
+        stackMax
+      );
     }
   }
 
@@ -1052,24 +1071,24 @@ function fireChannelTick(player, ability, target, mobs, now, respawnMs, players)
 
 export function stepPlayerCast(player, mobs, now, respawnMs, players) {
   if (!player?.cast) return { xpGain: 0, leveledUp: false };
-  const cast = player.cast;
-  if (player.dead) {
-    player.cast = null;
-    return { xpGain: 0, leveledUp: false };
-  }
-  if (player.movedThisTick) {
-    player.cast = null;
-    return { xpGain: 0, leveledUp: false };
-  }
-  if ((player.castingLockoutUntil ?? 0) > now) {
-    return { xpGain: 0, leveledUp: false };
-  }
+    const cast = player.cast;
+    if (player.dead) {
+      player.cast = null;
+      return { xpGain: 0, leveledUp: false };
+    }
+    if (player.movedThisTick) {
+      player.cast = null;
+      return { xpGain: 0, leveledUp: false };
+    }
+    if ((player.castingLockoutUntil ?? 0) > now) {
+      return { xpGain: 0, leveledUp: false };
+    }
 
-  const ability = getAbilityById(player, cast.id);
-  if (!ability) {
-    player.cast = null;
-    return { xpGain: 0, leveledUp: false };
-  }
+    const ability = getAbilityById(player, cast.id);
+    if (!ability) {
+      player.cast = null;
+      return { xpGain: 0, leveledUp: false };
+    }
 
   if (cast.id === 'rapid_fire' || cast.id === 'arcane_missiles') {
     const tickInterval = (ability.windUpMs ?? 1500) / (ability.channelTicks ?? 3);

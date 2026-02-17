@@ -51,6 +51,7 @@ export function serializePlayersPublic(players) {
       classId: p.classId ?? null,
       level: p.level ?? 1,
       name: p.name ?? null,
+      duelOpponentId: p.duelOpponentId ?? null,
     };
   }
   return out;
@@ -94,6 +95,7 @@ export function serializePlayerPrivate(player) {
     attributes,
     derivedStats,
     partyId: player.partyId ?? null,
+    duelOpponentId: player.duelOpponentId ?? null,
   };
 }
 

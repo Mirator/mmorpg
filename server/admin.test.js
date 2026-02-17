@@ -169,6 +169,7 @@ describe('admin state serialization', () => {
         classId: 'mage',
         level: 3,
         name: 'Zara',
+        duelOpponentId: null,
       },
     });
   });

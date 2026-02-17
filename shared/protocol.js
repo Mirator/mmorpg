@@ -25,7 +25,17 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'partyAccept', inviterId: string, seq?: number }} PartyAcceptMessage
  * @typedef {{ type: 'partyLeave', seq?: number }} PartyLeaveMessage
  * @typedef {{ type: 'craft', recipeId: string, count?: number, seq?: number }} CraftMessage
- * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | VendorBuyMessage | ChatMessage | PartyInviteMessage | PartyAcceptMessage | PartyLeaveMessage | CraftMessage} ClientMessage
+ * @typedef {{ type: 'duelRequest', targetId: string, seq?: number }} DuelRequestMessage
+ * @typedef {{ type: 'duelAccept', challengerId: string, seq?: number }} DuelAcceptMessage
+ * @typedef {{ type: 'duelDecline', challengerId: string, seq?: number }} DuelDeclineMessage
+ * @typedef {{ type: 'duelForfeit', seq?: number }} DuelForfeitMessage
+ * @typedef {{ type: 'tradeRequest', targetId: string, seq?: number }} TradeRequestMessage
+ * @typedef {{ type: 'tradeAccept', traderId: string, seq?: number }} TradeAcceptMessage
+ * @typedef {{ type: 'tradeDecline', traderId: string, seq?: number }} TradeDeclineMessage
+ * @typedef {{ type: 'tradeOffer', op: 'add'|'remove', slot?: number, copper?: number, seq?: number }} TradeOfferMessage
+ * @typedef {{ type: 'tradeConfirm', seq?: number }} TradeConfirmMessage
+ * @typedef {{ type: 'tradeCancel', seq?: number }} TradeCancelMessage
+ * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | VendorBuyMessage | ChatMessage | PartyInviteMessage | PartyAcceptMessage | PartyLeaveMessage | CraftMessage | DuelRequestMessage | DuelAcceptMessage | DuelDeclineMessage | DuelForfeitMessage | TradeRequestMessage | TradeAcceptMessage | TradeDeclineMessage | TradeOfferMessage | TradeConfirmMessage | TradeCancelMessage} ClientMessage
  */
 
 const CHAT_CHANNELS = new Set(['global', 'area', 'trade', 'party']);
@@ -33,6 +43,7 @@ const MAX_CHAT_TEXT_LENGTH = 200;
 
 const CLIENT_MESSAGE_TYPES = new Set([
   'hello',
+  'ping',
   'respawn',
   'input',
   'moveTarget',
@@ -48,6 +59,16 @@ const CLIENT_MESSAGE_TYPES = new Set([
   'partyAccept',
   'partyLeave',
   'craft',
+  'duelRequest',
+  'duelAccept',
+  'duelDecline',
+  'duelForfeit',
+  'tradeRequest',
+  'tradeAccept',
+  'tradeDecline',
+  'tradeOffer',
+  'tradeConfirm',
+  'tradeCancel',
 ]);
 
 function isPlainObject(value) {
@@ -121,6 +142,11 @@ export function parseClientMessage(raw) {
 
   if (raw.type === 'respawn') {
     return { type: 'respawn', seq };
+  }
+
+  if (raw.type === 'ping') {
+    const t = typeof raw.t === 'number' && Number.isFinite(raw.t) ? raw.t : Date.now();
+    return { type: 'ping', seq, t };
   }
 
   if (raw.type === 'input') {
@@ -240,6 +266,71 @@ export function parseClientMessage(raw) {
     const count = raw.count !== undefined ? Number(raw.count) : 1;
     const safeCount = Number.isInteger(count) && count >= 1 ? Math.min(count, 99) : 1;
     return { type: 'craft', recipeId, count: safeCount, seq };
+  }
+
+  if (raw.type === 'duelRequest') {
+    const targetId = normalizeString(raw.targetId);
+    if (!targetId) return null;
+    return { type: 'duelRequest', targetId, seq };
+  }
+
+  if (raw.type === 'duelAccept') {
+    const challengerId = normalizeString(raw.challengerId);
+    if (!challengerId) return null;
+    return { type: 'duelAccept', challengerId, seq };
+  }
+
+  if (raw.type === 'duelDecline') {
+    const challengerId = normalizeString(raw.challengerId);
+    if (!challengerId) return null;
+    return { type: 'duelDecline', challengerId, seq };
+  }
+
+  if (raw.type === 'duelForfeit') {
+    return { type: 'duelForfeit', seq };
+  }
+
+  if (raw.type === 'tradeRequest') {
+    const targetId = normalizeString(raw.targetId);
+    if (!targetId) return null;
+    return { type: 'tradeRequest', targetId, seq };
+  }
+
+  if (raw.type === 'tradeAccept') {
+    const traderId = normalizeString(raw.traderId);
+    if (!traderId) return null;
+    return { type: 'tradeAccept', traderId, seq };
+  }
+
+  if (raw.type === 'tradeDecline') {
+    const traderId = normalizeString(raw.traderId);
+    if (!traderId) return null;
+    return { type: 'tradeDecline', traderId, seq };
+  }
+
+  if (raw.type === 'tradeOffer') {
+    const op = raw.op === 'add' || raw.op === 'remove' ? raw.op : null;
+    if (!op) return null;
+    if (op === 'add') {
+      const slot = raw.slot !== undefined ? Number(raw.slot) : null;
+      const copper = raw.copper !== undefined ? Number(raw.copper) : null;
+      if (Number.isInteger(slot) && slot >= 0) return { type: 'tradeOffer', op, slot, seq };
+      if (Number.isInteger(copper) && copper >= 0) return { type: 'tradeOffer', op, copper, seq };
+      return null;
+    }
+    const slot = raw.slot !== undefined ? Number(raw.slot) : null;
+    const copper = raw.copper !== undefined;
+    if (Number.isInteger(slot) && slot >= 0) return { type: 'tradeOffer', op, slot, seq };
+    if (copper) return { type: 'tradeOffer', op, copper: 1, seq };
+    return null;
+  }
+
+  if (raw.type === 'tradeConfirm') {
+    return { type: 'tradeConfirm', seq };
+  }
+
+  if (raw.type === 'tradeCancel') {
+    return { type: 'tradeCancel', seq };
   }
 
   return null;

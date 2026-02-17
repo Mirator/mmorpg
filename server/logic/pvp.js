@@ -15,6 +15,7 @@
  */
 export function isPvPAllowed(attacker, target, context = {}) {
   if (!attacker || !target || attacker.id === target.id) return false;
+  if (attacker.duelOpponentId === target.id && target.duelOpponentId === attacker.id) return true;
   // Future: if (context.zone?.isPvpZone) return true;
   // Future: if (attacker.pvpFlagged && target.pvpFlagged) return true;
   return false;

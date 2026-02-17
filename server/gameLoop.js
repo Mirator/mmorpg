@@ -5,10 +5,11 @@ import { stepMobs } from './logic/mobs.js';
 import { clearInventory, countInventory } from './logic/inventory.js';
 import { respawnPlayer } from './logic/players.js';
 import { createCorpse, stepCorpses } from './logic/corpses.js';
-import { stepPlayerResources, stepPlayerCast, stepDotTicks, stepHotTicks } from './logic/combat.js';
+import { stepPlayerResources, stepPlayerCast, stepDotTicks, stepHotTicks, setLootContext } from './logic/combat.js';
+import { endDuel } from './logic/duel.js';
 import { buildCombatLogDispatch } from './logic/combatLogEntries.js';
 
-export function createGameLoop({ players, world, resources, mobs, corpses, config, spawner, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent }) {
+export function createGameLoop({ players, world, resources, mobs, corpses, config, spawner, nextItemIdRef, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent, onDuelEnded }) {
   const tickHz = config.tickHz;
   const dt = 1 / tickHz;
   const playerRadius = config.playerRadius;
@@ -25,6 +26,10 @@ export function createGameLoop({ players, world, resources, mobs, corpses, confi
 
   function killPlayer(player, now) {
     if (player.dead) return;
+    const opponent = endDuel(player, players);
+    if (opponent && typeof onDuelEnded === 'function') {
+      onDuelEnded(player, opponent, 'death', markDirty);
+    }
     player.dead = true;
     player.respawnAt = now + respawnMs;
     if (corpses && Array.isArray(corpses) && player.inventory && countInventory(player.inventory) > 0) {
@@ -55,6 +60,7 @@ export function createGameLoop({ players, world, resources, mobs, corpses, confi
 
   function tick() {
     const now = Date.now();
+    setLootContext(nextItemIdRef ? { nextItemIdRef } : null);
 
     for (const player of players.values()) {
         const prevPos = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };

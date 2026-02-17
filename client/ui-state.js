@@ -20,11 +20,14 @@ import {
   clearPrompt,
   showEvent,
   flashDamage,
+  showToast,
 } from './ui.js';
 import { createInventoryUI } from './inventory.js';
 import { createEquipmentUI } from './equipment.js';
 import { createVendorUI } from './vendor.js';
 import { createCraftingUI } from './crafting.js';
+import { createPlayerTradeUI } from './trade.js';
+import { getRecipeById } from '/shared/recipes.js';
 import { createAbilityBar } from './ui-state/abilityBar.js';
 import { createSkillsPanelUpdater } from './ui-state/skillsPanel.js';
 
@@ -46,6 +49,12 @@ export function createUiState({
   onUiOpen,
   onRespawn,
   isChatFocused,
+  onTradeOfferAddSlot,
+  onTradeOfferAddCopper,
+  onTradeOfferRemoveItem,
+  onTradeOfferRemoveCopper,
+  onTradeConfirm,
+  onTradeCancel,
 }) {
   const inventoryPanel = document.getElementById('inventory-panel');
   const characterSheetPanel = document.getElementById('character-sheet-panel');
@@ -103,6 +112,7 @@ export function createUiState({
   let inventoryUI = null;
   let equipmentUI = null;
   let vendorUI = null;
+  let playerTradeUI = null;
   let craftingUI = null;
 
   let inventoryOpen = false;
@@ -300,7 +310,10 @@ export function createUiState({
       btn.dataset.kind = entry.kind;
       btn.addEventListener('click', () => {
         const vendor = vendorUI?.getVendor?.();
-        if (vendor?.id) onVendorBuy?.(entry.kind, 1, vendor.id);
+        if (vendor?.id) {
+          onVendorBuy?.(entry.kind, 1, vendor.id);
+          showToast?.(`Purchased ${entry.name}`);
+        }
       });
       row.appendChild(left);
       row.appendChild(btn);
@@ -327,12 +340,20 @@ export function createUiState({
           });
           return true;
         }
+        if (!vendorUI?.isTradeOpen?.() && !playerTradeUI?.isOpen?.()) return false;
+        const tradeOffer = target?.closest?.('#trade-my-offer');
+        if (tradeOffer && playerTradeUI?.isOpen?.()) {
+          onTradeOfferAddSlot?.(slot);
+          return true;
+        }
         if (!vendorUI || !vendorUI.isTradeOpen()) return false;
         const dropzone = target?.closest?.('.vendor-dropzone');
         if (!dropzone) return false;
         const vendor = vendorUI.getVendor();
         if (!vendor?.id) return false;
         onVendorSell?.(slot, vendor.id);
+        const itemName = item?.name ?? item?.kind ?? 'Item';
+        showToast?.(`Sold ${itemName}`);
         return true;
       },
     });
@@ -350,7 +371,48 @@ export function createUiState({
   if (craftRecipeListEl) {
     craftingUI = createCraftingUI({
       recipeListEl: craftRecipeListEl,
-      onCraft: (recipeId, count) => onCraft?.(recipeId, count),
+      onCraft: (recipeId, count) => {
+        onCraft?.(recipeId, count);
+        const recipe = getRecipeById(recipeId);
+        const name = recipe?.name ?? recipe?.output?.kind ?? 'Item';
+        showToast?.(count > 1 ? `Crafted ${name} × ${count}` : `Crafted ${name}`);
+      },
+    });
+  }
+
+  const tradePanel = document.getElementById('trade-panel');
+  const tradePartnerNameEl = document.getElementById('trade-partner-name');
+  const tradeMyOfferEl = document.getElementById('trade-my-offer');
+  const tradeTheirOfferEl = document.getElementById('trade-their-offer');
+  const tradeMyCopperEl = document.getElementById('trade-my-copper');
+  const tradeTheirCopperEl = document.getElementById('trade-their-copper');
+  const tradeAddCopperInput = document.getElementById('trade-add-copper');
+  const tradeAddCopperBtn = document.getElementById('trade-add-copper-btn');
+  const tradeRemoveCopperBtn = document.getElementById('trade-remove-copper-btn');
+  const tradeConfirmBtn = document.getElementById('trade-confirm-btn');
+  const tradeCancelBtn = document.getElementById('trade-cancel-btn');
+  const tradeStatusEl = document.getElementById('trade-status');
+
+  if (tradePanel) {
+    playerTradeUI = createPlayerTradeUI({
+      panel: tradePanel,
+      partnerNameEl: tradePartnerNameEl,
+      myOfferEl: tradeMyOfferEl,
+      theirOfferEl: tradeTheirOfferEl,
+      myCopperEl: tradeMyCopperEl,
+      theirCopperEl: tradeTheirCopperEl,
+      addCopperInput: tradeAddCopperInput,
+      addCopperBtn: tradeAddCopperBtn,
+      removeCopperBtn: tradeRemoveCopperBtn,
+      confirmBtn: tradeConfirmBtn,
+      cancelBtn: tradeCancelBtn,
+      statusEl: tradeStatusEl,
+      onAddItem: onTradeOfferAddSlot,
+      onRemoveItem: onTradeOfferRemoveItem,
+      onAddCopper: onTradeOfferAddCopper,
+      onRemoveCopper: onTradeOfferRemoveCopper,
+      onConfirm: onTradeConfirm,
+      onCancel: onTradeCancel,
     });
   }
 
@@ -385,7 +447,7 @@ export function createUiState({
   }
 
   function isTradeOpen() {
-    return vendorUI?.isTradeOpen?.() ?? false;
+    return (vendorUI?.isTradeOpen?.() ?? false) || (playerTradeUI?.isOpen?.() ?? false);
   }
 
   function isSkillsOpen() {
@@ -427,6 +489,7 @@ export function createUiState({
         setInventoryOpen(false);
         setCharacterOpen(false);
         vendorUI?.closeAll?.();
+        playerTradeUI?.close?.();
         clearPrompt();
         onUiOpen?.();
       }
@@ -643,7 +706,9 @@ export function createUiState({
     isUiBlocking,
     getCurrentClassId,
     setLocalCooldown: abilityBarModule.setLocalCooldown,
-    getLocalCooldown: abilityBarModule.getLocalCooldown,
+    getLocalCooldown: abilityBarModule.    getLocalCooldown,
     vendorUI,
+    playerTradeUI,
+    showToast,
   };
 }

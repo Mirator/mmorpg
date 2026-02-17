@@ -6,6 +6,10 @@ body.trade-open #vendor-panel {
   left: 68%;
 }
 
+body.player-trade-open #inventory-panel {
+  left: 25%;
+}
+
 #inventory-panel {
   position: fixed;
   left: 50%;

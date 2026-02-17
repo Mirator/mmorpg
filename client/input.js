@@ -1,35 +1,16 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import {
+  getKeybinds,
+  getAbilitySlotFromEvent,
+  isKeyMatch,
+} from './keybinds.js';
 
-function getAbilitySlotFromEvent(event) {
-  const code = event.code || '';
-  const digitMatch = code.match(/^(Digit|Numpad)(\d)$/);
-  if (digitMatch) {
-    const digit = Number(digitMatch[2]);
-    return digit === 0 ? 10 : digit;
-  }
-  const key = event.key;
-  if (typeof key === 'string' && key.length === 1 && key >= '0' && key <= '9') {
-    const digit = Number(key);
-    return digit === 0 ? 10 : digit;
-  }
-  const legacyCode =
-    typeof event.keyCode === 'number'
-      ? event.keyCode
-      : typeof event.which === 'number'
-        ? event.which
-        : null;
-  if (legacyCode !== null) {
-    if (legacyCode >= 48 && legacyCode <= 57) {
-      const digit = legacyCode - 48;
-      return digit === 0 ? 10 : digit;
-    }
-    if (legacyCode >= 96 && legacyCode <= 105) {
-      const digit = legacyCode - 96;
-      return digit === 0 ? 10 : digit;
-    }
-  }
-  return null;
-}
+const MOVE_ACTION_TO_KEY = {
+  moveForward: 'w',
+  moveBack: 's',
+  moveLeft: 'a',
+  moveRight: 'd',
+};
 
 export function createInputHandler({
   renderer,
@@ -65,17 +46,21 @@ export function createInputHandler({
     onInputChange?.({ ...keys });
   }
 
-  function handleKey(event, isDown) {
+  function handleMoveKey(event, isDown) {
     if (isUiBlocking()) return;
-    const key = event.key.toLowerCase();
-    if (!['w', 'a', 's', 'd'].includes(key)) return;
-    if (event.repeat) return;
-    if (keys[key] === isDown) return;
-    keys[key] = isDown;
-    if (isDown) {
-      onMoveTarget?.(null, { clearTarget: true });
+    const keybinds = getKeybinds();
+    for (const [action, keyName] of Object.entries(MOVE_ACTION_TO_KEY)) {
+      if (isKeyMatch(event, action)) {
+        if (event.repeat) return;
+        if (keys[keyName] === isDown) return;
+        keys[keyName] = isDown;
+        if (isDown) {
+          onMoveTarget?.(null, { clearTarget: true });
+        }
+        sendInput();
+        return;
+      }
     }
-    sendInput();
   }
 
   function clearMovement() {
@@ -103,8 +88,7 @@ export function createInputHandler({
   }
 
   window.addEventListener('keydown', (event) => {
-    const key = event.key.toLowerCase();
-    if (key === 'f' && !event.repeat) {
+    if (isKeyMatch(event, 'fullscreen') && !event.repeat) {
       const handler = onToggleFullscreen ?? toggleFullscreen;
       handler();
       return;
@@ -112,7 +96,7 @@ export function createInputHandler({
     if (isMenuOpen?.()) {
       return;
     }
-    if (key === 'escape' && !event.repeat) {
+    if (isKeyMatch(event, 'pause') && !event.repeat) {
       if (isPauseMenuOpen?.()) {
         onTogglePauseMenu?.();
         return;
@@ -124,29 +108,35 @@ export function createInputHandler({
       onTogglePauseMenu?.();
       return;
     }
-    if (key === 'tab' && !event.repeat) {
+    if (isKeyMatch(event, 'cycleTarget') && !event.repeat) {
       event.preventDefault();
       if (isUiBlocking()) return;
       onCycleTarget?.();
       return;
     }
-    if (key === 'i' && !event.repeat) {
+    if (isKeyMatch(event, 'inventory') && !event.repeat) {
       onToggleInventory?.();
       return;
     }
-    if (key === 'c' && !event.repeat) {
+    if (isKeyMatch(event, 'character') && !event.repeat) {
       onToggleCharacter?.();
       return;
     }
-    if (key === 'k' && !event.repeat) {
+    if (isKeyMatch(event, 'skills') && !event.repeat) {
       onToggleSkills?.();
       return;
     }
-    if ((key === 'b' || key === 's') && isTradeOpen() && !event.repeat) {
-      onTradeTab?.(key === 'b' ? 'buy' : 'sell');
-      return;
+    if (isTradeOpen() && !event.repeat) {
+      if (isKeyMatch(event, 'tradeBuy')) {
+        onTradeTab?.('buy');
+        return;
+      }
+      if (isKeyMatch(event, 'tradeSell')) {
+        onTradeTab?.('sell');
+        return;
+      }
     }
-    if (key === 'e' && !event.repeat) {
+    if (isKeyMatch(event, 'interact') && !event.repeat) {
       onInteract?.();
       return;
     }
@@ -158,13 +148,13 @@ export function createInputHandler({
         return;
       }
     }
-    handleKey(event, true);
+    handleMoveKey(event, true);
   });
 
   window.addEventListener('keyup', (event) => {
     if (isMenuOpen?.()) return;
     if (isUiBlocking()) return;
-    handleKey(event, false);
+    handleMoveKey(event, false);
   });
 
   const raycaster = new THREE.Raycaster();

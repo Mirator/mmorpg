@@ -23,6 +23,7 @@ import { createPauseMenu } from './pause-menu.js';
 
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
+const pingEl = document.getElementById('ping-ms');
 const coordsEl = document.getElementById('coords');
 const accountNameEl = document.getElementById('account-name');
 const characterNameEl = document.getElementById('overlay-character-name');
@@ -68,6 +69,7 @@ const ctx = {
   playerId: null,
   currentMe: null,
   selectedTarget: null,
+  pingMs: null,
 };
 
 let nearestVendor = null;
@@ -100,6 +102,7 @@ function updateLocalUi() {
   }
   ui.updateLocalUi({ me, worldConfig: gameState.getWorldConfig(), serverNow });
   if (typeof updatePartyPanel === 'function') updatePartyPanel();
+  if (typeof updateDuelPanel === 'function') updateDuelPanel();
 }
 
 const authRef = { current: null };
@@ -139,6 +142,12 @@ const ui = createUiState({
     connectionRef.current?.sendRespawn();
   },
   isChatFocused: () => chat.isChatFocused(),
+  onTradeOfferAddSlot: (slot) => connectionRef.current?.sendTradeOfferAddSlot?.(slot),
+  onTradeOfferAddCopper: (amount) => connectionRef.current?.sendTradeOfferAddCopper?.(amount),
+  onTradeOfferRemoveItem: (index) => connectionRef.current?.sendTradeOfferRemoveItem?.(index),
+  onTradeOfferRemoveCopper: () => connectionRef.current?.sendTradeOfferRemoveCopper?.(),
+  onTradeConfirm: () => connectionRef.current?.sendTradeConfirm?.(),
+  onTradeCancel: () => connectionRef.current?.sendTradeCancel?.(),
 });
 
 const menu = createMenu({
@@ -168,6 +177,8 @@ const combat = createCombat({
 combatRef.current = combat;
 
 let pendingPartyInvite = null;
+let pendingDuelRequest = null;
+let pendingTradeRequest = null;
 
 const connection = createConnection({
   gameState,
@@ -193,6 +204,71 @@ const connection = createConnection({
       toast.classList.remove('hidden');
       textEl.textContent = `${invite.inviterName} invited you to party`;
     }
+  },
+  onDuelRequest: (req) => {
+    pendingDuelRequest = req;
+    const panel = document.getElementById('duel-panel');
+    const toast = document.getElementById('duel-request-toast');
+    const textEl = document.getElementById('duel-request-text');
+    if (panel && toast && textEl) {
+      panel.classList.remove('hidden');
+      toast.classList.remove('hidden');
+      textEl.textContent = `${req.challengerName} challenges you to a duel`;
+    }
+  },
+  onDuelActive: () => {
+    pendingDuelRequest = null;
+    const toast = document.getElementById('duel-request-toast');
+    if (toast) toast.classList.add('hidden');
+  },
+  onDuelEnded: (reason) => {
+    pendingDuelRequest = null;
+    const toast = document.getElementById('duel-request-toast');
+    if (toast) toast.classList.add('hidden');
+    ui.showToast?.(reason === 'forfeit' ? 'Duel forfeited' : reason === 'death' ? 'Duel ended' : 'Duel ended');
+  },
+  onDuelDeclined: (data) => {
+    ui.showToast?.(`${data.targetName} declined your duel`);
+  },
+  onTradeRequest: (req) => {
+    pendingTradeRequest = req;
+    const toast = document.getElementById('trade-request-toast');
+    const textEl = document.getElementById('trade-request-text');
+    if (toast && textEl) {
+      toast.classList.remove('hidden');
+      textEl.textContent = `${req.traderName} wants to trade`;
+    }
+  },
+  onTradeOpened: (data) => {
+    pendingTradeRequest = null;
+    const toast = document.getElementById('trade-request-toast');
+    if (toast) toast.classList.add('hidden');
+    ui.playerTradeUI?.setOpen?.(true);
+    ui.playerTradeUI?.setPartnerName?.(data.partnerName);
+    ui.playerTradeUI?.setOffers?.({
+      myOffer: data.myOffer,
+      theirOffer: data.theirOffer,
+      confirmed: false,
+      theirConfirmed: false,
+    });
+    ui.setInventoryOpen?.(true);
+  },
+  onTradeOfferUpdate: (data) => {
+    ui.playerTradeUI?.setOffers?.(data);
+  },
+  onTradeCompleted: () => {
+    ui.playerTradeUI?.close?.();
+    ui.showToast?.('Trade completed');
+  },
+  onTradeCancelled: () => {
+    ui.playerTradeUI?.close?.();
+    ui.showToast?.('Trade cancelled');
+  },
+  onTradeDeclined: () => {
+    ui.showToast?.('Trade declined');
+  },
+  onTradeError: (err) => {
+    ui.showToast?.(`Trade error: ${err ?? 'unknown'}`);
   },
   updateLocalUi,
   setWorld,
@@ -230,6 +306,36 @@ function updatePartyPanel() {
   }
 }
 
+function updateDuelPanel() {
+  const panel = document.getElementById('duel-panel');
+  const toast = document.getElementById('duel-request-toast');
+  const statusEl = panel?.querySelector('.duel-status');
+  const forfeitBtn = document.getElementById('duel-forfeit-btn');
+  const requestBtn = document.getElementById('duel-request-btn');
+  const inDuel = !!ctx.currentMe?.duelOpponentId;
+  const hasPlayerTarget = ctx.currentMe?.targetKind === 'player' && ctx.currentMe?.targetId;
+  const showPanel = inDuel || !!pendingDuelRequest || hasPlayerTarget;
+  if (panel) {
+    panel.classList.toggle('hidden', !showPanel);
+  }
+  if (toast) {
+    toast.classList.toggle('hidden', !pendingDuelRequest);
+  }
+  if (statusEl) {
+    statusEl.style.display = inDuel ? 'block' : 'none';
+  }
+  if (forfeitBtn) {
+    forfeitBtn.style.display = inDuel ? 'inline-block' : 'none';
+  }
+  if (requestBtn) {
+    requestBtn.style.display = hasPlayerTarget && !inDuel ? 'inline-block' : 'none';
+  }
+  const tradeRequestBtn = document.getElementById('trade-request-btn');
+  if (tradeRequestBtn) {
+    tradeRequestBtn.style.display = hasPlayerTarget && !inDuel ? 'inline-block' : 'none';
+  }
+}
+
 function initPartyButtons() {
   const leaveBtn = document.getElementById('party-leave-btn');
   const inviteBtn = document.getElementById('party-invite-btn');
@@ -245,6 +351,12 @@ function initPartyButtons() {
       const targetId = ctx.currentMe?.targetId;
       if (targetId && ctx.currentMe?.targetKind === 'player') {
         connection.sendPartyInvite(targetId);
+        const target = resolveTarget({ kind: 'player', id: targetId }, {
+          players: gameState.getLatestPlayers(),
+          mobs: {},
+          vendors: [],
+        });
+        ui.showToast?.(`Party invite sent to ${target?.name ?? 'player'}`);
       }
     });
   }
@@ -270,6 +382,94 @@ function initPartyButtons() {
 }
 initPartyButtons();
 
+function initDuelButtons() {
+  const forfeitBtn = document.getElementById('duel-forfeit-btn');
+  const requestBtn = document.getElementById('duel-request-btn');
+  const acceptBtn = document.getElementById('duel-accept-btn');
+  const declineBtn = document.getElementById('duel-decline-btn');
+  if (forfeitBtn) {
+    forfeitBtn.addEventListener('click', () => connection.sendDuelForfeit());
+  }
+  if (requestBtn) {
+    requestBtn.addEventListener('click', () => {
+      const targetId = ctx.currentMe?.targetId;
+      if (targetId && ctx.currentMe?.targetKind === 'player') {
+        connection.sendDuelRequest(targetId);
+        const target = resolveTarget({ kind: 'player', id: targetId }, {
+          players: gameState.getLatestPlayers(),
+          mobs: {},
+          vendors: [],
+        });
+        ui.showToast?.(`Duel challenge sent to ${target?.name ?? 'player'}`);
+      }
+    });
+  }
+  if (acceptBtn) {
+    acceptBtn.addEventListener('click', () => {
+      if (pendingDuelRequest) {
+        connection.sendDuelAccept(pendingDuelRequest.challengerId);
+        pendingDuelRequest = null;
+        const toast = document.getElementById('duel-request-toast');
+        if (toast) toast.classList.add('hidden');
+      }
+    });
+  }
+  if (declineBtn) {
+    declineBtn.addEventListener('click', () => {
+      if (pendingDuelRequest) {
+        connection.sendDuelDecline(pendingDuelRequest.challengerId);
+        pendingDuelRequest = null;
+        const toast = document.getElementById('duel-request-toast');
+        if (toast) toast.classList.add('hidden');
+        const panel = document.getElementById('duel-panel');
+        if (panel && !ctx.currentMe?.duelOpponentId) panel.classList.add('hidden');
+      }
+    });
+  }
+}
+initDuelButtons();
+
+function initTradeButtons() {
+  const tradeRequestBtn = document.getElementById('trade-request-btn');
+  const acceptBtn = document.getElementById('trade-request-accept');
+  const declineBtn = document.getElementById('trade-request-decline');
+  if (tradeRequestBtn) {
+    tradeRequestBtn.addEventListener('click', () => {
+      const targetId = ctx.currentMe?.targetId;
+      if (targetId && ctx.currentMe?.targetKind === 'player') {
+        connection.sendTradeRequest(targetId);
+        const target = resolveTarget({ kind: 'player', id: targetId }, {
+          players: gameState.getLatestPlayers(),
+          mobs: {},
+          vendors: [],
+        });
+        ui.showToast?.(`Trade request sent to ${target?.name ?? 'player'}`);
+      }
+    });
+  }
+  if (acceptBtn) {
+    acceptBtn.addEventListener('click', () => {
+      if (pendingTradeRequest) {
+        connection.sendTradeAccept(pendingTradeRequest.traderId);
+        pendingTradeRequest = null;
+        const toast = document.getElementById('trade-request-toast');
+        if (toast) toast.classList.add('hidden');
+      }
+    });
+  }
+  if (declineBtn) {
+    declineBtn.addEventListener('click', () => {
+      if (pendingTradeRequest) {
+        connection.sendTradeDecline(pendingTradeRequest.traderId);
+        pendingTradeRequest = null;
+        const toast = document.getElementById('trade-request-toast');
+        if (toast) toast.classList.add('hidden');
+      }
+    });
+  }
+}
+initTradeButtons();
+
 auth.setOnConnectCharacter(async (character) => {
   showLoadingScreen('Loading assets...', 0);
   try {
@@ -287,12 +487,29 @@ auth.setOnDisconnect(() => connection.disconnect());
 const urlParams = new URLSearchParams(window.location.search);
 const isGuestSession = urlParams.get('guest') === '1';
 
+const FPS_STORAGE_KEY = 'mmorpg_show_fps';
+
+function getShowFps() {
+  try {
+    return localStorage.getItem(FPS_STORAGE_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function setShowFps(value) {
+  try {
+    localStorage.setItem(FPS_STORAGE_KEY, value ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+  const fpsRow = fpsEl?.closest?.('#hud')?.querySelector?.('.hud-fps-row');
+  if (fpsRow) fpsRow.classList.toggle('hidden', !value);
+}
+
 const pauseMenu = createPauseMenu({
   onResume: () => {
     pauseMenu.setOpen(false);
-  },
-  onOptions: () => {
-    /* placeholder */
   },
   onReturnToCharacterScreen: () => {
     pauseMenu.setOpen(false);
@@ -304,6 +521,8 @@ const pauseMenu = createPauseMenu({
   },
   isGuest: isGuestSession,
   setPauseMenuOpen: ui.setPauseMenuOpen,
+  getShowFps,
+  setShowFps,
 });
 
 let lastFrameTime = performance.now();
@@ -511,12 +730,21 @@ function stepFrame(dt, now) {
 
   combat.pruneCombatEvents(gameState.getServerNow());
 
+  const fpsRow = document.getElementById('hud')?.querySelector('.hud-fps-row');
+  if (fpsRow) fpsRow.classList.toggle('hidden', !getShowFps());
+
+  if (pingEl) {
+    const ms = ctx.pingMs;
+    pingEl.textContent = ms != null ? `${ms} ms` : '--';
+  }
+
   fpsFrameCount += 1;
   if (now - fpsLastTime >= 1000) {
     const fps = (fpsFrameCount * 1000) / (now - fpsLastTime);
-    if (fpsEl) {
-      fpsEl.textContent = fps.toFixed(0);
-    }
+    if (fpsEl) fpsEl.textContent = fps.toFixed(0);
+    fpsFrameCount = 0;
+    fpsLastTime = now;
+  }
     fpsFrameCount = 0;
     fpsLastTime = now;
   }

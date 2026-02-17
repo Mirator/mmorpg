@@ -1,15 +1,21 @@
 import { ABILITY_SLOTS } from '/shared/classes.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 import { getAbilitiesForClass } from '/shared/classes.js';
+import { getKeybinds } from '../keybinds.js';
+
+function formatKey(key) {
+  if (!key) return '';
+  if (key === 'Escape') return 'ESC';
+  return key.length === 1 ? key.toUpperCase() : key;
+}
 
 export function buildAbilityTooltip(ability) {
   const parts = [];
   if (ability.baseValue != null && ability.coefficient != null) {
     parts.push(`Damage: ${ability.baseValue} + Power × ${ability.coefficient}`);
   }
-  if (ability.resourceCost) {
-    const res = ability.resourceCost ?? 0;
-    parts.push(`Cost: ${res}`);
+  if (ability.resourceCost != null && ability.resourceCost > 0) {
+    parts.push(`Cost: ${ability.resourceCost}`);
   }
   if (ability.cooldownMs) {
     parts.push(`CD: ${(ability.cooldownMs / 1000).toFixed(1)}s`);
@@ -23,6 +29,9 @@ export function buildAbilityTooltip(ability) {
   if (ability.radius) {
     parts.push(`Radius: ${ability.radius}m`);
   }
+  if (ability.damageTakenMultiplier != null && ability.damageTakenMultiplier < 1) {
+    parts.push(`Reduces damage taken by ${Math.round((1 - ability.damageTakenMultiplier) * 100)}%`);
+  }
   return parts.join(' · ') || ability.name;
 }
 
@@ -34,6 +43,7 @@ export function createAbilityBar(abilityBarEl, onAbilityClick) {
     if (!abilityBarEl) return;
     abilityBarEl.innerHTML = '';
     abilitySlots.length = 0;
+    const keybinds = getKeybinds();
     for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
       const el = document.createElement('div');
       el.className = 'ability-slot empty';
@@ -41,7 +51,8 @@ export function createAbilityBar(abilityBarEl, onAbilityClick) {
       el.style.setProperty('--cooldown', '0');
       const key = document.createElement('div');
       key.className = 'ability-key';
-      key.textContent = slot === 10 ? '0' : String(slot);
+      const bound = keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot));
+      key.textContent = formatKey(bound);
       const name = document.createElement('div');
       name.className = 'ability-name';
       name.textContent = '';
@@ -65,6 +76,7 @@ export function createAbilityBar(abilityBarEl, onAbilityClick) {
 
   function updateAbilityBar(me, serverNow, getCurrentClassId, globalCooldownMs = 900) {
     if (!abilityBarEl || abilitySlots.length === 0) return;
+    const keybinds = getKeybinds();
     const classId = getCurrentClassId(me);
     const weaponDef = getEquippedWeapon(me?.equipment, classId);
     const abilities = getAbilitiesForClass(classId, me?.level ?? 1, weaponDef);
@@ -86,8 +98,10 @@ export function createAbilityBar(abilityBarEl, onAbilityClick) {
         slotEl.style.setProperty('--cooldown', '0');
         const tooltipEl = slotEl.querySelector('.ability-tooltip');
         const cooldownNumEl = slotEl.querySelector('.ability-cooldown-num');
+        const keyEl = slotEl.querySelector('.ability-key');
         if (tooltipEl) tooltipEl.textContent = '';
         if (cooldownNumEl) cooldownNumEl.textContent = '';
+        if (keyEl) keyEl.textContent = formatKey(keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot)));
         continue;
       }
 
@@ -110,8 +124,13 @@ export function createAbilityBar(abilityBarEl, onAbilityClick) {
       slotEl.style.setProperty('--cooldown', fraction.toFixed(3));
       const tooltipEl = slotEl.querySelector('.ability-tooltip');
       const cooldownNumEl = slotEl.querySelector('.ability-cooldown-num');
+      const keyEl = slotEl.querySelector('.ability-key');
       if (tooltipEl) {
         tooltipEl.textContent = buildAbilityTooltip(ability);
+      }
+      if (keyEl) {
+        const bound = keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot));
+        keyEl.textContent = formatKey(bound);
       }
       if (cooldownNumEl) {
         cooldownNumEl.textContent =

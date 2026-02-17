@@ -287,7 +287,8 @@
         <canvas id="minimap"></canvas>
       </div>
       <div id="hud">
-        <div>FPS: <span id="fps">0</span></div>
+        <div class="hud-fps-row">FPS: <span id="fps">0</span></div>
+        <div class="hud-ping-row">Ping: <span id="ping-ms">--</span></div>
         <div>X/Z: <span id="coords">0.0, 0.0</span></div>
       </div>
     </div>
@@ -299,6 +300,49 @@
         <span id="party-invite-text"></span>
         <button id="party-accept-btn" class="party-btn small" type="button">Accept</button>
         <button id="party-decline-btn" class="party-btn ghost small" type="button">Decline</button>
+      </div>
+    </div>
+    <div id="trade-panel" class="trade-panel hidden">
+      <div class="trade-header">
+        <div class="trade-title">Trade with <span id="trade-partner-name">--</span></div>
+        <button id="trade-cancel-btn" class="trade-btn ghost" type="button">Cancel</button>
+      </div>
+      <div class="trade-body">
+        <div class="trade-side">
+          <div class="trade-side-label">Your offer</div>
+          <div id="trade-my-offer" class="trade-offer-slots"></div>
+          <div class="trade-copper-row">
+            <span>Copper: <span id="trade-my-copper">0</span></span>
+            <input id="trade-add-copper" type="number" min="0" placeholder="Add" style="width:60px" />
+            <button id="trade-add-copper-btn" type="button">Add</button>
+            <button id="trade-remove-copper-btn" type="button">Clear</button>
+          </div>
+        </div>
+        <div class="trade-side">
+          <div class="trade-side-label">Their offer</div>
+          <div id="trade-their-offer" class="trade-offer-slots"></div>
+          <div class="trade-copper-row">Copper: <span id="trade-their-copper">0</span></div>
+        </div>
+      </div>
+      <div class="trade-footer">
+        <button id="trade-confirm-btn" class="trade-btn primary" type="button">Confirm</button>
+        <span id="trade-status" class="trade-status"></span>
+      </div>
+    </div>
+    <div id="trade-request-toast" class="trade-request-toast hidden">
+      <span id="trade-request-text"></span>
+      <button id="trade-request-accept" class="trade-btn small" type="button">Accept</button>
+      <button id="trade-request-decline" class="trade-btn ghost small" type="button">Decline</button>
+    </div>
+    <div id="duel-panel" class="duel-panel hidden">
+      <div class="duel-status">In duel</div>
+      <button id="duel-forfeit-btn" class="duel-btn" type="button" style="display: none">Forfeit</button>
+      <button id="duel-request-btn" class="duel-btn" type="button" style="display: none">Duel</button>
+      <button id="trade-request-btn" class="duel-btn" type="button" style="display: none">Trade</button>
+      <div id="duel-request-toast" class="duel-request-toast hidden">
+        <span id="duel-request-text"></span>
+        <button id="duel-accept-btn" class="duel-btn small" type="button">Accept</button>
+        <button id="duel-decline-btn" class="duel-btn ghost small" type="button">Decline</button>
       </div>
     </div>
     <div id="pause-menu" class="pause-menu" aria-hidden="true">
@@ -318,6 +362,25 @@
           <div class="pause-menu-title">Controls</div>
           <div class="controls-list" id="controls-list"></div>
           <button id="pause-controls-back-btn" class="menu-ghost" type="button">Back</button>
+        </div>
+        <div class="pause-menu-options hidden" id="pause-menu-options">
+          <div class="pause-menu-title">Options</div>
+          <div class="options-list">
+            <div class="options-row">
+              <label for="pause-fps-toggle">Show FPS</label>
+              <input id="pause-fps-toggle" type="checkbox" />
+            </div>
+            <div class="options-row">
+              <label>Volume</label>
+              <input id="pause-volume" type="range" min="0" max="100" value="100" title="Sound volume (not yet implemented)" />
+            </div>
+          </div>
+          <div class="options-section">
+            <div class="options-section-title">Keybinds</div>
+            <div id="keybinds-list" class="keybinds-list"></div>
+            <button id="keybinds-reset-btn" class="menu-ghost small" type="button">Reset to default</button>
+          </div>
+          <button id="pause-options-back-btn" class="menu-ghost" type="button">Back</button>
         </div>
       </div>
     </div>

@@ -29,6 +29,27 @@ const targetHpFillEl = document.getElementById('target-hp-fill');
 const targetHpValueEl = document.getElementById('target-hp-value');
 
 let eventTimeout = null;
+const toastContainer = document.createElement('div');
+toastContainer.id = 'toast-container';
+toastContainer.className = 'toast-container';
+document.body.appendChild(toastContainer);
+
+const TOAST_DURATION_MS = 2500;
+
+export function showToast(message) {
+  if (!message || !toastContainer) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+  toastContainer.appendChild(toast);
+  const remove = () => {
+    toast.classList.add('toast-exit');
+    setTimeout(() => toast.remove(), 200);
+  };
+  setTimeout(remove, TOAST_DURATION_MS);
+}
 
 function setBar(fillEl, valueEl, value, max) {
   if (fillEl) {

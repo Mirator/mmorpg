@@ -33,6 +33,7 @@ export function createServer({ env = process.env } = {}) {
   const players = new Map();
   const corpses = [];
   const spawner = createSpawner(world);
+  const nextItemIdRef = { current: 1 };
 
   if (isE2eTest) {
     const testResource = {
@@ -125,6 +126,7 @@ export function createServer({ env = process.env } = {}) {
     players,
     spawner,
     persistence,
+    nextItemIdRef,
   });
 
   function getMobDisplayName(mob) {
@@ -162,6 +164,11 @@ export function createServer({ env = process.env } = {}) {
     ]);
   };
 
+  const onDuelEnded = (player, opponent, reason, markDirty) => {
+    if (opponent) markDirty(opponent);
+    ws.notifyDuelEnded(player, opponent, reason);
+  };
+
   const gameLoop = createGameLoop({
     players,
     world,
@@ -170,11 +177,13 @@ export function createServer({ env = process.env } = {}) {
     corpses,
     config,
     spawner,
+    nextItemIdRef,
     markDirty: persistence.markDirty,
     onPlayerDamaged,
     onCombatLog,
     onPlayerDeath,
     onCombatEvent,
+    onDuelEnded,
   });
 
   function start() {

@@ -312,11 +312,20 @@
   backdrop-filter: blur(6px);
 }
 
+#hud .hud-fps-row.hidden {
+  display: none;
+}
+
 #hud #fps,
+#hud #ping-ms,
 #hud #coords {
   font-variant-numeric: tabular-nums;
   display: inline-block;
   min-width: 4ch;
+}
+
+#hud #ping-ms {
+  min-width: 5ch;
 }
 
 #hud #coords {

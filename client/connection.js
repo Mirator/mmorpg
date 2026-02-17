@@ -41,6 +41,17 @@ export function createConnection({
   onCombatLog,
   onConnected,
   onPartyInvite,
+  onDuelRequest,
+  onDuelActive,
+  onDuelEnded,
+  onDuelDeclined,
+  onTradeRequest,
+  onTradeOpened,
+  onTradeOfferUpdate,
+  onTradeCompleted,
+  onTradeCancelled,
+  onTradeDeclined,
+  onTradeError,
   updateLocalUi,
   setWorld,
   loadCharacters,
@@ -48,7 +59,14 @@ export function createConnection({
   menu,
   getReconnectParams,
 }) {
+  let pingIntervalId = null;
+
   function resetClientState() {
+    if (pingIntervalId) {
+      clearInterval(pingIntervalId);
+      pingIntervalId = null;
+    }
+    ctx.pingMs = null;
     gameState.reset();
     renderSystem.syncPlayers([]);
     renderSystem.setLocalPlayerId(null);
@@ -264,6 +282,15 @@ export function createConnection({
             if (typeof onConnected === 'function') {
               onConnected();
             }
+            pingIntervalId = setInterval(() => {
+              if (ctx.net) sendWithSeq({ type: 'ping', t: Date.now() });
+            }, 2500);
+            return;
+          }
+
+          if (msg.type === 'pong') {
+            const rtt = Number.isFinite(msg.t) ? Math.round(Date.now() - msg.t) : null;
+            if (rtt != null) ctx.pingMs = rtt;
             return;
           }
 
@@ -316,6 +343,63 @@ export function createConnection({
               inviterName: msg.inviterName ?? 'Unknown',
             });
           }
+
+          if (msg.type === 'duelRequestReceived' && typeof onDuelRequest === 'function') {
+            onDuelRequest({
+              challengerId: msg.challengerId,
+              challengerName: msg.challengerName ?? 'Unknown',
+            });
+          }
+          if (msg.type === 'duelActive' && typeof onDuelActive === 'function') {
+            onDuelActive({
+              opponentId: msg.opponentId,
+              opponentName: msg.opponentName ?? 'Unknown',
+            });
+          }
+          if (msg.type === 'duelEnded' && typeof onDuelEnded === 'function') {
+            onDuelEnded(msg.reason ?? 'ended');
+          }
+          if (msg.type === 'duelDeclined' && typeof onDuelDeclined === 'function') {
+            onDuelDeclined({
+              targetId: msg.targetId,
+              targetName: msg.targetName ?? 'Unknown',
+            });
+          }
+
+          if (msg.type === 'tradeRequestReceived' && typeof onTradeRequest === 'function') {
+            onTradeRequest({
+              traderId: msg.traderId,
+              traderName: msg.traderName ?? 'Unknown',
+            });
+          }
+          if (msg.type === 'tradeOpened' && typeof onTradeOpened === 'function') {
+            onTradeOpened({
+              partnerId: msg.partnerId,
+              partnerName: msg.partnerName ?? 'Unknown',
+              myOffer: msg.myOffer ?? { items: [], copper: 0 },
+              theirOffer: msg.theirOffer ?? { items: [], copper: 0 },
+            });
+          }
+          if (msg.type === 'tradeOfferUpdate' && typeof onTradeOfferUpdate === 'function') {
+            onTradeOfferUpdate({
+              myOffer: msg.myOffer ?? { items: [], copper: 0 },
+              theirOffer: msg.theirOffer ?? { items: [], copper: 0 },
+              confirmed: msg.confirmed ?? false,
+              theirConfirmed: msg.theirConfirmed ?? false,
+            });
+          }
+          if (msg.type === 'tradeCompleted' && typeof onTradeCompleted === 'function') {
+            onTradeCompleted();
+          }
+          if (msg.type === 'tradeCancelled' && typeof onTradeCancelled === 'function') {
+            onTradeCancelled();
+          }
+          if (msg.type === 'tradeDeclined' && typeof onTradeDeclined === 'function') {
+            onTradeDeclined();
+          }
+          if (msg.type === 'tradeError' && typeof onTradeError === 'function') {
+            onTradeError(msg.error);
+          }
         },
       });
       ctx.net = localNet;
@@ -356,6 +440,58 @@ export function createConnection({
     sendWithSeq({ type: 'partyLeave' });
   }
 
+  function sendDuelRequest(targetId) {
+    if (targetId) sendWithSeq({ type: 'duelRequest', targetId });
+  }
+
+  function sendDuelAccept(challengerId) {
+    if (challengerId) sendWithSeq({ type: 'duelAccept', challengerId });
+  }
+
+  function sendDuelDecline(challengerId) {
+    if (challengerId) sendWithSeq({ type: 'duelDecline', challengerId });
+  }
+
+  function sendDuelForfeit() {
+    sendWithSeq({ type: 'duelForfeit' });
+  }
+
+  function sendTradeRequest(targetId) {
+    if (targetId) sendWithSeq({ type: 'tradeRequest', targetId });
+  }
+
+  function sendTradeAccept(traderId) {
+    if (traderId) sendWithSeq({ type: 'tradeAccept', traderId });
+  }
+
+  function sendTradeDecline(traderId) {
+    if (traderId) sendWithSeq({ type: 'tradeDecline', traderId });
+  }
+
+  function sendTradeOfferAddSlot(slot) {
+    sendWithSeq({ type: 'tradeOffer', op: 'add', slot });
+  }
+
+  function sendTradeOfferAddCopper(amount) {
+    sendWithSeq({ type: 'tradeOffer', op: 'add', copper: amount });
+  }
+
+  function sendTradeOfferRemoveItem(offerIndex) {
+    sendWithSeq({ type: 'tradeOffer', op: 'remove', slot: offerIndex });
+  }
+
+  function sendTradeOfferRemoveCopper() {
+    sendWithSeq({ type: 'tradeOffer', op: 'remove', copper: 1 });
+  }
+
+  function sendTradeConfirm() {
+    sendWithSeq({ type: 'tradeConfirm' });
+  }
+
+  function sendTradeCancel() {
+    sendWithSeq({ type: 'tradeCancel' });
+  }
+
   return {
     start,
     disconnect,
@@ -367,5 +503,18 @@ export function createConnection({
     sendPartyInvite,
     sendPartyAccept,
     sendPartyLeave,
+    sendDuelRequest,
+    sendDuelAccept,
+    sendDuelDecline,
+    sendDuelForfeit,
+    sendTradeRequest,
+    sendTradeAccept,
+    sendTradeDecline,
+    sendTradeOfferAddSlot,
+    sendTradeOfferAddCopper,
+    sendTradeOfferRemoveItem,
+    sendTradeOfferRemoveCopper,
+    sendTradeConfirm,
+    sendTradeCancel,
   };
 }

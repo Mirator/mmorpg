@@ -62,6 +62,13 @@ describe('protocol validation', () => {
     expect(parseClientMessage({ type: 'moveTarget', x: 'nope', z: 1 })).toBe(null);
   });
 
+  it('accepts ping message', () => {
+    const msg = parseClientMessage({ type: 'ping', seq: 1, t: 12345 });
+    expect(msg.type).toBe('ping');
+    expect(msg.seq).toBe(1);
+    expect(msg.t).toBe(12345);
+  });
+
   it('accepts action messages', () => {
     expect(parseClientMessage({ type: 'action', kind: 'interact' })).toEqual({
       type: 'action',
