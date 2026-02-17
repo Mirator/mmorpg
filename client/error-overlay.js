@@ -1,9 +1,18 @@
+// @ts-check
 const overlayEl = document.getElementById('error-overlay');
 const titleEl = document.getElementById('error-overlay-title');
 const messageEl = document.getElementById('error-overlay-message');
 const actionsEl = document.getElementById('error-overlay-actions');
 
-export function showErrorOverlay({ title = 'Something went wrong', message = '', actions = [] }) {
+/**
+ * @typedef {{ label: string, onClick?: (() => void) | null }} ErrorOverlayAction
+ * @typedef {{ title?: string, message?: string, actions?: ErrorOverlayAction[] }} ErrorOverlayOptions
+ */
+
+/**
+ * @param {ErrorOverlayOptions} [options]
+ */
+export function showErrorOverlay({ title = 'Something went wrong', message = '', actions = [] } = {}) {
   if (!overlayEl || !titleEl || !messageEl || !actionsEl) return;
   titleEl.textContent = title;
   messageEl.textContent = message;
@@ -25,6 +34,6 @@ export function hideErrorOverlay() {
   overlayEl?.classList.remove('visible');
 }
 
-export function updateErrorOverlayMessage(message) {
+export function updateErrorOverlayMessage(/** @type {any} */ message) {
   if (messageEl) messageEl.textContent = message;
 }

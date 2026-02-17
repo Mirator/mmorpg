@@ -1,7 +1,18 @@
+// @ts-check
 import { addItem, countInventory } from './inventory.js';
+
+/** @typedef {import('../types/domain.d.ts').Corpse} Corpse */
+/** @typedef {import('../types/domain.d.ts').Inventory} Inventory */
+/** @typedef {import('../types/domain.d.ts').Position3D} Position3D */
+/** @typedef {import('../types/domain.d.ts').ServerPlayer} ServerPlayer */
 
 let nextCorpseId = 1;
 
+/**
+ * @param {Position3D | null | undefined} a
+ * @param {Position3D | null | undefined} b
+ * @returns {number}
+ */
 function distance2(a, b) {
   const dx = (a?.x ?? 0) - (b?.x ?? 0);
   const dz = (a?.z ?? 0) - (b?.z ?? 0);
@@ -10,8 +21,8 @@ function distance2(a, b) {
 
 /**
  * Deep-copy inventory slots (items) for corpse storage.
- * @param {Array<{ id?: string, kind?: string, name?: string, count?: number } | null>} inventory
- * @returns {Array<{ id?: string, kind?: string, name?: string, count?: number } | null>}
+ * @param {Inventory} inventory
+ * @returns {Inventory}
  */
 function copyInventoryForCorpse(inventory) {
   if (!Array.isArray(inventory)) return [];
@@ -29,10 +40,10 @@ function copyInventoryForCorpse(inventory) {
 /**
  * Create a corpse at the given position with a copy of the player's inventory.
  * @param {string} playerId - Owner of the corpse (only they can loot)
- * @param {{ x: number, y?: number, z: number }} pos - Death position
- * @param {Array} inventory - Player inventory to copy
+ * @param {Position3D} pos - Death position
+ * @param {Inventory} inventory - Player inventory to copy
  * @param {number} expiresAt - Timestamp when corpse despawns
- * @returns {{ id: string, playerId: string, pos: { x: number, y: number, z: number }, inventory: Array, expiresAt: number }}
+ * @returns {Corpse}
  */
 export function createCorpse(playerId, pos, inventory, expiresAt) {
   const id = `corpse-${nextCorpseId++}`;
@@ -47,7 +58,7 @@ export function createCorpse(playerId, pos, inventory, expiresAt) {
 
 /**
  * Remove expired corpses.
- * @param {Array} corpses - Mutable array of corpses
+ * @param {Corpse[]} corpses - Mutable array of corpses
  * @param {number} now - Current timestamp
  */
 export function stepCorpses(corpses, now) {
@@ -61,8 +72,8 @@ export function stepCorpses(corpses, now) {
 /**
  * Try to loot the closest corpse belonging to the player within radius.
  * Transfers as many items as possible to player inventory; removes corpse when empty.
- * @param {Array} corpses - Mutable array of corpses
- * @param {Object} player - Player (must have id, pos, inventory, invStackMax)
+ * @param {Corpse[]} corpses - Mutable array of corpses
+ * @param {ServerPlayer} player - Player (must have id, pos, inventory, invStackMax)
  * @param {{ lootRadius?: number }} config
  * @returns {{ looted: boolean, corpseId?: string }}
  */
@@ -70,7 +81,7 @@ export function tryLootCorpse(corpses, player, config = {}) {
   const lootRadius = config.lootRadius ?? 2.5;
   const lootRadius2 = lootRadius * lootRadius;
 
-  let closest = null;
+  let /** @type {Corpse | null} */ closest = null;
   let closestDist2 = lootRadius2;
 
   for (const corpse of corpses) {

@@ -3,6 +3,14 @@
 const TRADE_RANGE = 5;
 const TRADE_RANGE2 = TRADE_RANGE * TRADE_RANGE;
 
+/** @typedef {import('../types/domain.d.ts').PlayerMap} PlayerMap */
+/** @typedef {import('../types/domain.d.ts').ServerPlayer} ServerPlayer */
+
+/**
+ * @param {ServerPlayer | null | undefined} a
+ * @param {ServerPlayer | null | undefined} b
+ * @returns {number}
+ */
 function dist2(a, b) {
   if (!a?.pos || !b?.pos) return Infinity;
   const dx = (a.pos.x ?? 0) - (b.pos.x ?? 0);
@@ -12,8 +20,8 @@ function dist2(a, b) {
 
 /**
  * Check if two players are in range for duel/trade (5m).
- * @param {Object} a - Player A
- * @param {Object} b - Player B
+ * @param {ServerPlayer | null | undefined} a - Player A
+ * @param {ServerPlayer | null | undefined} b - Player B
  * @returns {boolean}
  */
 export function playersInRange(a, b) {
@@ -22,8 +30,8 @@ export function playersInRange(a, b) {
 
 /**
  * Start a duel between two players. Sets duelOpponentId on both.
- * @param {Object} a - Player A (challenger)
- * @param {Object} b - Player B (accepter)
+ * @param {ServerPlayer | null | undefined} a - Player A (challenger)
+ * @param {ServerPlayer | null | undefined} b - Player B (accepter)
  */
 export function startDuel(a, b) {
   if (!a || !b) return;
@@ -33,8 +41,9 @@ export function startDuel(a, b) {
 
 /**
  * End duel for a player and their opponent. Clears duelOpponentId on both.
- * @param {Object} player - Either duel participant
- * @param {Map<string, Object>} players - All players map
+ * @param {ServerPlayer | null | undefined} player - Either duel participant
+ * @param {PlayerMap} players - All players map
+ * @returns {ServerPlayer | null}
  */
 export function endDuel(player, players) {
   const opponentId = player?.duelOpponentId;
@@ -42,5 +51,5 @@ export function endDuel(player, players) {
   const opponent = players?.get?.(opponentId);
   delete player.duelOpponentId;
   if (opponent) delete opponent.duelOpponentId;
-  return opponent;
+  return opponent ?? null;
 }

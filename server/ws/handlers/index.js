@@ -1,3 +1,4 @@
+// @ts-check
 import * as ping from './ping.js';
 import * as party from './party.js';
 import * as duel from './duel.js';
@@ -14,6 +15,9 @@ import * as craft from './craft.js';
  * Returns an array of [match, handler] for message dispatch.
  * match(msg) returns true if the handler should process this message.
  * Each handler receives (ctx) with player, players, msg, etc.
+ * @typedef {(msg: any) => boolean} MessageMatcher
+ * @typedef {(ctx: any) => void} MessageHandler
+ * @returns {Array<[MessageMatcher, MessageHandler]>}
  */
 export function createMessageHandlers() {
   return [

@@ -3,15 +3,15 @@
 import { VALID_MOB_TYPES, VALID_RESOURCE_TYPES } from './entityTypes.js';
 import { VENDOR_BUY_ITEMS } from './economy.js';
 
-const VALID_VENDOR_BUY_KINDS = new Set(VENDOR_BUY_ITEMS.map((e) => e.kind));
+const VALID_VENDOR_BUY_KINDS = new Set(VENDOR_BUY_ITEMS.map((/** @type {any} */ e) => e.kind));
 
 export const MAP_CONFIG_VERSION = 1;
 
-function isObject(value) {
+function isObject(/** @type {any} */ value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function normalizePoint(raw) {
+function normalizePoint(/** @type {any} */ raw) {
   const point = isObject(raw) ? raw : {};
   return {
     x: point.x ?? 0,
@@ -20,7 +20,7 @@ function normalizePoint(raw) {
   };
 }
 
-function normalizeCircle(raw, defaults = {}) {
+function normalizeCircle(/** @type {any} */ raw, /** @type {any} */ defaults = {}) {
   const circle = isObject(raw) ? raw : {};
   return {
     x: circle.x ?? defaults.x ?? 0,
@@ -30,12 +30,12 @@ function normalizeCircle(raw, defaults = {}) {
   };
 }
 
-function normalizeList(raw, mapFn) {
+function normalizeList(/** @type {any} */ raw, /** @type {any} */ mapFn) {
   if (!Array.isArray(raw)) return [];
-  return raw.map((item) => mapFn(item));
+  return raw.map((/** @type {any} */ item) => mapFn(item));
 }
 
-export function normalizeMapConfig(raw) {
+export function normalizeMapConfig(/** @type {any} */ raw) {
   const config = isObject(raw) ? raw : {};
   return {
     version: config.version ?? MAP_CONFIG_VERSION,
@@ -44,8 +44,8 @@ export function normalizeMapConfig(raw) {
     mapYMax: config.mapYMax,
     base: normalizeCircle(config.base),
     spawnPoints: normalizeList(config.spawnPoints, normalizePoint),
-    obstacles: normalizeList(config.obstacles, (item) => normalizeCircle(item)),
-    resourceNodes: normalizeList(config.resourceNodes, (item) => {
+    obstacles: normalizeList(config.obstacles, (/** @type {any} */ item) => normalizeCircle(item)),
+    resourceNodes: normalizeList(config.resourceNodes, (/** @type {any} */ item) => {
       const type = isObject(item) && typeof item.type === 'string' ? item.type.trim().toLowerCase() : 'crystal';
       const respawnMs = isObject(item) && Number.isFinite(item.respawnMs) ? item.respawnMs : undefined;
       return {
@@ -57,12 +57,12 @@ export function normalizeMapConfig(raw) {
         respawnMs,
       };
     }),
-    vendors: normalizeList(config.vendors, (item) => {
+    vendors: normalizeList(config.vendors, (/** @type {any} */ item) => {
       const raw = isObject(item) ? item : {};
       const buyItems = Array.isArray(raw.buyItems)
         ? raw.buyItems
-            .filter((e) => isObject(e) && typeof e.kind === 'string' && VALID_VENDOR_BUY_KINDS.has(e.kind.trim()))
-            .map((e) => ({
+            .filter((/** @type {any} */ e) => isObject(e) && typeof e.kind === 'string' && VALID_VENDOR_BUY_KINDS.has(e.kind.trim()))
+            .map((/** @type {any} */ e) => ({
               kind: e.kind.trim(),
               priceCopper: Number.isFinite(e.priceCopper) ? e.priceCopper : undefined,
             }))
@@ -76,7 +76,7 @@ export function normalizeMapConfig(raw) {
         buyItems: buyItems && buyItems.length > 0 ? buyItems : undefined,
       };
     }),
-    mobSpawns: normalizeList(config.mobSpawns, (item) => {
+    mobSpawns: normalizeList(config.mobSpawns, (/** @type {any} */ item) => {
       const raw = isObject(item) ? item : {};
       const aggressive = raw.aggressive !== false;
       const level = Number.isFinite(raw.level) ? raw.level : undefined;
@@ -95,15 +95,15 @@ export function normalizeMapConfig(raw) {
   };
 }
 
-function isFiniteNumber(value) {
+function isFiniteNumber(/** @type {any} */ value) {
   return Number.isFinite(value);
 }
 
-function addError(errors, message) {
+function addError(/** @type {any} */ errors, /** @type {any} */ message) {
   errors.push(message);
 }
 
-function validatePoint(errors, label, point, half, yMin, yMax) {
+function validatePoint(/** @type {any} */ errors, /** @type {any} */ label, /** @type {any} */ point, /** @type {any} */ half, /** @type {any} */ yMin, /** @type {any} */ yMax) {
   if (!isFiniteNumber(point.x) || !isFiniteNumber(point.z)) {
     addError(errors, `${label} must have numeric x/z.`);
     return;
@@ -121,7 +121,7 @@ function validatePoint(errors, label, point, half, yMin, yMax) {
   }
 }
 
-function validateCircle(errors, label, circle, half, yMin, yMax) {
+function validateCircle(/** @type {any} */ errors, /** @type {any} */ label, /** @type {any} */ circle, /** @type {any} */ half, /** @type {any} */ yMin, /** @type {any} */ yMax) {
   if (!isFiniteNumber(circle.x) || !isFiniteNumber(circle.z)) {
     addError(errors, `${label} must have numeric x/z.`);
     return;
@@ -148,7 +148,7 @@ function validateCircle(errors, label, circle, half, yMin, yMax) {
   }
 }
 
-function validateId(errors, label, id, seen) {
+function validateId(/** @type {any} */ errors, /** @type {any} */ label, /** @type {any} */ id, /** @type {any} */ seen) {
   if (typeof id !== 'string' || id.trim().length === 0) {
     addError(errors, `${label} id must be a non-empty string.`);
     return;
@@ -161,8 +161,8 @@ function validateId(errors, label, id, seen) {
   seen.add(trimmed);
 }
 
-export function validateMapConfig(config) {
-  const errors = [];
+export function validateMapConfig(/** @type {any} */ config) {
+  const /** @type {any} */ errors = [];
   if (!isFiniteNumber(config?.mapSize) || config.mapSize <= 0) {
     addError(errors, 'mapSize must be a positive number.');
     return errors;
@@ -187,7 +187,7 @@ export function validateMapConfig(config) {
   if (!Array.isArray(config.spawnPoints)) {
     addError(errors, 'spawnPoints must be an array.');
   } else {
-    config.spawnPoints.forEach((point, index) => {
+    config.spawnPoints.forEach((/** @type {any} */ point, /** @type {any} */ index) => {
       validatePoint(errors, `spawnPoints[${index}]`, point, half, yMin, yMax);
     });
   }
@@ -195,7 +195,7 @@ export function validateMapConfig(config) {
   if (!Array.isArray(config.obstacles)) {
     addError(errors, 'obstacles must be an array.');
   } else {
-    config.obstacles.forEach((obs, index) => {
+    config.obstacles.forEach((/** @type {any} */ obs, /** @type {any} */ index) => {
       validateCircle(errors, `obstacles[${index}]`, obs, half, yMin, yMax);
     });
   }
@@ -204,7 +204,7 @@ export function validateMapConfig(config) {
     addError(errors, 'resourceNodes must be an array.');
   } else {
     const seen = new Set();
-    config.resourceNodes.forEach((node, index) => {
+    config.resourceNodes.forEach((/** @type {any} */ node, /** @type {any} */ index) => {
       validateId(errors, `resourceNodes[${index}]`, node?.id, seen);
       validatePoint(errors, `resourceNodes[${index}]`, node ?? {}, half, yMin, yMax);
       const type = node?.type;
@@ -218,7 +218,7 @@ export function validateMapConfig(config) {
     addError(errors, 'vendors must be an array.');
   } else {
     const seen = new Set();
-    config.vendors.forEach((vendor, index) => {
+    config.vendors.forEach((/** @type {any} */ vendor, /** @type {any} */ index) => {
       validateId(errors, `vendors[${index}]`, vendor?.id, seen);
       if (typeof vendor?.name !== 'string' || vendor.name.trim().length === 0) {
         addError(errors, `vendors[${index}] name must be a non-empty string.`);
@@ -226,7 +226,7 @@ export function validateMapConfig(config) {
       validatePoint(errors, `vendors[${index}]`, vendor ?? {}, half, yMin, yMax);
       const buyItems = vendor?.buyItems;
       if (Array.isArray(buyItems)) {
-        buyItems.forEach((entry, bi) => {
+        buyItems.forEach((/** @type {any} */ entry, /** @type {any} */ bi) => {
           const kind = entry?.kind;
           if (!kind || typeof kind !== 'string' || !VALID_VENDOR_BUY_KINDS.has(kind.trim())) {
             addError(errors, `vendors[${index}] buyItems[${bi}] kind must be a valid buy item kind.`);
@@ -240,7 +240,7 @@ export function validateMapConfig(config) {
     addError(errors, 'mobSpawns must be an array.');
   } else {
     const seen = new Set();
-    config.mobSpawns.forEach((spawn, index) => {
+    config.mobSpawns.forEach((/** @type {any} */ spawn, /** @type {any} */ index) => {
       validateId(errors, `mobSpawns[${index}]`, spawn?.id, seen);
       validatePoint(errors, `mobSpawns[${index}]`, spawn ?? {}, half, yMin, yMax);
       const mobType = spawn?.mobType;

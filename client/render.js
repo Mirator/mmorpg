@@ -1,3 +1,4 @@
+// @ts-check
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { initWorld, updateResources, updateMobs, updateCorpses, animateWorld } from './world.js';
 import {
@@ -15,10 +16,11 @@ const CAMERA_LERP_SPEED = 5;
 const FRUSTUM_SIZE = 24;
 const CULL_DISTANCE = 100;
 
-export function createRenderSystem({ app }) {
+export function createRenderSystem(/** @type {any} */ { app }) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b0f14);
 
+  /** @type {any} */
   let renderer;
   let webGLReady = true;
   try {
@@ -51,7 +53,7 @@ export function createRenderSystem({ app }) {
 
     renderer.domElement.addEventListener(
       'webglcontextlost',
-      (event) => {
+      (/** @type {any} */ event) => {
         event.preventDefault();
         webGLReady = false;
         showErrorOverlay({
@@ -74,6 +76,7 @@ export function createRenderSystem({ app }) {
   const cameraTarget = new THREE.Vector3();
   const cameraDesired = new THREE.Vector3();
 
+  /** @type {any} */
   let camera;
 
   function createCamera() {
@@ -122,18 +125,18 @@ export function createRenderSystem({ app }) {
 
   const playerMeshes = new Map();
   const playerControllers = new Map();
-  let playerPrototypePromise = null;
-  let playerClipsPromise = null;
-  let myId = null;
-  let worldState = null;
+  let /** @type {any} */ playerPrototypePromise = null;
+  let /** @type {any} */ playerClipsPromise = null;
+  let /** @type {any} */ myId = null;
+  let /** @type {any} */ worldState = null;
   const effectsSystem = createEffectsSystem(scene);
   const mobRaycaster = new THREE.Raycaster();
   mobRaycaster.layers.enable(1);
 
-  let placementIndicator = null;
+  let /** @type {any} */ placementIndicator = null;
   let placementIndicatorRadius = 2.5;
 
-  function setPlacementIndicator(visible, radius = 2.5, placementRange = 10) {
+  function setPlacementIndicator(/** @type {any} */ visible, /** @type {any} */ radius = 2.5, /** @type {any} */ placementRange = 10) {
     if (!visible) {
       if (placementIndicator) {
         scene.remove(placementIndicator);
@@ -164,7 +167,7 @@ export function createRenderSystem({ app }) {
     }
   }
 
-  function updatePlacementIndicator(pos, isValid) {
+  function updatePlacementIndicator(/** @type {any} */ pos, /** @type {any} */ isValid) {
     if (!placementIndicator || !pos) return;
     placementIndicator.position.set(pos.x, 0.05, pos.z);
     if (placementIndicator.material) {
@@ -183,7 +186,7 @@ export function createRenderSystem({ app }) {
     camera.updateProjectionMatrix();
   }
 
-  function createPlayerMesh(isLocal) {
+  function createPlayerMesh(/** @type {any} */ isLocal) {
     const group = new THREE.Group();
     const geometry = new THREE.BoxGeometry(1, 2, 1);
     const material = new THREE.MeshStandardMaterial({
@@ -196,19 +199,19 @@ export function createRenderSystem({ app }) {
     return group;
   }
 
-  function ensurePlayerMesh(id) {
+  function ensurePlayerMesh(/** @type {any} */ id) {
     if (playerMeshes.has(id)) return playerMeshes.get(id);
     const mesh = createPlayerMesh(id === myId);
     mesh.userData.playerId = id;
     playerMeshes.set(id, mesh);
     scene.add(mesh);
-    hydratePlayerMesh(id, mesh).catch((err) => {
+    hydratePlayerMesh(id, mesh).catch((/** @type {any} */ err) => {
       console.warn('[render] Failed to load player model:', err);
     });
     return mesh;
   }
 
-  function setLocalPlayerId(id) {
+  function setLocalPlayerId(/** @type {any} */ id) {
     myId = id;
     const mesh = playerMeshes.get(myId);
     if (mesh?.userData?.placeholder?.material?.color) {
@@ -216,7 +219,7 @@ export function createRenderSystem({ app }) {
     }
   }
 
-  function syncPlayers(playerIds) {
+  function syncPlayers(/** @type {any} */ playerIds) {
     const seen = new Set(playerIds);
     for (const id of seen) {
       ensurePlayerMesh(id);
@@ -239,7 +242,7 @@ export function createRenderSystem({ app }) {
     }
   }
 
-  function updatePlayerPositions(positions, options = {}) {
+  function updatePlayerPositions(/** @type {any} */ positions, /** @type {any} */ options = {}) {
     const { localPlayerId, inputKeys } = options;
     const hasMovementInput = inputKeys && (inputKeys.w || inputKeys.a || inputKeys.s || inputKeys.d);
 
@@ -261,7 +264,7 @@ export function createRenderSystem({ app }) {
     }
   }
 
-  function setTargetMarker(pos) {
+  function setTargetMarker(/** @type {any} */ pos) {
     if (!pos) {
       targetMarker.visible = false;
       return;
@@ -270,7 +273,7 @@ export function createRenderSystem({ app }) {
     targetMarker.visible = true;
   }
 
-  function setTargetRing(pos) {
+  function setTargetRing(/** @type {any} */ pos) {
     if (!pos) {
       targetRing.visible = false;
       return;
@@ -279,7 +282,7 @@ export function createRenderSystem({ app }) {
     targetRing.visible = true;
   }
 
-  function pickMob(ndc) {
+  function pickMob(/** @type {any} */ ndc) {
     if (!worldState?.mobMeshes) return null;
     const meshes = Array.from(worldState.mobMeshes.values());
     if (!meshes.length) return null;
@@ -294,8 +297,8 @@ export function createRenderSystem({ app }) {
     return null;
   }
 
-  function pickTarget(ndc) {
-    const targetMeshes = [];
+  function pickTarget(/** @type {any} */ ndc) {
+    const /** @type {any} */ targetMeshes = [];
     if (worldState?.mobMeshes) {
       targetMeshes.push(...worldState.mobMeshes.values());
     }
@@ -328,7 +331,7 @@ export function createRenderSystem({ app }) {
     return null;
   }
 
-  function projectToScreen(pos) {
+  function projectToScreen(/** @type {any} */ pos) {
     camera.updateMatrixWorld();
     camera.updateProjectionMatrix();
     const vector = new THREE.Vector3(pos.x, pos.y ?? 1, pos.z);
@@ -340,7 +343,7 @@ export function createRenderSystem({ app }) {
     };
   }
 
-  function updateWorld(config) {
+  function updateWorld(/** @type {any} */ config) {
     if (worldState?.group) {
       worldState.isActive = false;
       scene.remove(worldState.group);
@@ -349,23 +352,23 @@ export function createRenderSystem({ app }) {
     return worldState;
   }
 
-  function updateWorldResources(resources) {
+  function updateWorldResources(/** @type {any} */ resources) {
     updateResources(worldState, resources);
   }
 
-  function updateWorldMobs(mobs) {
+  function updateWorldMobs(/** @type {any} */ mobs) {
     updateMobs(worldState, mobs);
   }
 
-  function updateWorldCorpses(corpses) {
+  function updateWorldCorpses(/** @type {any} */ corpses) {
     updateCorpses(worldState, corpses);
   }
 
-  function animateWorldMeshes(now) {
+  function animateWorldMeshes(/** @type {any} */ now) {
     animateWorld(worldState, now);
   }
 
-  function updateAnimations(dt, now, deadPlayerIds = new Set()) {
+  function updateAnimations(/** @type {any} */ dt, /** @type {any} */ now, /** @type {any} */ deadPlayerIds = new Set()) {
     updateControllerMap(playerControllers, playerMeshes, dt, now, deadPlayerIds);
     if (worldState?.mobControllers && worldState?.mobMeshes) {
       updateControllerMap(worldState.mobControllers, worldState.mobMeshes, dt, now);
@@ -375,7 +378,7 @@ export function createRenderSystem({ app }) {
     }
   }
 
-  function triggerAttack(id, now, durationMs) {
+  function triggerAttack(/** @type {any} */ id, /** @type {any} */ now, /** @type {any} */ durationMs) {
     if (!id) return;
     const playerController = playerControllers.get(id);
     const mobController = worldState?.mobControllers?.get?.(id);
@@ -387,13 +390,13 @@ export function createRenderSystem({ app }) {
     }
   }
 
-  function updateEffects(now) {
+  function updateEffects(/** @type {any} */ now) {
     effectsSystem.update(now);
   }
 
   const cameraLookDirection = new THREE.Vector3(-1, -1, -1).normalize();
 
-  function updateCamera(viewPos, dt) {
+  function updateCamera(/** @type {any} */ viewPos, /** @type {any} */ dt) {
     if (!viewPos) return null;
     cameraDesired.set(
       viewPos.x + cameraOffset.x,
@@ -414,11 +417,11 @@ export function createRenderSystem({ app }) {
 
   const visibilityCheckPos = new THREE.Vector3();
 
-  function updateVisibility(cameraTargetVec) {
+  function updateVisibility(/** @type {any} */ cameraTargetVec) {
     if (!cameraTargetVec || !worldState) return;
     const cullDistSq = CULL_DISTANCE * CULL_DISTANCE;
 
-    const setVisibleByDistance = (obj) => {
+    const setVisibleByDistance = (/** @type {any} */ obj) => {
       obj.getWorldPosition(visibilityCheckPos);
       obj.visible = visibilityCheckPos.distanceToSquared(cameraTargetVec) <= cullDistSq;
     };
@@ -483,12 +486,12 @@ export function createRenderSystem({ app }) {
             deathKeywords: ['death'],
           };
 
-      playerClipsPromise = loadPlayerAnimations().then((clips) => pickClips(clips, overrides));
+      playerClipsPromise = loadPlayerAnimations().then((/** @type {any} */ clips) => pickClips(clips, overrides));
     }
     return playerClipsPromise;
   }
 
-  async function hydratePlayerMesh(id, mesh) {
+  async function hydratePlayerMesh(/** @type {any} */ id, /** @type {any} */ mesh) {
     if (!mesh) return;
     if (!mesh.userData) mesh.userData = {};
     if (mesh.userData.hydrating) return;
@@ -510,6 +513,7 @@ export function createRenderSystem({ app }) {
       const mixer = new THREE.AnimationMixer(model);
       const actions = createActions(mixer, clipSet);
       const walkCycle = buildWalkCycle(model);
+      /** @type {{ mixer: any, actions: any, active: 'idle' | 'walk' | 'attack' | 'death' | null, attackUntil: number, lastPos: any, walkCycle: any }} */
       const controller = {
         mixer,
         actions,
@@ -526,8 +530,8 @@ export function createRenderSystem({ app }) {
     }
   }
 
-  function createActions(mixer, clipSet) {
-    const actions = {
+  function createActions(/** @type {any} */ mixer, /** @type {any} */ clipSet) {
+    const /** @type {any} */ actions = {
       idle: clipSet.idle ? mixer.clipAction(clipSet.idle) : null,
       walk: clipSet.walk ? mixer.clipAction(clipSet.walk) : null,
       attack: clipSet.attack ? mixer.clipAction(clipSet.attack) : null,
@@ -544,16 +548,17 @@ export function createRenderSystem({ app }) {
     return actions;
   }
 
-  function buildWalkCycle(model) {
+  function buildWalkCycle(/** @type {any} */ model) {
+    /** @type {any} */
     let skeleton = null;
-    model.traverse((node) => {
+    model.traverse((/** @type {any} */ node) => {
       if (!skeleton && node?.isSkinnedMesh && node.skeleton) {
         skeleton = node.skeleton;
       }
     });
     if (!skeleton) return null;
 
-    const names = [
+    const /** @type {any} */ names = [
       'upperarm_l',
       'upperarm_r',
       'thigh_l',
@@ -563,8 +568,8 @@ export function createRenderSystem({ app }) {
       'spine_01',
     ];
 
-    const bones = {};
-    const rest = {};
+    const /** @type {any} */ bones = {};
+    const /** @type {any} */ rest = {};
     for (const name of names) {
       const bone = skeleton.getBoneByName?.(name) ?? null;
       if (bone) {
@@ -587,7 +592,7 @@ export function createRenderSystem({ app }) {
     };
   }
 
-  function resetWalkCycle(walkCycle) {
+  function resetWalkCycle(/** @type {any} */ walkCycle) {
     if (!walkCycle) return;
     for (const [name, bone] of Object.entries(walkCycle.bones)) {
       const rest = walkCycle.rest[name];
@@ -598,7 +603,7 @@ export function createRenderSystem({ app }) {
     }
   }
 
-  function applyWalkCycle(walkCycle, now, speed) {
+  function applyWalkCycle(/** @type {any} */ walkCycle, /** @type {any} */ now, /** @type {any} */ speed) {
     if (!walkCycle) return;
     const intensity = Math.min(1, speed / 2);
     const t = now * 0.006 + walkCycle.phase;
@@ -610,7 +615,7 @@ export function createRenderSystem({ app }) {
     const calfSwing = 0.4 * intensity * Math.max(0, -swing);
     const spineLean = 0.1 * intensity * Math.sin(t + Math.PI / 2);
 
-    const applyRot = (boneName, angle, axis) => {
+    const applyRot = (/** @type {any} */ boneName, /** @type {any} */ angle, /** @type {any} */ axis) => {
       const bone = walkCycle.bones[boneName];
       if (!bone) return;
       const rest = walkCycle.rest[boneName];
@@ -633,7 +638,7 @@ export function createRenderSystem({ app }) {
     walkCycle.wasWalking = true;
   }
 
-  function playAction(controller, name) {
+  function playAction(/** @type {any} */ controller, /** @type {any} */ name) {
     if (!controller?.actions) return;
     const next = controller.actions[name];
     if (!next) return;
@@ -650,7 +655,7 @@ export function createRenderSystem({ app }) {
 
   const WALK_HYSTERESIS_MS = 180;
 
-  function updateControllerMap(controllers, meshes, dt, now, deadPlayerIds) {
+  function updateControllerMap(/** @type {any} */ controllers, /** @type {any} */ meshes, /** @type {any} */ dt, /** @type {any} */ now, /** @type {any} */ deadPlayerIds = new Set()) {
     if (!controllers || !meshes) return;
     for (const [id, controller] of controllers.entries()) {
       const mesh = meshes.get(id);
@@ -720,19 +725,19 @@ export function createRenderSystem({ app }) {
     updateCamera,
     updateVisibility,
     renderFrame,
-    spawnSlash: (from, to, durationMs, now) =>
-      effectsSystem.spawnSlash({ from, to, durationMs, now }),
-    spawnProjectile: (from, to, durationMs, now) =>
+    spawnSlash: (/** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ durationMs, /** @type {any} */ now) =>
+      effectsSystem.spawnSlash({ to, durationMs, now }),
+    spawnProjectile: (/** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ durationMs, /** @type {any} */ now) =>
       effectsSystem.spawnProjectile({ from, to, durationMs, now }),
-    spawnNova: (center, radius, color, durationMs, now) =>
+    spawnNova: (/** @type {any} */ center, /** @type {any} */ radius, /** @type {any} */ color, /** @type {any} */ durationMs, /** @type {any} */ now) =>
       effectsSystem.spawnNova({ center, radius, color, durationMs, now }),
-    spawnCone: (from, direction, coneDegrees, range, color, durationMs, now) =>
+    spawnCone: (/** @type {any} */ from, /** @type {any} */ direction, /** @type {any} */ coneDegrees, /** @type {any} */ range, /** @type {any} */ color, /** @type {any} */ durationMs, /** @type {any} */ now) =>
       effectsSystem.spawnCone({ from, direction, coneDegrees, range, color, durationMs, now }),
-    spawnBuffAura: (center, color, durationMs, now) =>
+    spawnBuffAura: (/** @type {any} */ center, /** @type {any} */ color, /** @type {any} */ durationMs, /** @type {any} */ now) =>
       effectsSystem.spawnBuffAura({ center, color, durationMs, now }),
-    spawnDashTrail: (from, to, durationMs, now) =>
+    spawnDashTrail: (/** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ durationMs, /** @type {any} */ now) =>
       effectsSystem.spawnDashTrail({ from, to, durationMs, now }),
-    spawnHealRing: (center, radius, color, durationMs, now) =>
+    spawnHealRing: (/** @type {any} */ center, /** @type {any} */ radius, /** @type {any} */ color, /** @type {any} */ durationMs, /** @type {any} */ now) =>
       effectsSystem.spawnHealRing({ center, radius, color, durationMs, now }),
     setPlacementIndicator,
     updatePlacementIndicator,

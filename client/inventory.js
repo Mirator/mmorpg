@@ -1,7 +1,8 @@
+// @ts-check
 const DEFAULT_COLS = 5;
 
-function cloneSlots(slots, count) {
-  const base = Array.isArray(slots) ? slots.map((item) => (item ? { ...item } : null)) : [];
+function cloneSlots(/** @type {any} */ slots, /** @type {any} */ count) {
+  const base = Array.isArray(slots) ? slots.map((/** @type {any} */ item) => (item ? { ...item } : null)) : [];
   if (count && base.length < count) {
     return base.concat(Array.from({ length: count - base.length }, () => null));
   }
@@ -11,21 +12,21 @@ function cloneSlots(slots, count) {
   return base;
 }
 
-function makeItemLabel(item) {
+function makeItemLabel(/** @type {any} */ item) {
   const name = item?.name || item?.kind || 'Item';
   return name.slice(0, 1).toUpperCase();
 }
 
-export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap, onDropExternal }) {
+export function createInventoryUI(/** @type {any} */ { panel, grid, cols = DEFAULT_COLS, onSwap, onDropExternal }) {
   let open = false;
-  let slots = [];
+  let /** @type {any} */ slots = [];
   let slotCount = 0;
   let stackMax = 1;
-  let drag = null;
-  let dragEl = null;
-  const slotEls = [];
+  let /** @type {any} */ drag = null;
+  let /** @type {any} */ dragEl = null;
+  const /** @type {any} */ slotEls = [];
 
-  function setOpen(next) {
+  function setOpen(/** @type {any} */ next) {
     open = !!next;
     panel?.classList.toggle('open', open);
     if (!open) {
@@ -37,7 +38,7 @@ export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap, on
     return open;
   }
 
-  function setInventory(nextSlots, opts = {}) {
+  function setInventory(/** @type {any} */ nextSlots, /** @type {any} */ opts = {}) {
     const prevCount = slotCount;
     const nextCount = Number(opts.slots ?? nextSlots?.length ?? slotCount ?? 0) || 0;
     if (nextCount && nextCount !== slotCount) {
@@ -97,13 +98,13 @@ export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap, on
     }
   }
 
-  function positionDrag(x, y) {
+  function positionDrag(/** @type {any} */ x, /** @type {any} */ y) {
     if (!dragEl) return;
     dragEl.style.left = `${x}px`;
     dragEl.style.top = `${y}px`;
   }
 
-  function buildDragElement(item) {
+  function buildDragElement(/** @type {any} */ item) {
     const el = document.createElement('div');
     el.className = 'inventory-drag';
     const icon = document.createElement('div');
@@ -117,7 +118,7 @@ export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap, on
     return el;
   }
 
-  function startDrag(index, item, event) {
+  function startDrag(/** @type {any} */ index, /** @type {any} */ item, /** @type {any} */ event) {
     drag = { index };
     slotEls[index]?.classList.add('dragging');
     dragEl = buildDragElement(item);
@@ -141,9 +142,10 @@ export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap, on
     window.removeEventListener('pointercancel', onPointerUp);
   }
 
-  function onPointerDown(event) {
+  function onPointerDown(/** @type {any} */ event) {
     if (!open) return;
-    const slotEl = event.currentTarget;
+    const slotEl =
+      event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     const index = Number(slotEl?.dataset?.index);
     if (!Number.isInteger(index)) return;
     const item = slots[index];
@@ -152,11 +154,11 @@ export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap, on
     startDrag(index, item, event);
   }
 
-  function onPointerMove(event) {
+  function onPointerMove(/** @type {any} */ event) {
     positionDrag(event.clientX, event.clientY);
   }
 
-  function onPointerUp(event) {
+  function onPointerUp(/** @type {any} */ event) {
     if (!drag) return;
     const target = document.elementFromPoint(event.clientX, event.clientY);
     const item = slots[drag.index];
@@ -169,8 +171,8 @@ export function createInventoryUI({ panel, grid, cols = DEFAULT_COLS, onSwap, on
     }
 
     const slotEl = target?.closest?.('.inventory-slot');
-    const toIndex = slotEl ? Number(slotEl.dataset.index) : null;
-    if (Number.isInteger(toIndex) && toIndex !== drag.index) {
+    const toIndex = slotEl ? Number(slotEl.getAttribute('data-index')) : null;
+    if (typeof toIndex === 'number' && Number.isInteger(toIndex) && toIndex !== drag.index) {
       const temp = slots[drag.index];
       slots[drag.index] = slots[toIndex];
       slots[toIndex] = temp;

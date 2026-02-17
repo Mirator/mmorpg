@@ -1,7 +1,8 @@
+// @ts-check
 import { tryHarvest } from '../../logic/resources.js';
 import { tryLootCorpse } from '../../logic/corpses.js';
 
-export function handleInteract(ctx) {
+export function handleInteract(/** @type {any} */ ctx) {
   const { player, resources, corpses, config, persistence } = ctx;
   const harvested = tryHarvest(resources, player, Date.now(), {
     harvestRadius: config.resource.harvestRadius,

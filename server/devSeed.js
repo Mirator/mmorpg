@@ -1,10 +1,28 @@
+// @ts-check
 import { generateId, hashPassword, isValidPassword, normalizeUsername } from './auth.js';
 import { createAccount, findAccountByUsernameLower } from './db/accountRepo.js';
 
-function isLocalhostHost(host) {
+function isLocalhostHost(/** @type {any} */ host) {
   return host === '127.0.0.1' || host === 'localhost';
 }
 
+/**
+ * @typedef {{
+ *   findAccountByUsernameLower?: typeof findAccountByUsernameLower,
+ *   createAccount?: typeof createAccount,
+ *   hashPassword?: typeof hashPassword,
+ *   generateId?: typeof generateId
+ * }} SeedDeps
+ */
+
+/**
+ * @param {{
+ *   env: Record<string, string | undefined>,
+ *   config?: { host?: string },
+ *   logger?: Pick<typeof console, 'warn' | 'log'>,
+ *   deps?: SeedDeps
+ * }} opts
+ */
 export async function seedDevAccount({ env, config, logger = console, deps = {} }) {
   const nodeEnv = env.NODE_ENV ?? 'development';
   if (nodeEnv === 'production' || nodeEnv === 'test') return;
@@ -46,7 +64,12 @@ export async function seedDevAccount({ env, config, logger = console, deps = {} 
 
     logger.log?.(`[dev] Seeded account "${normalized.name}".`);
   } catch (err) {
-    if (err?.code === 'P2021') {
+    if (
+      err &&
+      typeof err === 'object' &&
+      'code' in err &&
+      err.code === 'P2021'
+    ) {
       logger.warn?.('[dev] Skipping dev account seed: database not migrated.');
       return;
     }

@@ -1,9 +1,10 @@
+// @ts-check
 import { createInventory, countInventory } from './inventory.js';
 import { DEFAULT_CLASS_ID, isValidClassId, getResourceForClass } from '../../shared/classes.js';
 import { createDefaultEquipment } from '../../shared/equipment.js';
 import { computeDerivedStats } from '../../shared/attributes.js';
 
-export function createBasePlayerState({ world, spawn, classId }) {
+export function createBasePlayerState(/** @type {any} */ { world, spawn, classId }) {
   const safeClassId = isValidClassId(classId) ? classId : DEFAULT_CLASS_ID;
   const equipment = createDefaultEquipment(safeClassId);
   const derived = computeDerivedStats({
@@ -58,7 +59,7 @@ export function createBasePlayerState({ world, spawn, classId }) {
   };
 }
 
-export function respawnPlayer(player, spawn, markDirty) {
+export function respawnPlayer(/** @type {any} */ player, /** @type {any} */ spawn, /** @type {any} */ markDirty) {
   if (!player || !spawn) return;
   player.pos = { x: spawn.x, y: spawn.y ?? 0, z: spawn.z };
   player.hp = player.maxHp;

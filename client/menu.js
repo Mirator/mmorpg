@@ -1,4 +1,5 @@
-export function createMenu({
+// @ts-check
+export function createMenu(/** @type {any} */ {
   onSignIn,
   onSignUp,
   onSelectCharacter,
@@ -7,9 +8,9 @@ export function createMenu({
   onSignOut,
 }) {
   const root = document.getElementById('menu');
-  const tabButtons = Array.from(root?.querySelectorAll('.menu-tab') ?? []);
-  const signInForm = document.getElementById('signin-form');
-  const signUpForm = document.getElementById('signup-form');
+  const tabButtons = /** @type {HTMLButtonElement[]} */ (Array.from(root?.querySelectorAll('.menu-tab') ?? []));
+  const signInForm = /** @type {HTMLFormElement | null} */ (document.getElementById('signin-form'));
+  const signUpForm = /** @type {HTMLFormElement | null} */ (document.getElementById('signup-form'));
   const authErrorEl = document.getElementById('menu-auth-error');
   const charactersErrorEl = document.getElementById('menu-characters-error');
   const createErrorEl = document.getElementById('menu-create-error');
@@ -19,15 +20,15 @@ export function createMenu({
   const createOpenBtn = document.getElementById('character-create-open');
   const createCancelBtn = document.getElementById('character-create-cancel');
   const signOutBtn = document.getElementById('menu-signout');
-  const createForm = document.getElementById('character-create-form');
+  const createForm = /** @type {HTMLFormElement | null} */ (document.getElementById('character-create-form'));
 
   let open = true;
   let step = 'auth';
   let tab = 'signin';
-  let characters = [];
-  let selectedCharacterId = null;
+  let /** @type {any} */ characters = [];
+  let /** @type {any} */ selectedCharacterId = null;
 
-  function setOpen(next) {
+  function setOpen(/** @type {any} */ next) {
     open = !!next;
     root?.classList.toggle('open', open);
     if (root?.toggleAttribute) {
@@ -35,22 +36,22 @@ export function createMenu({
     }
     if (!open) {
       const active = document.activeElement;
-      if (active && root?.contains(active)) {
-        active.blur?.();
+      if (active instanceof HTMLElement && root?.contains(active)) {
+        active.blur();
       }
     }
   }
 
-  function setStep(next) {
+  function setStep(/** @type {any} */ next) {
     step = next;
     if (root) root.dataset.step = step;
     clearErrors();
   }
 
-  function setTab(next) {
+  function setTab(/** @type {any} */ next) {
     tab = next;
     if (root) root.dataset.tab = tab;
-    tabButtons.forEach((btn) => {
+    tabButtons.forEach((/** @type {any} */ btn) => {
       btn.classList.toggle('active', btn.dataset.tab === tab);
     });
     signInForm?.classList.toggle('hidden', tab !== 'signin');
@@ -58,32 +59,34 @@ export function createMenu({
     clearErrors();
   }
 
-  function setLoading(isLoading) {
+  function setLoading(/** @type {any} */ isLoading) {
     root?.classList.toggle('loading', !!isLoading);
-    root?.querySelectorAll('input, button, select').forEach((el) => {
-      el.disabled = !!isLoading;
+    root?.querySelectorAll('input, button, select').forEach((/** @type {any} */ el) => {
+      if (el instanceof HTMLInputElement || el instanceof HTMLButtonElement || el instanceof HTMLSelectElement) {
+        el.disabled = !!isLoading;
+      }
     });
   }
 
-  function setAccount(account) {
+  function setAccount(/** @type {any} */ account) {
     if (accountEl) {
       accountEl.textContent = account?.username ? `Account: ${account.username}` : 'Account: --';
     }
   }
 
-  function setLastCharacter(name) {
+  function setLastCharacter(/** @type {any} */ name) {
     if (lastCharacterEl) {
       lastCharacterEl.textContent = name ? `Last played: ${name}` : 'Last played: --';
     }
   }
 
-  function setCharacters(list) {
+  function setCharacters(/** @type {any} */ list) {
     characters = Array.isArray(list) ? list : [];
-    if (selectedCharacterId && !characters.find((c) => c.id === selectedCharacterId)) {
+    if (selectedCharacterId && !characters.find((/** @type {any} */ c) => c.id === selectedCharacterId)) {
       selectedCharacterId = null;
     }
     renderCharacters();
-    const selected = characters.find((c) => c.id === selectedCharacterId);
+    const selected = characters.find((/** @type {any} */ c) => c.id === selectedCharacterId);
     setLastCharacter(selected?.name ?? null);
   }
 
@@ -97,7 +100,7 @@ export function createMenu({
       characterListEl.appendChild(empty);
       return;
     }
-    characters.forEach((character) => {
+    characters.forEach((/** @type {any} */ character) => {
       const row = document.createElement('div');
       row.className = 'character-row';
       if (character.id === selectedCharacterId) {
@@ -147,7 +150,7 @@ export function createMenu({
     });
   }
 
-  function setError(stepKey, message) {
+  function setError(/** @type {any} */ stepKey, /** @type {any} */ message) {
     const el = stepKey === 'characters' ? charactersErrorEl : stepKey === 'create' ? createErrorEl : authErrorEl;
     if (el) {
       el.textContent = message ?? '';
@@ -160,14 +163,14 @@ export function createMenu({
     if (createErrorEl) createErrorEl.textContent = '';
   }
 
-  tabButtons.forEach((btn) => {
+  tabButtons.forEach((/** @type {any} */ btn) => {
     btn.addEventListener('click', () => {
       const next = btn.dataset.tab === 'signup' ? 'signup' : 'signin';
       setTab(next);
     });
   });
 
-  signInForm?.addEventListener('submit', (event) => {
+  signInForm?.addEventListener('submit', (/** @type {any} */ event) => {
     event.preventDefault();
     if (!open || step !== 'auth') return;
     const data = new FormData(signInForm);
@@ -176,7 +179,7 @@ export function createMenu({
     onSignIn?.({ username, password });
   });
 
-  signUpForm?.addEventListener('submit', (event) => {
+  signUpForm?.addEventListener('submit', (/** @type {any} */ event) => {
     event.preventDefault();
     if (!open || step !== 'auth') return;
     const data = new FormData(signUpForm);
@@ -197,7 +200,7 @@ export function createMenu({
     onSignOut?.();
   });
 
-  createForm?.addEventListener('submit', (event) => {
+  createForm?.addEventListener('submit', (/** @type {any} */ event) => {
     event.preventDefault();
     if (!open || step !== 'create') return;
     const data = new FormData(createForm);
@@ -215,10 +218,10 @@ export function createMenu({
     setTab,
     setLoading,
     setAccount,
-    setSelectedCharacterId: (id) => {
+    setSelectedCharacterId: (/** @type {any} */ id) => {
       selectedCharacterId = id ?? null;
       renderCharacters();
-      const selected = characters.find((c) => c.id === selectedCharacterId);
+      const selected = characters.find((/** @type {any} */ c) => c.id === selectedCharacterId);
       setLastCharacter(selected?.name ?? null);
     },
     setCharacters,
@@ -229,7 +232,7 @@ export function createMenu({
       step,
       tab,
       selectedCharacterId,
-      characters: characters.map((c) => ({
+      characters: characters.map((/** @type {any} */ c) => ({
         id: c.id,
         name: c.name,
         classId: c.classId,

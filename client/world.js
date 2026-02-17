@@ -1,3 +1,4 @@
+// @ts-check
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import {
   ASSET_PATHS,
@@ -12,7 +13,7 @@ import {
 
 const LOD_FAR_DISTANCE = 63; // 50 * 1.25
 
-const COLORS = {
+const /** @type {any} */ COLORS = {
   ground: 0x1b2620,
   tile: 0x2a3b30,
   tileBorder: 0x465a4d,
@@ -28,14 +29,14 @@ const COLORS = {
   corpseCross: 0x718096,
 };
 
-const MOB_TARGET_HEIGHTS = {
+const /** @type {any} */ MOB_TARGET_HEIGHTS = {
   wolf: 0.6,
   fox: 0.5,
   stag: 1.8,
   bull: 1.0,
 };
 
-const RESOURCE_TYPE_COLORS = {
+const /** @type {any} */ RESOURCE_TYPE_COLORS = {
   crystal: { active: 0x5ef2c2, dim: 0x1b2a28 },
   ore: { active: 0x8b7355, dim: 0x3d3228 },
   herb: { active: 0x5ec24e, dim: 0x1b2a1b },
@@ -44,9 +45,21 @@ const RESOURCE_TYPE_COLORS = {
 };
 
 const mobPrototypeCache = new Map();
-let vendorPrototypePromise = null;
-let vendorClipsPromise = null;
+let /** @type {any} */ vendorPrototypePromise = null;
+let /** @type {any} */ vendorClipsPromise = null;
 const environmentCache = new Map();
+
+/**
+ * @param {HTMLCanvasElement} canvas
+ * @returns {CanvasRenderingContext2D}
+ */
+function requireCanvas2dContext(canvas) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('2D canvas context unavailable');
+  }
+  return ctx;
+}
 
 function getVendorPrototype() {
   if (!vendorPrototypePromise) {
@@ -57,7 +70,7 @@ function getVendorPrototype() {
 
 function getVendorClips() {
   if (!vendorClipsPromise) {
-    vendorClipsPromise = loadPlayerAnimations().then((clips) =>
+    vendorClipsPromise = loadPlayerAnimations().then((/** @type {any} */ clips) =>
       pickClips(clips, {
         idleNames: ['Idle_Loop', 'Idle_No_Loop', 'Idle_Talking_Loop', 'Idle_FoldArms_Loop'],
         idleKeywords: ['idle'],
@@ -67,11 +80,11 @@ function getVendorClips() {
   return vendorClipsPromise;
 }
 
-function cloneStatic(scene) {
+function cloneStatic(/** @type {any} */ scene) {
   return scene.clone(true);
 }
 
-function createLODModel(fullModel, impostorType = 'box') {
+function createLODModel(/** @type {any} */ fullModel, /** @type {any} */ impostorType = 'box') {
   const box = new THREE.Box3().setFromObject(fullModel);
   const size = new THREE.Vector3();
   box.getSize(size);
@@ -99,18 +112,20 @@ function createLODModel(fullModel, impostorType = 'box') {
   return lod;
 }
 
-function getMobPrototype(mobType) {
+function getMobPrototype(/** @type {any} */ mobType) {
   const type = mobType ?? 'orc';
-  const url = ASSET_PATHS.monsters[type] ?? ASSET_PATHS.monsters.orc;
+  const monsterPaths = /** @type {Record<string, string>} */ (ASSET_PATHS.monsters ?? {});
+  const url = monsterPaths[type] ?? monsterPaths.orc;
   if (!mobPrototypeCache.has(type)) {
     mobPrototypeCache.set(type, loadGltf(url));
   }
   return mobPrototypeCache.get(type);
 }
 
-function getEnvironmentPrototype(key) {
+function getEnvironmentPrototype(/** @type {any} */ key) {
+  const environmentPaths = /** @type {Record<string, string>} */ (ASSET_PATHS.environment ?? {});
   if (!environmentCache.has(key)) {
-    const url = ASSET_PATHS.environment[key];
+    const url = environmentPaths[key];
     environmentCache.set(key, loadGltf(url));
   }
   return environmentCache.get(key);
@@ -121,7 +136,7 @@ function buildTileTexture() {
   const size = 256;
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext('2d');
+  const ctx = requireCanvas2dContext(canvas);
 
   const seed = 41293;
   let state = seed;
@@ -162,7 +177,7 @@ function buildTileTexture() {
   return texture;
 }
 
-function buildGround(mapSize) {
+function buildGround(/** @type {any} */ mapSize) {
   const tileSize = 14;
   let texture = getTexture(ASSET_PATHS.groundTexture);
   if (!texture) {
@@ -188,7 +203,7 @@ function buildGround(mapSize) {
   return ground;
 }
 
-function buildVillage(base) {
+function buildVillage(/** @type {any} */ base) {
   const village = new THREE.Group();
 
   const plaza = new THREE.Mesh(
@@ -221,7 +236,7 @@ function buildVillage(base) {
   return village;
 }
 
-function buildObstacleMesh(obstacle) {
+function buildObstacleMesh(/** @type {any} */ obstacle) {
   const group = new THREE.Group();
   group.position.set(obstacle.x, obstacle.y ?? 0, obstacle.z);
   group.userData.obstacle = obstacle;
@@ -260,7 +275,7 @@ function buildCorpseMesh() {
   return group;
 }
 
-function buildResourceMesh(type = 'crystal') {
+function buildResourceMesh(/** @type {any} */ type = 'crystal') {
   const colors = RESOURCE_TYPE_COLORS[type] ?? RESOURCE_TYPE_COLORS.crystal;
   const group = new THREE.Group();
   const placeholder = new THREE.Mesh(
@@ -279,33 +294,34 @@ function buildResourceMesh(type = 'crystal') {
   group.userData.type = type;
   group.userData.pulseOffset = Math.random() * Math.PI * 2;
 
-  hydrateResourceMesh(type, group).catch((err) => {
+  hydrateResourceMesh(type, group).catch((/** @type {any} */ err) => {
     console.warn('[world] Failed to load resource node model:', err);
   });
 
   return group;
 }
 
-function applyResourceMaterialColors(ref, colors, available) {
+function applyResourceMaterialColors(/** @type {any} */ ref, /** @type {any} */ colors, /** @type {any} */ available) {
   if (!ref) return;
   const intensity = available ? 0.25 : 0.05;
   const color = available ? colors.active : colors.dim;
-  const mats = [];
+  const /** @type {any} */ mats = [];
   if (ref.isMesh && ref.material) {
     mats.push(...(Array.isArray(ref.material) ? ref.material : [ref.material]));
   }
-  ref.traverse?.((n) => {
+  ref.traverse?.((/** @type {any} */ n) => {
     if (n?.isMesh && n.material) mats.push(...(Array.isArray(n.material) ? n.material : [n.material]));
   });
-  mats.forEach((m) => {
+  mats.forEach((/** @type {any} */ m) => {
     if (m.color) m.color.setHex(color);
     if (m.emissive) m.emissive.setHex(color);
     if (m.emissiveIntensity !== undefined) m.emissiveIntensity = intensity;
   });
 }
 
-async function hydrateResourceMesh(type, group) {
-  const url = ASSET_PATHS.resourceNodes?.[type] ?? ASSET_PATHS.resourceNodes?.crystal;
+async function hydrateResourceMesh(/** @type {any} */ type, /** @type {any} */ group) {
+  const resourceNodePaths = /** @type {Record<string, string>} */ (ASSET_PATHS.resourceNodes ?? {});
+  const url = resourceNodePaths[type] ?? resourceNodePaths.crystal;
   if (!url) return;
   const gltf = await loadGltf(url);
   if (!gltf?.scene) return;
@@ -319,7 +335,7 @@ async function hydrateResourceMesh(type, group) {
   group.rotation.y = Math.random() * Math.PI * 2;
 }
 
-function buildMobMesh(worldState, mob) {
+function buildMobMesh(/** @type {any} */ worldState, /** @type {any} */ mob) {
   const mobId = mob?.id;
   const mobType = mob?.mobType ?? 'orc';
   const group = new THREE.Group();
@@ -345,18 +361,18 @@ function buildMobMesh(worldState, mob) {
   targetHelper.layers.set(1);
   group.add(targetHelper);
 
-  hydrateMobMesh(worldState, mobId, mobType, group).catch((err) => {
+  hydrateMobMesh(worldState, mobId, mobType, group).catch((/** @type {any} */ err) => {
     console.warn('[world] Failed to load mob model:', err);
   });
 
   return group;
 }
 
-function makeNameSprite(text) {
+function makeNameSprite(/** @type {any} */ text) {
   const canvas = document.createElement('canvas');
   const padding = 24;
   const fontSize = 22;
-  const ctx = canvas.getContext('2d');
+  const ctx = requireCanvas2dContext(canvas);
   ctx.font = `bold ${fontSize}px Rajdhani, sans-serif`;
   const metrics = ctx.measureText(text);
   const textWidth = Math.ceil(metrics.width);
@@ -381,7 +397,7 @@ function makeNameSprite(text) {
   return sprite;
 }
 
-function buildVendorMesh(vendor, worldState) {
+function buildVendorMesh(/** @type {any} */ vendor, /** @type {any} */ worldState) {
   const group = new THREE.Group();
   const placeholder = new THREE.Mesh(
     new THREE.CapsuleGeometry(0.5, 1.0, 4, 8),
@@ -402,14 +418,14 @@ function buildVendorMesh(vendor, worldState) {
   group.position.set(vendor.x, vendor.y ?? 0, vendor.z);
   group.userData.vendorId = vendor.id;
 
-  hydrateVendorMesh(worldState, vendor.id, group).catch((err) => {
+  hydrateVendorMesh(worldState, vendor.id, group).catch((/** @type {any} */ err) => {
     console.warn('[world] Failed to load vendor model:', err);
   });
 
   return group;
 }
 
-async function hydrateVendorMesh(worldState, vendorId, group) {
+async function hydrateVendorMesh(/** @type {any} */ worldState, /** @type {any} */ vendorId, /** @type {any} */ group) {
   if (!worldState?.isActive) return;
   const [prototype, clipSet] = await Promise.all([
     getVendorPrototype(),
@@ -438,7 +454,7 @@ async function hydrateVendorMesh(worldState, vendorId, group) {
   }
 }
 
-export function initWorld(scene, world) {
+export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
   const mapSize = world?.mapSize ?? 400;
   const base = world?.base ?? { x: 0, z: 0, radius: 8 };
 
@@ -450,7 +466,7 @@ export function initWorld(scene, world) {
   const obstacleMeshes = (world?.obstacles ?? []).map(buildObstacleMesh);
   const vendorMeshes = new Map();
 
-  const worldState = {
+  const /** @type {any} */ worldState = {
     mapSize,
     base,
     obstacles: world?.obstacles ?? [],
@@ -482,7 +498,7 @@ export function initWorld(scene, world) {
   scene.add(group);
 
   loadEnvironmentModels(worldState, envGroup, base).catch(
-    (err) => {
+    (/** @type {any} */ err) => {
       console.warn('[world] Failed to load environment models:', err);
     }
   );
@@ -490,7 +506,7 @@ export function initWorld(scene, world) {
   return worldState;
 }
 
-export function updateResources(worldState, resources) {
+export function updateResources(/** @type {any} */ worldState, /** @type {any} */ resources) {
   if (!worldState) return;
   worldState.lastResources = resources;
   const seen = new Set();
@@ -521,7 +537,7 @@ export function updateResources(worldState, resources) {
   }
 }
 
-export function updateMobs(worldState, mobs) {
+export function updateMobs(/** @type {any} */ worldState, /** @type {any} */ mobs) {
   if (!worldState) return;
   worldState.lastMobs = mobs;
   const seen = new Set();
@@ -559,7 +575,7 @@ export function updateMobs(worldState, mobs) {
   }
 }
 
-export function updateCorpses(worldState, corpses) {
+export function updateCorpses(/** @type {any} */ worldState, /** @type {any} */ corpses) {
   if (!worldState) return;
   worldState.lastCorpses = corpses;
   const seen = new Set();
@@ -586,8 +602,8 @@ export function updateCorpses(worldState, corpses) {
   }
 }
 
-function createMobActions(mixer, clipSet) {
-  const actions = {
+function createMobActions(/** @type {any} */ mixer, /** @type {any} */ clipSet) {
+  const /** @type {any} */ actions = {
     idle: clipSet.idle ? mixer.clipAction(clipSet.idle) : null,
     walk: clipSet.walk ? mixer.clipAction(clipSet.walk) : null,
     attack: clipSet.attack ? mixer.clipAction(clipSet.attack) : null,
@@ -599,7 +615,7 @@ function createMobActions(mixer, clipSet) {
   return actions;
 }
 
-async function hydrateMobMesh(worldState, mobId, mobType, group) {
+async function hydrateMobMesh(/** @type {any} */ worldState, /** @type {any} */ mobId, /** @type {any} */ mobType, /** @type {any} */ group) {
   if (!worldState?.isActive) return;
   const type = mobType ?? group.userData?.mobType ?? 'orc';
   const gltf = await getMobPrototype(type);
@@ -635,7 +651,7 @@ async function hydrateMobMesh(worldState, mobId, mobType, group) {
   }
 }
 
-async function addEnvironmentModel(worldState, envGroup, key, placement) {
+async function addEnvironmentModel(/** @type {any} */ worldState, /** @type {any} */ envGroup, /** @type {any} */ key, /** @type {any} */ placement) {
   if (!worldState?.isActive) return;
   const gltf = await getEnvironmentPrototype(key);
   if (!worldState.isActive) return;
@@ -648,10 +664,10 @@ async function addEnvironmentModel(worldState, envGroup, key, placement) {
   envGroup.add(lod);
 }
 
-async function loadObstacleRocks(worldState) {
+async function loadObstacleRocks(/** @type {any} */ worldState) {
   if (!worldState?.isActive || !ASSET_PATHS.rocks?.length) return;
   const rockUrls = ASSET_PATHS.rocks;
-  const rockPrototypes = await Promise.all(rockUrls.map((url) => loadGltf(url)));
+  const rockPrototypes = await Promise.all(rockUrls.map((/** @type {any} */ url) => loadGltf(url)));
   if (!worldState.isActive) return;
 
   for (const mesh of worldState.obstacleMeshes) {
@@ -675,12 +691,12 @@ async function loadObstacleRocks(worldState) {
   }
 }
 
-async function loadEnvironmentModels(worldState, envGroup, base) {
+async function loadEnvironmentModels(/** @type {any} */ worldState, /** @type {any} */ envGroup, /** @type {any} */ base) {
   if (!worldState?.isActive) return;
   const ring = (base?.radius ?? 8) + 6;
   const diag = ring * 0.7;
   const towerRadius = 65;
-  const placements = [
+  const /** @type {any} */ placements = [
     { key: 'market', x: base.x + ring, z: base.z, rotation: Math.PI / 2, height: 4.8 },
     { key: 'barracks', x: base.x - ring, z: base.z, rotation: -Math.PI / 2, height: 5.6 },
     { key: 'storage', x: base.x, z: base.z + ring, rotation: Math.PI, height: 4.4 },
@@ -690,7 +706,7 @@ async function loadEnvironmentModels(worldState, envGroup, base) {
   ];
 
   await Promise.all([
-    ...placements.map((placement) =>
+    ...placements.map((/** @type {any} */ placement) =>
       addEnvironmentModel(worldState, envGroup, placement.key, placement)
     ),
     loadObstacleRocks(worldState),
@@ -699,7 +715,7 @@ async function loadEnvironmentModels(worldState, envGroup, base) {
   if (worldState.isActive) worldState.envReady = true;
 }
 
-export function animateWorld(worldState, now) {
+export function animateWorld(/** @type {any} */ worldState, /** @type {any} */ now) {
   if (!worldState) return;
   for (const mesh of worldState.resourceMeshes.values()) {
     const available = mesh.userData.available;

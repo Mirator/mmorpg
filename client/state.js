@@ -1,38 +1,39 @@
+// @ts-check
 import { applyWASD } from '/shared/math.js';
 
-export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs }) {
-  const snapshots = [];
-  const mobSnapshots = [];
-  let latestPlayers = {};
-  let latestMe = null;
-  let latestResources = [];
-  let latestMobs = [];
-  let latestCorpses = [];
-  let worldConfig = null;
-  let configSnapshot = null;
-  let myId = null;
+export function createGameState(/** @type {any} */ { interpDelayMs, maxSnapshots, maxSnapshotAgeMs }) {
+  const /** @type {any} */ snapshots = [];
+  const /** @type {any} */ mobSnapshots = [];
+  let /** @type {any} */ latestPlayers = {};
+  let /** @type {any} */ latestMe = null;
+  let /** @type {any} */ latestResources = [];
+  let /** @type {any} */ latestMobs = [];
+  let /** @type {any} */ latestCorpses = [];
+  let /** @type {any} */ worldConfig = null;
+  let /** @type {any} */ configSnapshot = null;
+  let /** @type {any} */ myId = null;
 
-  let predictedLocalPos = null;
+  let /** @type {any} */ predictedLocalPos = null;
   const correction = 0.1;
   const snapThreshold = 5;
 
   let serverTimeOffsetMs = 0;
   let hasServerTime = false;
-  let lastServerTimestamp = null;
+  let /** @type {any} */ lastServerTimestamp = null;
 
-  function setLocalPlayerId(id) {
+  function setLocalPlayerId(/** @type {any} */ id) {
     myId = id;
   }
 
-  function setWorldConfig(config) {
+  function setWorldConfig(/** @type {any} */ config) {
     worldConfig = config ?? null;
   }
 
-  function setConfigSnapshot(snapshot) {
+  function setConfigSnapshot(/** @type {any} */ snapshot) {
     configSnapshot = snapshot ?? null;
   }
 
-  function updateServerTime(serverNow) {
+  function updateServerTime(/** @type {any} */ serverNow) {
     if (!Number.isFinite(serverNow)) return;
     serverTimeOffsetMs = serverNow - Date.now();
     hasServerTime = true;
@@ -47,7 +48,7 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     return lastServerTimestamp;
   }
 
-  function pushSnapshot(players, now) {
+  function pushSnapshot(/** @type {any} */ players, /** @type {any} */ now) {
     snapshots.push({ t: now, players });
     latestPlayers = players;
 
@@ -59,9 +60,9 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     }
   }
 
-  function pushMobSnapshot(mobs, now) {
+  function pushMobSnapshot(/** @type {any} */ mobs, /** @type {any} */ now) {
     const arr = Array.isArray(mobs) ? mobs : [];
-    mobSnapshots.push({ t: now, mobs: arr.map((m) => ({ ...m })) });
+    mobSnapshots.push({ t: now, mobs: arr.map((/** @type {any} */ m) => ({ ...m })) });
 
     while (mobSnapshots.length > maxSnapshots) {
       mobSnapshots.shift();
@@ -71,23 +72,23 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     }
   }
 
-  function updateMe(payload) {
+  function updateMe(/** @type {any} */ payload) {
     latestMe = payload ?? null;
   }
 
-  function updateResources(resources) {
+  function updateResources(/** @type {any} */ resources) {
     latestResources = Array.isArray(resources) ? resources : [];
   }
 
-  function updateMobs(mobs) {
+  function updateMobs(/** @type {any} */ mobs) {
     latestMobs = Array.isArray(mobs) ? mobs : [];
   }
 
-  function updateCorpses(corpses) {
+  function updateCorpses(/** @type {any} */ corpses) {
     latestCorpses = Array.isArray(corpses) ? corpses : [];
   }
 
-  function mergePlayers(players, removedIds = []) {
+  function mergePlayers(/** @type {any} */ players, /** @type {any} */ removedIds = []) {
     if (!players || typeof players !== 'object') return;
     latestPlayers = { ...latestPlayers, ...players };
     for (const id of removedIds) {
@@ -95,9 +96,9 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     }
   }
 
-  function mergeResources(resources, removedIds = []) {
+  function mergeResources(/** @type {any} */ resources, /** @type {any} */ removedIds = []) {
     if (!Array.isArray(resources)) return;
-    const byId = new Map(latestResources.map((r) => [r.id, { ...r }]));
+    const byId = new Map(latestResources.map((/** @type {any} */ r) => [r.id, { ...r }]));
     for (const r of resources) {
       if (r?.id != null) byId.set(r.id, { ...r });
     }
@@ -107,9 +108,9 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     latestResources = Array.from(byId.values());
   }
 
-  function mergeMobs(mobs, removedIds = []) {
+  function mergeMobs(/** @type {any} */ mobs, /** @type {any} */ removedIds = []) {
     if (!Array.isArray(mobs)) return;
-    const byId = new Map(latestMobs.map((m) => [m.id, { ...m }]));
+    const byId = new Map(latestMobs.map((/** @type {any} */ m) => [m.id, { ...m }]));
     for (const m of mobs) {
       if (m?.id != null) byId.set(m.id, { ...m });
     }
@@ -119,9 +120,9 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     latestMobs = Array.from(byId.values());
   }
 
-  function mergeCorpses(corpses, removedIds = []) {
+  function mergeCorpses(/** @type {any} */ corpses, /** @type {any} */ removedIds = []) {
     if (!Array.isArray(corpses)) return;
-    const byId = new Map(latestCorpses.map((c) => [c.id, { ...c }]));
+    const byId = new Map(latestCorpses.map((/** @type {any} */ c) => [c.id, { ...c }]));
     for (const c of corpses) {
       if (c?.id != null) byId.set(c.id, { ...c });
     }
@@ -140,7 +141,7 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     return { ...publicPlayer, ...(latestMe ?? {}) };
   }
 
-  function renderInterpolatedPlayers(now) {
+  function renderInterpolatedPlayers(/** @type {any} */ now) {
     if (snapshots.length === 0) return { positions: {}, localPos: null };
 
     const renderTime = now - interpDelayMs;
@@ -157,8 +158,8 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     }
     alpha = Math.max(0, Math.min(1, alpha));
 
-    const positions = {};
-    let localPos = null;
+    const /** @type {any} */ positions = {};
+    let /** @type {any} */ localPos = null;
 
     for (const [id, newerPos] of Object.entries(newer.players)) {
       const olderPos = older.players?.[id];
@@ -176,7 +177,7 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     return { positions, localPos };
   }
 
-  function renderInterpolatedMobs(now) {
+  function renderInterpolatedMobs(/** @type {any} */ now) {
     if (mobSnapshots.length === 0) return latestMobs;
 
     const renderTime = now - interpDelayMs;
@@ -193,8 +194,8 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     }
     alpha = Math.max(0, Math.min(1, alpha));
 
-    const olderById = new Map(older.mobs.map((m) => [m.id, m]));
-    const result = [];
+    const olderById = new Map(older.mobs.map((/** @type {any} */ m) => [m.id, m]));
+    const /** @type {any} */ result = [];
 
     for (const newMob of newer.mobs) {
       const oldMob = olderById.get(newMob.id);
@@ -213,7 +214,7 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     return result;
   }
 
-  function updateLocalPrediction(dt, serverPos, inputKeys, speed) {
+  function updateLocalPrediction(/** @type {any} */ dt, /** @type {any} */ serverPos, /** @type {any} */ inputKeys, /** @type {any} */ speed) {
     if (!serverPos) return null;
 
     const serverY = serverPos.y ?? 0;
@@ -244,7 +245,7 @@ export function createGameState({ interpDelayMs, maxSnapshots, maxSnapshotAgeMs 
     return predictedLocalPos;
   }
 
-  function resetPrediction(pos) {
+  function resetPrediction(/** @type {any} */ pos) {
     predictedLocalPos = pos ? { x: pos.x, y: pos.y ?? 0, z: pos.z } : null;
   }
 

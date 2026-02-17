@@ -1,9 +1,10 @@
-export function buildCombatLogDispatch(combatLog, now) {
+// @ts-check
+export function buildCombatLogDispatch(/** @type {any} */ combatLog, /** @type {any} */ now) {
   if (!combatLog) {
     return { actorEntries: [], xpEntriesByPlayer: [] };
   }
 
-  const actorEntries = [];
+  const /** @type {any} */ actorEntries = [];
   if (combatLog.damageDealt != null && combatLog.targetName) {
     const abilityName = combatLog.abilityName ?? 'You';
     const critSuffix = combatLog.isCrit ? ' (Critical!)' : '';
@@ -22,9 +23,9 @@ export function buildCombatLogDispatch(combatLog, now) {
     });
   }
 
-  const xpEntriesByPlayer = [];
+  const /** @type {any} */ xpEntriesByPlayer = [];
   for (const xp of combatLog.xpGainByPlayer ?? []) {
-    const entries = [];
+    const /** @type {any} */ entries = [];
     if (xp.xpGain > 0 && combatLog.targetName) {
       entries.push({
         kind: 'xp_gain',

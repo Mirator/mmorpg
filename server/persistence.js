@@ -1,4 +1,5 @@
-export function createPersistence({
+// @ts-check
+export function createPersistence(/** @type {any} */ {
   players,
   savePlayer,
   serializePlayerState,
@@ -6,19 +7,19 @@ export function createPersistence({
   persistForceMs,
   persistPosEps,
 }) {
-  function markDirty(player) {
+  function markDirty(/** @type {any} */ player) {
     if (!player || player.isGuest) return;
     player.dirty = true;
   }
 
-  function initPlayerPersistence(player, now = Date.now()) {
+  function initPlayerPersistence(/** @type {any} */ player, /** @type {any} */ now = Date.now()) {
     if (!player) return;
     player.dirty = false;
     player.lastPersistedAt = now;
     player.lastPersistedPos = { x: player.pos?.x ?? 0, z: player.pos?.z ?? 0 };
   }
 
-  function shouldPersistPlayer(player, now) {
+  function shouldPersistPlayer(/** @type {any} */ player, /** @type {any} */ now) {
     if (!player || player.isGuest) return false;
     if (player.dirty) return true;
     const lastAt = Number(player.lastPersistedAt) || 0;
@@ -30,7 +31,7 @@ export function createPersistence({
     return Math.hypot(dx, dz) >= persistPosEps;
   }
 
-  async function persistPlayer(player, now = Date.now()) {
+  async function persistPlayer(/** @type {any} */ player, /** @type {any} */ now = Date.now()) {
     if (!player || player.isGuest) return;
     const state = serializePlayerState(player);
     await savePlayer(player, state, new Date(now));
@@ -39,7 +40,7 @@ export function createPersistence({
     player.lastPersistedPos = { x: player.pos?.x ?? 0, z: player.pos?.z ?? 0 };
   }
 
-  let intervalId = null;
+  let /** @type {any} */ intervalId = null;
   let persistRunning = false;
 
   function startPersistenceLoop() {
@@ -48,11 +49,11 @@ export function createPersistence({
       if (persistRunning) return;
       persistRunning = true;
       const now = Date.now();
-      const pending = [];
+      const /** @type {any} */ pending = [];
       for (const player of players.values()) {
         if (!shouldPersistPlayer(player, now)) continue;
         pending.push(
-          persistPlayer(player, now).catch((err) => {
+          persistPlayer(player, now).catch((/** @type {any} */ err) => {
             console.error('Failed to persist player:', err);
             player.dirty = true;
           })
@@ -73,10 +74,10 @@ export function createPersistence({
 
   async function flushAll() {
     const now = Date.now();
-    const pending = [];
+    const /** @type {any} */ pending = [];
     for (const player of players.values()) {
       pending.push(
-        persistPlayer(player, now).catch((err) => {
+        persistPlayer(player, now).catch((/** @type {any} */ err) => {
           console.error('Failed to persist player during shutdown:', err);
           player.dirty = true;
         })

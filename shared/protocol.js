@@ -9,6 +9,7 @@ const MAX_ID_LENGTH = 64;
 /**
  * @typedef {{ w?: boolean, a?: boolean, s?: boolean, d?: boolean }} InputKeys
  * @typedef {{ type: 'hello', seq?: number }} HelloMessage
+ * @typedef {{ type: 'ping', t?: number, seq?: number }} PingMessage
  * @typedef {{ type: 'respawn', seq?: number }} RespawnMessage
  * @typedef {{ type: 'input', keys: Required<InputKeys>, seq?: number }} InputMessage
  * @typedef {{ type: 'moveTarget', x: number, y?: number, z: number, seq?: number }} MoveTargetMessage
@@ -35,7 +36,7 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'tradeOffer', op: 'add'|'remove', slot?: number, copper?: number, seq?: number }} TradeOfferMessage
  * @typedef {{ type: 'tradeConfirm', seq?: number }} TradeConfirmMessage
  * @typedef {{ type: 'tradeCancel', seq?: number }} TradeCancelMessage
- * @typedef {HelloMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | VendorBuyMessage | ChatMessage | PartyInviteMessage | PartyAcceptMessage | PartyLeaveMessage | CraftMessage | DuelRequestMessage | DuelAcceptMessage | DuelDeclineMessage | DuelForfeitMessage | TradeRequestMessage | TradeAcceptMessage | TradeDeclineMessage | TradeOfferMessage | TradeConfirmMessage | TradeCancelMessage} ClientMessage
+ * @typedef {HelloMessage | PingMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | VendorBuyMessage | ChatMessage | PartyInviteMessage | PartyAcceptMessage | PartyLeaveMessage | CraftMessage | DuelRequestMessage | DuelAcceptMessage | DuelDeclineMessage | DuelForfeitMessage | TradeRequestMessage | TradeAcceptMessage | TradeDeclineMessage | TradeOfferMessage | TradeConfirmMessage | TradeCancelMessage} ClientMessage
  */
 
 const CHAT_CHANNELS = new Set(['global', 'area', 'trade', 'party']);
@@ -71,35 +72,39 @@ const CLIENT_MESSAGE_TYPES = new Set([
   'tradeCancel',
 ]);
 
+/**
+ * @param {unknown} value
+ * @returns {value is Record<string, unknown>}
+ */
 function isPlainObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function normalizeSeq(value) {
+function normalizeSeq(/** @type {any} */ value) {
   if (value === undefined) return undefined;
   return Number.isInteger(value) ? value : null;
 }
 
-function normalizeString(value, maxLen = MAX_ID_LENGTH) {
+function normalizeString(/** @type {any} */ value, /** @type {any} */ maxLen = MAX_ID_LENGTH) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   if (!trimmed || trimmed.length > maxLen) return null;
   return trimmed;
 }
 
-function normalizeTargetKind(value) {
+function normalizeTargetKind(/** @type {any} */ value) {
   if (value === 'mob' || value === 'player') return value;
   return null;
 }
 
 const EQUIP_SLOT_SET = new Set(EQUIP_SLOTS);
 
-function normalizeSwapType(value) {
+function normalizeSwapType(/** @type {any} */ value) {
   if (value === 'inventory' || value === 'equipment') return value;
   return null;
 }
 
-function normalizeSwapSlot(value, type) {
+function normalizeSwapSlot(/** @type {any} */ value, /** @type {any} */ type) {
   if (type === 'inventory') {
     const index = Number(value);
     if (!Number.isInteger(index) || index < 0) return null;
@@ -113,13 +118,14 @@ function normalizeSwapSlot(value, type) {
   return null;
 }
 
-/** @param {InputKeys | null | undefined} raw */
+/** @param {unknown} raw */
 export function sanitizeInputKeys(raw) {
+  const keys = isPlainObject(raw) ? raw : {};
   return {
-    w: !!raw?.w,
-    a: !!raw?.a,
-    s: !!raw?.s,
-    d: !!raw?.d,
+    w: !!keys.w,
+    a: !!keys.a,
+    s: !!keys.s,
+    d: !!keys.d,
   };
 }
 
@@ -131,25 +137,27 @@ export function sanitizeInputKeys(raw) {
  */
 export function parseClientMessage(raw) {
   if (!isPlainObject(raw)) return null;
-  if (!CLIENT_MESSAGE_TYPES.has(raw.type)) return null;
+  if (typeof raw.type !== 'string') return null;
+  const type = raw.type;
+  if (!CLIENT_MESSAGE_TYPES.has(type)) return null;
 
   const seq = normalizeSeq(raw.seq);
   if (seq === null) return null;
 
-  if (raw.type === 'hello') {
+  if (type === 'hello') {
     return { type: 'hello', seq };
   }
 
-  if (raw.type === 'respawn') {
+  if (type === 'respawn') {
     return { type: 'respawn', seq };
   }
 
-  if (raw.type === 'ping') {
+  if (type === 'ping') {
     const t = typeof raw.t === 'number' && Number.isFinite(raw.t) ? raw.t : Date.now();
     return { type: 'ping', seq, t };
   }
 
-  if (raw.type === 'input') {
+  if (type === 'input') {
     return {
       type: 'input',
       keys: sanitizeInputKeys(raw.keys),
@@ -157,7 +165,7 @@ export function parseClientMessage(raw) {
     };
   }
 
-  if (raw.type === 'moveTarget') {
+  if (type === 'moveTarget') {
     const x = Number(raw.x);
     const z = Number(raw.z);
     if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
@@ -165,7 +173,7 @@ export function parseClientMessage(raw) {
     return { type: 'moveTarget', x, y: Number.isFinite(y) ? y : 0, z, seq };
   }
 
-  if (raw.type === 'targetSelect') {
+  if (type === 'targetSelect') {
     if (raw.targetId === null || raw.targetId === undefined) {
       return { type: 'targetSelect', targetId: null, targetKind: null, seq };
     }
@@ -175,7 +183,7 @@ export function parseClientMessage(raw) {
     return { type: 'targetSelect', targetId, targetKind, seq };
   }
 
-  if (raw.type === 'action') {
+  if (type === 'action') {
     if (raw.kind === 'interact') {
       return { type: 'action', kind: 'interact', seq };
     }
@@ -197,20 +205,20 @@ export function parseClientMessage(raw) {
     return null;
   }
 
-  if (raw.type === 'classSelect') {
+  if (type === 'classSelect') {
     const classId = normalizeString(raw.classId);
     if (!classId) return null;
     return { type: 'classSelect', classId, seq };
   }
 
-  if (raw.type === 'inventorySwap') {
+  if (type === 'inventorySwap') {
     const from = Number(raw.from);
     const to = Number(raw.to);
     if (!Number.isInteger(from) || !Number.isInteger(to)) return null;
     return { type: 'inventorySwap', from, to, seq };
   }
 
-  if (raw.type === 'equipSwap') {
+  if (type === 'equipSwap') {
     const fromType = normalizeSwapType(raw.fromType);
     const toType = normalizeSwapType(raw.toType);
     if (!fromType || !toType) return null;
@@ -220,14 +228,14 @@ export function parseClientMessage(raw) {
     return { type: 'equipSwap', fromType, fromSlot, toType, toSlot, seq };
   }
 
-  if (raw.type === 'vendorSell') {
+  if (type === 'vendorSell') {
     const vendorId = normalizeString(raw.vendorId);
     const slot = Number(raw.slot);
     if (!vendorId || !Number.isInteger(slot)) return null;
     return { type: 'vendorSell', vendorId, slot, seq };
   }
 
-  if (raw.type === 'vendorBuy') {
+  if (type === 'vendorBuy') {
     const vendorId = normalizeString(raw.vendorId);
     const kind = normalizeString(raw.kind, 64);
     if (!vendorId || !kind) return null;
@@ -236,31 +244,39 @@ export function parseClientMessage(raw) {
     return { type: 'vendorBuy', vendorId, kind, count: safeCount, seq };
   }
 
-  if (raw.type === 'chat') {
+  if (type === 'chat') {
     const channel = raw.channel;
+    if (
+      channel !== 'global' &&
+      channel !== 'area' &&
+      channel !== 'trade' &&
+      channel !== 'party'
+    ) {
+      return null;
+    }
     if (!CHAT_CHANNELS.has(channel)) return null;
     const text = typeof raw.text === 'string' ? raw.text.trim() : '';
     if (!text || text.length > MAX_CHAT_TEXT_LENGTH) return null;
     return { type: 'chat', channel, text, seq };
   }
 
-  if (raw.type === 'partyInvite') {
+  if (type === 'partyInvite') {
     const targetId = normalizeString(raw.targetId);
     if (!targetId) return null;
     return { type: 'partyInvite', targetId, seq };
   }
 
-  if (raw.type === 'partyAccept') {
+  if (type === 'partyAccept') {
     const inviterId = normalizeString(raw.inviterId);
     if (!inviterId) return null;
     return { type: 'partyAccept', inviterId, seq };
   }
 
-  if (raw.type === 'partyLeave') {
+  if (type === 'partyLeave') {
     return { type: 'partyLeave', seq };
   }
 
-  if (raw.type === 'craft') {
+  if (type === 'craft') {
     const recipeId = normalizeString(raw.recipeId, 64);
     if (!recipeId) return null;
     const count = raw.count !== undefined ? Number(raw.count) : 1;
@@ -268,68 +284,74 @@ export function parseClientMessage(raw) {
     return { type: 'craft', recipeId, count: safeCount, seq };
   }
 
-  if (raw.type === 'duelRequest') {
+  if (type === 'duelRequest') {
     const targetId = normalizeString(raw.targetId);
     if (!targetId) return null;
     return { type: 'duelRequest', targetId, seq };
   }
 
-  if (raw.type === 'duelAccept') {
+  if (type === 'duelAccept') {
     const challengerId = normalizeString(raw.challengerId);
     if (!challengerId) return null;
     return { type: 'duelAccept', challengerId, seq };
   }
 
-  if (raw.type === 'duelDecline') {
+  if (type === 'duelDecline') {
     const challengerId = normalizeString(raw.challengerId);
     if (!challengerId) return null;
     return { type: 'duelDecline', challengerId, seq };
   }
 
-  if (raw.type === 'duelForfeit') {
+  if (type === 'duelForfeit') {
     return { type: 'duelForfeit', seq };
   }
 
-  if (raw.type === 'tradeRequest') {
+  if (type === 'tradeRequest') {
     const targetId = normalizeString(raw.targetId);
     if (!targetId) return null;
     return { type: 'tradeRequest', targetId, seq };
   }
 
-  if (raw.type === 'tradeAccept') {
+  if (type === 'tradeAccept') {
     const traderId = normalizeString(raw.traderId);
     if (!traderId) return null;
     return { type: 'tradeAccept', traderId, seq };
   }
 
-  if (raw.type === 'tradeDecline') {
+  if (type === 'tradeDecline') {
     const traderId = normalizeString(raw.traderId);
     if (!traderId) return null;
     return { type: 'tradeDecline', traderId, seq };
   }
 
-  if (raw.type === 'tradeOffer') {
+  if (type === 'tradeOffer') {
     const op = raw.op === 'add' || raw.op === 'remove' ? raw.op : null;
     if (!op) return null;
     if (op === 'add') {
       const slot = raw.slot !== undefined ? Number(raw.slot) : null;
       const copper = raw.copper !== undefined ? Number(raw.copper) : null;
-      if (Number.isInteger(slot) && slot >= 0) return { type: 'tradeOffer', op, slot, seq };
-      if (Number.isInteger(copper) && copper >= 0) return { type: 'tradeOffer', op, copper, seq };
+      if (typeof slot === 'number' && Number.isInteger(slot) && slot >= 0) {
+        return { type: 'tradeOffer', op, slot, seq };
+      }
+      if (typeof copper === 'number' && Number.isInteger(copper) && copper >= 0) {
+        return { type: 'tradeOffer', op, copper, seq };
+      }
       return null;
     }
     const slot = raw.slot !== undefined ? Number(raw.slot) : null;
     const copper = raw.copper !== undefined;
-    if (Number.isInteger(slot) && slot >= 0) return { type: 'tradeOffer', op, slot, seq };
+    if (typeof slot === 'number' && Number.isInteger(slot) && slot >= 0) {
+      return { type: 'tradeOffer', op, slot, seq };
+    }
     if (copper) return { type: 'tradeOffer', op, copper: 1, seq };
     return null;
   }
 
-  if (raw.type === 'tradeConfirm') {
+  if (type === 'tradeConfirm') {
     return { type: 'tradeConfirm', seq };
   }
 
-  if (raw.type === 'tradeCancel') {
+  if (type === 'tradeCancel') {
     return { type: 'tradeCancel', seq };
   }
 

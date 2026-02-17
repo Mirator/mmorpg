@@ -1,3 +1,4 @@
+// @ts-check
 import http from 'http';
 import { createHttpApp } from './http.js';
 import { createSimulatedWorld, createWorldFromConfig } from './logic/world.js';
@@ -15,7 +16,7 @@ import { seedDevAccount } from './devSeed.js';
 import { autoMigrateDev } from './devMigrate.js';
 import { loadMapConfigSync, resolveMapConfigPath } from './mapConfig.js';
 
-export function createServer({ env = process.env } = {}) {
+export function createServer(/** @type {any} */ { env = process.env } = {}) {
   const config = getServerConfig(env);
   const isE2eTest = env.E2E_TEST === 'true';
   const useSimulatedWorld =
@@ -31,12 +32,12 @@ export function createServer({ env = process.env } = {}) {
     ? createMobs(mobCount, world)
     : createMobsFromSpawns(world.mobSpawns, world);
   const players = new Map();
-  const corpses = [];
+  const /** @type {any} */ corpses = [];
   const spawner = createSpawner(world);
-  const nextItemIdRef = { current: 1 };
+  const /** @type {any} */ nextItemIdRef = { current: 1 };
 
   if (isE2eTest) {
-    const testResource = {
+    const /** @type {any} */ testResource = {
       id: 'r-test',
       x: world.base.x + world.base.radius + 6,
       z: world.base.z,
@@ -50,7 +51,7 @@ export function createServer({ env = process.env } = {}) {
     });
     const testMobLevel = 4;
     const testMobMaxHp = getMobMaxHp(testMobLevel, 'orc');
-    const mTestPos = {
+    const /** @type {any} */ mTestPos = {
       x: world.base.x + world.base.radius + 12,
       y: 0,
       z: world.base.z,
@@ -59,7 +60,8 @@ export function createServer({ env = process.env } = {}) {
       id: 'm-test',
       pos: { ...mTestPos },
       spawnPos: mTestPos,
-      testId: 'm-test',
+      mobType: 'orc',
+      aggressive: true,
       state: 'idle',
       targetId: null,
       nextDecisionAt: Number.MAX_SAFE_INTEGER,
@@ -74,7 +76,7 @@ export function createServer({ env = process.env } = {}) {
 
     const chaseMobLevel = 2;
     const chaseMaxHp = getMobMaxHp(chaseMobLevel, 'orc');
-    const mChasePos = {
+    const /** @type {any} */ mChasePos = {
       x: world.base.x - (world.base.radius + 12),
       y: 0,
       z: world.base.z,
@@ -83,6 +85,8 @@ export function createServer({ env = process.env } = {}) {
       id: 'm-chase',
       pos: { ...mChasePos },
       spawnPos: mChasePos,
+      mobType: 'orc',
+      aggressive: true,
       state: 'idle',
       targetId: null,
       nextDecisionAt: Number.MAX_SAFE_INTEGER,
@@ -129,13 +133,13 @@ export function createServer({ env = process.env } = {}) {
     nextItemIdRef,
   });
 
-  function getMobDisplayName(mob) {
+  function getMobDisplayName(/** @type {any} */ mob) {
     if (!mob) return 'Enemy';
     const level = mob.level ?? 1;
     return `Enemy (Lv.${level})`;
   }
 
-  const onPlayerDamaged = (player, mob, damage, now) => {
+  const onPlayerDamaged = (/** @type {any} */ player, /** @type {any} */ mob, /** @type {any} */ damage, /** @type {any} */ now) => {
     const mobName = getMobDisplayName(mob);
     ws.sendCombatLogToPlayer(player.id, [
       {
@@ -146,15 +150,15 @@ export function createServer({ env = process.env } = {}) {
     ]);
   };
 
-  const onCombatLog = (playerId, entries) => {
+  const onCombatLog = (/** @type {any} */ playerId, /** @type {any} */ entries) => {
     ws.sendCombatLogToPlayer(playerId, entries);
   };
 
-  const onCombatEvent = (event, now) => {
+  const onCombatEvent = (/** @type {any} */ event, /** @type {any} */ now) => {
     ws.broadcastCombatEvent(event, now);
   };
 
-  const onPlayerDeath = (playerId, now) => {
+  const onPlayerDeath = (/** @type {any} */ playerId, /** @type {any} */ now) => {
     ws.sendCombatLogToPlayer(playerId, [
       {
         kind: 'death',
@@ -164,7 +168,7 @@ export function createServer({ env = process.env } = {}) {
     ]);
   };
 
-  const onDuelEnded = (player, opponent, reason, markDirty) => {
+  const onDuelEnded = (/** @type {any} */ player, /** @type {any} */ opponent, /** @type {any} */ reason, /** @type {any} */ markDirty) => {
     if (opponent) markDirty(opponent);
     ws.notifyDuelEnded(player, opponent, reason);
   };
@@ -188,7 +192,7 @@ export function createServer({ env = process.env } = {}) {
 
   function start() {
     autoMigrateDev({ env, config });
-    seedDevAccount({ env, config }).catch((err) => {
+    seedDevAccount({ env, config }).catch((/** @type {any} */ err) => {
       console.warn('[dev] Failed to seed default account:', err);
     });
     ws.startHeartbeat();

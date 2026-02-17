@@ -1,3 +1,5 @@
+// @ts-check
+/** @type {Record<string, number>} */
 const CHAT_BUFFER_SIZES = {
   global: 500,
   area: 500,
@@ -6,14 +8,19 @@ const CHAT_BUFFER_SIZES = {
   combat: 100,
 };
 
+/** @typedef {{ channel: string, authorId: string, author: string, text: string, timestamp: number }} ChatMessage */
+/** @typedef {{ push: (msg: ChatMessage) => ChatMessage, getSince: (timestamp: number | undefined) => ChatMessage[] }} ChatRingBuffer */
+
 /**
  * @param {string} channel
  * @param {number} maxSize
- * @returns {Array<{ channel: string, authorId: string, author: string, text: string, timestamp: number }>}
+ * @returns {ChatRingBuffer}
  */
 function createRingBuffer(channel, maxSize) {
+  /** @type {ChatMessage[]} */
   const buffer = [];
   return {
+    /** @param {ChatMessage} msg */
     push(msg) {
       buffer.push(msg);
       if (buffer.length > maxSize) {
@@ -21,13 +28,16 @@ function createRingBuffer(channel, maxSize) {
       }
       return msg;
     },
+    /** @param {number | undefined} timestamp */
     getSince(timestamp) {
       if (!Number.isFinite(timestamp)) return buffer;
-      return buffer.filter((m) => m.timestamp >= timestamp);
+      const since = Number(timestamp);
+      return buffer.filter((m) => m.timestamp >= since);
     },
   };
 }
 
+/** @type {Record<string, ChatRingBuffer>} */
 const buffers = {};
 for (const ch of Object.keys(CHAT_BUFFER_SIZES)) {
   buffers[ch] = createRingBuffer(ch, CHAT_BUFFER_SIZES[ch]);
@@ -75,7 +85,7 @@ export function addMessage(channel, authorId, author, text, timestamp) {
  * Get recent messages for a channel (for future use; not sent on connect).
  * @param {string} channel
  * @param {number} [sinceTimestamp]
- * @returns {Array<{ channel: string, authorId: string, author: string, text: string, timestamp: number }>}
+ * @returns {ChatMessage[]}
  */
 export function getRecentMessages(channel, sinceTimestamp) {
   const buf = buffers[channel];

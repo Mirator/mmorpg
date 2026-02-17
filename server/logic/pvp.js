@@ -8,8 +8,8 @@
  * - zone.isPvpZone: when world has zones, check if both players are in a PvP zone
  * - player.pvpFlagged: opt-in flag (e.g. duel, battleground queue)
  *
- * @param {Object} attacker - Attacking player
- * @param {Object} target - Target player (for PvP damage/CC)
+ * @param {any} attacker - Attacking player
+ * @param {any} target - Target player (for PvP damage/CC)
  * @param {{ zone?: { isPvpZone?: boolean } }} [context] - Optional context (zone, etc.)
  * @returns {boolean}
  */

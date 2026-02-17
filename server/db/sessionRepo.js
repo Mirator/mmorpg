@@ -1,6 +1,7 @@
+// @ts-check
 import { getPrismaClient } from './client.js';
 
-export async function createSession({ id, accountId, expiresAt, lastSeenAt }) {
+export async function createSession(/** @type {any} */ { id, accountId, expiresAt, lastSeenAt }) {
   const prisma = getPrismaClient();
   return prisma.session.create({
     data: {
@@ -12,7 +13,7 @@ export async function createSession({ id, accountId, expiresAt, lastSeenAt }) {
   });
 }
 
-export async function getSessionWithAccount(id) {
+export async function getSessionWithAccount(/** @type {any} */ id) {
   const prisma = getPrismaClient();
   return prisma.session.findUnique({
     where: { id },
@@ -20,7 +21,7 @@ export async function getSessionWithAccount(id) {
   });
 }
 
-export async function touchSession(id, lastSeenAt = new Date()) {
+export async function touchSession(/** @type {any} */ id, /** @type {any} */ lastSeenAt = new Date()) {
   const prisma = getPrismaClient();
   return prisma.session.update({
     where: { id },
@@ -28,7 +29,7 @@ export async function touchSession(id, lastSeenAt = new Date()) {
   });
 }
 
-export async function deleteSession(id) {
+export async function deleteSession(/** @type {any} */ id) {
   const prisma = getPrismaClient();
   return prisma.session.delete({ where: { id } });
 }

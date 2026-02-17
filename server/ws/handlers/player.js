@@ -1,24 +1,25 @@
+// @ts-check
 import { isValidClassId } from '../../../shared/classes.js';
 import { respawnPlayer } from '../../logic/players.js';
 
-export function handleRespawn(ctx) {
+export function handleRespawn(/** @type {any} */ ctx) {
   const { player, spawner, persistence } = ctx;
   if (player.dead) {
     respawnPlayer(player, spawner.getSpawnPoint(), persistence.markDirty);
   }
 }
 
-export function handleInput(ctx) {
+export function handleInput(/** @type {any} */ ctx) {
   const { player, msg } = ctx;
   player.keys = msg.keys;
 }
 
-export function handleMoveTarget(ctx) {
+export function handleMoveTarget(/** @type {any} */ ctx) {
   const { player, msg } = ctx;
   player.target = { x: msg.x, y: msg.y ?? 0, z: msg.z };
 }
 
-export function handleTargetSelect(ctx) {
+export function handleTargetSelect(/** @type {any} */ ctx) {
   const { player, players, msg, config, mobs } = ctx;
   if (!msg.targetId) {
     player.targetId = null;
@@ -46,7 +47,7 @@ export function handleTargetSelect(ctx) {
     return;
   }
 
-  const target = mobs.find((mob) => mob.id === msg.targetId);
+  const target = mobs.find((/** @type {any} */ mob) => mob.id === msg.targetId);
   if (!target || target.dead || target.hp <= 0) {
     player.targetId = null;
     player.targetKind = null;
@@ -63,7 +64,7 @@ export function handleTargetSelect(ctx) {
   player.targetKind = 'mob';
 }
 
-export function handleClassSelect(ctx) {
+export function handleClassSelect(/** @type {any} */ ctx) {
   const { player, msg, persistence, initCombatState } = ctx;
   if (!isValidClassId(msg.classId)) return;
   player.classId = msg.classId;

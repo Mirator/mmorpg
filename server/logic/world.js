@@ -1,3 +1,4 @@
+// @ts-check
 import {
   WORLD_CONFIG,
   RESOURCE_CONFIG,
@@ -27,7 +28,7 @@ const PLAYER_INV_STACK_MAX = PLAYER_CONFIG.invStackMax;
 const PLAYER_INV_CAP = PLAYER_INV_SLOTS * PLAYER_INV_STACK_MAX;
 const VENDOR_INTERACT_RADIUS = VENDOR_CONFIG.interactRadius;
 
-function mulberry32(seed) {
+function mulberry32(/** @type {any} */ seed) {
   let t = seed >>> 0;
   return () => {
     t += 0x6d2b79f5;
@@ -37,17 +38,17 @@ function mulberry32(seed) {
   };
 }
 
-function randomRange(rng, min, max) {
+function randomRange(/** @type {any} */ rng, /** @type {any} */ min, /** @type {any} */ max) {
   return min + (max - min) * rng();
 }
 
-function distance2(x1, z1, x2, z2) {
+function distance2(/** @type {any} */ x1, /** @type {any} */ z1, /** @type {any} */ x2, /** @type {any} */ z2) {
   const dx = x1 - x2;
   const dz = z1 - z2;
   return dx * dx + dz * dz;
 }
 
-function farEnoughFromObstacles(x, z, obstacles, minDist) {
+function farEnoughFromObstacles(/** @type {any} */ x, /** @type {any} */ z, /** @type {any} */ obstacles, /** @type {any} */ minDist) {
   for (const obs of obstacles) {
     if (distance2(x, z, obs.x, obs.z) < (obs.r + minDist) ** 2) {
       return false;
@@ -56,9 +57,9 @@ function farEnoughFromObstacles(x, z, obstacles, minDist) {
   return true;
 }
 
-function generateObstacles(rng) {
+function generateObstacles(/** @type {any} */ rng) {
   const half = MAP_SIZE / 2;
-  const obstacles = [];
+  const /** @type {any} */ obstacles = [];
   const maxTries = OBSTACLE_COUNT * 30;
   let tries = 0;
 
@@ -76,11 +77,11 @@ function generateObstacles(rng) {
   return obstacles;
 }
 
-const RESOURCE_TYPES_LIST = ['crystal', 'ore', 'herb', 'tree', 'flower'];
+const /** @type {any} */ RESOURCE_TYPES_LIST = ['crystal', 'ore', 'herb', 'tree', 'flower'];
 
-function generateResourceNodes(rng, obstacles) {
+function generateResourceNodes(/** @type {any} */ rng, /** @type {any} */ obstacles) {
   const half = MAP_SIZE / 2;
-  const nodes = [];
+  const /** @type {any} */ nodes = [];
   const maxTries = RESOURCE_COUNT * 40;
   let tries = 0;
 
@@ -99,7 +100,7 @@ function generateResourceNodes(rng, obstacles) {
 }
 
 function generateSpawnPoints() {
-  const points = [];
+  const /** @type {any} */ points = [];
   const count = 6;
   const radius = BASE_RADIUS * 0.7;
   for (let i = 0; i < count; i += 1) {
@@ -118,8 +119,8 @@ export function createSimulatedWorld() {
   const obstacles = generateObstacles(rng);
   const resourceNodes = generateResourceNodes(rng, obstacles);
   const spawnPoints = generateSpawnPoints();
-  const base = { x: 0, y: 0, z: 0, radius: BASE_RADIUS };
-  const vendors = [
+  const /** @type {any} */ base = { x: 0, y: 0, z: 0, radius: BASE_RADIUS };
+  const /** @type {any} */ vendors = [
     {
       id: 'vendor-1',
       name: 'General Vendor',
@@ -151,25 +152,25 @@ export function createSimulatedWorld() {
   };
 }
 
-export function createWorldFromConfig(mapConfig) {
+export function createWorldFromConfig(/** @type {any} */ mapConfig) {
   const errors = validateMapConfig(mapConfig);
   if (errors.length) {
     throw new Error(`Invalid map config: ${errors.join(' ')}`);
   }
 
-  const base = {
+  const /** @type {any} */ base = {
     x: mapConfig.base.x,
     y: mapConfig.base.y ?? 0,
     z: mapConfig.base.z,
     radius: mapConfig.base.radius,
   };
-  const obstacles = mapConfig.obstacles.map((obs) => ({
+  const obstacles = mapConfig.obstacles.map((/** @type {any} */ obs) => ({
     x: obs.x,
     y: obs.y ?? 0,
     z: obs.z,
     r: obs.radius ?? obs.r,
   }));
-  const resourceNodes = mapConfig.resourceNodes.map((node) => ({
+  const resourceNodes = mapConfig.resourceNodes.map((/** @type {any} */ node) => ({
     id: node.id,
     x: node.x,
     y: node.y ?? 0,
@@ -177,12 +178,12 @@ export function createWorldFromConfig(mapConfig) {
     type: node.type ?? 'crystal',
     respawnMs: node.respawnMs,
   }));
-  const spawnPoints = mapConfig.spawnPoints.map((point) => ({
+  const spawnPoints = mapConfig.spawnPoints.map((/** @type {any} */ point) => ({
     x: point.x,
     y: point.y ?? 0,
     z: point.z,
   }));
-  const vendors = mapConfig.vendors.map((vendor) => {
+  const vendors = mapConfig.vendors.map((/** @type {any} */ vendor) => {
     const buyItems = resolveVendorBuyItems(vendor);
     return {
       id: vendor.id,
@@ -193,7 +194,7 @@ export function createWorldFromConfig(mapConfig) {
       buyItems,
     };
   });
-  const mobSpawns = mapConfig.mobSpawns.map((spawn) => ({
+  const mobSpawns = mapConfig.mobSpawns.map((/** @type {any} */ spawn) => ({
     id: spawn.id,
     x: spawn.x,
     y: spawn.y ?? 0,
@@ -227,11 +228,11 @@ export function createWorldFromConfig(mapConfig) {
   };
 }
 
-export function createWorld(mapConfig) {
+export function createWorld(/** @type {any} */ mapConfig) {
   return createWorldFromConfig(mapConfig);
 }
 
-export function worldSnapshot(world) {
+export function worldSnapshot(/** @type {any} */ world) {
   return {
     mapSize: world.mapSize,
     mapYMin: world.mapYMin,

@@ -1,7 +1,8 @@
-/** @param {import('../abilityHandlers').AbilityHandlerDeps} d */
+// @ts-check
+/** @param {import('../abilityHandlers.js').AbilityHandlerDeps} d */
 export function createFighterHandlers(d) {
   return {
-    power_strike(ctx) {
+    power_strike(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs, preResource } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
@@ -12,7 +13,7 @@ export function createFighterHandlers(d) {
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
-      let result = null;
+      let /** @type {any} */ result = null;
       if (d.rollHit(derived.accuracy, 0)) {
         if (targetPlayer) {
           result = d.applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
@@ -41,7 +42,7 @@ export function createFighterHandlers(d) {
           : null,
       };
     },
-    cleave(ctx) {
+    cleave(/** @type {any} */ ctx) {
       const { player, mobs, players, now, respawnMs, abilityDir } = ctx;
       const result = d.applyCleave({
         player,
@@ -69,11 +70,11 @@ export function createFighterHandlers(d) {
             : null,
       };
     },
-    roll_back(ctx) {
+    roll_back(/** @type {any} */ ctx) {
       const { player, ability, world, abilityDir } = ctx;
       const dir = abilityDir;
       const distance = ability.dashDistance ?? 0;
-      const nextPos = {
+      const /** @type {any} */ nextPos = {
         x: player.pos.x - dir.x * distance,
         y: player.pos.y ?? 0,
         z: player.pos.z - dir.z * distance,
@@ -83,14 +84,14 @@ export function createFighterHandlers(d) {
       player.slowImmuneUntil = ctx.now + (ability.durationMs ?? 1000);
       return {};
     },
-    berserk(ctx) {
+    berserk(/** @type {any} */ ctx) {
       const { player, ability } = ctx;
       player.berserkUntil = ctx.now + (ability.durationMs ?? 6000);
       player.damageDealtMultiplier = ability.damageDealtMultiplier ?? 1.25;
       player.pvpDamageDealtMultiplier = ability.pvpDamageDealtMultiplier ?? 1.15;
       return {};
     },
-    whirlwind(ctx) {
+    whirlwind(/** @type {any} */ ctx) {
       const { player, mobs, players, now, respawnMs, abilityDir } = ctx;
       const result = d.applyCleave({
         player,
@@ -118,7 +119,7 @@ export function createFighterHandlers(d) {
             : null,
       };
     },
-    execute(ctx) {
+    execute(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
@@ -130,7 +131,7 @@ export function createFighterHandlers(d) {
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
-      let result = null;
+      let /** @type {any} */ result = null;
       if (d.rollHit(derived.accuracy, 0)) {
         if (targetPlayer) {
           result = d.applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
@@ -159,14 +160,14 @@ export function createFighterHandlers(d) {
           : null,
       };
     },
-    blood_rage(ctx) {
+    blood_rage(/** @type {any} */ ctx) {
       const { player, ability } = ctx;
       const consumedRage = ctx.preResource ?? 0;
       player.bloodRageUntil = ctx.now + (ability.durationMs ?? 6000);
       player.bloodRageDamageMultiplier = 1 + consumedRage * 0.02;
       return {};
     },
-    interrupting_strike(ctx) {
+    interrupting_strike(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
@@ -176,7 +177,7 @@ export function createFighterHandlers(d) {
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
-      let result = null;
+      let /** @type {any} */ result = null;
       if (d.rollHit(derived.accuracy, 0)) {
         if (targetPlayer) {
           result = d.applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
@@ -207,7 +208,7 @@ export function createFighterHandlers(d) {
           : null,
       };
     },
-    avatar_of_war(ctx) {
+    avatar_of_war(/** @type {any} */ ctx) {
       const { player, ability } = ctx;
       player.avatarOfWarUntil = ctx.now + (ability.durationMs ?? 10000);
       player.physicalPowerMultiplier = ability.physicalPowerMultiplier ?? 1.3;

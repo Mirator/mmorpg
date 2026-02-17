@@ -1,31 +1,32 @@
-export function createVendorUI({ dialog, panel, dialogName, panelName, tradeButton, closeButton, panelCloseButton, onTradeOpen }) {
+// @ts-check
+export function createVendorUI(/** @type {any} */ { dialog, panel, dialogName, panelName, tradeButton, closeButton, panelCloseButton, onTradeOpen }) {
   let dialogOpen = false;
   let tradeOpen = false;
   let activeTab = 'buy';
-  let currentVendor = null;
+  let /** @type {any} */ currentVendor = null;
 
   const tabButtons = panel?.querySelectorAll?.('.vendor-tab') ?? [];
   const views = panel?.querySelectorAll?.('.vendor-view') ?? [];
 
-  function setVendor(vendor) {
+  function setVendor(/** @type {any} */ vendor) {
     currentVendor = vendor;
     const name = vendor?.name ?? 'Vendor';
     if (dialogName) dialogName.textContent = name;
     if (panelName) panelName.textContent = name;
   }
 
-  function setDialogOpen(next) {
+  function setDialogOpen(/** @type {any} */ next) {
     dialogOpen = !!next;
     dialog?.classList.toggle('open', dialogOpen);
   }
 
-  function setTradeOpen(next) {
+  function setTradeOpen(/** @type {any} */ next) {
     tradeOpen = !!next;
     panel?.classList.toggle('open', tradeOpen);
     document.body?.classList.toggle('trade-open', tradeOpen);
   }
 
-  function setTab(tab) {
+  function setTab(/** @type {any} */ tab) {
     if (!tab) return;
     activeTab = tab;
     for (const btn of tabButtons) {
@@ -39,7 +40,7 @@ export function createVendorUI({ dialog, panel, dialogName, panelName, tradeButt
     }
   }
 
-  function openDialog(vendor) {
+  function openDialog(/** @type {any} */ vendor) {
     if (!vendor) return;
     setVendor(vendor);
     setTradeOpen(false);

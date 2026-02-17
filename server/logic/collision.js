@@ -1,7 +1,14 @@
-function clamp(value, min, max) {
+// @ts-check
+function clamp(/** @type {any} */ value, /** @type {any} */ min, /** @type {any} */ max) {
   return Math.max(min, Math.min(max, value));
 }
 
+/**
+ * @param {{ x: number, y?: number, z: number }} pos
+ * @param {number} mapSize
+ * @param {number} [radius]
+ * @param {{ mapYMin?: number, mapYMax?: number } | null} [world]
+ */
 export function clampToBounds(pos, mapSize, radius = 0, world = null) {
   const half = mapSize / 2 - radius;
   let y = pos.y ?? 0;
@@ -15,8 +22,8 @@ export function clampToBounds(pos, mapSize, radius = 0, world = null) {
   };
 }
 
-export function resolveObstacles(pos, obstacles, radius = 0) {
-  let out = { ...pos };
+export function resolveObstacles(/** @type {any} */ pos, /** @type {any} */ obstacles, /** @type {any} */ radius = 0) {
+  let /** @type {any} */ out = { ...pos };
   for (const obs of obstacles) {
     const dx = out.x - obs.x;
     const dz = out.z - obs.z;
@@ -40,7 +47,7 @@ export function resolveObstacles(pos, obstacles, radius = 0) {
   return out;
 }
 
-export function applyCollisions(pos, world, radius = 0) {
+export function applyCollisions(/** @type {any} */ pos, /** @type {any} */ world, /** @type {any} */ radius = 0) {
   const bounded = clampToBounds(pos, world.mapSize, radius, world);
   const resolved = resolveObstacles(bounded, world.obstacles, radius);
   return clampToBounds(resolved, world.mapSize, radius, world);

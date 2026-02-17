@@ -1,8 +1,9 @@
+// @ts-check
 export const COPPER_PER_SILVER = 100;
 export const SILVER_PER_GOLD = 100;
 export const COPPER_PER_GOLD = COPPER_PER_SILVER * SILVER_PER_GOLD;
 
-export const VENDOR_SELL_PRICES = {
+export const /** @type {any} */ VENDOR_SELL_PRICES = {
   crystal: 10,
   ore: 15,
   herb: 12,
@@ -24,7 +25,7 @@ export const VENDOR_BUY_ITEMS = [
   { kind: 'armor_feet_leather', name: 'Leather Boots', priceCopper: 45, category: 'armor' },
 ];
 
-export const RESOURCE_TYPES = {
+export const /** @type {any} */ RESOURCE_TYPES = {
   crystal: { itemKind: 'crystal', itemName: 'Crystal', sellPrice: 10, respawnMs: 15_000 },
   ore: { itemKind: 'ore', itemName: 'Iron Ore', sellPrice: 15, respawnMs: 20_000 },
   herb: { itemKind: 'herb', itemName: 'Healing Herb', sellPrice: 12, respawnMs: 12_000 },
@@ -39,19 +40,19 @@ export const RESOURCE_TYPES = {
  */
 export function getItemDisplayName(kind) {
   if (!kind || typeof kind !== 'string') return 'Item';
-  const buyEntry = VENDOR_BUY_ITEMS.find((e) => e.kind === kind);
+  const buyEntry = VENDOR_BUY_ITEMS.find((/** @type {any} */ e) => e.kind === kind);
   if (buyEntry) return buyEntry.name;
-  const resourceType = Object.values(RESOURCE_TYPES).find((r) => r.itemKind === kind);
+  const resourceType = Object.values(RESOURCE_TYPES).find((/** @type {any} */ r) => r.itemKind === kind);
   if (resourceType) return resourceType.itemName;
   return kind
     .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((/** @type {any} */ part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
-export function getBuyPriceCopper(kind) {
+export function getBuyPriceCopper(/** @type {any} */ kind) {
   if (!kind) return 0;
-  const entry = VENDOR_BUY_ITEMS.find((e) => e.kind === kind);
+  const entry = VENDOR_BUY_ITEMS.find((/** @type {any} */ e) => e.kind === kind);
   return entry ? Number(entry.priceCopper) : 0;
 }
 
@@ -70,9 +71,13 @@ export function resolveVendorBuyItems(vendorConfig) {
   if (!Array.isArray(items) || items.length === 0) {
     return [...VENDOR_BUY_ITEMS];
   }
-  return items.map((entry) => {
-    const global = VENDOR_BUY_ITEMS.find((e) => e.kind === entry.kind);
-    const priceCopper = Number.isFinite(entry.priceCopper) ? entry.priceCopper : (global?.priceCopper ?? getBuyPriceCopper(entry.kind));
+  return items.map((/** @type {any} */ entry) => {
+    const global = VENDOR_BUY_ITEMS.find((/** @type {any} */ e) => e.kind === entry.kind);
+    const priceCopper = Number(
+      Number.isFinite(entry.priceCopper)
+        ? entry.priceCopper
+        : (global?.priceCopper ?? getBuyPriceCopper(entry.kind))
+    );
     return {
       kind: entry.kind,
       name: global?.name ?? getItemDisplayName(entry.kind),
@@ -82,7 +87,7 @@ export function resolveVendorBuyItems(vendorConfig) {
   });
 }
 
-export function getResourceConfig(type) {
+export function getResourceConfig(/** @type {any} */ type) {
   if (!type) return RESOURCE_TYPES.crystal;
   return RESOURCE_TYPES[type] ?? RESOURCE_TYPES.crystal;
 }
@@ -98,12 +103,12 @@ export function getResourceRespawnMs(type, defaultMs = 15_000) {
   return Number(config.respawnMs) || defaultMs;
 }
 
-export function getSellPriceCopper(kind) {
+export function getSellPriceCopper(/** @type {any} */ kind) {
   if (!kind) return 0;
   return Number(VENDOR_SELL_PRICES[kind]) || 0;
 }
 
-export function splitCurrency(totalCopper) {
+export function splitCurrency(/** @type {any} */ totalCopper) {
   const safeTotal = Math.max(0, Math.floor(Number(totalCopper) || 0));
   const gold = Math.floor(safeTotal / COPPER_PER_GOLD);
   const silver = Math.floor((safeTotal % COPPER_PER_GOLD) / COPPER_PER_SILVER);
@@ -111,7 +116,7 @@ export function splitCurrency(totalCopper) {
   return { gold, silver, copper };
 }
 
-export function formatCurrency(totalCopper) {
+export function formatCurrency(/** @type {any} */ totalCopper) {
   const { gold, silver, copper } = splitCurrency(totalCopper);
   return `${gold}g ${silver}s ${copper}c`;
 }

@@ -1,3 +1,4 @@
+// @ts-check
 import crypto from 'node:crypto';
 
 const TICKET_TTL_MS = 60_000; // 60 seconds
@@ -7,14 +8,14 @@ function generateTicketId() {
   return crypto.randomBytes(24).toString('base64url');
 }
 
-export function createTicket({ accountId, characterId }) {
+export function createTicket(/** @type {any} */ { accountId, characterId }) {
   const id = generateTicketId();
   const expiresAt = Date.now() + TICKET_TTL_MS;
   tickets.set(id, { accountId, characterId, expiresAt });
   return id;
 }
 
-export function validateAndConsumeTicket(ticketId) {
+export function validateAndConsumeTicket(/** @type {any} */ ticketId) {
   if (!ticketId || typeof ticketId !== 'string') return null;
   const entry = tickets.get(ticketId);
   tickets.delete(ticketId);

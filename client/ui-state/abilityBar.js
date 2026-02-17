@@ -1,16 +1,17 @@
+// @ts-check
 import { ABILITY_SLOTS } from '/shared/classes.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 import { getAbilitiesForClass } from '/shared/classes.js';
 import { getKeybinds } from '../keybinds.js';
 
-function formatKey(key) {
+function formatKey(/** @type {any} */ key) {
   if (!key) return '';
   if (key === 'Escape') return 'ESC';
   return key.length === 1 ? key.toUpperCase() : key;
 }
 
-export function buildAbilityTooltip(ability) {
-  const parts = [];
+export function buildAbilityTooltip(/** @type {any} */ ability) {
+  const /** @type {any} */ parts = [];
   if (ability.baseValue != null && ability.coefficient != null) {
     parts.push(`Damage: ${ability.baseValue} + Power × ${ability.coefficient}`);
   }
@@ -35,8 +36,8 @@ export function buildAbilityTooltip(ability) {
   return parts.join(' · ') || ability.name;
 }
 
-export function createAbilityBar(abilityBarEl, onAbilityClick) {
-  const abilitySlots = [];
+export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any} */ onAbilityClick) {
+  const /** @type {any} */ abilitySlots = [];
   const localCooldowns = new Map();
 
   function buildAbilityBar() {
@@ -74,13 +75,13 @@ export function createAbilityBar(abilityBarEl, onAbilityClick) {
     }
   }
 
-  function updateAbilityBar(me, serverNow, getCurrentClassId, globalCooldownMs = 900) {
+  function updateAbilityBar(/** @type {any} */ me, /** @type {any} */ serverNow, /** @type {any} */ getCurrentClassId, /** @type {any} */ globalCooldownMs = 900) {
     if (!abilityBarEl || abilitySlots.length === 0) return;
     const keybinds = getKeybinds();
     const classId = getCurrentClassId(me);
     const weaponDef = getEquippedWeapon(me?.equipment, classId);
     const abilities = getAbilitiesForClass(classId, me?.level ?? 1, weaponDef);
-    const abilityBySlot = new Map(abilities.map((ability) => [ability.slot, ability]));
+    const abilityBySlot = new Map(abilities.map((/** @type {any} */ ability) => [ability.slot, ability]));
     const gcdEnd = me?.globalCooldownUntil ?? 0;
     const gcdRemaining = Math.max(0, gcdEnd - serverNow);
 
@@ -141,11 +142,11 @@ export function createAbilityBar(abilityBarEl, onAbilityClick) {
     }
   }
 
-  function setLocalCooldown(slot, until) {
+  function setLocalCooldown(/** @type {any} */ slot, /** @type {any} */ until) {
     localCooldowns.set(slot, until);
   }
 
-  function getLocalCooldown(slot) {
+  function getLocalCooldown(/** @type {any} */ slot) {
     return localCooldowns.get(slot) ?? 0;
   }
 

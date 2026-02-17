@@ -1,33 +1,38 @@
+// @ts-check
 import { MOB_TYPES, RESOURCE_TYPE_LIST } from '/shared/entityTypes.js';
 
-const form = document.getElementById('auth-form');
-const passInput = document.getElementById('admin-pass');
-const statusEl = document.getElementById('status');
-const saveStatusEl = document.getElementById('save-status');
-const errorsEl = document.getElementById('errors');
-const reloadBtn = document.getElementById('reload-btn');
-const saveBtn = document.getElementById('save-btn');
-const canvas = document.getElementById('map-canvas');
-const ctx = canvas.getContext('2d');
+const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
+const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
+const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
+const saveStatusEl = /** @type {HTMLElement} */ (document.getElementById('save-status'));
+const errorsEl = /** @type {HTMLElement} */ (document.getElementById('errors'));
+const reloadBtn = /** @type {HTMLButtonElement} */ (document.getElementById('reload-btn'));
+const saveBtn = /** @type {HTMLButtonElement} */ (document.getElementById('save-btn'));
+const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('map-canvas'));
+const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
 
-const mapFieldsEl = document.getElementById('map-fields');
-const baseFieldsEl = document.getElementById('base-fields');
+const mapFieldsEl = /** @type {HTMLElement} */ (document.getElementById('map-fields'));
+const baseFieldsEl = /** @type {HTMLElement} */ (document.getElementById('base-fields'));
 const listEls = {
-  spawnPoints: document.getElementById('list-spawnPoints'),
-  obstacles: document.getElementById('list-obstacles'),
-  resourceNodes: document.getElementById('list-resourceNodes'),
-  vendors: document.getElementById('list-vendors'),
-  mobSpawns: document.getElementById('list-mobSpawns'),
+  spawnPoints: /** @type {HTMLElement} */ (document.getElementById('list-spawnPoints')),
+  obstacles: /** @type {HTMLElement} */ (document.getElementById('list-obstacles')),
+  resourceNodes: /** @type {HTMLElement} */ (document.getElementById('list-resourceNodes')),
+  vendors: /** @type {HTMLElement} */ (document.getElementById('list-vendors')),
+  mobSpawns: /** @type {HTMLElement} */ (document.getElementById('list-mobSpawns')),
 };
 
-const sidebar = document.getElementById('sidebar');
+const sidebar = /** @type {HTMLElement} */ (document.getElementById('sidebar'));
+
+/**
+ * @typedef {Error & { code?: number, details?: string[] | null }} MapError
+ */
 
 let adminPassword = '';
-let mapConfig = null;
-let selected = null;
+let /** @type {any} */ mapConfig = null;
+let /** @type {any} */ selected = null;
 let dragging = false;
 
-const FIELD_DEFS = {
+const /** @type {any} */ FIELD_DEFS = {
   spawnPoints: [
     { key: 'x', label: 'X', type: 'number', step: '0.1' },
     { key: 'y', label: 'Y', type: 'number', step: '0.1' },
@@ -66,7 +71,7 @@ const FIELD_DEFS = {
   ],
 };
 
-const COLORS = {
+const /** @type {any} */ COLORS = {
   bounds: '#2a3944',
   base: '#5fb8ff',
   spawn: '#d8b880',
@@ -77,17 +82,17 @@ const COLORS = {
   selected: '#ffffff',
 };
 
-function setStatus(message, tone = 'neutral') {
+function setStatus(/** @type {any} */ message, /** @type {any} */ tone = 'neutral') {
   statusEl.textContent = message;
   statusEl.className = `status ${tone}`;
 }
 
-function setSaveStatus(message, tone = 'neutral') {
+function setSaveStatus(/** @type {any} */ message, /** @type {any} */ tone = 'neutral') {
   saveStatusEl.textContent = message;
   saveStatusEl.className = `status compact ${tone}`;
 }
 
-function setErrors(errors) {
+function setErrors(/** @type {any} */ errors) {
   errorsEl.textContent = '';
   if (!errors || errors.length === 0) return;
   const list = document.createElement('ul');
@@ -99,12 +104,12 @@ function setErrors(errors) {
   errorsEl.appendChild(list);
 }
 
-function setControlsEnabled(enabled) {
+function setControlsEnabled(/** @type {any} */ enabled) {
   reloadBtn.disabled = !enabled;
   saveBtn.disabled = !enabled;
 }
 
-function formatNumber(value, digits = 2) {
+function formatNumber(/** @type {any} */ value, /** @type {any} */ digits = 2) {
   return Number.isFinite(value) ? value.toFixed(digits) : '';
 }
 
@@ -112,16 +117,16 @@ function readPassword() {
   return adminPassword;
 }
 
-function savePassword(password) {
+function savePassword(/** @type {any} */ password) {
   adminPassword = password;
 }
 
-async function fetchMapConfig(password) {
+async function fetchMapConfig(/** @type {any} */ password) {
   const res = await fetch('/admin/map-config', {
     headers: { 'x-admin-pass': password },
   });
   if (res.status === 401) {
-    const err = new Error('Unauthorized');
+    const err = /** @type {MapError} */ (new Error('Unauthorized'));
     err.code = 401;
     throw err;
   }
@@ -131,6 +136,11 @@ async function fetchMapConfig(password) {
   return res.json();
 }
 
+/**
+ * @param {string} password
+ * @param {unknown} config
+ * @returns {Promise<{ config?: unknown, error?: string, details?: string[] }>}
+ */
 async function putMapConfig(password, config) {
   const res = await fetch('/admin/map-config', {
     method: 'PUT',
@@ -141,13 +151,13 @@ async function putMapConfig(password, config) {
     body: JSON.stringify(config),
   });
   if (res.status === 401) {
-    const err = new Error('Unauthorized');
+    const err = /** @type {MapError} */ (new Error('Unauthorized'));
     err.code = 401;
     throw err;
   }
   const body = await res.json();
   if (!res.ok) {
-    const err = new Error(body?.error ?? 'Save failed.');
+    const err = /** @type {MapError} */ (new Error(body?.error ?? 'Save failed.'));
     err.details = body?.details ?? null;
     throw err;
   }
@@ -171,7 +181,7 @@ function getMetrics() {
   };
 }
 
-function worldToCanvas(pos) {
+function worldToCanvas(/** @type {any} */ pos) {
   const { scale, cx, cy } = getMetrics();
   return {
     x: cx + pos.x * scale,
@@ -179,7 +189,7 @@ function worldToCanvas(pos) {
   };
 }
 
-function canvasToWorld(pos) {
+function canvasToWorld(/** @type {any} */ pos) {
   const { scale, cx, cy } = getMetrics();
   let y = 0;
   if (selected && mapConfig) {
@@ -197,7 +207,7 @@ function canvasToWorld(pos) {
   };
 }
 
-function clampToBounds(pos, radius = 0) {
+function clampToBounds(/** @type {any} */ pos, /** @type {any} */ radius = 0) {
   if (!mapConfig) return pos;
   const half = mapConfig.mapSize / 2;
   let y = pos.y ?? 0;
@@ -251,7 +261,7 @@ function renderCanvas() {
   ctx.arc(baseCanvas.x, baseCanvas.y, base.radius * scale, 0, Math.PI * 2);
   ctx.stroke();
 
-  mapConfig.obstacles.forEach((obs, index) => {
+  mapConfig.obstacles.forEach((/** @type {any} */ obs, /** @type {any} */ index) => {
     const pos = worldToCanvas(obs);
     ctx.fillStyle = COLORS.obstacle;
     ctx.globalAlpha = 0.6;
@@ -268,7 +278,7 @@ function renderCanvas() {
     }
   });
 
-  mapConfig.spawnPoints.forEach((point, index) => {
+  mapConfig.spawnPoints.forEach((/** @type {any} */ point, /** @type {any} */ index) => {
     const pos = worldToCanvas(point);
     ctx.strokeStyle = COLORS.spawn;
     ctx.lineWidth = selected?.type === 'spawnPoints' && selected.index === index ? 3 : 2;
@@ -277,7 +287,7 @@ function renderCanvas() {
     ctx.stroke();
   });
 
-  mapConfig.resourceNodes.forEach((node, index) => {
+  mapConfig.resourceNodes.forEach((/** @type {any} */ node, /** @type {any} */ index) => {
     const pos = worldToCanvas(node);
     ctx.fillStyle = COLORS.resource;
     ctx.beginPath();
@@ -290,7 +300,7 @@ function renderCanvas() {
     }
   });
 
-  mapConfig.vendors.forEach((vendor, index) => {
+  mapConfig.vendors.forEach((/** @type {any} */ vendor, /** @type {any} */ index) => {
     const pos = worldToCanvas(vendor);
     ctx.fillStyle = COLORS.vendor;
     ctx.fillRect(pos.x - 6, pos.y - 6, 12, 12);
@@ -301,7 +311,7 @@ function renderCanvas() {
     }
   });
 
-  mapConfig.mobSpawns.forEach((spawn, index) => {
+  mapConfig.mobSpawns.forEach((/** @type {any} */ spawn, /** @type {any} */ index) => {
     const pos = worldToCanvas(spawn);
     ctx.strokeStyle = COLORS.mob;
     ctx.lineWidth = selected?.type === 'mobSpawns' && selected.index === index ? 3 : 2;
@@ -328,7 +338,7 @@ function renderMapFields() {
 
 function renderBaseFields() {
   baseFieldsEl.textContent = '';
-  const fields = [
+  const /** @type {any} */ fields = [
     {
       label: 'X',
       value: formatNumber(mapConfig.base.x),
@@ -368,10 +378,10 @@ function renderLists() {
   }
 }
 
-function renderList(container, type, items, fields) {
+function renderList(/** @type {any} */ container, /** @type {any} */ type, /** @type {any} */ items, /** @type {any} */ fields) {
   container.textContent = '';
   if (!Array.isArray(items)) return;
-  items.forEach((item, index) => {
+  items.forEach((/** @type {any} */ item, /** @type {any} */ index) => {
     const row = document.createElement('div');
     row.className = 'row';
     row.dataset.type = type;
@@ -397,7 +407,7 @@ function renderList(container, type, items, fields) {
 
     const fieldsWrap = document.createElement('div');
     fieldsWrap.className = 'row-fields';
-    fields.forEach((field) => {
+    fields.forEach((/** @type {any} */ field) => {
       let value;
       if (field.type === 'number') {
         value = Number.isFinite(item[field.key]) ? formatNumber(item[field.key]) : '';
@@ -421,6 +431,16 @@ function renderList(container, type, items, fields) {
   });
 }
 
+/**
+ * @param {{
+ *   label: string;
+ *   value: string | number | boolean | null | undefined;
+ *   type: string;
+ *   step?: string;
+ *   options?: Array<string | number | boolean>;
+ *   data?: { type?: string; index?: number; field?: string };
+ * }} params
+ */
 function buildField({ label, value, type, step, options, data }) {
   const wrapper = document.createElement('label');
   wrapper.className = 'field';
@@ -443,7 +463,7 @@ function buildField({ label, value, type, step, options, data }) {
     if (type === 'number') {
       control.step = step ?? '0.1';
     }
-    control.value = value ?? '';
+    control.value = String(value ?? '');
   }
   if (data?.type) control.dataset.type = data.type;
   if (data?.index !== undefined) control.dataset.index = String(data.index);
@@ -452,7 +472,7 @@ function buildField({ label, value, type, step, options, data }) {
   return wrapper;
 }
 
-function setSelected(next) {
+function setSelected(/** @type {any} */ next) {
   selected = next;
   renderLists();
   renderCanvas();
@@ -467,20 +487,20 @@ function ensureSelectedValid() {
   }
 }
 
-function getNextId(list, prefix) {
+function getNextId(/** @type {any} */ list, /** @type {any} */ prefix) {
   let i = 1;
-  const ids = new Set(list.map((item) => String(item.id)));
+  const ids = new Set(list.map((/** @type {any} */ item) => String(item.id)));
   while (ids.has(`${prefix}${i}`)) i += 1;
   return `${prefix}${i}`;
 }
 
-function addItem(type) {
+function addItem(/** @type {any} */ type) {
   if (!mapConfig) return;
   const base = mapConfig.base;
   const offset = (base?.radius ?? 6) + 4;
   const list = mapConfig[type];
   if (!Array.isArray(list)) return;
-  let item = null;
+  let /** @type {any} */ item = null;
   if (type === 'spawnPoints') {
     item = { x: base.x + offset, y: base.y ?? 0, z: base.z };
   } else if (type === 'obstacles') {
@@ -529,7 +549,7 @@ function addItem(type) {
   setSaveStatus('Unsaved changes', 'warning');
 }
 
-function removeItem(type, index) {
+function removeItem(/** @type {any} */ type, /** @type {any} */ index) {
   if (!mapConfig) return;
   const list = mapConfig[type];
   if (!Array.isArray(list)) return;
@@ -540,6 +560,9 @@ function removeItem(type, index) {
   setSaveStatus('Unsaved changes', 'warning');
 }
 
+/**
+ * @param {{ type: string, index?: number, field: string, value: unknown }} payload
+ */
 function updateField({ type, index, field, value }) {
   if (!mapConfig) return;
   if (type === 'map') {
@@ -548,17 +571,17 @@ function updateField({ type, index, field, value }) {
     mapConfig.base[field] = value;
   } else {
     const list = mapConfig[type];
-    if (!Array.isArray(list) || !list[index]) return;
+    if (!Array.isArray(list) || typeof index !== 'number' || !list[index]) return;
     list[index][field] = value;
   }
   renderCanvas();
   setSaveStatus('Unsaved changes', 'warning');
 }
 
-function findHit(pos) {
+function findHit(/** @type {any} */ pos) {
   if (!mapConfig) return null;
-  const hits = [];
-  const pushHit = (type, index, dist) => {
+  const /** @type {any} */ hits = [];
+  const pushHit = (/** @type {any} */ type, /** @type {any} */ index, /** @type {any} */ dist) => {
     hits.push({ type, index, dist });
   };
 
@@ -572,7 +595,7 @@ function findHit(pos) {
     }
   }
 
-  mapConfig.obstacles.forEach((obs, index) => {
+  mapConfig.obstacles.forEach((/** @type {any} */ obs, /** @type {any} */ index) => {
     const c = worldToCanvas(obs);
     const dist = Math.hypot(pos.x - c.x, pos.y - c.y);
     const radiusPx = obs.radius * getMetrics().scale + 6;
@@ -581,8 +604,8 @@ function findHit(pos) {
     }
   });
 
-  const pointHit = (type, list, radius) => {
-    list.forEach((item, index) => {
+  const pointHit = (/** @type {any} */ type, /** @type {any} */ list, /** @type {any} */ radius) => {
+    list.forEach((/** @type {any} */ item, /** @type {any} */ index) => {
       const c = worldToCanvas(item);
       const dist = Math.hypot(pos.x - c.x, pos.y - c.y);
       if (dist <= radius) {
@@ -597,11 +620,11 @@ function findHit(pos) {
   pointHit('mobSpawns', mapConfig.mobSpawns, 10);
 
   if (!hits.length) return null;
-  hits.sort((a, b) => a.dist - b.dist);
+  hits.sort((/** @type {any} */ a, /** @type {any} */ b) => a.dist - b.dist);
   return hits[0];
 }
 
-function updateSelectedPosition(worldPos) {
+function updateSelectedPosition(/** @type {any} */ worldPos) {
   if (!selected || !mapConfig) return;
   if (selected.type === 'base') {
     const base = mapConfig.base;
@@ -622,10 +645,10 @@ function updateSelectedPosition(worldPos) {
   item.z = clamped.z;
 }
 
-canvas.addEventListener('mousedown', (event) => {
+canvas.addEventListener('mousedown', (/** @type {any} */ event) => {
   if (!mapConfig) return;
   const rect = canvas.getBoundingClientRect();
-  const pos = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  const /** @type {any} */ pos = { x: event.clientX - rect.left, y: event.clientY - rect.top };
   const hit = findHit(pos);
   if (hit) {
     dragging = true;
@@ -633,10 +656,10 @@ canvas.addEventListener('mousedown', (event) => {
   }
 });
 
-window.addEventListener('mousemove', (event) => {
+window.addEventListener('mousemove', (/** @type {any} */ event) => {
   if (!dragging || !mapConfig) return;
   const rect = canvas.getBoundingClientRect();
-  const pos = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  const /** @type {any} */ pos = { x: event.clientX - rect.left, y: event.clientY - rect.top };
   const worldPos = canvasToWorld(pos);
   updateSelectedPosition(worldPos);
   renderCanvas();
@@ -649,7 +672,7 @@ window.addEventListener('mouseup', () => {
   setSaveStatus('Unsaved changes', 'warning');
 });
 
-function handleFieldChange(event) {
+function handleFieldChange(/** @type {any} */ event) {
   const target = event.target;
   const isInput = target instanceof HTMLInputElement;
   const isSelect = target instanceof HTMLSelectElement;
@@ -692,7 +715,7 @@ function handleFieldChange(event) {
 sidebar.addEventListener('input', handleFieldChange);
 sidebar.addEventListener('change', handleFieldChange);
 
-sidebar.addEventListener('click', (event) => {
+sidebar.addEventListener('click', (/** @type {any} */ event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
   const action = target.dataset.action;
@@ -718,7 +741,7 @@ sidebar.addEventListener('click', (event) => {
   }
 
   const row = target.closest('.row');
-  if (row && row.dataset.type) {
+  if (row instanceof HTMLElement && row.dataset.type) {
     const index = Number.parseInt(row.dataset.index ?? '', 10);
     if (Number.isFinite(index)) {
       setSelected({ type: row.dataset.type, index });
@@ -728,7 +751,7 @@ sidebar.addEventListener('click', (event) => {
 
 function updateToggleLabels() {
   const toggles = sidebar.querySelectorAll('.toggle');
-  toggles.forEach((button) => {
+  toggles.forEach((/** @type {any} */ button) => {
     const section = button.closest('.section');
     if (!section) return;
     button.textContent = section.classList.contains('collapsed')
@@ -748,8 +771,9 @@ reloadBtn.addEventListener('click', async () => {
     setSaveStatus('Reloaded map config.', 'ok');
     setErrors(null);
   } catch (err) {
+    const error = /** @type {MapError} */ (err);
     setSaveStatus('Reload failed.', 'error');
-    setErrors([err.message]);
+    setErrors([error.message]);
   }
 });
 
@@ -763,8 +787,9 @@ saveBtn.addEventListener('click', async () => {
     setSaveStatus('Saved successfully. Restart server to apply.', 'ok');
     setErrors(null);
   } catch (err) {
+    const error = /** @type {MapError} */ (err);
     setSaveStatus('Save failed.', 'error');
-    setErrors(err.details ?? [err.message]);
+    setErrors(error.details ?? [error.message]);
   }
 });
 
@@ -777,7 +802,7 @@ function renderAll() {
   renderCanvas();
 }
 
-form.addEventListener('submit', async (event) => {
+form.addEventListener('submit', async (/** @type {any} */ event) => {
   event.preventDefault();
   const password = passInput.value.trim();
   if (!password) return;
@@ -792,7 +817,8 @@ form.addEventListener('submit', async (event) => {
     setControlsEnabled(true);
     renderAll();
   } catch (err) {
-    if (err.code === 401) {
+    const error = /** @type {MapError} */ (err);
+    if (error.code === 401) {
       setStatus('Status: invalid password', 'error');
       setControlsEnabled(false);
       return;

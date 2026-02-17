@@ -5,7 +5,13 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "test": "vitest run",
+    "check:tscheck:coverage": "node scripts/check-ts-check-coverage.js",
+    "typecheck:server": "tsc -p tsconfig.checkjs.server.json",
+    "typecheck:client": "tsc -p tsconfig.checkjs.client.json",
+    "typecheck:tools": "tsc -p tsconfig.checkjs.tools.json",
+    "typecheck": "npm run typecheck:server && npm run typecheck:client && npm run typecheck:tools",
+    "test:unit": "vitest run",
+    "test": "npm run check:tscheck:coverage && npm run typecheck && npm run test:unit",
     "test:e2e": "node e2e/playwright-e2e.js",
     "db:migrate:dev": "prisma migrate dev",
     "db:reset:test": "node scripts/db-reset.js test",
@@ -20,8 +26,10 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "prisma": "^5.10.0",
+    "@types/node": "^25.2.3",
     "playwright": "^1.50.1",
+    "prisma": "^5.10.0",
+    "typescript": "^5.9.3",
     "vitest": "^1.6.0"
   }
 }

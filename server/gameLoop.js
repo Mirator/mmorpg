@@ -1,3 +1,4 @@
+// @ts-check
 import { stepPlayer } from './logic/movement.js';
 import { applyCollisions } from './logic/collision.js';
 import { stepResources } from './logic/resources.js';
@@ -9,12 +10,12 @@ import { stepPlayerResources, stepPlayerCast, stepDotTicks, stepHotTicks, setLoo
 import { endDuel } from './logic/duel.js';
 import { buildCombatLogDispatch } from './logic/combatLogEntries.js';
 
-export function createGameLoop({ players, world, resources, mobs, corpses, config, spawner, nextItemIdRef, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent, onDuelEnded }) {
+export function createGameLoop(/** @type {any} */ { players, world, resources, mobs, corpses, config, spawner, nextItemIdRef, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent, onDuelEnded }) {
   const tickHz = config.tickHz;
   const dt = 1 / tickHz;
   const playerRadius = config.playerRadius;
   const respawnMs = config.respawnMs;
-  const mobConfig = {
+  const /** @type {any} */ mobConfig = {
     mobRadius: config.mob.radius,
     respawnMs: config.mob.respawnMs,
     attackDamageBase: config.mob.attackDamageBase,
@@ -24,7 +25,7 @@ export function createGameLoop({ players, world, resources, mobs, corpses, confi
 
   const corpseExpiryMs = config.corpse?.expiryMs ?? 600_000;
 
-  function killPlayer(player, now) {
+  function killPlayer(/** @type {any} */ player, /** @type {any} */ now) {
     if (player.dead) return;
     const opponent = endDuel(player, players);
     if (opponent && typeof onDuelEnded === 'function') {
@@ -54,7 +55,7 @@ export function createGameLoop({ players, world, resources, mobs, corpses, confi
     }
   }
 
-  let timeoutId = null;
+  let /** @type {any} */ timeoutId = null;
   let nextTickAt = 0;
   const dtMs = dt * 1000;
 
@@ -63,7 +64,7 @@ export function createGameLoop({ players, world, resources, mobs, corpses, confi
     setLootContext(nextItemIdRef ? { nextItemIdRef } : null);
 
     for (const player of players.values()) {
-        const prevPos = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
+        const /** @type {any} */ prevPos = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
         let respawned = false;
 
         if (player.dead) {
@@ -140,7 +141,7 @@ export function createGameLoop({ players, world, resources, mobs, corpses, confi
               player.targetKind = null;
             }
           } else {
-            const target = mobs.find((mob) => mob.id === player.targetId);
+            const target = mobs.find((/** @type {any} */ mob) => mob.id === player.targetId);
             if (!target || target.dead || target.hp <= 0) {
               player.targetId = null;
               player.targetKind = null;

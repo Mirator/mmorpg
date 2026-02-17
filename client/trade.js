@@ -1,8 +1,21 @@
+// @ts-check
 /**
  * Player-to-player trade UI.
  * Renders trade panel with my offer / their offer, add copper, confirm, cancel.
  */
-export function createPlayerTradeUI({
+
+/**
+ * @typedef {{ id?: string, kind?: string, name?: string, count?: number }} TradeItem
+ * @typedef {{ items: Array<TradeItem | null>, copper: number }} TradeOffer
+ * @typedef {{
+ *   myOffer?: TradeOffer;
+ *   theirOffer?: TradeOffer;
+ *   confirmed?: boolean;
+ *   theirConfirmed?: boolean;
+ * }} TradeOffersUpdate
+ */
+
+export function createPlayerTradeUI(/** @type {any} */ {
   panel,
   partnerNameEl,
   myOfferEl,
@@ -24,12 +37,14 @@ export function createPlayerTradeUI({
 }) {
   let open = false;
   let partnerName = '';
+  /** @type {TradeOffer} */
   let myOffer = { items: [], copper: 0 };
+  /** @type {TradeOffer} */
   let theirOffer = { items: [], copper: 0 };
   let confirmed = false;
   let theirConfirmed = false;
 
-  function setOpen(next) {
+  function setOpen(/** @type {any} */ next) {
     open = !!next;
     panel?.classList.toggle('hidden', !open);
     document.body.classList.toggle('player-trade-open', open);
@@ -39,11 +54,14 @@ export function createPlayerTradeUI({
     return open;
   }
 
-  function setPartnerName(name) {
+  function setPartnerName(/** @type {any} */ name) {
     partnerName = name ?? 'Unknown';
     if (partnerNameEl) partnerNameEl.textContent = partnerName;
   }
 
+  /**
+   * @param {TradeOffersUpdate} [next]
+   */
   function setOffers({ myOffer: my, theirOffer: their, confirmed: c, theirConfirmed: tc } = {}) {
     myOffer = my ?? { items: [], copper: 0 };
     theirOffer = their ?? { items: [], copper: 0 };
@@ -52,7 +70,7 @@ export function createPlayerTradeUI({
     render();
   }
 
-  function makeItemLabel(item) {
+  function makeItemLabel(/** @type {any} */ item) {
     const name = item?.name || item?.kind || 'Item';
     return name.slice(0, 1).toUpperCase();
   }

@@ -1,8 +1,9 @@
+// @ts-check
 /**
  * Minimap - top-down 2D map showing player, mobs, resources, and base.
  */
 
-const COLORS = {
+const /** @type {any} */ COLORS = {
   background: 'rgba(27, 38, 32, 0.85)',
   base: '#d8b880',
   obstacle: '#3a3f44',
@@ -18,7 +19,7 @@ const MINIMAP_SIZE = 130;
 const DOT_RADIUS = 2;
 const PLAYER_RADIUS = 4;
 
-export function createMinimap(containerEl) {
+export function createMinimap(/** @type {any} */ containerEl) {
   const canvas = containerEl?.querySelector('#minimap') ?? containerEl?.querySelector('canvas');
   if (!canvas) {
     return { render: () => {}, resize: () => {} };
@@ -28,7 +29,7 @@ export function createMinimap(containerEl) {
   let height = MINIMAP_SIZE;
   let dpr = 1;
 
-  function worldToCanvas(x, z, mapSize, drawW, drawH) {
+  function worldToCanvas(/** @type {any} */ x, /** @type {any} */ z, /** @type {any} */ mapSize, /** @type {any} */ drawW, /** @type {any} */ drawH) {
     const half = mapSize / 2;
     const px = ((x + half) / mapSize) * drawW;
     const py = ((z + half) / mapSize) * drawH;
@@ -47,7 +48,7 @@ export function createMinimap(containerEl) {
     canvas.style.height = `${size}px`;
   }
 
-  function render(state) {
+  function render(/** @type {any} */ state) {
     if (!canvas || !state) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;

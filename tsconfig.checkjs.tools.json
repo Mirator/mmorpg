@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.checkjs.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "/shared/*": [
+        "shared/*"
+      ]
+    }
+  },
+  "include": [
+    "admin/**/*.js",
+    "scripts/**/*.js",
+    "e2e/**/*.js",
+    "client/types/**/*.d.ts",
+    "scripts/**/*.d.ts"
+  ],
+  "exclude": [
+    "**/*.test.js",
+    "node_modules/**"
+  ]
+}

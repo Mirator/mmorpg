@@ -1,3 +1,4 @@
+// @ts-check
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 
@@ -10,7 +11,7 @@ const PASSWORD_MAX = 64;
 
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30;
 
-export function normalizeUsername(input) {
+export function normalizeUsername(/** @type {any} */ input) {
   if (typeof input !== 'string') return null;
   const trimmed = input.trim();
   if (!USERNAME_RE.test(trimmed)) return null;
@@ -20,7 +21,7 @@ export function normalizeUsername(input) {
   };
 }
 
-export function normalizeCharacterName(input) {
+export function normalizeCharacterName(/** @type {any} */ input) {
   if (typeof input !== 'string') return null;
   const trimmed = input.trim().replace(/\s+/g, ' ');
   if (!CHARACTER_RE.test(trimmed)) return null;
@@ -30,12 +31,12 @@ export function normalizeCharacterName(input) {
   };
 }
 
-export function isValidPassword(input) {
+export function isValidPassword(/** @type {any} */ input) {
   if (typeof input !== 'string') return false;
   return input.length >= PASSWORD_MIN && input.length <= PASSWORD_MAX;
 }
 
-export async function hashPassword(password) {
+export async function hashPassword(/** @type {any} */ password) {
   const salt = crypto.randomBytes(16);
   const hash = await scryptAsync(password, salt, 64);
   return {
@@ -44,7 +45,7 @@ export async function hashPassword(password) {
   };
 }
 
-export async function verifyPassword(password, hashBase64, saltBase64) {
+export async function verifyPassword(/** @type {any} */ password, /** @type {any} */ hashBase64, /** @type {any} */ saltBase64) {
   if (typeof password !== 'string') return false;
   if (!hashBase64 || !saltBase64) return false;
   const hash = Buffer.from(hashBase64, 'base64');

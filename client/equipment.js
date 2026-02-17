@@ -1,6 +1,7 @@
+// @ts-check
 import { EQUIP_SLOTS } from '/shared/equipment.js';
 
-const SLOT_LABELS = {
+const /** @type {any} */ SLOT_LABELS = {
   weapon: 'Weapon',
   offhand: 'Offhand',
   head: 'Head',
@@ -9,8 +10,8 @@ const SLOT_LABELS = {
   feet: 'Feet',
 };
 
-function cloneEquipment(equipment) {
-  const base = {};
+function cloneEquipment(/** @type {any} */ equipment) {
+  const /** @type {any} */ base = {};
   for (const slot of EQUIP_SLOTS) {
     const item = equipment?.[slot];
     base[slot] = item ? { ...item } : null;
@@ -18,15 +19,15 @@ function cloneEquipment(equipment) {
   return base;
 }
 
-function makeItemLabel(item) {
+function makeItemLabel(/** @type {any} */ item) {
   const name = item?.name || item?.kind || 'Item';
   return name.slice(0, 1).toUpperCase();
 }
 
-export function createEquipmentUI({ grid, onSwap }) {
+export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
   let equipment = cloneEquipment(null);
-  let drag = null;
-  let dragEl = null;
+  let /** @type {any} */ drag = null;
+  let /** @type {any} */ dragEl = null;
   const slotEls = new Map();
 
   function buildGrid() {
@@ -68,7 +69,7 @@ export function createEquipmentUI({ grid, onSwap }) {
     }
   }
 
-  function setEquipment(nextEquipment) {
+  function setEquipment(/** @type {any} */ nextEquipment) {
     equipment = cloneEquipment(nextEquipment);
     if (slotEls.size === 0) {
       buildGrid();
@@ -76,7 +77,7 @@ export function createEquipmentUI({ grid, onSwap }) {
     render();
   }
 
-  function buildDragElement(item) {
+  function buildDragElement(/** @type {any} */ item) {
     const el = document.createElement('div');
     el.className = 'inventory-drag';
     const icon = document.createElement('div');
@@ -86,13 +87,13 @@ export function createEquipmentUI({ grid, onSwap }) {
     return el;
   }
 
-  function positionDrag(x, y) {
+  function positionDrag(/** @type {any} */ x, /** @type {any} */ y) {
     if (!dragEl) return;
     dragEl.style.left = `${x}px`;
     dragEl.style.top = `${y}px`;
   }
 
-  function startDrag(slot, item, event) {
+  function startDrag(/** @type {any} */ slot, /** @type {any} */ item, /** @type {any} */ event) {
     drag = { slot };
     const el = slotEls.get(slot);
     el?.classList.add('dragging');
@@ -118,8 +119,10 @@ export function createEquipmentUI({ grid, onSwap }) {
     window.removeEventListener('pointercancel', onPointerUp);
   }
 
-  function onPointerDown(event) {
-    const slot = event.currentTarget?.dataset?.slot;
+  function onPointerDown(/** @type {any} */ event) {
+    const target =
+      event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    const slot = target?.dataset?.slot;
     if (!slot) return;
     const item = equipment?.[slot];
     if (!item) return;
@@ -127,18 +130,19 @@ export function createEquipmentUI({ grid, onSwap }) {
     startDrag(slot, item, event);
   }
 
-  function onPointerMove(event) {
+  function onPointerMove(/** @type {any} */ event) {
     positionDrag(event.clientX, event.clientY);
   }
 
-  function onPointerUp(event) {
+  function onPointerUp(/** @type {any} */ event) {
     if (!drag) return;
     const target = document.elementFromPoint(event.clientX, event.clientY);
     const equipTarget = target?.closest?.('.equipment-slot');
     const invTarget = target?.closest?.('.inventory-slot');
 
-    if (equipTarget?.dataset?.slot) {
-      const toSlot = equipTarget.dataset.slot;
+    const equipSlot = equipTarget?.getAttribute('data-slot');
+    if (equipSlot) {
+      const toSlot = equipSlot;
       if (toSlot !== drag.slot) {
         onSwap?.({
           fromType: 'equipment',
@@ -151,8 +155,9 @@ export function createEquipmentUI({ grid, onSwap }) {
       return;
     }
 
-    if (invTarget?.dataset?.index) {
-      const toSlot = Number(invTarget.dataset.index);
+    const inventorySlot = invTarget?.getAttribute('data-index');
+    if (inventorySlot) {
+      const toSlot = Number(inventorySlot);
       if (Number.isInteger(toSlot)) {
         onSwap?.({
           fromType: 'equipment',

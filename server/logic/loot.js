@@ -8,8 +8,8 @@ import { countInventory } from './inventory.js';
 
 /**
  * Roll loot for a mob kill and grant to the recipient.
- * @param {Object} mob - Dead mob with mobType
- * @param {Object} recipient - Player to receive loot
+ * @param {any} mob - Dead mob with mobType
+ * @param {any} recipient - Player to receive loot
  * @param {{ current: number }} nextItemIdRef - Mutable ref for item IDs
  * @param {Function} [rand] - Random function 0-1
  * @param {number} [stackMax] - Max stack size for recipient

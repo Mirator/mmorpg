@@ -1,5 +1,8 @@
+// @ts-check
 import { RECIPES } from '/shared/recipes.js';
 import { getItemDisplayName } from '/shared/economy.js';
+
+/** @typedef {import('/shared/recipes.js').Recipe} Recipe */
 
 /**
  * @param {Array<{ kind?: string, count?: number } | null>} inventory
@@ -8,7 +11,7 @@ import { getItemDisplayName } from '/shared/economy.js';
  */
 function countItem(inventory, kind) {
   if (!Array.isArray(inventory) || !kind) return 0;
-  return inventory.reduce((total, item) => {
+  return inventory.reduce((/** @type {any} */ total, /** @type {any} */ item) => {
     if (!item || item.kind !== kind) return total;
     return total + (Number(item.count) || 0);
   }, 0);
@@ -87,12 +90,12 @@ export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIP
     }
   }
 
-  function setInventory(next) {
+  function setInventory(/** @type {any} */ next) {
     currentInventory = Array.isArray(next) ? next : [];
     render();
   }
 
-  function setRecipes(next) {
+  function setRecipes(/** @type {any} */ next) {
     currentRecipes = Array.isArray(next) ? next : RECIPES;
     render();
   }

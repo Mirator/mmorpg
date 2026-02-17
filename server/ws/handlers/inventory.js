@@ -1,7 +1,8 @@
+// @ts-check
 import { swapInventorySlots } from '../../logic/inventory.js';
 import { swapEquipment } from '../../logic/equipment.js';
 
-export function handleInventorySwap(ctx) {
+export function handleInventorySwap(/** @type {any} */ ctx) {
   const { player, msg, persistence } = ctx;
   const swapped = swapInventorySlots(player.inventory, msg.from, msg.to);
   if (swapped) {
@@ -9,7 +10,7 @@ export function handleInventorySwap(ctx) {
   }
 }
 
-export function handleEquipSwap(ctx) {
+export function handleEquipSwap(/** @type {any} */ ctx) {
   const { player, msg, persistence, countInventory } = ctx;
   const swapped = swapEquipment({
     inventory: player.inventory,

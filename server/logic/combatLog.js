@@ -1,6 +1,7 @@
+// @ts-check
 /**
  * Send combat log entries to a specific player.
- * @param {Map<string, object>} players
+ * @param {Map<string, any>} players
  * @param {string} playerId
  * @param {Array<{ kind: string, text: string, t: number }>} entries
  * @param {function} safeSend

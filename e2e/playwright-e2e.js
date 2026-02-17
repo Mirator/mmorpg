@@ -1,3 +1,4 @@
+// @ts-check
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -23,10 +24,10 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const E2E_ARTIFACT_DIR = path.resolve(__dirname, '../output/e2e');
-const DESKTOP_VIEWPORT = { width: 1280, height: 720 };
-const SMALL_VIEWPORT = { width: 560, height: 840 };
+const /** @type {any} */ DESKTOP_VIEWPORT = { width: 1280, height: 720 };
+const /** @type {any} */ SMALL_VIEWPORT = { width: 560, height: 840 };
 
-function sanitizeToken(value) {
+function sanitizeToken(/** @type {any} */ value) {
   const normalized = String(value ?? '')
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, '-')
@@ -35,9 +36,9 @@ function sanitizeToken(value) {
   return normalized || 'run';
 }
 
-async function readVendorMetrics(page) {
+async function readVendorMetrics(/** @type {any} */ page) {
   return page.evaluate(() => {
-    function readBounds(selector) {
+    function readBounds(/** @type {any} */ selector) {
       const el = document.querySelector(selector);
       if (!el) return null;
       const rect = el.getBoundingClientRect();
@@ -52,10 +53,10 @@ async function readVendorMetrics(page) {
       };
     }
 
-    const tabs = Array.from(document.querySelectorAll('.vendor-tab')).map((tab) => {
+    const tabs = Array.from(document.querySelectorAll('.vendor-tab')).map((/** @type {any} */ tab) => {
       const rect = tab.getBoundingClientRect();
       return {
-        tab: tab.dataset.tab ?? null,
+        tab: tab.getAttribute('data-tab'),
         left: rect.left,
         top: rect.top,
         right: rect.right,
@@ -75,7 +76,7 @@ async function readVendorMetrics(page) {
   });
 }
 
-function isClickableInViewport(rect, viewport) {
+function isClickableInViewport(/** @type {any} */ rect, /** @type {any} */ viewport) {
   if (!rect || !viewport) return false;
   if (rect.width < 2 || rect.height < 2) return false;
   if (rect.left < 0 || rect.top < 0) return false;
@@ -83,10 +84,10 @@ function isClickableInViewport(rect, viewport) {
   return true;
 }
 
-async function assertVendorControlsInViewport(page, label) {
+async function assertVendorControlsInViewport(/** @type {any} */ page, /** @type {any} */ label) {
   const metrics = await readVendorMetrics(page);
-  const buyTab = metrics.tabs.find((tab) => tab.tab === 'buy') ?? null;
-  const sellTab = metrics.tabs.find((tab) => tab.tab === 'sell') ?? null;
+  const buyTab = metrics.tabs.find((/** @type {any} */ tab) => tab.tab === 'buy') ?? null;
+  const sellTab = metrics.tabs.find((/** @type {any} */ tab) => tab.tab === 'sell') ?? null;
 
   for (const [name, rect] of [
     ['vendor panel', metrics.panel],
@@ -100,7 +101,7 @@ async function assertVendorControlsInViewport(page, label) {
   }
 }
 
-async function writeFailureArtifacts({ page, stage, error }) {
+async function writeFailureArtifacts(/** @type {any} */ { page, stage, error }) {
   fs.mkdirSync(E2E_ARTIFACT_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const prefix = `${stamp}-${sanitizeToken(stage)}`;
@@ -152,9 +153,9 @@ async function run() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  let browser = null;
-  let context = null;
-  let page = null;
+  let /** @type {any} */ browser = null;
+  let /** @type {any} */ context = null;
+  let /** @type {any} */ page = null;
   let stage = 'boot';
 
   try {
@@ -177,23 +178,23 @@ async function run() {
       }
     });
 
-    const consoleErrors = [];
-    const ignoredErrorSnippets = [
+    const /** @type {any} */ consoleErrors = [];
+    const /** @type {any} */ ignoredErrorSnippets = [
       'WebGLRenderer: A WebGL context could not be created',
       'WebGLRenderer: Error creating WebGL context',
       'WebGL unavailable, falling back to canvas renderer.',
       'WebGL unavailable.',
     ];
-    const shouldIgnoreError = (text) =>
-      ignoredErrorSnippets.some((snippet) => text.includes(snippet));
+    const shouldIgnoreError = (/** @type {any} */ text) =>
+      ignoredErrorSnippets.some((/** @type {any} */ snippet) => text.includes(snippet));
 
-    page.on('pageerror', (err) => {
+    page.on('pageerror', (/** @type {any} */ err) => {
       const text = String(err);
       if (!shouldIgnoreError(text)) {
         consoleErrors.push(text);
       }
     });
-    page.on('console', (msg) => {
+    page.on('console', (/** @type {any} */ msg) => {
       if (msg.type() !== 'error') return;
       const text = msg.text();
       if (!shouldIgnoreError(text)) {
@@ -318,13 +319,13 @@ async function run() {
 
     let state = await waitForCondition(
       page,
-      (s) => s.player && s.resources?.length > 0 && s.mobs?.length > 0,
+      (/** @type {any} */ s) => s.player && s.resources?.length > 0 && s.mobs?.length > 0,
       TEST_TIMEOUT_MS,
       'initial state'
     );
     console.log(`Initial resources: ${state.resources.length}, mobs: ${state.mobs.length}`);
 
-    const startPos = { x: state.player.x, z: state.player.z };
+    const /** @type {any} */ startPos = { x: state.player.x, z: state.player.z };
     await page.keyboard.down('w');
     await sleep(300);
     await advance(page, 700);
@@ -332,15 +333,15 @@ async function run() {
 
     state = await waitForCondition(
       page,
-      (s) => s.player && distance(s.player, startPos) > 0.5,
+      (/** @type {any} */ s) => s.player && distance(s.player, startPos) > 0.5,
       TEST_TIMEOUT_MS,
       'movement'
     );
     await page.evaluate(() => window.__game?.clearInput());
 
     const harvestRadius = state.world?.harvestRadius ?? 2;
-    let resource = null;
-    const testResource = state.resources.find((r) => r.id === 'r-test');
+    let /** @type {any} */ resource = null;
+    const testResource = state.resources.find((/** @type {any} */ r) => r.id === 'r-test');
     if (testResource) {
       console.log(`Test resource at (${testResource.x.toFixed(2)}, ${testResource.z.toFixed(2)})`);
     } else {
@@ -348,32 +349,32 @@ async function run() {
     }
     if (testResource && testResource.available) {
       await page.evaluate(
-        ({ x, z }) => window.__game?.moveTo(x, z),
+        (/** @type {any} */ { x, z }) => window.__game?.moveTo(x, z),
         { x: testResource.x, z: testResource.z }
       );
       state = await waitForCondition(
         page,
-        (s) => s.player && distance(s.player, testResource) <= harvestRadius - 0.05,
+        (/** @type {any} */ s) => s.player && distance(s.player, testResource) <= harvestRadius - 0.05,
         TEST_TIMEOUT_MS,
         'reach test resource'
       );
       resource = testResource;
     }
 
-    const availableResources = state.resources.filter((r) => r.available);
+    const availableResources = state.resources.filter((/** @type {any} */ r) => r.available);
     if (availableResources.length === 0) {
       throw new Error('No available resource found');
     }
     const obstacles = state.world?.obstacles ?? [];
-    const visibleResources = availableResources.filter((r) =>
+    const visibleResources = availableResources.filter((/** @type {any} */ r) =>
       hasLineOfSight(state.player, r, obstacles)
     );
     const candidates = visibleResources.length ? visibleResources : availableResources;
     const sortedResources = candidates.sort(
-      (a, b) => distance(state.player, a) - distance(state.player, b)
+      (/** @type {any} */ a, /** @type {any} */ b) => distance(state.player, a) - distance(state.player, b)
     );
 
-    let lastReachError = null;
+    let /** @type {any} */ lastReachError = null;
     for (const candidate of sortedResources.slice(0, 5)) {
       if (resource) break;
       const distToResource = distance(state.player, candidate);
@@ -383,14 +384,14 @@ async function run() {
       );
 
       await page.evaluate(
-        ({ x, z }) => window.__game?.moveTo(x, z),
+        (/** @type {any} */ { x, z }) => window.__game?.moveTo(x, z),
         { x: candidate.x, z: candidate.z }
       );
-      let reached = null;
+      let /** @type {any} */ reached = null;
       try {
         reached = await waitForCondition(
           page,
-          (s) => s.player && distance(s.player, candidate) <= harvestRadius + 0.6,
+          (/** @type {any} */ s) => s.player && distance(s.player, candidate) <= harvestRadius + 0.6,
           reachTimeoutMs,
           `reach resource ${candidate.id}`
         );
@@ -420,12 +421,12 @@ async function run() {
     await page.evaluate(() => window.__game?.interact());
     state = await waitForCondition(
       page,
-      (s) => s.player && s.player.inv === invBefore + 1,
+      (/** @type {any} */ s) => s.player && s.player.inv === invBefore + 1,
       TEST_TIMEOUT_MS,
       'harvest'
     );
 
-    const updatedResource = state.resources.find((r) => r.id === resource.id);
+    const updatedResource = state.resources.find((/** @type {any} */ r) => r.id === resource.id);
     if (!updatedResource || updatedResource.available) {
       throw new Error('Resource did not become unavailable after harvest');
     }
@@ -433,14 +434,14 @@ async function run() {
     await page.keyboard.press('i');
     state = await waitForCondition(
       page,
-      (s) => s.inventory?.open,
+      (/** @type {any} */ s) => s.inventory?.open,
       TEST_TIMEOUT_MS,
       'inventory open'
     );
     await page.keyboard.press('c');
     state = await waitForCondition(
       page,
-      (s) => s.skills?.open,
+      (/** @type {any} */ s) => s.skills?.open,
       TEST_TIMEOUT_MS,
       'character panel open'
     );
@@ -458,8 +459,8 @@ async function run() {
     }
     const fromSlot = items[0].slot;
     const slotCount = state.inventory?.slots ?? 0;
-    const occupied = new Set(items.map((item) => item.slot));
-    let toSlot = null;
+    const occupied = new Set(items.map((/** @type {any} */ item) => item.slot));
+    let /** @type {any} */ toSlot = null;
     for (let i = 0; i < slotCount; i += 1) {
       if (!occupied.has(i)) {
         toSlot = i;
@@ -489,10 +490,10 @@ async function run() {
 
     state = await waitForCondition(
       page,
-      (s) =>
+      (/** @type {any} */ s) =>
         Array.isArray(s.inventory?.items) &&
-        s.inventory.items.some((item) => item.slot === toSlot) &&
-        !s.inventory.items.some((item) => item.slot === fromSlot),
+        s.inventory.items.some((/** @type {any} */ item) => item.slot === toSlot) &&
+        !s.inventory.items.some((/** @type {any} */ item) => item.slot === fromSlot),
       TEST_TIMEOUT_MS,
       'inventory swap'
     );
@@ -511,13 +512,13 @@ async function run() {
 
     state = await waitForCondition(
       page,
-      (s) => s.inventory?.items?.some((item) => item.kind?.startsWith('weapon_')),
+      (/** @type {any} */ s) => s.inventory?.items?.some((/** @type {any} */ item) => item.kind?.startsWith('weapon_')),
       TEST_TIMEOUT_MS,
       'unequip weapon'
     );
 
     const weaponItemSlot =
-      state.inventory.items.find((item) => item.kind?.startsWith('weapon_'))?.slot ??
+      state.inventory.items.find((/** @type {any} */ item) => item.kind?.startsWith('weapon_'))?.slot ??
       emptySlot;
     const weaponItemSlotEl = page.locator(
       `.inventory-slot[data-index="${weaponItemSlot}"]`
@@ -529,7 +530,7 @@ async function run() {
 
     state = await waitForCondition(
       page,
-      (s) => s.player?.equipment?.weapon?.kind?.startsWith('weapon_'),
+      (/** @type {any} */ s) => s.player?.equipment?.weapon?.kind?.startsWith('weapon_'),
       TEST_TIMEOUT_MS,
       're-equip weapon'
     );
@@ -538,7 +539,7 @@ async function run() {
     await page.keyboard.press('i');
     state = await waitForCondition(
       page,
-      (s) => !s.inventory?.open && !s.skills?.open,
+      (/** @type {any} */ s) => !s.inventory?.open && !s.skills?.open,
       TEST_TIMEOUT_MS,
       'panels closed'
     );
@@ -549,12 +550,12 @@ async function run() {
       throw new Error('No vendor found in world snapshot');
     }
     await page.evaluate(
-      ({ x, z }) => window.__game?.moveTo(x, z),
+      (/** @type {any} */ { x, z }) => window.__game?.moveTo(x, z),
       { x: vendor.x, z: vendor.z }
     );
     state = await waitForCondition(
       page,
-      (s) =>
+      (/** @type {any} */ s) =>
         s.player &&
         distance(s.player, vendor) <= (s.world?.vendorInteractRadius ?? 2.5) - 0.05,
       TEST_TIMEOUT_MS,
@@ -599,9 +600,9 @@ async function run() {
 
     state = await waitForCondition(
       page,
-      (s) =>
+      (/** @type {any} */ s) =>
         (s.player?.currencyCopper ?? 0) > currencyBefore &&
-        !s.inventory?.items?.some((item) => item.slot === sellSlot),
+        !s.inventory?.items?.some((/** @type {any} */ item) => item.slot === sellSlot),
       TEST_TIMEOUT_MS,
       'vendor sell'
     );
@@ -655,12 +656,12 @@ async function run() {
       throw new Error('No vendor available for targeting');
     }
     await page.evaluate(
-      (vendor) => window.__game?.selectTarget?.({ kind: 'vendor', id: vendor.id }),
+      (/** @type {any} */ vendor) => window.__game?.selectTarget?.({ kind: 'vendor', id: vendor.id }),
       vendorClickTarget
     );
     state = await waitForCondition(
       page,
-      (s) => s.target?.kind === 'vendor' && s.target?.id === vendorClickTarget.id,
+      (/** @type {any} */ s) => s.target?.kind === 'vendor' && s.target?.id === vendorClickTarget.id,
       TEST_TIMEOUT_MS,
       'vendor target'
     );
@@ -683,8 +684,8 @@ async function run() {
     state = await getState(page);
 
     const attackTarget =
-      state.mobs.find((m) => m.id === 'm-test' && !m.dead) ??
-      state.mobs.find((m) => !m.dead);
+      state.mobs.find((/** @type {any} */ m) => m.id === 'm-test' && !m.dead) ??
+      state.mobs.find((/** @type {any} */ m) => !m.dead);
     if (!attackTarget) {
       throw new Error('No alive mob available for attack test');
     }
@@ -693,14 +694,14 @@ async function run() {
       state.player?.weapon?.range ??
       (['ranger', 'priest', 'mage'].includes(classId) ? 6 : 2);
     const attackReachThreshold = Math.max(0.2, attackRange - 0.1);
-    const attackMoveTarget = { x: attackTarget.x, z: attackTarget.z };
+    const /** @type {any} */ attackMoveTarget = { x: attackTarget.x, z: attackTarget.z };
     await page.evaluate(
-      ({ x, z }) => window.__game?.moveTo(x, z),
+      (/** @type {any} */ { x, z }) => window.__game?.moveTo(x, z),
       attackMoveTarget
     );
     state = await waitForCondition(
       page,
-      (s) => s.player && distance(s.player, attackMoveTarget) <= attackReachThreshold,
+      (/** @type {any} */ s) => s.player && distance(s.player, attackMoveTarget) <= attackReachThreshold,
       Math.max(TEST_TIMEOUT_MS, 30000),
       'reach attack target'
     );
@@ -708,7 +709,7 @@ async function run() {
     await page.keyboard.press('Tab');
     state = await waitForCondition(
       page,
-      (s) => s.player?.targetId === attackTarget.id,
+      (/** @type {any} */ s) => s.player?.targetId === attackTarget.id,
       TEST_TIMEOUT_MS,
       'target selection'
     );
@@ -743,22 +744,22 @@ async function run() {
     await page.keyboard.press('1');
     state = await waitForCondition(
       page,
-      (s) =>
+      (/** @type {any} */ s) =>
         Array.isArray(s.combat?.recentEvents) &&
-        s.combat.recentEvents.some((event) => event.kind === 'basic_attack'),
+        s.combat.recentEvents.some((/** @type {any} */ event) => event.kind === 'basic_attack'),
       TEST_TIMEOUT_MS,
       'combat event'
     );
     await sleep(950);
     await advance(page, 200);
 
-    let updatedTarget = state.mobs.find((m) => m.id === attackTarget.id);
+    let updatedTarget = state.mobs.find((/** @type {any} */ m) => m.id === attackTarget.id);
     for (let i = 0; i < 10; i += 1) {
       await page.keyboard.press('1');
       await sleep(950);
       await advance(page, 200);
       state = await getState(page);
-      updatedTarget = state.mobs.find((m) => m.id === attackTarget.id);
+      updatedTarget = state.mobs.find((/** @type {any} */ m) => m.id === attackTarget.id);
       if (!updatedTarget) break;
       if (updatedTarget.dead || updatedTarget.hp <= 0) break;
     }
@@ -787,15 +788,15 @@ async function run() {
       );
     }
 
-    const liveMobs = state.mobs.filter((m) => !m.dead);
+    const liveMobs = state.mobs.filter((/** @type {any} */ m) => !m.dead);
     const obstaclesForMobs = state.world?.obstacles ?? [];
-    const losMobs = liveMobs.filter((m) => hasLineOfSight(state.player, m, obstaclesForMobs));
+    const losMobs = liveMobs.filter((/** @type {any} */ m) => hasLineOfSight(state.player, m, obstaclesForMobs));
     const damagePool = (losMobs.length ? losMobs : liveMobs).filter(
-      (m) => m.id !== attackTarget.id
+      (/** @type {any} */ m) => m.id !== attackTarget.id
     );
     const mobDamageTarget =
-      damagePool.find((mob) => mob.id === 'm-chase') ??
-      damagePool.reduce((closest, current) => {
+      damagePool.find((/** @type {any} */ mob) => mob.id === 'm-chase') ??
+      damagePool.reduce((/** @type {any} */ closest, /** @type {any} */ current) => {
         if (!closest) return current;
         return distance(state.player, current) < distance(state.player, closest)
           ? current
@@ -810,14 +811,14 @@ async function run() {
     const mobAttackRange = 1.4;
 
     await page.evaluate(
-      ({ x, z }) => window.__game?.moveTo(x, z),
+      (/** @type {any} */ { x, z }) => window.__game?.moveTo(x, z),
       { x: mobDamageTarget.x, z: mobDamageTarget.z }
     );
 
     await waitForCondition(
       page,
-      (s) => {
-        const mob = s.mobs?.find((m) => m.id === mobDamageTargetId && !m.dead);
+      (/** @type {any} */ s) => {
+        const mob = s.mobs?.find((/** @type {any} */ m) => m.id === mobDamageTargetId && !m.dead);
         return mob && s.player && distance(s.player, mob) <= mobAttackRange - 0.1;
       },
       Math.max(TEST_TIMEOUT_MS, 30000),
@@ -826,21 +827,21 @@ async function run() {
 
     state = await waitForCondition(
       page,
-      (s) => s.player && s.player.hp < hpBefore,
+      (/** @type {any} */ s) => s.player && s.player.hp < hpBefore,
       damageTimeoutMs,
       'mob damage'
     );
 
     state = await waitForCondition(
       page,
-      (s) => s.player && s.player.dead,
+      (/** @type {any} */ s) => s.player && s.player.dead,
       DEATH_TIMEOUT_MS,
       'player death'
     );
 
     await page.waitForSelector('#death-screen.open', { timeout: 5000 });
     const respawnText = await page.locator('#death-timer').innerText();
-    const [mins, secs] = respawnText.split(':').map((s) => Number.parseInt(s, 10));
+    const [mins, secs] = respawnText.split(':').map((/** @type {any} */ s) => Number.parseInt(s, 10));
     const respawnSeconds = Number.isFinite(mins) && Number.isFinite(secs)
       ? mins * 60 + secs
       : NaN;
@@ -870,7 +871,7 @@ async function run() {
   }
 }
 
-async function runWithRetries(maxAttempts = 2) {
+async function runWithRetries(/** @type {any} */ maxAttempts = 2) {
   let lastErr;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -886,7 +887,7 @@ async function runWithRetries(maxAttempts = 2) {
   throw lastErr;
 }
 
-runWithRetries().catch((err) => {
+runWithRetries().catch((/** @type {any} */ err) => {
   console.error(err);
   process.exit(1);
 });

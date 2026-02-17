@@ -1,10 +1,11 @@
+// @ts-check
 import 'dotenv/config';
 import { createServer } from './createServer.js';
 
 const { server, config, start, stop } = createServer({ env: process.env });
 
 let shuttingDown = false;
-async function shutdown(signal) {
+async function shutdown(/** @type {any} */ signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`Received ${signal}. Shutting down...`);
@@ -25,7 +26,7 @@ async function shutdown(signal) {
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-server.on('error', (err) => {
+server.on('error', /** @param {NodeJS.ErrnoException} err */ (err) => {
   if (err?.code === 'EACCES' || err?.code === 'EPERM') {
     console.error(
       `Failed to bind http://${config.host}:${config.port}. ` +

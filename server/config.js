@@ -1,3 +1,4 @@
+// @ts-check
 import { resolveAdminPassword } from './admin.js';
 import {
   MOB_CONFIG,
@@ -11,16 +12,16 @@ import {
 
 const DEFAULT_PORT = 3000;
 
-function parseIntEnv(value, fallback) {
+function parseIntEnv(/** @type {any} */ value, /** @type {any} */ fallback) {
   const parsed = Number.parseInt(value ?? '', 10);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function parseBoolEnv(value) {
+function parseBoolEnv(/** @type {any} */ value) {
   return value === 'true';
 }
 
-function parseSameSiteEnv(value, fallback = 'lax') {
+function parseSameSiteEnv(/** @type {any} */ value, /** @type {any} */ fallback = 'lax') {
   const raw = typeof value === 'string' ? value.trim().toLowerCase() : '';
   if (raw === 'lax' || raw === 'strict' || raw === 'none') {
     return raw;
@@ -28,20 +29,20 @@ function parseSameSiteEnv(value, fallback = 'lax') {
   return fallback;
 }
 
-function isLocalhostHost(host) {
+function isLocalhostHost(/** @type {any} */ host) {
   return host === '127.0.0.1' || host === 'localhost';
 }
 
-function parseAllowedOrigins(raw, defaults) {
+function parseAllowedOrigins(/** @type {any} */ raw, /** @type {any} */ defaults) {
   if (!raw) return new Set(defaults);
   const parts = raw
     .split(',')
-    .map((value) => value.trim())
+    .map((/** @type {any} */ value) => value.trim())
     .filter(Boolean);
   return parts.length > 0 ? new Set(parts) : new Set(defaults);
 }
 
-export function getServerConfig(env = process.env) {
+export function getServerConfig(/** @type {any} */ env = process.env) {
   const port = parseIntEnv(env.PORT, DEFAULT_PORT) || DEFAULT_PORT;
   const host = env.HOST ?? '127.0.0.1';
   const trustProxy = parseBoolEnv(env.TRUST_PROXY);

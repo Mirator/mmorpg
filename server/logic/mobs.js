@@ -1,29 +1,30 @@
+// @ts-check
 import { applyCollisions } from './collision.js';
 import { MOB_MAX_LEVEL, clampMobLevel } from '../../shared/progression.js';
 import { MOB_TYPES, getMobStats } from '../../shared/entityTypes.js';
 import { computeDerivedStats } from '../../shared/attributes.js';
 
-function randomRange(rand, min, max) {
+function randomRange(/** @type {any} */ rand, /** @type {any} */ min, /** @type {any} */ max) {
   return min + (max - min) * rand();
 }
 
-function randomDirection(rand) {
+function randomDirection(/** @type {any} */ rand) {
   const angle = rand() * Math.PI * 2;
   return { x: Math.cos(angle), z: Math.sin(angle) };
 }
 
-function distance2(a, b) {
+function distance2(/** @type {any} */ a, /** @type {any} */ b) {
   const dx = a.x - b.x;
   const dz = a.z - b.z;
   return dx * dx + dz * dz;
 }
 
-function clamp(value, min, max) {
+function clamp(/** @type {any} */ value, /** @type {any} */ min, /** @type {any} */ max) {
   return Math.max(min, Math.min(max, value));
 }
 
 const SPAWN_OFFSET_RADIUS = 0.5;
-function getRespawnPos(spawnPos, rand) {
+function getRespawnPos(/** @type {any} */ spawnPos, /** @type {any} */ rand) {
   const dx = (rand() * 2 - 1) * SPAWN_OFFSET_RADIUS;
   const dz = (rand() * 2 - 1) * SPAWN_OFFSET_RADIUS;
   return {
@@ -33,7 +34,7 @@ function getRespawnPos(spawnPos, rand) {
   };
 }
 
-function isSpawnValid(x, z, world) {
+function isSpawnValid(/** @type {any} */ x, /** @type {any} */ z, /** @type {any} */ world) {
   const distFromBase = Math.hypot(x - world.base.x, z - world.base.z);
   if (distFromBase < world.base.radius + 8) return false;
   for (const obs of world.obstacles) {
@@ -45,7 +46,7 @@ function isSpawnValid(x, z, world) {
   return true;
 }
 
-export function getMobLevelForPosition(pos, world) {
+export function getMobLevelForPosition(/** @type {any} */ pos, /** @type {any} */ world) {
   const maxDist = (world?.mapSize ?? 400) / 2;
   const base = world?.base ?? { x: 0, z: 0 };
   const dist = Math.hypot(pos.x - base.x, pos.z - base.z);
@@ -54,14 +55,14 @@ export function getMobLevelForPosition(pos, world) {
   return clampMobLevel(level);
 }
 
-export function getMobMaxHp(level, mobType) {
+export function getMobMaxHp(/** @type {any} */ level, /** @type {any} */ mobType) {
   const lvl = mobType === 'dummy' ? 1 : clampMobLevel(level);
   return mobType === 'dummy' ? 1 : 20 + 8 * lvl;
 }
 
-export function createMobs(count, world, options = {}) {
+export function createMobs(/** @type {any} */ count, /** @type {any} */ world, /** @type {any} */ options = {}) {
   const rand = options.random ?? Math.random;
-  const mobs = [];
+  const /** @type {any} */ mobs = [];
   const half = world.mapSize / 2 - 10;
   const maxTries = count * 60;
   let tries = 0;
@@ -74,7 +75,7 @@ export function createMobs(count, world, options = {}) {
     const level = getMobLevelForPosition({ x, z }, world);
     const mobType = MOB_TYPES[Math.floor(rand() * MOB_TYPES.length)];
     const maxHp = getMobMaxHp(level, mobType);
-    const pos = { x, y: 0, z };
+    const /** @type {any} */ pos = { x, y: 0, z };
     mobs.push({
       id: `m${mobs.length + 1}`,
       pos: { ...pos },
@@ -103,7 +104,7 @@ export function createMobs(count, world, options = {}) {
   return mobs;
 }
 
-function resolveMobLevel(spawn, pos, world, rand) {
+function resolveMobLevel(/** @type {any} */ spawn, /** @type {any} */ pos, /** @type {any} */ world, /** @type {any} */ rand) {
   if (Number.isFinite(spawn.level)) {
     const base = clampMobLevel(spawn.level);
     const variance = Math.max(0, Math.floor(spawn.levelVariance ?? 0));
@@ -116,17 +117,17 @@ function resolveMobLevel(spawn, pos, world, rand) {
   return getMobLevelForPosition(pos, world);
 }
 
-export function createMobsFromSpawns(spawns, world, options = {}) {
+export function createMobsFromSpawns(/** @type {any} */ spawns, /** @type {any} */ world, /** @type {any} */ options = {}) {
   const rand = options.random ?? Math.random;
   const list = Array.isArray(spawns) ? spawns : [];
-  return list.map((spawn, index) => {
+  return list.map((/** @type {any} */ spawn, /** @type {any} */ index) => {
     const x = spawn.x ?? 0;
     const z = spawn.z ?? 0;
-    const pos = { x, y: spawn.y ?? 0, z };
+    const /** @type {any} */ pos = { x, y: spawn.y ?? 0, z };
     const level = resolveMobLevel(spawn, pos, world, rand);
     const mobType = spawn.mobType ?? 'orc';
     const maxHp = getMobMaxHp(level, mobType);
-    const spawnPos = { x, y: pos.y, z };
+    const /** @type {any} */ spawnPos = { x, y: pos.y, z };
     return {
       id: spawn.id ?? `m${index + 1}`,
       pos: { ...spawnPos },
@@ -147,7 +148,7 @@ export function createMobsFromSpawns(spawns, world, options = {}) {
   });
 }
 
-export function stepMobs(mobs, players, world, dt, now, config = {}) {
+export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /** @type {any} */ world, /** @type {any} */ dt, /** @type {any} */ now, /** @type {any} */ config = {}) {
   const rand = config.random ?? Math.random;
   const aggroRadius = config.aggroRadius ?? 12;
   const leashRadius = config.leashRadius ?? 18;
@@ -155,8 +156,12 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
   const attackCooldownMs = config.attackCooldownMs ?? 900;
   const idleDuration = config.idleDurationMs ?? [1200, 2800];
   const wanderDuration = config.wanderDurationMs ?? [1500, 3200];
+  const idleMin = idleDuration[0] ?? 1200;
+  const idleMax = idleDuration[1] ?? 2800;
+  const wanderMin = wanderDuration[0] ?? 1500;
+  const wanderMax = wanderDuration[1] ?? 3200;
 
-  const alivePlayers = players.filter((p) => !p.dead);
+  const alivePlayers = players.filter((/** @type {any} */ p) => !p.dead);
 
   for (const mob of mobs) {
     const isDummy = mob.mobType === 'dummy';
@@ -204,7 +209,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
           mob.weakenedUntil = 0;
           mob.weakenedMultiplier = 1;
           mob.attackCooldownUntil = 0;
-          mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
+          mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
           mob.damageBy = {};
           mob.supportBy = {};
           mob.tauntedUntil = 0;
@@ -229,7 +234,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         mob.weakenedUntil = 0;
         mob.weakenedMultiplier = 1;
         mob.attackCooldownUntil = 0;
-        mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
+        mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
         mob.damageBy = {};
         mob.supportBy = {};
         mob.tauntedUntil = 0;
@@ -254,11 +259,11 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
         ? mob.weakenedMultiplier ?? 1
         : 1;
 
-    let target = null;
+    let /** @type {any} */ target = null;
     if (!isPassive) {
       const taunted = (mob.tauntedUntil ?? 0) > now;
       if (taunted && mob.targetId) {
-        const taunter = alivePlayers.find((p) => p.id === mob.targetId);
+        const taunter = alivePlayers.find((/** @type {any} */ p) => p.id === mob.targetId);
         if (taunter && distance2(taunter.pos, mob.pos) <= leashRadius * leashRadius) {
           target = taunter;
         }
@@ -281,14 +286,14 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
     } else if (mob.state === 'chase') {
       mob.state = 'idle';
       mob.targetId = null;
-      mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
+      mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
     }
 
     if (mob.state === 'idle') {
       if (now >= mob.nextDecisionAt) {
         mob.state = 'wander';
         mob.dir = randomDirection(rand);
-        mob.nextDecisionAt = now + randomRange(rand, ...wanderDuration);
+        mob.nextDecisionAt = now + randomRange(rand, wanderMin, wanderMax);
       }
     } else if (mob.state === 'wander' && !rooted) {
       mob.pos.x += mob.dir.x * wanderSpeed * slowMultiplier * dt;
@@ -296,7 +301,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
       mob.pos = applyCollisions(mob.pos, world, mobRadius);
       if (now >= mob.nextDecisionAt) {
         mob.state = 'idle';
-        mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
+        mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
       }
     } else if (mob.state === 'chase' && target) {
       const dx = target.pos.x - mob.pos.x;
@@ -306,7 +311,7 @@ export function stepMobs(mobs, players, world, dt, now, config = {}) {
       if (dist > leashRadius) {
         mob.state = 'idle';
         mob.targetId = null;
-        mob.nextDecisionAt = now + randomRange(rand, ...idleDuration);
+        mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
       } else if (dist > 0.01 && !rooted) {
         const step = (speed * slowMultiplier * dt) / dist;
         mob.pos.x += dx * step;

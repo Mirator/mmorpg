@@ -1,3 +1,4 @@
+// @ts-check
 import fs from 'node:fs';
 import path from 'node:path';
 import { createSimulatedWorld } from '../server/logic/world.js';
@@ -5,7 +6,7 @@ import { createMobs } from '../server/logic/mobs.js';
 import { WORLD_CONFIG } from '../shared/config.js';
 import { MAP_CONFIG_VERSION } from '../shared/mapConfig.js';
 
-function mulberry32(seed) {
+function mulberry32(/** @type {any} */ seed) {
   let t = seed >>> 0;
   return () => {
     t += 0x6d2b79f5;
@@ -19,7 +20,7 @@ const world = createSimulatedWorld();
 const mobRng = mulberry32(WORLD_CONFIG.seed + 1);
 const mobs = createMobs(world.mobCount, world, { random: mobRng });
 
-const mapConfig = {
+const /** @type {any} */ mapConfig = {
   version: MAP_CONFIG_VERSION,
   mapSize: world.mapSize,
   base: {
@@ -28,31 +29,31 @@ const mapConfig = {
     z: world.base.z,
     radius: world.base.radius,
   },
-  spawnPoints: world.spawnPoints.map((point) => ({
+  spawnPoints: world.spawnPoints.map((/** @type {any} */ point) => ({
     x: point.x,
     y: point.y ?? 0,
     z: point.z,
   })),
-  obstacles: world.obstacles.map((obs) => ({
+  obstacles: world.obstacles.map((/** @type {any} */ obs) => ({
     x: obs.x,
     y: obs.y ?? 0,
     z: obs.z,
     radius: obs.r,
   })),
-  resourceNodes: world.resourceNodes.map((node) => ({
+  resourceNodes: world.resourceNodes.map((/** @type {any} */ node) => ({
     id: node.id,
     x: node.x,
     y: node.y ?? 0,
     z: node.z,
   })),
-  vendors: world.vendors.map((vendor) => ({
+  vendors: world.vendors.map((/** @type {any} */ vendor) => ({
     id: vendor.id,
     name: vendor.name,
     x: vendor.x,
     y: vendor.y ?? 0,
     z: vendor.z,
   })),
-  mobSpawns: mobs.map((mob) => ({
+  mobSpawns: mobs.map((/** @type {any} */ mob) => ({
     id: mob.id,
     x: mob.pos.x,
     y: mob.pos.y ?? 0,

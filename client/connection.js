@@ -1,12 +1,30 @@
+// @ts-check
 import { createNet } from './net.js';
 import { showErrorOverlay, hideErrorOverlay, updateErrorOverlayMessage } from './error-overlay.js';
 
+/**
+ * @typedef {{ id?: string }} CharacterRef
+ * @typedef {{ character?: CharacterRef | null, guest?: boolean, ticket?: string | null }} WsUrlParams
+ * @typedef {{
+ *   manualStepping?: boolean;
+ *   virtualNow?: number;
+ *   minDelayMs?: number;
+ *   maxDelayMs?: number;
+ *   maxAttempts?: number;
+ * }} ReconnectOptions
+ * @typedef {{ manualStepping?: boolean, virtualNow?: number }} StartOptions
+ * @typedef {{ character?: CharacterRef | null, guest?: boolean }} StartParams
+ */
+
+/**
+ * @param {WsUrlParams} params
+ */
 function buildWsUrl({ character, guest, ticket }) {
   const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
   const wsUrl = new URL(`${wsProtocol}://${location.host}`);
   if (guest) {
     wsUrl.searchParams.set('guest', '1');
-  } else if (character) {
+  } else if (character?.id) {
     wsUrl.searchParams.set('characterId', character.id);
     if (ticket) {
       wsUrl.searchParams.set('ticket', ticket);
@@ -15,7 +33,7 @@ function buildWsUrl({ character, guest, ticket }) {
   return wsUrl.toString();
 }
 
-async function fetchWsTicket(characterId) {
+async function fetchWsTicket(/** @type {any} */ characterId) {
   const res = await fetch('/api/ws-ticket', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -30,7 +48,7 @@ async function fetchWsTicket(characterId) {
   return data.ticket ?? null;
 }
 
-export function createConnection({
+export function createConnection(/** @type {any} */ {
   gameState,
   renderSystem,
   ui,
@@ -59,7 +77,7 @@ export function createConnection({
   menu,
   getReconnectParams,
 }) {
-  let pingIntervalId = null;
+  let /** @type {any} */ pingIntervalId = null;
 
   function resetClientState() {
     if (pingIntervalId) {
@@ -75,13 +93,13 @@ export function createConnection({
     ui.updateLocalUi({ me: null, worldConfig: null, serverNow: Date.now() });
   }
 
-  function sendWithSeq(msg) {
+  function sendWithSeq(/** @type {any} */ msg) {
     ctx.seq += 1;
-    const payload = { ...msg, seq: ctx.seq };
+    const /** @type {any} */ payload = { ...msg, seq: ctx.seq };
     ctx.net?.send?.(payload);
   }
 
-  function handleStateMessage(msg, now) {
+  function handleStateMessage(/** @type {any} */ msg, /** @type {any} */ now) {
     if (Number.isFinite(msg.t)) {
       gameState.updateServerTime(msg.t);
     }
@@ -143,8 +161,8 @@ export function createConnection({
   }
 
   async function reconnectWithBackoff(
-    params,
-    { manualStepping, virtualNow, minDelayMs = 1000, maxDelayMs = 30_000, maxAttempts = 10 } = {}
+    /** @type {any} */ params,
+    /** @type {ReconnectOptions} */ { manualStepping, virtualNow, minDelayMs = 1000, maxDelayMs = 30_000, maxAttempts = 10 } = {}
   ) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const delayMs = attempt === 1 ? 0 : Math.min(maxDelayMs, minDelayMs * Math.pow(2, attempt - 2));
@@ -152,7 +170,7 @@ export function createConnection({
         updateErrorOverlayMessage(
           `Retrying in ${Math.ceil(delayMs / 1000)}s… (attempt ${attempt}/${maxAttempts})`
         );
-        await new Promise((r) => setTimeout(r, delayMs));
+        await new Promise((/** @type {any} */ r) => setTimeout(r, delayMs));
       }
       try {
         await start(params, { manualStepping, virtualNow });
@@ -164,6 +182,10 @@ export function createConnection({
     }
   }
 
+  /**
+   * @param {StartParams} params
+   * @param {StartOptions} [options]
+   */
   async function start({ character, guest = false }, { manualStepping, virtualNow } = {}) {
     disconnect();
     ctx.seq = 0;
@@ -178,7 +200,7 @@ export function createConnection({
       return Promise.reject(new Error('Character required for authenticated connection'));
     }
 
-    return new Promise((resolve, reject) => {
+    return new Promise((/** @type {any} */ resolve, /** @type {any} */ reject) => {
       let resolved = false;
       let disconnectHandled = false;
 
@@ -260,7 +282,7 @@ export function createConnection({
           if (ctx.closingNet === localNet) return;
           handleUnexpectedDisconnect();
         },
-        onMessage: (msg) => {
+        onMessage: (/** @type {any} */ msg) => {
           const now = manualStepping ? virtualNow : performance.now();
           if (msg.type === 'welcome') {
             const id = msg.id;
@@ -277,7 +299,7 @@ export function createConnection({
             }
             if (!resolved) {
               resolved = true;
-              resolve();
+              resolve(undefined);
             }
             if (typeof onConnected === 'function') {
               onConnected();
@@ -406,7 +428,7 @@ export function createConnection({
     });
   }
 
-  function sendInput(keys) {
+  function sendInput(/** @type {any} */ keys) {
     sendWithSeq({ type: 'input', keys });
   }
 
@@ -414,7 +436,7 @@ export function createConnection({
     sendWithSeq({ type: 'action', kind: 'interact' });
   }
 
-  function sendMoveTarget(pos, opts = {}) {
+  function sendMoveTarget(/** @type {any} */ pos, /** @type {any} */ opts = {}) {
     if (opts.clearTarget) {
       renderSystem.setTargetMarker(null);
       return;
@@ -428,11 +450,11 @@ export function createConnection({
     sendWithSeq({ type: 'respawn' });
   }
 
-  function sendPartyInvite(targetId) {
+  function sendPartyInvite(/** @type {any} */ targetId) {
     if (targetId) sendWithSeq({ type: 'partyInvite', targetId });
   }
 
-  function sendPartyAccept(inviterId) {
+  function sendPartyAccept(/** @type {any} */ inviterId) {
     if (inviterId) sendWithSeq({ type: 'partyAccept', inviterId });
   }
 
@@ -440,15 +462,15 @@ export function createConnection({
     sendWithSeq({ type: 'partyLeave' });
   }
 
-  function sendDuelRequest(targetId) {
+  function sendDuelRequest(/** @type {any} */ targetId) {
     if (targetId) sendWithSeq({ type: 'duelRequest', targetId });
   }
 
-  function sendDuelAccept(challengerId) {
+  function sendDuelAccept(/** @type {any} */ challengerId) {
     if (challengerId) sendWithSeq({ type: 'duelAccept', challengerId });
   }
 
-  function sendDuelDecline(challengerId) {
+  function sendDuelDecline(/** @type {any} */ challengerId) {
     if (challengerId) sendWithSeq({ type: 'duelDecline', challengerId });
   }
 
@@ -456,27 +478,27 @@ export function createConnection({
     sendWithSeq({ type: 'duelForfeit' });
   }
 
-  function sendTradeRequest(targetId) {
+  function sendTradeRequest(/** @type {any} */ targetId) {
     if (targetId) sendWithSeq({ type: 'tradeRequest', targetId });
   }
 
-  function sendTradeAccept(traderId) {
+  function sendTradeAccept(/** @type {any} */ traderId) {
     if (traderId) sendWithSeq({ type: 'tradeAccept', traderId });
   }
 
-  function sendTradeDecline(traderId) {
+  function sendTradeDecline(/** @type {any} */ traderId) {
     if (traderId) sendWithSeq({ type: 'tradeDecline', traderId });
   }
 
-  function sendTradeOfferAddSlot(slot) {
+  function sendTradeOfferAddSlot(/** @type {any} */ slot) {
     sendWithSeq({ type: 'tradeOffer', op: 'add', slot });
   }
 
-  function sendTradeOfferAddCopper(amount) {
+  function sendTradeOfferAddCopper(/** @type {any} */ amount) {
     sendWithSeq({ type: 'tradeOffer', op: 'add', copper: amount });
   }
 
-  function sendTradeOfferRemoveItem(offerIndex) {
+  function sendTradeOfferRemoveItem(/** @type {any} */ offerIndex) {
     sendWithSeq({ type: 'tradeOffer', op: 'remove', slot: offerIndex });
   }
 

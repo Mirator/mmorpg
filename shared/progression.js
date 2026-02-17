@@ -1,26 +1,27 @@
+// @ts-check
 export const MAX_LEVEL = 30;
 export const MOB_MAX_LEVEL = 35;
 
 const XP_K = 190;
 const MOB_XP_A = 23;
 
-function clampLevel(level) {
+function clampLevel(/** @type {any} */ level) {
   if (!Number.isFinite(level)) return 1;
   return Math.max(1, Math.min(MAX_LEVEL, Math.floor(level)));
 }
 
-export function clampMobLevel(level) {
+export function clampMobLevel(/** @type {any} */ level) {
   if (!Number.isFinite(level)) return 1;
   return Math.max(1, Math.min(MOB_MAX_LEVEL, Math.floor(level)));
 }
 
-export function xpToNext(level) {
+export function xpToNext(/** @type {any} */ level) {
   const lvl = clampLevel(level);
   if (lvl >= MAX_LEVEL) return 0;
   return Math.round(XP_K * lvl * lvl);
 }
 
-export function totalXpForLevel(level, xp = 0) {
+export function totalXpForLevel(/** @type {any} */ level, /** @type {any} */ xp = 0) {
   const lvl = clampLevel(level);
   let total = 0;
   for (let i = 1; i < lvl; i += 1) {
@@ -29,7 +30,7 @@ export function totalXpForLevel(level, xp = 0) {
   return total + Math.max(0, Math.floor(xp ?? 0));
 }
 
-export function addXp({ level, xp }, amount) {
+export function addXp(/** @type {any} */ { level, xp }, /** @type {any} */ amount) {
   let nextLevel = clampLevel(level);
   let nextXp = Math.max(0, Math.floor(xp ?? 0)) + Math.max(0, Math.floor(amount ?? 0));
 
@@ -48,7 +49,7 @@ export function addXp({ level, xp }, amount) {
   return { level: nextLevel, xp: nextXp };
 }
 
-export function calculateMobXp(mobLevel, playerLevel) {
+export function calculateMobXp(/** @type {any} */ mobLevel, /** @type {any} */ playerLevel) {
   const { baseXp, mult } = getMobXpBaseAndMult(mobLevel, playerLevel);
   if (baseXp === 0) return 0;
   return Math.max(0, Math.floor(baseXp * mult));

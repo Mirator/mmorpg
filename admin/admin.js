@@ -1,34 +1,39 @@
+// @ts-check
 const POLL_INTERVAL_MS = 1000;
 const PAGE_SIZE = 20;
 
-const form = document.getElementById('auth-form');
-const passInput = document.getElementById('admin-pass');
-const statusEl = document.getElementById('status');
-const lastUpdateEl = document.getElementById('last-update');
-const playersCountEl = document.getElementById('count-players');
-const resourcesCountEl = document.getElementById('count-resources');
-const mobsCountEl = document.getElementById('count-mobs');
-const worldMapEl = document.getElementById('world-map');
-const worldHarvestEl = document.getElementById('world-harvest');
-const worldBaseEl = document.getElementById('world-base');
-const worldObstaclesEl = document.getElementById('world-obstacles');
-const playersBody = document.getElementById('players-body');
-const resourcesBody = document.getElementById('resources-body');
-const mobsBody = document.getElementById('mobs-body');
-const playersPrev = document.getElementById('players-prev');
-const playersNext = document.getElementById('players-next');
-const playersPageInfo = document.getElementById('players-page-info');
-const resourcesPrev = document.getElementById('resources-prev');
-const resourcesNext = document.getElementById('resources-next');
-const resourcesPageInfo = document.getElementById('resources-page-info');
-const mobsPrev = document.getElementById('mobs-prev');
-const mobsNext = document.getElementById('mobs-next');
-const mobsPageInfo = document.getElementById('mobs-page-info');
+const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
+const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
+const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
+const lastUpdateEl = /** @type {HTMLElement} */ (document.getElementById('last-update'));
+const playersCountEl = /** @type {HTMLElement} */ (document.getElementById('count-players'));
+const resourcesCountEl = /** @type {HTMLElement} */ (document.getElementById('count-resources'));
+const mobsCountEl = /** @type {HTMLElement} */ (document.getElementById('count-mobs'));
+const worldMapEl = /** @type {HTMLElement} */ (document.getElementById('world-map'));
+const worldHarvestEl = /** @type {HTMLElement} */ (document.getElementById('world-harvest'));
+const worldBaseEl = /** @type {HTMLElement} */ (document.getElementById('world-base'));
+const worldObstaclesEl = /** @type {HTMLElement} */ (document.getElementById('world-obstacles'));
+const playersBody = /** @type {HTMLElement} */ (document.getElementById('players-body'));
+const resourcesBody = /** @type {HTMLElement} */ (document.getElementById('resources-body'));
+const mobsBody = /** @type {HTMLElement} */ (document.getElementById('mobs-body'));
+const playersPrev = /** @type {HTMLButtonElement} */ (document.getElementById('players-prev'));
+const playersNext = /** @type {HTMLButtonElement} */ (document.getElementById('players-next'));
+const playersPageInfo = /** @type {HTMLElement} */ (document.getElementById('players-page-info'));
+const resourcesPrev = /** @type {HTMLButtonElement} */ (document.getElementById('resources-prev'));
+const resourcesNext = /** @type {HTMLButtonElement} */ (document.getElementById('resources-next'));
+const resourcesPageInfo = /** @type {HTMLElement} */ (document.getElementById('resources-page-info'));
+const mobsPrev = /** @type {HTMLButtonElement} */ (document.getElementById('mobs-prev'));
+const mobsNext = /** @type {HTMLButtonElement} */ (document.getElementById('mobs-next'));
+const mobsPageInfo = /** @type {HTMLElement} */ (document.getElementById('mobs-page-info'));
 
-let pollTimer = null;
-let latestState = null;
+/**
+ * @typedef {Error & { code?: number }} CodedError
+ */
+
+let /** @type {any} */ pollTimer = null;
+let /** @type {any} */ latestState = null;
 let adminPassword = '';
-const paging = {
+const /** @type {any} */ paging = {
   players: { page: 0, prev: playersPrev, next: playersNext, info: playersPageInfo },
   resources: {
     page: 0,
@@ -39,25 +44,25 @@ const paging = {
   mobs: { page: 0, prev: mobsPrev, next: mobsNext, info: mobsPageInfo },
 };
 
-function setStatus(message, tone = 'neutral') {
+function setStatus(/** @type {any} */ message, /** @type {any} */ tone = 'neutral') {
   statusEl.textContent = message;
   statusEl.className = `status ${tone}`;
 }
 
-function formatNumber(value, digits = 2) {
+function formatNumber(/** @type {any} */ value, /** @type {any} */ digits = 2) {
   return Number.isFinite(value) ? value.toFixed(digits) : '--';
 }
 
-function formatItemKind(kind) {
+function formatItemKind(/** @type {any} */ kind) {
   if (!kind) return '--';
   return kind
     .replace(/^weapon_/, '')
     .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((/** @type {any} */ part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
-function formatBase(base) {
+function formatBase(/** @type {any} */ base) {
   if (!base) return '--';
   return `${formatNumber(base.x)}, ${formatNumber(base.z)} (r=${formatNumber(
     base.radius,
@@ -65,14 +70,14 @@ function formatBase(base) {
   )})`;
 }
 
-function formatRespawn(respawnAt) {
+function formatRespawn(/** @type {any} */ respawnAt) {
   if (!respawnAt) return '--';
   const remainingMs = Math.max(0, respawnAt - Date.now());
   const remainingSec = Math.ceil(remainingMs / 1000);
   return `${remainingSec}s`;
 }
 
-function buildRow(cells) {
+function buildRow(/** @type {any} */ cells) {
   const tr = document.createElement('tr');
   for (const cell of cells) {
     const td = document.createElement('td');
@@ -82,7 +87,7 @@ function buildRow(cells) {
   return tr;
 }
 
-function replaceTableBody(tbody, rows) {
+function replaceTableBody(/** @type {any} */ tbody, /** @type {any} */ rows) {
   const frag = document.createDocumentFragment();
   for (const row of rows) {
     frag.appendChild(row);
@@ -91,12 +96,12 @@ function replaceTableBody(tbody, rows) {
   tbody.appendChild(frag);
 }
 
-function clampPage(page, total) {
+function clampPage(/** @type {any} */ page, /** @type {any} */ total) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   return Math.min(Math.max(0, page), totalPages - 1);
 }
 
-function updatePager(pager, total) {
+function updatePager(/** @type {any} */ pager, /** @type {any} */ total) {
   pager.page = clampPage(pager.page, total);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const start = total === 0 ? 0 : pager.page * PAGE_SIZE + 1;
@@ -111,7 +116,7 @@ function readPassword() {
   return adminPassword;
 }
 
-function savePassword(password) {
+function savePassword(/** @type {any} */ password) {
   adminPassword = password;
 }
 
@@ -122,7 +127,7 @@ function stopPolling() {
   }
 }
 
-async function fetchAdminState(password) {
+async function fetchAdminState(/** @type {any} */ password) {
   const res = await fetch('/admin/state', {
     headers: {
       'x-admin-pass': password,
@@ -130,7 +135,7 @@ async function fetchAdminState(password) {
   });
 
   if (res.status === 401) {
-    const err = new Error('Unauthorized');
+    const err = /** @type {CodedError} */ (new Error('Unauthorized'));
     err.code = 401;
     throw err;
   }
@@ -142,7 +147,7 @@ async function fetchAdminState(password) {
   return res.json();
 }
 
-function renderState(state) {
+function renderState(/** @type {any} */ state) {
   latestState = state;
   const players = state.players ?? {};
   const resources = Array.isArray(state.resources) ? state.resources : [];
@@ -158,13 +163,13 @@ function renderState(state) {
   worldBaseEl.textContent = formatBase(state.world?.base);
   worldObstaclesEl.textContent = state.world?.obstacles?.length ?? 0;
 
-  const playerEntries = Object.entries(players).sort(([a], [b]) =>
+  const playerEntries = Object.entries(players).sort((/** @type {any} */ [a], /** @type {any} */ [b]) =>
     a.localeCompare(b)
   );
   const playerSlice = updatePager(paging.players, playerEntries.length);
   const playerRows = playerEntries
     .slice(playerSlice.startIndex, playerSlice.endIndex)
-    .map(([id, player]) =>
+    .map((/** @type {any} */ [id, player]) =>
     buildRow([
       id,
       player.classId ?? '--',
@@ -186,11 +191,11 @@ function renderState(state) {
 
   const resourceEntries = resources
     .slice()
-    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    .sort((/** @type {any} */ a, /** @type {any} */ b) => String(a.id).localeCompare(String(b.id)));
   const resourceSlice = updatePager(paging.resources, resourceEntries.length);
   const resourceRows = resourceEntries
     .slice(resourceSlice.startIndex, resourceSlice.endIndex)
-    .map((resource) =>
+    .map((/** @type {any} */ resource) =>
     buildRow([
       resource.id ?? '--',
       formatNumber(resource.x),
@@ -203,11 +208,11 @@ function renderState(state) {
 
   const mobEntries = mobs
     .slice()
-    .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    .sort((/** @type {any} */ a, /** @type {any} */ b) => String(a.id).localeCompare(String(b.id)));
   const mobSlice = updatePager(paging.mobs, mobEntries.length);
   const mobRows = mobEntries
     .slice(mobSlice.startIndex, mobSlice.endIndex)
-    .map((mob) =>
+    .map((/** @type {any} */ mob) =>
     buildRow([
       mob.id ?? '--',
       mob.level ?? '--',
@@ -237,7 +242,8 @@ async function pollOnce() {
     renderState(state);
     setStatus('Status: connected', 'ok');
   } catch (err) {
-    if (err.code === 401) {
+    const error = /** @type {CodedError} */ (err);
+    if (error.code === 401) {
       setStatus('Status: invalid password', 'error');
       stopPolling();
       return;
@@ -252,7 +258,7 @@ function startPolling() {
   pollTimer = setInterval(pollOnce, POLL_INTERVAL_MS);
 }
 
-form.addEventListener('submit', (event) => {
+form.addEventListener('submit', (/** @type {any} */ event) => {
   event.preventDefault();
   const password = passInput.value.trim();
   if (!password) return;
@@ -261,7 +267,7 @@ form.addEventListener('submit', (event) => {
   startPolling();
 });
 
-function wirePager(pager, direction) {
+function wirePager(/** @type {any} */ pager, /** @type {any} */ direction) {
   if (!pager?.prev || !pager?.next) return;
   const delta = direction === 'next' ? 1 : -1;
   const button = direction === 'next' ? pager.next : pager.prev;

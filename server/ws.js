@@ -1,3 +1,4 @@
+// @ts-check
 import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import { parseClientMessage } from '../shared/protocol.js';
@@ -30,8 +31,39 @@ import { getCookieValue, normalizeId } from './authParsing.js';
 // Ownership boundary: this module owns WS connection lifecycle, auth gating, and AOI broadcasts.
 // Gameplay message behavior should stay in server/ws/handlers/* to keep this file transport-focused.
 
+/** @typedef {import('./types/domain.d.ts').CombatEvent} CombatEvent */
+/** @typedef {import('./types/domain.d.ts').Corpse} Corpse */
+/** @typedef {import('./types/domain.d.ts').AuthAccount} AuthAccount */
+/** @typedef {import('./types/domain.d.ts').DeltaStateMessage} DeltaStateMessage */
+/** @typedef {import('./types/domain.d.ts').MobEntity} MobEntity */
+/** @typedef {import('./types/domain.d.ts').PlayerMap} PlayerMap */
+/** @typedef {import('./types/domain.d.ts').Position3D} Position3D */
+/** @typedef {import('./types/domain.d.ts').PublicPlayersById} PublicPlayersById */
+/** @typedef {import('./types/domain.d.ts').PublicStateMessage} PublicStateMessage */
+/** @typedef {import('./types/domain.d.ts').ResourceNode} ResourceNode */
+/** @typedef {import('./types/domain.d.ts').RuntimePlayerState} RuntimePlayerState */
+/** @typedef {import('./types/domain.d.ts').SocketLike} SocketLike */
+/** @typedef {import('./types/domain.d.ts').ServerPlayer} ServerPlayer */
+/** @typedef {import('./types/domain.d.ts').SpawnerLike} SpawnerLike */
+/** @typedef {import('./types/domain.d.ts').StoredCharacter} StoredCharacter */
+/** @typedef {import('./types/domain.d.ts').WsClient} WsClient */
+/** @typedef {import('./types/domain.d.ts').WsMessageHandlerContext} WsMessageHandlerContext */
+/** @typedef {import('./types/domain.d.ts').WsPersistenceLike} WsPersistenceLike */
+/** @typedef {import('./types/domain.d.ts').WsServerConfig} WsServerConfig */
+/** @typedef {import('./types/domain.d.ts').WsTicketData} WsTicketData */
+/** @typedef {import('./types/domain.d.ts').WsUpgradeRequest} WsUpgradeRequest */
+/** @typedef {{ id: string, ws: WsClient, state: RuntimePlayerState, accountId?: string | null, name?: string | null, nameLower?: string | null }} RuntimePlayerParams */
+/** @typedef {{ characterId: string | null, guest: boolean, ticket: string | null }} ConnectionParams */
+/** @typedef {{ server: import('http').Server, config: WsServerConfig, world: unknown, resources: ResourceNode[], mobs: MobEntity[], corpses: Corpse[], players: PlayerMap, spawner: SpawnerLike, persistence: WsPersistenceLike, nextItemIdRef?: { current: number } }} CreateWebSocketServerArgs */
+
+/**
+ * @param {SocketLike | null | undefined} ws
+ * @param {unknown} msg
+ */
 function safeSend(ws, msg) {
-  if (ws.readyState !== ws.OPEN) return;
+  if (!ws) return;
+  const open = typeof ws.OPEN === 'number' ? ws.OPEN : 1;
+  if (ws.readyState !== open) return;
   try {
     ws.send(JSON.stringify(msg));
   } catch {
@@ -39,8 +71,14 @@ function safeSend(ws, msg) {
   }
 }
 
+/**
+ * @param {SocketLike | null | undefined} ws
+ * @param {string} data
+ */
 function safeSendRaw(ws, data) {
-  if (ws.readyState !== ws.OPEN) return;
+  if (!ws) return;
+  const open = typeof ws.OPEN === 'number' ? ws.OPEN : 1;
+  if (ws.readyState !== open) return;
   try {
     ws.send(data);
   } catch {
@@ -48,21 +86,38 @@ function safeSendRaw(ws, data) {
   }
 }
 
+/**
+ * @param {string | null | undefined} ip
+ * @returns {string}
+ */
 function normalizeIp(ip) {
   if (!ip) return 'unknown';
   return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
 }
 
+/**
+ * @param {WsUpgradeRequest} req
+ * @param {boolean} trustProxy
+ * @returns {string}
+ */
 function getRemoteAddress(req, trustProxy) {
   if (trustProxy) {
     const xf = req.headers['x-forwarded-for'];
     if (typeof xf === 'string' && xf.length > 0) {
-      return normalizeIp(xf.split(',')[0].trim());
+      return normalizeIp(xf.split(',')[0]?.trim());
+    }
+    if (Array.isArray(xf) && xf[0]) {
+      return normalizeIp(xf[0].split(',')[0]?.trim());
     }
   }
   return normalizeIp(req.socket.remoteAddress ?? 'unknown');
 }
 
+/**
+ * @param {number} max
+ * @param {number} intervalMs
+ * @returns {() => boolean}
+ */
 function createMessageLimiter(max, intervalMs) {
   let windowStart = Date.now();
   let count = 0;
@@ -84,6 +139,9 @@ function generatePlayerId() {
   return `p-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
 }
 
+/**
+ * @param {ServerPlayer | null | undefined} player
+ */
 function initCombatState(player) {
   if (!player) return;
   const resourceDef = getResourceForClass(player.classId);
@@ -108,6 +166,10 @@ function initCombatState(player) {
   player.targetKind = null;
 }
 
+/**
+ * @param {RuntimePlayerParams} params
+ * @returns {ServerPlayer}
+ */
 function createRuntimePlayer({
   id,
   ws,
@@ -146,6 +208,10 @@ function createRuntimePlayer({
   };
 }
 
+/**
+ * @param {WsUpgradeRequest} req
+ * @returns {ConnectionParams}
+ */
 function parseConnectionParams(req) {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
@@ -158,6 +224,9 @@ function parseConnectionParams(req) {
   }
 }
 
+/**
+ * @param {CreateWebSocketServerArgs} deps
+ */
 export function createWebSocketServer({
   server,
   config,
@@ -178,22 +247,37 @@ export function createWebSocketServer({
 
   const connectionsByIp = new Map();
 
+  /**
+   * @param {string | string[] | undefined | null} origin
+   * @returns {boolean}
+   */
   function isAllowedOrigin(origin) {
-    if (!origin) {
+    const originValue = Array.isArray(origin) ? origin[0] : origin;
+    if (!originValue) {
       if (!config.allowNoOrigin) return false;
       return config.allowNoOriginRemote || config.isLocalhost;
     }
-    return config.allowedOrigins.has(origin);
+    return config.allowedOrigins.has(originValue);
   }
 
+  /**
+   * @param {string} ip
+   * @returns {boolean}
+   */
   function canAcceptConnection(ip) {
     return (connectionsByIp.get(ip) ?? 0) < config.maxConnectionsPerIp;
   }
 
+  /**
+   * @param {string} ip
+   */
   function trackConnection(ip) {
     connectionsByIp.set(ip, (connectionsByIp.get(ip) ?? 0) + 1);
   }
 
+  /**
+   * @param {string} ip
+   */
   function untrackConnection(ip) {
     const next = (connectionsByIp.get(ip) ?? 1) - 1;
     if (next <= 0) {
@@ -206,6 +290,12 @@ export function createWebSocketServer({
   const aoiRadius = config.aoiRadius ?? 80;
   const aoiRadius2 = aoiRadius * aoiRadius;
 
+  /**
+   * @param {Position3D | null | undefined} pos
+   * @param {Position3D | null | undefined} centerPos
+   * @param {number} [radius2]
+   * @returns {boolean}
+   */
   function isInAOI(pos, centerPos, radius2 = aoiRadius2) {
     if (!pos || !centerPos) return false;
     const dx = (pos.x ?? 0) - (centerPos.x ?? 0);
@@ -213,12 +303,24 @@ export function createWebSocketServer({
     return dx * dx + dz * dz <= radius2;
   }
 
+  /**
+   * @param {string | null | undefined} playerId
+   * @returns {string[]}
+   */
   function getPartyMemberIds(playerId) {
+    if (!playerId) return [];
     const party = getPartyForPlayer(playerId, players);
     return party ? party.memberIds : [];
   }
 
-  function filterPlayersByAOI(playersMap, centerPos, includeIds) {
+  /**
+   * @param {PlayerMap} playersMap
+   * @param {Position3D} centerPos
+   * @param {string[]} [includeIds]
+   * @returns {PublicPlayersById}
+   */
+  function filterPlayersByAOI(playersMap, centerPos, includeIds = []) {
+    /** @type {PublicPlayersById} */
     const out = {};
     const includeSet = new Set(includeIds ?? []);
     for (const [id, p] of playersMap.entries()) {
@@ -226,13 +328,13 @@ export function createWebSocketServer({
       if (includeSet.has(id) || isInAOI(p.pos, centerPos)) {
         out[id] = {
           x: p.pos.x,
-          y: p.pos.y,
+          y: p.pos.y ?? 0,
           z: p.pos.z,
-          hp: p.hp,
-          maxHp: p.maxHp,
-          inv: p.inv,
+          hp: p.hp ?? 0,
+          maxHp: p.maxHp ?? 0,
+          inv: p.inv ?? 0,
           currencyCopper: p.currencyCopper ?? 0,
-          dead: p.dead,
+          dead: Boolean(p.dead),
           classId: p.classId ?? null,
           level: p.level ?? 1,
           name: p.name ?? null,
@@ -242,28 +344,48 @@ export function createWebSocketServer({
     return out;
   }
 
+  /**
+   * @param {ResourceNode[]} resourcesArr
+   * @param {Position3D} centerPos
+   * @returns {ResourceNode[]}
+   */
   function filterResourcesByAOI(resourcesArr, centerPos) {
     return resourcesArr.filter((r) =>
       isInAOI({ x: r.x, z: r.z }, centerPos)
     );
   }
 
+  /**
+   * @param {MobEntity[]} mobsArr
+   * @param {Position3D} centerPos
+   * @returns {MobEntity[]}
+   */
   function filterMobsByAOI(mobsArr, centerPos) {
     return mobsArr.filter((m) =>
       isInAOI(m?.pos ?? { x: m.x, z: m.z }, centerPos)
     );
   }
 
+  /**
+   * @param {Corpse[]} corpsesArr
+   * @param {Position3D} centerPos
+   * @returns {Corpse[]}
+   */
   function filterCorpsesByAOI(corpsesArr, centerPos) {
     if (!Array.isArray(corpsesArr)) return [];
     return corpsesArr.filter((c) => {
-      const pos = c?.pos ?? { x: c?.x, z: c?.z };
+      const pos = c.pos;
       return isInAOI(pos, centerPos);
     });
   }
 
+  /**
+   * @param {ServerPlayer} player
+   * @param {number} now
+   * @returns {PublicStateMessage}
+   */
   function buildPublicStateForPlayer(player, now) {
-    const pos = player?.pos ?? { x: 0, z: 0 };
+    const pos = player?.pos ?? { x: 0, y: 0, z: 0 };
     const partyIds = getPartyMemberIds(player?.id);
     const filteredPlayers = filterPlayersByAOI(players, pos, partyIds);
     const filteredResources = filterResourcesByAOI(resources, pos);
@@ -279,20 +401,45 @@ export function createWebSocketServer({
     };
   }
 
+  /** @type {Map<string, PublicStateMessage>} */
   const lastSentByPlayer = new Map();
   const DELTA_FULL_THRESHOLD = 0.8;
 
+  /**
+   * @param {unknown} a
+   * @param {unknown} b
+   * @returns {boolean}
+   */
   function entityChanged(a, b) {
     return JSON.stringify(a) !== JSON.stringify(b);
   }
 
+  /**
+   * @template T
+   * @param {Array<T & { id: string }> | undefined | null} arr
+   * @returns {Map<string, T & { id: string }>}
+   */
+  function byId(arr) {
+    const out = new Map();
+    for (const item of arr ?? []) out.set(item.id, item);
+    return out;
+  }
+
+  /**
+   * @param {ServerPlayer} player
+   * @param {PublicStateMessage} currentState
+   * @param {number} now
+   * @returns {PublicStateMessage | DeltaStateMessage}
+   */
   function buildDeltaState(player, currentState, now) {
     const last = lastSentByPlayer.get(player.id);
     if (!last) {
       return { ...currentState, full: true };
     }
 
+    /** @type {PublicPlayersById} */
     const deltaPlayers = {};
+    /** @type {string[]} */
     const removedPlayers = [];
     for (const [id, curr] of Object.entries(currentState.players)) {
       const prev = last.players?.[id];
@@ -306,14 +453,11 @@ export function createWebSocketServer({
       }
     }
 
+    /** @type {import('./types/domain.d.ts').SerializedResource[]} */
     const deltaResources = [];
+    /** @type {string[]} */
     const removedResources = [];
-    const resourceById = (arr) => {
-      const m = new Map();
-      for (const r of arr ?? []) m.set(r.id, r);
-      return m;
-    };
-    const lastResMap = resourceById(last.resources);
+    const lastResMap = byId(last.resources);
     const currResIds = new Set();
     for (const curr of currentState.resources ?? []) {
       currResIds.add(curr.id);
@@ -326,9 +470,11 @@ export function createWebSocketServer({
       if (!currResIds.has(r.id)) removedResources.push(r.id);
     }
 
+    /** @type {import('./types/domain.d.ts').SerializedMob[]} */
     const deltaMobs = [];
+    /** @type {string[]} */
     const removedMobs = [];
-    const lastMobMap = resourceById(last.mobs);
+    const lastMobMap = byId(last.mobs);
     const currMobIds = new Set();
     for (const curr of currentState.mobs ?? []) {
       currMobIds.add(curr.id);
@@ -341,9 +487,11 @@ export function createWebSocketServer({
       if (!currMobIds.has(m.id)) removedMobs.push(m.id);
     }
 
+    /** @type {import('./types/domain.d.ts').SerializedCorpse[]} */
     const deltaCorpses = [];
+    /** @type {string[]} */
     const removedCorpses = [];
-    const lastCorpseMap = resourceById(last.corpses);
+    const lastCorpseMap = byId(last.corpses);
     const currCorpseIds = new Set();
     for (const curr of currentState.corpses ?? []) {
       currCorpseIds.add(curr.id);
@@ -377,6 +525,7 @@ export function createWebSocketServer({
       return { ...currentState, full: true };
     }
 
+    /** @type {DeltaStateMessage} */
     const msg = { type: 'state', t: now };
     if (Object.keys(deltaPlayers).length > 0) msg.players = deltaPlayers;
     if (deltaResources.length > 0) msg.resources = deltaResources;
@@ -389,6 +538,11 @@ export function createWebSocketServer({
     return msg;
   }
 
+  /**
+   * @param {WsClient | null | undefined} ws
+   * @param {ServerPlayer} player
+   * @param {number} now
+   */
   function sendPrivateState(ws, player, now) {
     safeSend(ws, {
       type: 'me',
@@ -401,6 +555,11 @@ export function createWebSocketServer({
   const COMBAT_VFX_RADIUS = 25;
   const COMBAT_VFX_RADIUS2 = COMBAT_VFX_RADIUS * COMBAT_VFX_RADIUS;
 
+  /**
+   * @param {Position3D | null | undefined} pos
+   * @param {CombatEvent | null | undefined} event
+   * @returns {boolean}
+   */
   function shouldReceiveCombatEvent(pos, event) {
     if (!pos || !event) return false;
     const from = event.from;
@@ -422,6 +581,10 @@ export function createWebSocketServer({
     return false;
   }
 
+  /**
+   * @param {CombatEvent | null | undefined} event
+   * @param {number} [now]
+   */
   function broadcastCombatEvent(event, now = Date.now()) {
     if (!event) return;
     const payload = JSON.stringify({ type: 'combatEvent', t: now, events: [event] });
@@ -432,7 +595,7 @@ export function createWebSocketServer({
     }
   }
 
-  server.on('upgrade', (req, socket, head) => {
+  server.on('upgrade', (/** @type {WsUpgradeRequest} */ req, socket, head) => {
     const origin = req.headers.origin;
     if (!isAllowedOrigin(origin)) {
       socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
@@ -447,12 +610,12 @@ export function createWebSocketServer({
       return;
     }
 
-    wss.handleUpgrade(req, socket, head, (ws) => {
+    wss.handleUpgrade(req, socket, head, (/** @type {WsClient} */ ws) => {
       wss.emit('connection', ws, req);
     });
   });
 
-  wss.on('connection', (ws, req) => {
+  wss.on('connection', (/** @type {WsClient} */ ws, /** @type {WsUpgradeRequest} */ req) => {
     const ip = getRemoteAddress(req, config.trustProxy);
     trackConnection(ip);
 
@@ -468,8 +631,8 @@ export function createWebSocketServer({
     const chatRateMax = config.chat?.rateLimitMax ?? 5;
     const chatRateIntervalMs = config.chat?.rateLimitIntervalMs ?? 10_000;
     const allowChatMessage = createMessageLimiter(chatRateMax, chatRateIntervalMs);
-    let player = null;
-    let playerId = null;
+    let /** @type {ServerPlayer | null} */ player = null;
+    let /** @type {string | null} */ playerId = null;
     let tracked = true;
 
     const cleanupConnection = () => {
@@ -479,14 +642,16 @@ export function createWebSocketServer({
     };
 
     ws.on('error', () => {
-      ws.terminate();
+      ws.terminate?.();
     });
 
     ws.on('close', () => {
-      const isCurrent = player && players.get(playerId) === player;
+      const isCurrent = Boolean(player && playerId && players.get(playerId) === player);
       if (isCurrent) {
-        lastSentByPlayer.delete(playerId);
-        const duelOpponent = endDuel(player, players);
+        const currentPlayer = /** @type {ServerPlayer} */ (player);
+        const currentPlayerId = /** @type {string} */ (playerId);
+        lastSentByPlayer.delete(currentPlayerId);
+        const duelOpponent = endDuel(currentPlayer, players);
         if (duelOpponent) {
           persistence.markDirty(duelOpponent);
           if (duelOpponent.ws) {
@@ -494,21 +659,21 @@ export function createWebSocketServer({
             sendPrivateState(duelOpponent.ws, duelOpponent, Date.now());
           }
         }
-        const tradePartner = getTradePartner(player);
+        const tradePartner = getTradePartner(currentPlayer);
         if (tradePartner) {
-          endTradeSession(player, true);
+          endTradeSession(currentPlayer, true);
           persistence.markDirty(tradePartner);
           if (tradePartner.ws) {
             safeSend(tradePartner.ws, { type: 'tradeCancelled' });
             sendPrivateState(tradePartner.ws, tradePartner, Date.now());
           }
         }
-        leaveParty(playerId, players);
-        players.delete(playerId);
+        leaveParty(currentPlayerId, players);
+        players.delete(currentPlayerId);
       }
       cleanupConnection();
       if (isCurrent && player && !player.isGuest) {
-        persistence.persistPlayer(player).catch((err) => {
+        persistence.persistPlayer(player).catch((/** @type {unknown} */ err) => {
           console.error('Failed to persist player on disconnect:', err);
         });
       }
@@ -518,19 +683,19 @@ export function createWebSocketServer({
       const { characterId, guest, ticket } = parseConnectionParams(req);
       const spawn = spawner.getSpawnPoint();
 
-      let stored = null;
-      let account = null;
-      let id = null;
+      let /** @type {StoredCharacter | null} */ stored = null;
+      let /** @type {AuthAccount | null} */ account = null;
+      let /** @type {string | null} */ id = null;
 
       if (!guest) {
-        let ticketData = null;
+        let /** @type {WsTicketData | null} */ ticketData = null;
         if (ticket) {
           ticketData = validateAndConsumeTicket(ticket);
         }
 
         if (ticketData) {
           if (ticketData.characterId !== characterId) {
-            ws.close(1008, 'Invalid ticket');
+            ws.close?.(1008, 'Invalid ticket');
             cleanupConnection();
             return;
           }
@@ -538,12 +703,12 @@ export function createWebSocketServer({
             stored = await loadPlayer(characterId);
           } catch (err) {
             console.error('Failed to load player from DB:', err);
-            ws.close(1011, 'DB unavailable');
+            ws.close?.(1011, 'DB unavailable');
             cleanupConnection();
             return;
           }
           if (!stored || stored.accountId !== ticketData.accountId) {
-            ws.close(1008, 'Character not found');
+            ws.close?.(1008, 'Character not found');
             cleanupConnection();
             return;
           }
@@ -553,7 +718,7 @@ export function createWebSocketServer({
         } else {
           const token = normalizeId(getCookieValue(req, config.sessionCookieName));
           if (!token || !characterId) {
-            ws.close(1008, 'Auth required');
+            ws.close?.(1008, 'Auth required');
             cleanupConnection();
             return;
           }
@@ -563,20 +728,20 @@ export function createWebSocketServer({
             session = await getSessionWithAccount(token);
           } catch (err) {
             console.error('Failed to load session:', err);
-            ws.close(1011, 'Auth unavailable');
+            ws.close?.(1011, 'Auth unavailable');
             cleanupConnection();
             return;
           }
 
           if (!session || !session.account) {
-            ws.close(1008, 'Unauthorized');
+            ws.close?.(1008, 'Unauthorized');
             cleanupConnection();
             return;
           }
 
           const now = new Date();
           if (session.expiresAt && session.expiresAt <= now) {
-            ws.close(1008, 'Session expired');
+            ws.close?.(1008, 'Session expired');
             cleanupConnection();
             return;
           }
@@ -586,13 +751,13 @@ export function createWebSocketServer({
             stored = await loadPlayer(characterId);
           } catch (err) {
             console.error('Failed to load player from DB:', err);
-            ws.close(1011, 'DB unavailable');
+            ws.close?.(1011, 'DB unavailable');
             cleanupConnection();
             return;
           }
 
           if (!stored || stored.accountId !== account.id) {
-            ws.close(1008, 'Character not found');
+            ws.close?.(1008, 'Character not found');
             cleanupConnection();
             return;
           }
@@ -605,9 +770,14 @@ export function createWebSocketServer({
         id = generatePlayerId();
       }
 
+      if (!id) {
+        ws.close?.(1011, 'Server error');
+        cleanupConnection();
+        return;
+      }
       playerId = id;
 
-      let basePlayer;
+      let /** @type {ServerPlayer} */ basePlayer;
       if (stored?.state) {
         const migrated = migratePlayerState(stored.state, stored.stateVersion);
         const hydrated = hydratePlayerState(migrated.state, world, spawn);
@@ -623,7 +793,7 @@ export function createWebSocketServer({
 
         if (!guest && migrated.didUpgrade) {
           const upgradedState = serializePlayerState(basePlayer);
-          savePlayer(basePlayer, upgradedState, new Date()).catch((err) => {
+          savePlayer(basePlayer, upgradedState, new Date()).catch((/** @type {unknown} */ err) => {
             console.error('Failed to persist migrated player state:', err);
           });
         }
@@ -647,7 +817,7 @@ export function createWebSocketServer({
       const existing = players.get(id);
       if (existing && existing.ws !== ws) {
         try {
-          existing.ws.close(4001, 'Replaced by new connection');
+          existing.ws?.close?.(4001, 'Replaced by new connection');
         } catch {
           // ignore close errors
         }
@@ -680,15 +850,16 @@ export function createWebSocketServer({
 
       const msgHandlers = createMessageHandlers();
 
-      ws.on('message', (data) => {
+      ws.on('message', (/** @type {unknown} */ data) => {
+        if (!player) return;
         if (!allowMessage()) {
-          ws.close(1008, 'Rate limit');
+          ws.close?.(1008, 'Rate limit');
           return;
         }
 
         let raw;
         try {
-          raw = JSON.parse(data.toString());
+          raw = JSON.parse(String(data));
         } catch {
           return;
         }
@@ -696,16 +867,20 @@ export function createWebSocketServer({
         const msg = parseClientMessage(raw);
         if (!msg) return;
 
-        if (Number.isInteger(msg.seq) && msg.seq <= player.lastInputSeq) {
+        const seq =
+          typeof msg.seq === 'number' && Number.isInteger(msg.seq) ? msg.seq : null;
+        const lastInputSeq = player.lastInputSeq ?? 0;
+        if (seq !== null && seq <= lastInputSeq) {
           return;
         }
 
-        if (Number.isInteger(msg.seq)) {
-          player.lastInputSeq = msg.seq;
+        if (seq !== null) {
+          player.lastInputSeq = seq;
         }
 
         if (player.dead && msg.type !== 'respawn' && msg.type !== 'ping') return;
 
+        /** @type {WsMessageHandlerContext} */
         const ctx = {
           player,
           players,
@@ -733,14 +908,14 @@ export function createWebSocketServer({
           }
         }
       });
-    })().catch((err) => {
+    })().catch((/** @type {unknown} */ err) => {
       console.error('Failed to initialize connection:', err);
-      ws.close(1011, 'Server error');
+      ws.close?.(1011, 'Server error');
       cleanupConnection();
     });
   });
 
-  let heartbeatId = null;
+  let /** @type {NodeJS.Timeout | null} */ heartbeatId = null;
   function startHeartbeat() {
     if (heartbeatId) return;
     heartbeatId = setInterval(() => {
@@ -762,7 +937,7 @@ export function createWebSocketServer({
     heartbeatId = null;
   }
 
-  let broadcastId = null;
+  let /** @type {NodeJS.Timeout | null} */ broadcastId = null;
   const broadcastIntervalMs = 1000 / config.broadcastHz;
   function startBroadcast() {
     if (broadcastId) return;
@@ -785,6 +960,10 @@ export function createWebSocketServer({
     broadcastId = null;
   }
 
+  /**
+   * @param {number} [code]
+   * @param {string} [reason]
+   */
   function closeAll(code = 1001, reason = 'Server shutdown') {
     for (const client of wss.clients) {
       try {
@@ -795,10 +974,19 @@ export function createWebSocketServer({
     }
   }
 
+  /**
+   * @param {string} playerId
+   * @param {Array<{ kind: string, text: string, t: number }>} entries
+   */
   function sendCombatLogToPlayer(playerId, entries) {
     sendCombatLog(players, playerId, entries, safeSend);
   }
 
+  /**
+   * @param {ServerPlayer | null | undefined} player
+   * @param {ServerPlayer | null | undefined} opponent
+   * @param {string} reason
+   */
   function notifyDuelEnded(player, opponent, reason) {
     const now = Date.now();
     if (player?.ws) {

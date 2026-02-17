@@ -1,3 +1,4 @@
+// @ts-check
 const ASSET_ROOT = '/assets/quaternius';
 const NATURE_ROOT = '/assets/nature';
 const MEDIEVAL_ROOT = '/assets/medieval';

@@ -1,3 +1,4 @@
+// @ts-check
 import { createInventory, countInventory } from '../logic/inventory.js';
 import { DEFAULT_CLASS_ID, isValidClassId } from '../../shared/classes.js';
 import { normalizeEquipment } from '../../shared/equipment.js';
@@ -5,16 +6,18 @@ import { computeDerivedStats } from '../../shared/attributes.js';
 
 export const PLAYER_STATE_VERSION = 2;
 
-function toNumber(value, fallback) {
+/** @typedef {{ id: string, kind: string, name: string, count: number }} InventoryItem */
+
+function toNumber(/** @type {any} */ value, /** @type {any} */ fallback) {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
 }
 
-function clamp(value, min, max) {
+function clamp(/** @type {any} */ value, /** @type {any} */ min, /** @type {any} */ max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function sanitizePos(raw, world, spawn) {
+function sanitizePos(/** @type {any} */ raw, /** @type {any} */ world, /** @type {any} */ spawn) {
   const half = Number.isFinite(world?.mapSize) ? world.mapSize / 2 : 200;
   const fallback = spawn ?? { x: 0, y: 0, z: 0 };
   const x = Number.isFinite(raw?.x) ? clamp(raw.x, -half, half) : fallback.x;
@@ -26,8 +29,8 @@ function sanitizePos(raw, world, spawn) {
   return { x, y, z };
 }
 
-function sanitizeInventory(raw, slots, stackMax) {
-  const inventory = createInventory(slots);
+function sanitizeInventory(/** @type {any} */ raw, /** @type {any} */ slots, /** @type {any} */ stackMax) {
+  const inventory = /** @type {Array<InventoryItem | null>} */ (createInventory(slots));
   if (!Array.isArray(raw)) return inventory;
 
   for (let i = 0; i < inventory.length && i < raw.length; i += 1) {
@@ -50,7 +53,7 @@ function sanitizeInventory(raw, slots, stackMax) {
   return inventory;
 }
 
-export function serializePlayerState(player) {
+export function serializePlayerState(/** @type {any} */ player) {
   return {
     pos: {
       x: toNumber(player?.pos?.x, 0),
@@ -70,7 +73,7 @@ export function serializePlayerState(player) {
   };
 }
 
-export function migratePlayerState(rawState, version) {
+export function migratePlayerState(/** @type {any} */ rawState, /** @type {any} */ version) {
   const currentVersion = Number.isInteger(version) ? version : 0;
   if (currentVersion > PLAYER_STATE_VERSION) {
     return { state: rawState ?? {}, version: currentVersion, didUpgrade: false };
@@ -110,7 +113,7 @@ export function migratePlayerState(rawState, version) {
   return { state, version: PLAYER_STATE_VERSION, didUpgrade };
 }
 
-export function hydratePlayerState(rawState, world, spawn) {
+export function hydratePlayerState(/** @type {any} */ rawState, /** @type {any} */ world, /** @type {any} */ spawn) {
   const pos = sanitizePos(rawState?.pos, world, spawn);
 
   const invSlots = Math.max(0, Math.floor(toNumber(world?.playerInvSlots, 0)));

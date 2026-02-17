@@ -1,11 +1,12 @@
+// @ts-check
 import { getSellPriceCopper } from '../../../shared/economy.js';
 import { createWeaponItem, getWeaponDef } from '../../../shared/equipment.js';
 import { addItem } from '../../logic/inventory.js';
 import { countInventory } from '../../logic/inventory.js';
 
-export function handleVendorSell(ctx) {
+export function handleVendorSell(/** @type {any} */ ctx) {
   const { player, world, msg, persistence } = ctx;
-  const vendor = world.vendors?.find((v) => v.id === msg.vendorId);
+  const vendor = world.vendors?.find((/** @type {any} */ v) => v.id === msg.vendorId);
   if (!vendor) return;
   if (msg.slot < 0 || msg.slot >= player.inventory.length) return;
   const item = player.inventory[msg.slot];
@@ -23,15 +24,15 @@ export function handleVendorSell(ctx) {
   persistence.markDirty(player);
 }
 
-export function handleVendorBuy(ctx) {
+export function handleVendorBuy(/** @type {any} */ ctx) {
   const { player, world, msg, persistence, nextItemIdRef } = ctx;
-  const vendor = world.vendors?.find((v) => v.id === msg.vendorId);
+  const vendor = world.vendors?.find((/** @type {any} */ v) => v.id === msg.vendorId);
   if (!vendor) return;
   const dist = Math.hypot(player.pos.x - vendor.x, player.pos.z - vendor.z);
   const maxDist = world.vendorInteractRadius ?? 2.5;
   if (dist > maxDist) return;
   const catalog = vendor.buyItems ?? [];
-  const catalogEntry = catalog.find((e) => e.kind === msg.kind);
+  const catalogEntry = catalog.find((/** @type {any} */ e) => e.kind === msg.kind);
   if (!catalogEntry) return;
   const priceCopper = catalogEntry.priceCopper ?? 0;
   if (!Number.isFinite(priceCopper) || priceCopper <= 0) return;

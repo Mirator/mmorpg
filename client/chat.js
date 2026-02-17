@@ -1,18 +1,34 @@
+// @ts-check
 const WRITABLE_CHANNELS = new Set(['global', 'area', 'trade']);
 const GENERAL_SENDS_TO = 'area';
 const MAX_COMBAT_ENTRIES = 50;
 
-function formatTime(timestamp) {
+/**
+ * @typedef {{
+ *   kind?: string;
+ *   text?: string;
+ *   timestamp?: number;
+ *   sourceChannel?: string;
+ *   channel?: string;
+ *   author?: string;
+ *   authorId?: string;
+ *   combatKind?: string;
+ * }} ChatMessage
+ * @typedef {{ [channel: string]: ChatMessage[] }} ChannelMessages
+ */
+
+function formatTime(/** @type {any} */ timestamp) {
   const d = new Date(timestamp);
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-export function createChat({ onSend, isInParty = () => false }) {
-  const panel = document.getElementById('chat-panel');
-  const messagesEl = document.getElementById('chat-messages');
-  const inputEl = document.getElementById('chat-input');
-  const inputWrap = panel?.querySelector('.chat-input-wrap');
+export function createChat(/** @type {any} */ { onSend, isInParty = () => false }) {
+  const panel = /** @type {HTMLElement | null} */ (document.getElementById('chat-panel'));
+  const messagesEl = /** @type {HTMLElement | null} */ (document.getElementById('chat-messages'));
+  const inputEl = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-input'));
+  const inputWrap = /** @type {HTMLElement | null} */ (panel?.querySelector('.chat-input-wrap'));
 
+  /** @type {ChannelMessages} */
   const messagesByChannel = {
     general: [],
     global: [],
@@ -28,13 +44,13 @@ export function createChat({ onSend, isInParty = () => false }) {
     /* Reserved for future party system */
   }
 
-  function canWrite(channel) {
+  function canWrite(/** @type {any} */ channel) {
     if (channel === 'general') return true;
     if (channel === 'party') return isInParty();
     return WRITABLE_CHANNELS.has(channel);
   }
 
-  function getSendChannel(channel) {
+  function getSendChannel(/** @type {any} */ channel) {
     return channel === 'general' ? GENERAL_SENDS_TO : channel;
   }
 
@@ -48,19 +64,19 @@ export function createChat({ onSend, isInParty = () => false }) {
     }
   }
 
-  function addToGeneral(data, sourceChannel) {
+  function addToGeneral(/** @type {any} */ data, /** @type {any} */ sourceChannel) {
     const generalList = messagesByChannel.general;
-    const entry = { ...data, sourceChannel: sourceChannel ?? data.channel ?? data.sourceChannel };
+    const /** @type {any} */ entry = { ...data, sourceChannel: sourceChannel ?? data.channel ?? data.sourceChannel };
     generalList.push(entry);
     if (generalList.length > 200) {
       generalList.shift();
     }
   }
 
-  function addMessage(channel, data) {
+  function addMessage(/** @type {any} */ channel, /** @type {any} */ data) {
     const list = messagesByChannel[channel];
     if (!list) return;
-    const entry = { ...data };
+    const /** @type {any} */ entry = { ...data };
     list.push(entry);
     if (channel === 'combat' && list.length > MAX_COMBAT_ENTRIES) {
       list.shift();
@@ -74,11 +90,11 @@ export function createChat({ onSend, isInParty = () => false }) {
 
   const GENERAL_COMBAT_KINDS = new Set(['xp_gain', 'level_up', 'death']);
 
-  function addCombatLogEntries(entries) {
+  function addCombatLogEntries(/** @type {any} */ entries) {
     if (!Array.isArray(entries)) return;
     for (const e of entries) {
       const kind = e.kind ?? 'info';
-      const data = {
+      const /** @type {any} */ data = {
         kind: 'combat',
         combatKind: kind,
         text: e.text ?? '',
@@ -99,7 +115,7 @@ export function createChat({ onSend, isInParty = () => false }) {
     }
   }
 
-  function renderMessage(data, channel) {
+  function renderMessage(/** @type {any} */ data, /** @type {any} */ channel) {
     if (!messagesEl) return;
     const div = document.createElement('div');
     const combatKind = data.combatKind ?? 'info';
@@ -119,19 +135,20 @@ export function createChat({ onSend, isInParty = () => false }) {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  function escapeHtml(str) {
+  function escapeHtml(/** @type {any} */ str) {
     if (typeof str !== 'string') return '';
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
   }
 
-  function switchChannel(channel) {
+  function switchChannel(/** @type {any} */ channel) {
     if (!messagesByChannel[channel]) return;
     activeChannel = channel;
     const tabs = panel?.querySelectorAll('.chat-tab');
-    tabs?.forEach((tab) => {
-      tab.classList.toggle('active', tab.dataset.channel === channel);
+    tabs?.forEach((/** @type {any} */ tab) => {
+      const tabChannel = tab.getAttribute('data-channel');
+      tab.classList.toggle('active', tabChannel === channel);
     });
     if (messagesEl) {
       messagesEl.innerHTML = '';
@@ -148,18 +165,19 @@ export function createChat({ onSend, isInParty = () => false }) {
     if (!canWrite(activeChannel)) return;
     const sendChannel = getSendChannel(activeChannel);
     onSend(sendChannel, text);
-    inputEl.value = '';
+    if (inputEl) inputEl.value = '';
   }
 
   function init() {
     const tabs = panel?.querySelectorAll('.chat-tab');
-    tabs?.forEach((tab) => {
+    tabs?.forEach((/** @type {any} */ tab) => {
       tab.addEventListener('click', () => {
-        switchChannel(tab.dataset.channel);
+        const channel = tab.getAttribute('data-channel');
+        if (channel) switchChannel(channel);
       });
     });
 
-    inputEl?.addEventListener('keydown', (e) => {
+    inputEl?.addEventListener('keydown', (/** @type {any} */ e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
         send();
@@ -175,13 +193,13 @@ export function createChat({ onSend, isInParty = () => false }) {
 
   init();
 
-  function addSystemMessage(text) {
-    const data = {
+  function addSystemMessage(/** @type {any} */ text) {
+    const /** @type {any} */ data = {
       kind: 'system',
       text: String(text),
       timestamp: Date.now(),
     };
-    const entry = { ...data, sourceChannel: 'system' };
+    const /** @type {any} */ entry = { ...data, sourceChannel: 'system' };
     messagesByChannel.general.push(entry);
     if (messagesByChannel.general.length > 200) {
       messagesByChannel.general.shift();

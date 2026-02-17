@@ -1,3 +1,4 @@
+// @ts-check
 import {
   formatCurrency,
   VENDOR_SELL_PRICES,
@@ -31,15 +32,15 @@ import { getRecipeById } from '/shared/recipes.js';
 import { createAbilityBar } from './ui-state/abilityBar.js';
 import { createSkillsPanelUpdater } from './ui-state/skillsPanel.js';
 
-function formatItemName(kind) {
+function formatItemName(/** @type {any} */ kind) {
   if (!kind) return 'Item';
   return kind
     .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((/** @type {any} */ part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
-export function createUiState({
+export function createUiState(/** @type {any} */ {
   onInventorySwap,
   onEquipmentSwap,
   onVendorSell,
@@ -61,7 +62,9 @@ export function createUiState({
   const characterSheetClose = document.getElementById('character-sheet-close');
   const characterView = document.getElementById('character-view');
   const skillsView = document.getElementById('skills-view');
-  const sheetTabBtns = document.querySelectorAll('#sheet-bottom-tabs .sheet-tab-btn');
+  const sheetTabBtns = /** @type {NodeListOf<HTMLElement>} */ (
+    document.querySelectorAll('#sheet-bottom-tabs .sheet-tab-btn')
+  );
   const skillsClassEl = document.getElementById('skills-class');
   const skillsLevelEl = document.getElementById('skills-level');
   const skillsXpEl = document.getElementById('skills-xp');
@@ -70,7 +73,9 @@ export function createUiState({
   const inventoryView = document.getElementById('inventory-view');
   const craftView = document.getElementById('craft-view');
   const craftRecipeListEl = document.getElementById('craft-recipe-list');
-  const inventoryTabBtns = document.querySelectorAll('.inventory-tab');
+  const inventoryTabBtns = /** @type {NodeListOf<HTMLElement>} */ (
+    document.querySelectorAll('.inventory-tab')
+  );
   const equipmentGrid = document.getElementById('equipment-grid');
   const charStatHp = document.getElementById('char-stat-hp');
   const charStatResource = document.getElementById('char-stat-resource');
@@ -109,11 +114,11 @@ export function createUiState({
   const castBarFill = document.getElementById('cast-bar-fill');
   const castBarName = document.getElementById('cast-bar-name');
 
-  let inventoryUI = null;
-  let equipmentUI = null;
-  let vendorUI = null;
-  let playerTradeUI = null;
-  let craftingUI = null;
+  let /** @type {any} */ inventoryUI = null;
+  let /** @type {any} */ equipmentUI = null;
+  let /** @type {any} */ vendorUI = null;
+  let /** @type {any} */ playerTradeUI = null;
+  let /** @type {any} */ craftingUI = null;
 
   let inventoryOpen = false;
   let inventoryTab = 'inventory';
@@ -131,6 +136,7 @@ export function createUiState({
   });
   let wasDead = false;
 
+  /** @type {{ hp: number | null, inv: number | null, currencyCopper: number | null, level: number | null, totalXp: number | null }} */
   const lastStats = {
     hp: null,
     inv: null,
@@ -139,11 +145,11 @@ export function createUiState({
     totalXp: null,
   };
 
-  function getCurrentClassId(me) {
+  function getCurrentClassId(/** @type {any} */ me) {
     return me?.classId ?? DEFAULT_CLASS_ID;
   }
 
-  function setInventoryOpen(next) {
+  function setInventoryOpen(/** @type {any} */ next) {
     inventoryOpen = !!next;
     inventoryPanel?.classList.toggle('open', inventoryOpen);
     document.body.classList.toggle('inventory-open', inventoryOpen);
@@ -154,7 +160,7 @@ export function createUiState({
     }
   }
 
-  function setCharacterOpen(next) {
+  function setCharacterOpen(/** @type {any} */ next) {
     characterOpen = !!next;
     characterSheetPanel?.classList.toggle('open', characterOpen);
     document.body.classList.toggle('character-open', characterOpen);
@@ -164,7 +170,7 @@ export function createUiState({
     }
   }
 
-  function setCharacterTab(tab) {
+  function setCharacterTab(/** @type {any} */ tab) {
     if (!['character', 'skills'].includes(tab)) return;
     characterTab = tab;
     characterView?.classList.toggle('active', tab === 'character');
@@ -174,7 +180,7 @@ export function createUiState({
     }
   }
 
-  function setInventoryTab(tab) {
+  function setInventoryTab(/** @type {any} */ tab) {
     if (!['inventory', 'craft'].includes(tab)) return;
     inventoryTab = tab;
     inventoryView?.classList.toggle('active', tab === 'inventory');
@@ -187,20 +193,20 @@ export function createUiState({
     }
   }
 
-  function setDeathOpen(open) {
+  function setDeathOpen(/** @type {any} */ open) {
     deadOpen = !!open;
     deathScreen?.classList.toggle('open', deadOpen);
   }
 
-  function formatAbilityNameFromId(id) {
+  function formatAbilityNameFromId(/** @type {any} */ id) {
     if (!id || typeof id !== 'string') return '--';
     return id
       .split('_')
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .map((/** @type {any} */ w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join(' ');
   }
 
-  function updateCastBar(me, serverNow) {
+  function updateCastBar(/** @type {any} */ me, /** @type {any} */ serverNow) {
     if (!castBarWrap || !castBarFill || !castBarName) return;
     const cast = me?.cast;
     if (!cast) {
@@ -217,7 +223,7 @@ export function createUiState({
     castBarName.textContent = formatAbilityNameFromId(cast.id);
   }
 
-  function formatDeathTimer(remainingMs) {
+  function formatDeathTimer(/** @type {any} */ remainingMs) {
     const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -234,7 +240,7 @@ export function createUiState({
     }
   }
 
-  function setMenuOpen(open) {
+  function setMenuOpen(/** @type {any} */ open) {
     menuOpen = !!open;
     document.body.classList.toggle('menu-open', menuOpen);
     if (menuOpen) {
@@ -249,7 +255,7 @@ export function createUiState({
     return menuOpen;
   }
 
-  function setPauseMenuOpen(open) {
+  function setPauseMenuOpen(/** @type {any} */ open) {
     pauseMenuOpen = !!open;
     document.body.classList.toggle('pause-menu-open', pauseMenuOpen);
   }
@@ -326,10 +332,10 @@ export function createUiState({
       panel: inventoryPanel,
       grid: inventoryGrid,
       cols: 5,
-      onSwap: (from, to) => {
+      onSwap: (/** @type {any} */ from, /** @type {any} */ to) => {
         onInventorySwap?.(from, to);
       },
-      onDropExternal: ({ slot, target }) => {
+      onDropExternal: (/** @type {any} */ { slot, item, target }) => {
         const equipSlot = target?.closest?.('.equipment-slot');
         if (equipSlot?.dataset?.slot) {
           onEquipmentSwap?.({
@@ -362,7 +368,7 @@ export function createUiState({
   if (equipmentGrid) {
     equipmentUI = createEquipmentUI({
       grid: equipmentGrid,
-      onSwap: ({ fromType, fromSlot, toType, toSlot }) => {
+      onSwap: (/** @type {any} */ { fromType, fromSlot, toType, toSlot }) => {
         onEquipmentSwap?.({ fromType, fromSlot, toType, toSlot });
       },
     });
@@ -371,7 +377,7 @@ export function createUiState({
   if (craftRecipeListEl) {
     craftingUI = createCraftingUI({
       recipeListEl: craftRecipeListEl,
-      onCraft: (recipeId, count) => {
+      onCraft: (/** @type {any} */ recipeId, /** @type {any} */ count) => {
         onCraft?.(recipeId, count);
         const recipe = getRecipeById(recipeId);
         const name = recipe?.name ?? recipe?.output?.kind ?? 'Item';
@@ -482,7 +488,7 @@ export function createUiState({
     }
   }
 
-  function updateLocalUi({ me, worldConfig, serverNow }) {
+  function updateLocalUi(/** @type {any} */ { me, worldConfig, serverNow }) {
     if (me) {
       const isDead = !!me.dead;
       if (isDead && !wasDead) {
@@ -522,7 +528,7 @@ export function createUiState({
         inventoryCoinsEl.textContent = formatCurrency(me.currencyCopper ?? 0);
       }
       const klass = getClassById(getCurrentClassId(me));
-      const resourceLabel = (me?.resourceType ?? 'stamina').replace(/^./, (c) => c.toUpperCase());
+      const resourceLabel = (me?.resourceType ?? 'stamina').replace(/^./, (/** @type {any} */ c) => c.toUpperCase());
       if (charStatHp) charStatHp.textContent = `${me.hp ?? 0} / ${me.maxHp ?? 0}`;
       if (charStatResource) charStatResource.textContent = `${me.resource ?? 0} / ${me.resourceMax ?? 0} (${resourceLabel})`;
       const raw = me.attributes ?? computeRawAttributes(me);
@@ -549,7 +555,7 @@ export function createUiState({
       }
 
       const totalXp = totalXpForLevel(me.level ?? 1, me.xp ?? 0);
-      let eventMessage = null;
+      let /** @type {any} */ eventMessage = null;
       if (lastStats.level !== null && me.level > lastStats.level) {
         eventMessage = `Level Up! (${me.level})`;
       } else if (lastStats.totalXp !== null && totalXp > lastStats.totalXp) {
@@ -662,7 +668,7 @@ export function createUiState({
     onRespawn?.();
   });
 
-  const ABILITY_FAIL_MESSAGES = {
+  const /** @type {any} */ ABILITY_FAIL_MESSAGES = {
     no_target: 'No target selected',
     out_of_range: 'Out of range',
     no_placement: 'Click on the ground to place',
@@ -674,7 +680,7 @@ export function createUiState({
     no_direction: 'Face an enemy to use',
   };
 
-  function showAbilityError(reason, slot) {
+  function showAbilityError(/** @type {any} */ reason, /** @type {any} */ slot) {
     const text = ABILITY_FAIL_MESSAGES[reason] ?? 'Ability failed';
     showEvent(text);
   }
@@ -687,13 +693,13 @@ export function createUiState({
     renderVendorPrices,
     updateLocalUi,
     updateTargetHud,
-    updateAbilityBar: (me, serverNow) =>
-      abilityBarModule.updateAbilityBar(me, serverNow, getCurrentClassId),
-    updateSkillsPanel: (me) => updateSkillsPanel(me, getCurrentClassId),
+    updateAbilityBar: (/** @type {any} */ me, /** @type {any} */ serverNow, /** @type {any} */ globalCooldownMs) =>
+      abilityBarModule.updateAbilityBar(me, serverNow, getCurrentClassId, globalCooldownMs),
+    updateSkillsPanel: (/** @type {any} */ me) => updateSkillsPanel(me, getCurrentClassId),
     setInventoryOpen,
     toggleInventory,
     toggleCharacter,
-    setSkillsOpen: (open) => { if (open) { setCharacterOpen(true); setCharacterTab('skills'); } else setCharacterOpen(false); },
+    setSkillsOpen: (/** @type {any} */ open) => { if (open) { setCharacterOpen(true); setCharacterTab('skills'); } else setCharacterOpen(false); },
     toggleSkills,
     setMenuOpen,
     setPauseMenuOpen,
@@ -706,7 +712,7 @@ export function createUiState({
     isUiBlocking,
     getCurrentClassId,
     setLocalCooldown: abilityBarModule.setLocalCooldown,
-    getLocalCooldown: abilityBarModule.    getLocalCooldown,
+    getLocalCooldown: abilityBarModule.getLocalCooldown,
     vendorUI,
     playerTradeUI,
     showToast,

@@ -1,10 +1,11 @@
+// @ts-check
 import { spawnSync } from 'node:child_process';
 
-function isLocalhostHost(host) {
+function isLocalhostHost(/** @type {any} */ host) {
   return host === '127.0.0.1' || host === 'localhost';
 }
 
-function isAutoMigrateEnabled(env) {
+function isAutoMigrateEnabled(/** @type {any} */ env) {
   const raw = env.AUTO_MIGRATE_DEV;
   if (raw === undefined) return true;
   const value = String(raw).toLowerCase();
@@ -12,6 +13,20 @@ function isAutoMigrateEnabled(env) {
   return true;
 }
 
+/**
+ * @typedef {{
+ *   spawnSync?: typeof spawnSync
+ * }} AutoMigrateDeps
+ */
+
+/**
+ * @param {{
+ *   env: Record<string, string | undefined>,
+ *   config?: { host?: string },
+ *   logger?: Pick<typeof console, 'warn'>,
+ *   deps?: AutoMigrateDeps
+ * }} opts
+ */
 export function autoMigrateDev({ env, config, logger = console, deps = {} }) {
   const nodeEnv = env.NODE_ENV ?? 'development';
   if (nodeEnv === 'production' || nodeEnv === 'test') return;
@@ -28,7 +43,7 @@ export function autoMigrateDev({ env, config, logger = console, deps = {} }) {
   }
 
   const run = deps.spawnSync ?? spawnSync;
-  const spawnEnv = { ...process.env, ...env };
+  const /** @type {any} */ spawnEnv = { ...process.env, ...env };
   const result = run('npx', ['prisma', 'migrate', 'dev', '--name', 'auto', '--skip-seed'], {
     stdio: 'inherit',
     env: spawnEnv,

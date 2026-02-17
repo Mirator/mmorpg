@@ -1,7 +1,8 @@
-/** @param {import('../abilityHandlers').AbilityHandlerDeps} d */
+// @ts-check
+/** @param {import('../abilityHandlers.js').AbilityHandlerDeps} d */
 export function createRangerHandlers(d) {
   return {
-    poison_arrow(ctx) {
+    poison_arrow(/** @type {any} */ ctx) {
       const { player, ability, targetMob, now, respawnMs, players } = ctx;
       if (!targetMob) return {};
       const { damage: rawDmg, derived, isCrit } = d.computeAbilityDamage(player, ability, now);
@@ -9,7 +10,7 @@ export function createRangerHandlers(d) {
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
-      let result = null;
+      let /** @type {any} */ result = null;
       if (d.rollHit(derived.accuracy, 0)) {
         result = d.applyDamageToMob({ mob: targetMob, damage, attacker: player, now, respawnMs, players });
         xpGain = result.xpGain;
@@ -42,7 +43,7 @@ export function createRangerHandlers(d) {
           : null,
       };
     },
-    snare_trap(ctx) {
+    snare_trap(/** @type {any} */ ctx) {
       const { player, ability, mobs, players, now, respawnMs, placementCenter } = ctx;
       const result = d.applyNova({
         player,
@@ -70,7 +71,7 @@ export function createRangerHandlers(d) {
             : null,
       };
     },
-    mark_target(ctx) {
+    mark_target(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
@@ -79,7 +80,7 @@ export function createRangerHandlers(d) {
       target.markDamageBonusPct = ability.markDamageBonusPct ?? 10;
       return { hit: true };
     },
-    disengage_shot(ctx) {
+    disengage_shot(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
@@ -89,7 +90,7 @@ export function createRangerHandlers(d) {
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
-      let result = null;
+      let /** @type {any} */ result = null;
       if (d.rollHit(derived.accuracy, 0)) {
         if (targetPlayer) {
           result = d.applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
@@ -134,7 +135,7 @@ export function createRangerHandlers(d) {
           : null,
       };
     },
-    eagle_eye(ctx) {
+    eagle_eye(/** @type {any} */ ctx) {
       const { player, ability } = ctx;
       player.eagleEyeUntil = ctx.now + (ability.durationMs ?? 8000);
       player.critChanceBonusPct = ability.critChanceBonusPct ?? 20;

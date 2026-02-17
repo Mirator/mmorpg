@@ -1,8 +1,9 @@
+// @ts-check
 import { tryUseAbility } from '../../logic/combat.js';
 import { sendCombatLog } from '../../logic/combatLog.js';
 import { buildCombatLogDispatch } from '../../logic/combatLogEntries.js';
 
-export function handleAbility(ctx) {
+export function handleAbility(/** @type {any} */ ctx) {
   const {
     player,
     players,
@@ -14,7 +15,7 @@ export function handleAbility(ctx) {
     persistence,
   } = ctx;
   const now = Date.now();
-  const result = tryUseAbility({
+  const result = /** @type {any} */ (tryUseAbility({
     player,
     slot: ctx.msg.slot,
     mobs,
@@ -24,7 +25,7 @@ export function handleAbility(ctx) {
     respawnMs: config.mob.respawnMs,
     placementX: ctx.msg.placementX,
     placementZ: ctx.msg.placementZ,
-  });
+  }));
   if (!result.success && result.reason) {
     safeSend(player.ws, { type: 'abilityFailed', reason: result.reason, slot: ctx.msg.slot });
   }

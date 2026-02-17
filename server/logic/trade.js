@@ -3,25 +3,34 @@
 import { playersInRange } from './duel.js';
 import { addItem, countInventory } from './inventory.js';
 
-/** @type {Map<string, import('./trade.js').TradeSession>} */
+/** @typedef {import('../types/domain.d.ts').Inventory} Inventory */
+/** @typedef {import('../types/domain.d.ts').InventoryItem} InventoryItem */
+/** @typedef {import('../types/domain.d.ts').InventorySlot} InventorySlot */
+/** @typedef {import('../types/domain.d.ts').PlayerMap} PlayerMap */
+/** @typedef {import('../types/domain.d.ts').ServerPlayer} ServerPlayer */
+/** @typedef {import('../types/domain.d.ts').TradeOffer} TradeOffer */
+/** @typedef {import('../types/domain.d.ts').TradeSession} TradeSession */
+
+/** @type {Map<string, TradeSession>} */
 const tradeSessions = new Map();
 
 /**
- * @typedef {{ id: string, a: Object, b: Object, offerA: { items: Array<Object|null>, copper: number }, offerB: { items: Array<Object|null>, copper: number }, confirmedA: boolean, confirmedB: boolean }} TradeSession
+ * @typedef {{ ok: boolean, error?: string }} TradeResult
  */
 
 /**
- * @param {Object} player
+ * @param {ServerPlayer | null | undefined} player
  * @returns {boolean}
  */
 export function isTrading(player) {
-  return tradeSessions.has(player?.id);
+  if (!player?.id) return false;
+  return tradeSessions.has(player.id);
 }
 
 /**
- * @param {Object} a - Requester
- * @param {Object} b - Accepter
- * @param {Map<string, Object>} players
+ * @param {ServerPlayer} a - Requester
+ * @param {ServerPlayer} b - Accepter
+ * @param {PlayerMap} players
  * @returns {TradeSession | null}
  */
 export function createTradeSession(a, b, players) {
@@ -53,43 +62,47 @@ export function getTradeSession(playerId) {
 }
 
 /**
- * @param {Object} player
- * @returns {Object | null} - The other player in the trade
+ * @param {ServerPlayer | null | undefined} player
+ * @returns {ServerPlayer | null} - The other player in the trade
  */
 export function getTradePartner(player) {
-  const session = tradeSessions.get(player?.id);
+  if (!player?.id) return null;
+  const session = tradeSessions.get(player.id);
   if (!session) return null;
   return session.a.id === player.id ? session.b : session.a;
 }
 
 /**
- * @param {Object} player
- * @returns {{ items: Array<Object|null>, copper: number }}
+ * @param {ServerPlayer | null | undefined} player
+ * @returns {TradeOffer}
  */
 export function getMyOffer(player) {
-  const session = tradeSessions.get(player?.id);
+  if (!player?.id) return { items: [], copper: 0 };
+  const session = tradeSessions.get(player.id);
   if (!session) return { items: [], copper: 0 };
   return session.a.id === player.id ? session.offerA : session.offerB;
 }
 
 /**
- * @param {Object} player
- * @returns {{ items: Array<Object|null>, copper: number }}
+ * @param {ServerPlayer | null | undefined} player
+ * @returns {TradeOffer}
  */
 export function getOtherOffer(player) {
-  const session = tradeSessions.get(player?.id);
+  if (!player?.id) return { items: [], copper: 0 };
+  const session = tradeSessions.get(player.id);
   if (!session) return { items: [], copper: 0 };
   return session.a.id === player.id ? session.offerB : session.offerA;
 }
 
 /**
  * Add item from inventory slot to player's offer.
- * @param {Object} player
+ * @param {ServerPlayer | null | undefined} player
  * @param {number} invSlot
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {TradeResult}
  */
 export function addItemToOffer(player, invSlot) {
-  const session = tradeSessions.get(player?.id);
+  if (!player?.id) return { ok: false, error: 'not_trading' };
+  const session = tradeSessions.get(player.id);
   if (!session) return { ok: false, error: 'not_trading' };
   const offer = session.a.id === player.id ? session.offerA : session.offerB;
   if (session.confirmedA || session.confirmedB) return { ok: false, error: 'locked' };
@@ -105,12 +118,13 @@ export function addItemToOffer(player, invSlot) {
 
 /**
  * Add copper to player's offer.
- * @param {Object} player
+ * @param {ServerPlayer | null | undefined} player
  * @param {number} amount
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {TradeResult}
  */
 export function addCopperToOffer(player, amount) {
-  const session = tradeSessions.get(player?.id);
+  if (!player?.id) return { ok: false, error: 'not_trading' };
+  const session = tradeSessions.get(player.id);
   if (!session) return { ok: false, error: 'not_trading' };
   const offer = session.a.id === player.id ? session.offerA : session.offerB;
   if (session.confirmedA || session.confirmedB) return { ok: false, error: 'locked' };
@@ -124,12 +138,13 @@ export function addCopperToOffer(player, amount) {
 
 /**
  * Remove item at offer index, return to first free inventory slot.
- * @param {Object} player
+ * @param {ServerPlayer | null | undefined} player
  * @param {number} offerIndex
- * @returns {{ ok: boolean, error?: string }}
+ * @returns {TradeResult}
  */
 export function removeItemFromOffer(player, offerIndex) {
-  const session = tradeSessions.get(player?.id);
+  if (!player?.id) return { ok: false, error: 'not_trading' };
+  const session = tradeSessions.get(player.id);
   if (!session) return { ok: false, error: 'not_trading' };
   const offer = session.a.id === player.id ? session.offerA : session.offerB;
   if (session.confirmedA || session.confirmedB) return { ok: false, error: 'locked' };
@@ -148,11 +163,12 @@ export function removeItemFromOffer(player, offerIndex) {
 
 /**
  * Remove copper from offer.
- * @param {Object} player
+ * @param {ServerPlayer | null | undefined} player
  * @returns {{ ok: boolean }}
  */
 export function removeCopperFromOffer(player) {
-  const session = tradeSessions.get(player?.id);
+  if (!player?.id) return { ok: false };
+  const session = tradeSessions.get(player.id);
   if (!session) return { ok: false };
   const offer = session.a.id === player.id ? session.offerA : session.offerB;
   if (session.confirmedA || session.confirmedB) return { ok: false };
@@ -162,22 +178,24 @@ export function removeCopperFromOffer(player) {
 
 /**
  * Check if inventory can fit all offered items (conservative: same kind stacks).
- * @param {Object} inv
- * @param {Array<Object|null>} items
+ * @param {Inventory} inv
+ * @param {Inventory} items
  * @param {number} stackMax
  * @returns {boolean}
  */
 function canAcceptItems(inv, items, stackMax) {
   if (!Array.isArray(inv)) return false;
-  const toAdd = items.filter((i) => i && (i.count ?? 0) > 0);
+  const toAdd = /** @type {InventoryItem[]} */ (items.filter((i) => i && (i.count ?? 0) > 0));
   if (toAdd.length === 0) return true;
   const stackMaxSafe = Math.max(1, stackMax);
+  /** @type {Record<string, number>} */
   const byKind = {};
   for (const item of toAdd) {
     const k = item.kind ?? 'unknown';
     byKind[k] = (byKind[k] ?? 0) + (item.count ?? 1);
   }
   let neededSlots = 0;
+  /** @type {Record<string, number>} */
   const invByKind = {};
   for (const s of inv) {
     if (!s) continue;
@@ -198,8 +216,8 @@ function canAcceptItems(inv, items, stackMax) {
 /**
  * Execute the trade: swap offers, deduct copper.
  * @param {TradeSession} session
- * @param {Function} markDirty
- * @returns {{ ok: boolean, error?: string }}
+ * @param {(player: ServerPlayer) => void} markDirty
+ * @returns {TradeResult}
  */
 export function executeTrade(session, markDirty) {
   if (!session.confirmedA || !session.confirmedB) return { ok: false, error: 'not_confirmed' };
@@ -229,10 +247,12 @@ export function executeTrade(session, markDirty) {
 
 /**
  * End trade session and return both players' offered items to their inventories.
- * @param {Object} player - Either participant (used to find the session)
+ * @param {ServerPlayer | null | undefined} player - Either participant (used to find the session)
+ * @param {boolean} [returnItems]
  */
 export function endTradeSession(player, returnItems = true) {
-  const session = tradeSessions.get(player?.id);
+  if (!player?.id) return;
+  const session = tradeSessions.get(player.id);
   if (!session) return;
   tradeSessions.delete(session.a.id);
   tradeSessions.delete(session.b.id);

@@ -1,26 +1,27 @@
+// @ts-check
 import { getAbilitiesForClass } from '/shared/classes.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 
 const MAX_COMBAT_EVENTS = 12;
 const COMBAT_EVENT_TTL_MS = 2500;
 
-export function createCombat({
+export function createCombat(/** @type {any} */ {
   gameState,
   ui,
   renderSystem,
   sendWithSeq,
   ctx,
 }) {
-  const combatEvents = [];
-  let placementMode = null;
+  const /** @type {any} */ combatEvents = [];
+  let /** @type {any} */ placementMode = null;
 
-  function recordCombatEvent(event, now) {
+  function recordCombatEvent(/** @type {any} */ event, /** @type {any} */ now) {
     if (!event) return;
     combatEvents.push({ ...event, t: now });
     pruneCombatEvents(now);
   }
 
-  function pruneCombatEvents(now) {
+  function pruneCombatEvents(/** @type {any} */ now) {
     while (combatEvents.length > MAX_COMBAT_EVENTS) {
       combatEvents.shift();
     }
@@ -38,13 +39,13 @@ export function createCombat({
     return config?.combat?.targetSelectRange ?? 25;
   }
 
-  function getAliveTargetById(targetId) {
+  function getAliveTargetById(/** @type {any} */ targetId) {
     if (!targetId) return null;
     const mobs = gameState.getLatestMobs();
-    return mobs.find((mob) => mob.id === targetId && !mob.dead && mob.hp > 0) ?? null;
+    return mobs.find((/** @type {any} */ mob) => mob.id === targetId && !mob.dead && mob.hp > 0) ?? null;
   }
 
-  function getAlivePlayerById(targetId) {
+  function getAlivePlayerById(/** @type {any} */ targetId) {
     if (!targetId) return null;
     const players = gameState.getLatestPlayers();
     const target =
@@ -53,7 +54,7 @@ export function createCombat({
     return { id: targetId, ...target };
   }
 
-  function selectTarget(selection) {
+  function selectTarget(/** @type {any} */ selection) {
     if (!selection || !selection.id || !selection.kind) {
       ctx.selectedTarget = null;
       sendWithSeq({ type: 'targetSelect', targetId: null, targetKind: null });
@@ -75,15 +76,15 @@ export function createCombat({
     if (!me) return;
     const range = getTargetSelectRange();
     const range2 = range * range;
-    const mobs = gameState.getLatestMobs().filter((mob) => !mob.dead && mob.hp > 0);
+    const mobs = gameState.getLatestMobs().filter((/** @type {any} */ mob) => !mob.dead && mob.hp > 0);
     const inRange = mobs
-      .map((mob) => {
+      .map((/** @type {any} */ mob) => {
         const dx = mob.x - me.x;
         const dz = mob.z - me.z;
         return { mob, dist2: dx * dx + dz * dz };
       })
-      .filter((entry) => entry.dist2 <= range2)
-      .sort((a, b) => {
+      .filter((/** @type {any} */ entry) => entry.dist2 <= range2)
+      .sort((/** @type {any} */ a, /** @type {any} */ b) => {
         if (a.dist2 !== b.dist2) return a.dist2 - b.dist2;
         return String(a.mob.id).localeCompare(String(b.mob.id));
       });
@@ -92,18 +93,18 @@ export function createCombat({
       return;
     }
     const currentMobId = ctx.selectedTarget?.kind === 'mob' ? ctx.selectedTarget.id : null;
-    const idx = inRange.findIndex((entry) => entry.mob.id === currentMobId);
+    const idx = inRange.findIndex((/** @type {any} */ entry) => entry.mob.id === currentMobId);
     const next = inRange[(idx + 1) % inRange.length].mob;
     selectTarget({ kind: 'mob', id: next.id });
   }
 
-  function useAbility(slot) {
+  function useAbility(/** @type {any} */ slot) {
     const currentMe = ctx.currentMe;
     if (ui.isUiBlocking()) return;
     const classId = ui.getCurrentClassId(currentMe);
     const weaponDef = getEquippedWeapon(currentMe?.equipment, classId);
     const abilities = getAbilitiesForClass(classId, currentMe?.level ?? 1, weaponDef);
-    const ability = abilities.find((item) => item.slot === slot);
+    const ability = abilities.find((/** @type {any} */ item) => item.slot === slot);
     if (!ability) return;
     if (placementMode && placementMode.slot !== slot) {
       cancelPlacement();
@@ -151,7 +152,7 @@ export function createCombat({
     sendWithSeq({ type: 'action', kind: 'ability', slot });
   }
 
-  const ABILITY_COLORS = {
+  const /** @type {any} */ ABILITY_COLORS = {
     frost_nova: 0x88ccff,
     ground_slam: 0x8b7355,
     meteor: 0xff6633,
@@ -174,7 +175,7 @@ export function createCombat({
     eagle_eye: 0xffdd66,
   };
 
-  function handleCombatEvent(event, now, serverTime) {
+  function handleCombatEvent(/** @type {any} */ event, /** @type {any} */ now, /** @type {any} */ serverTime) {
     if (!event) return;
     const timestamp = Number.isFinite(serverTime) ? serverTime : gameState.getServerNow();
     recordCombatEvent(event, timestamp);
@@ -239,7 +240,7 @@ export function createCombat({
     return placementMode;
   }
 
-  function confirmPlacement(pos) {
+  function confirmPlacement(/** @type {any} */ pos) {
     if (!placementMode || !pos) return;
     const { slot } = placementMode;
     placementMode = null;
@@ -253,7 +254,7 @@ export function createCombat({
     renderSystem?.setPlacementIndicator?.(false);
   }
 
-  function updatePlacementCursor(pos) {
+  function updatePlacementCursor(/** @type {any} */ pos) {
     if (!placementMode || !pos || !renderSystem?.updatePlacementIndicator) return;
     const me = ctx.currentMe;
     const range = placementMode.ability?.placementRange ?? 10;

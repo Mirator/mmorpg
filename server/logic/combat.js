@@ -1,3 +1,4 @@
+// @ts-check
 import {
   addXp,
   calculateMobXp,
@@ -23,7 +24,7 @@ import { rollAndGrantLoot } from './loot.js';
 // Ownership boundary: this module is the server-authoritative combat rules engine.
 // Transport/session concerns belong in WS/HTTP layers, not in combat logic.
 
-export function getBasicAttackConfig(player) {
+export function getBasicAttackConfig(/** @type {any} */ player) {
   const klass = getClassById(player?.classId);
   const weaponDef = getEquippedWeapon(player?.equipment, player?.classId);
   const range = Number.isFinite(weaponDef?.range) ? weaponDef.range : klass?.attackRange ?? 2.0;
@@ -38,15 +39,15 @@ export function getBasicAttackConfig(player) {
   };
 }
 
-function getRelevantPower(derived, attackType) {
+function getRelevantPower(/** @type {any} */ derived, /** @type {any} */ attackType) {
   if (attackType === 'melee') return derived.physicalPower;
   if (attackType === 'ranged') return derived.rangedPower;
   return derived.magicPower;
 }
 
-function getRelevantPowerForAbility(derived, ability, classId) {
-  const magicClasses = ['mage', 'priest'];
-  const magicAbilities = ['firebolt', 'frost_nova', 'smite'];
+function getRelevantPowerForAbility(/** @type {any} */ derived, /** @type {any} */ ability, /** @type {any} */ classId) {
+  const /** @type {any} */ magicClasses = ['mage', 'priest'];
+  const /** @type {any} */ magicAbilities = ['firebolt', 'frost_nova', 'smite'];
   if (magicAbilities.includes(ability?.id) || (magicClasses.includes(classId) && ability?.id !== 'basic_attack')) {
     return derived.magicPower;
   }
@@ -56,19 +57,19 @@ function getRelevantPowerForAbility(derived, ability, classId) {
   return derived.magicPower;
 }
 
-function applyPvpDamageMultiplier(damage, ability, isPvP) {
+function applyPvpDamageMultiplier(/** @type {any} */ damage, /** @type {any} */ ability, /** @type {any} */ isPvP) {
   if (!isPvP) return damage;
   const mult = ability?.pvpDamageMultiplier ?? 1.0;
   return Math.max(0, Math.floor(damage * mult));
 }
 
-function applyPvpHealMultiplier(heal, ability, isPvP) {
+function applyPvpHealMultiplier(/** @type {any} */ heal, /** @type {any} */ ability, /** @type {any} */ isPvP) {
   if (!isPvP) return heal;
   const mult = ability?.pvpHealMultiplier ?? 1.0;
   return Math.max(0, Math.floor(heal * mult));
 }
 
-function applyPvpCCDurationMultiplier(durationMs, ability, isPvP) {
+function applyPvpCCDurationMultiplier(/** @type {any} */ durationMs, /** @type {any} */ ability, /** @type {any} */ isPvP) {
   if (!isPvP) return durationMs;
   const mult = ability?.pvpCCDurationMultiplier ?? 1.0;
   return Math.max(0, Math.floor(durationMs * mult));
@@ -76,8 +77,8 @@ function applyPvpCCDurationMultiplier(durationMs, ability, isPvP) {
 
 /**
  * Damage = baseValue + (Relevant Power × coefficient)
- * @param {Object} player
- * @param {Object} ability
+ * @param {any} player
+ * @param {any} ability
  * @param {number} [now]
  * @param {boolean} [isPvP] - When true, use PvP variants of self-buffs (Berserk, Avatar, Eagle Eye)
  */
@@ -113,26 +114,26 @@ function computeAbilityDamage(player, ability, now = 0, isPvP = false) {
 /**
  * Damage = baseValue + (Relevant Power × coefficient)
  */
-function computeOutgoingDamage(baseValue, coefficient, relevantPower) {
+function computeOutgoingDamage(/** @type {any} */ baseValue, /** @type {any} */ coefficient, /** @type {any} */ relevantPower) {
   return Math.max(0, Math.floor(baseValue + relevantPower * coefficient));
 }
 
-function rollHit(attackerAccuracy, targetEvasion) {
+function rollHit(/** @type {any} */ attackerAccuracy, /** @type {any} */ targetEvasion) {
   const hitChance = computeHitChance(attackerAccuracy, targetEvasion);
   return Math.random() < hitChance;
 }
 
-function rollCrit(critChance) {
+function rollCrit(/** @type {any} */ critChance) {
   return Math.random() < critChance;
 }
 
-function distance2(a, b) {
+function distance2(/** @type {any} */ a, /** @type {any} */ b) {
   const dx = a.x - b.x;
   const dz = a.z - b.z;
   return dx * dx + dz * dz;
 }
 
-function getMobDisplayName(mob) {
+function getMobDisplayName(/** @type {any} */ mob) {
   if (!mob) return 'Enemy';
   const level = mob.level ?? 1;
   return `Enemy (Lv.${level})`;
@@ -140,11 +141,11 @@ function getMobDisplayName(mob) {
 
 const COMBAT_TAG_MS = 5000;
 
-function clamp(value, min, max) {
+function clamp(/** @type {any} */ value, /** @type {any} */ min, /** @type {any} */ max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function clampResource(player, value) {
+function clampResource(/** @type {any} */ player, /** @type {any} */ value) {
   let max = Number.isFinite(player?.resourceMax) ? player.resourceMax : 0;
   if (max <= 0) {
     const resourceDef = getResourceForClass(player?.classId);
@@ -153,31 +154,31 @@ function clampResource(player, value) {
   return clamp(value ?? 0, 0, max);
 }
 
-function tagCombat(player, now) {
+function tagCombat(/** @type {any} */ player, /** @type {any} */ now) {
   if (!player) return;
   player.combatTagUntil = now + COMBAT_TAG_MS;
 }
 
-function getAbilityForSlot(player, slot) {
+function getAbilityForSlot(/** @type {any} */ player, /** @type {any} */ slot) {
   if (!player) return null;
   const weaponDef = getEquippedWeapon(player?.equipment, player?.classId);
   const abilities = getAbilitiesForClass(player?.classId, player?.level ?? 1, weaponDef);
-  return abilities.find((ability) => ability.slot === slot) ?? null;
+  return abilities.find((/** @type {any} */ ability) => ability.slot === slot) ?? null;
 }
 
-function getAbilityById(player, abilityId) {
+function getAbilityById(/** @type {any} */ player, /** @type {any} */ abilityId) {
   if (!player) return null;
   const weaponDef = getEquippedWeapon(player?.equipment, player?.classId);
   const abilities = getAbilitiesForClass(player?.classId, player?.level ?? 1, weaponDef);
-  return abilities.find((ability) => ability.id === abilityId) ?? null;
+  return abilities.find((/** @type {any} */ ability) => ability.id === abilityId) ?? null;
 }
 
-function getAbilityCooldownUntil(player, abilityId) {
+function getAbilityCooldownUntil(/** @type {any} */ player, /** @type {any} */ abilityId) {
   if (!player || !abilityId) return 0;
   return Number(player?.abilityCooldowns?.[abilityId]) || 0;
 }
 
-function setAbilityCooldown(player, abilityId, until) {
+function setAbilityCooldown(/** @type {any} */ player, /** @type {any} */ abilityId, /** @type {any} */ until) {
   if (!player || !abilityId) return;
   if (!player.abilityCooldowns || typeof player.abilityCooldowns !== 'object') {
     player.abilityCooldowns = {};
@@ -185,10 +186,10 @@ function setAbilityCooldown(player, abilityId, until) {
   player.abilityCooldowns[abilityId] = until;
 }
 
-function getDirectionFromTarget(player, mobs) {
+function getDirectionFromTarget(/** @type {any} */ player, /** @type {any} */ mobs) {
   if (!player?.targetId) return null;
   if (player.targetKind && player.targetKind !== 'mob') return null;
-  const target = Array.isArray(mobs) ? mobs.find((mob) => mob.id === player.targetId) : null;
+  const target = Array.isArray(mobs) ? mobs.find((/** @type {any} */ mob) => mob.id === player.targetId) : null;
   if (!target || target.dead || target.hp <= 0) return null;
   const dx = target.pos.x - player.pos.x;
   const dz = target.pos.z - player.pos.z;
@@ -197,7 +198,7 @@ function getDirectionFromTarget(player, mobs) {
   return { x: dx / dist, z: dz / dist };
 }
 
-function getAbilityDirection(player, mobs) {
+function getAbilityDirection(/** @type {any} */ player, /** @type {any} */ mobs) {
   const dirFromTarget = getDirectionFromTarget(player, mobs);
   if (dirFromTarget) return dirFromTarget;
   if (player?.lastMoveDir && Number.isFinite(player.lastMoveDir.x)) {
@@ -214,13 +215,13 @@ const DAMAGE_ELIGIBILITY_PCT = 0.10;
 const ANTI_BOOST_GAP = 3;
 const ANTI_BOOST_RATE = 0.08;
 
-let _lootContext = null;
+let /** @type {any} */ _lootContext = null;
 
-export function setLootContext(ctx) {
+export function setLootContext(/** @type {any} */ ctx) {
   _lootContext = ctx ?? null;
 }
 
-function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
+function applyDamageToMob(/** @type {any} */ { mob, damage, attacker, now, respawnMs, players }) {
   const lootContext = _lootContext;
   if (!mob) return { xpGain: 0, leveledUp: false, killed: false, xpGainByPlayer: [] };
   if (!Number.isFinite(mob.maxHp)) {
@@ -241,7 +242,7 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
   }
   mob.hp = Math.max(0, mob.hp - dmg);
 
-  let xpGainByPlayer = [];
+  let /** @type {any} */ xpGainByPlayer = [];
   let killed = false;
   if (mob.hp <= 0) {
     mob.dead = true;
@@ -264,10 +265,10 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
       const totalXpPool = Math.floor(baseXp * mult * partyBonus(party.memberIds.length));
       const mobPos = mob.pos ?? mob;
       const damageThreshold = (mob.maxHp ?? 0) * DAMAGE_ELIGIBILITY_PCT;
-      const totalDamage = Object.values(mob.damageBy ?? {}).reduce((s, v) => s + v, 0);
-      const totalSupport = Object.values(mob.supportBy ?? {}).reduce((s, v) => s + v, 0);
+      const totalDamage = Object.values(mob.damageBy ?? {}).reduce((/** @type {any} */ s, /** @type {any} */ v) => s + v, 0);
+      const totalSupport = Object.values(mob.supportBy ?? {}).reduce((/** @type {any} */ s, /** @type {any} */ v) => s + v, 0);
 
-      const eligible = [];
+      const /** @type {any} */ eligible = [];
       for (const pid of party.memberIds) {
         const p = players.get(pid);
         if (!p || p.dead) continue;
@@ -282,12 +283,13 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
           player: p,
           damageShare: totalDamage > 0 ? dmgDealt / totalDamage : 0,
           supportShare: totalSupport > 0 ? supportCount / totalSupport : 0,
+          weight: 0,
         });
       }
 
       if (eligible.length > 0 && totalXpPool > 0) {
         const partyAvgLevel =
-          eligible.reduce((s, e) => s + (e.player?.level ?? 1), 0) / eligible.length;
+          eligible.reduce((/** @type {any} */ s, /** @type {any} */ e) => s + (e.player?.level ?? 1), 0) / eligible.length;
         let sumWeights = 0;
         for (const e of eligible) {
           e.weight = e.damageShare + 0.5 * e.supportShare;
@@ -347,7 +349,7 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
     }
   }
 
-  const attackerEntry = xpGainByPlayer.find((e) => e.playerId === attacker?.id);
+  const attackerEntry = xpGainByPlayer.find((/** @type {any} */ e) => e.playerId === attacker?.id);
   return {
     xpGain: attackerEntry?.xpGain ?? 0,
     leveledUp: attackerEntry?.leveledUp ?? false,
@@ -358,7 +360,7 @@ function applyDamageToMob({ mob, damage, attacker, now, respawnMs, players }) {
 
 const DIED_IN_PVP_MS = 60_000;
 
-function applyDamageToPlayer({ targetPlayer, damage, attacker, now }) {
+function applyDamageToPlayer(/** @type {any} */ { targetPlayer, damage, attacker, now }) {
   if (!targetPlayer || targetPlayer.dead) return { killed: false, damageDealt: 0 };
   let dmg = Math.max(0, Math.floor(damage));
   let mult = 1;
@@ -384,9 +386,9 @@ function applyDamageToPlayer({ targetPlayer, damage, attacker, now }) {
   return { killed, damageDealt: dmg };
 }
 
-export function findNearestMobInRange(mobs, pos, range) {
+export function findNearestMobInRange(/** @type {any} */ mobs, /** @type {any} */ pos, /** @type {any} */ range) {
   if (!Array.isArray(mobs) || !pos) return null;
-  let best = null;
+  let /** @type {any} */ best = null;
   let bestDist2 = range * range;
   for (const mob of mobs) {
     if (!mob || mob.dead || mob.hp <= 0) continue;
@@ -402,9 +404,9 @@ export function findNearestMobInRange(mobs, pos, range) {
 const GLOBAL_COOLDOWN_MS = COMBAT_CONFIG.globalCooldownMs ?? 900;
 const CC_DR_WINDOW_MS = COMBAT_CONFIG.ccDrWindowMs ?? 10_000;
 
-const CC_DR_MULTIPLIERS = [1.0, 0.5, 0.25, 0];
+const /** @type {any} */ CC_DR_MULTIPLIERS = [1.0, 0.5, 0.25, 0];
 
-function applyCCWithDR(target, category, baseDurationMs, ability, isPvP, now) {
+function applyCCWithDR(/** @type {any} */ target, /** @type {any} */ category, /** @type {any} */ baseDurationMs, /** @type {any} */ ability, /** @type {any} */ isPvP, /** @type {any} */ now) {
   const durationAfterPvp = applyPvpCCDurationMultiplier(baseDurationMs, ability, isPvP);
   if (durationAfterPvp <= 0) return 0;
   if (!target) return 0;
@@ -413,7 +415,7 @@ function applyCCWithDR(target, category, baseDurationMs, ability, isPvP, now) {
   const history = target.ccHistory[category];
   if (!Array.isArray(history)) return 0;
   const cutoff = t - CC_DR_WINDOW_MS;
-  const recent = history.filter((ts) => ts > cutoff);
+  const recent = history.filter((/** @type {any} */ ts) => ts > cutoff);
   const count = recent.length;
   const multiplier = CC_DR_MULTIPLIERS[Math.min(count, 3)];
   if (multiplier <= 0) return 0;
@@ -423,7 +425,7 @@ function applyCCWithDR(target, category, baseDurationMs, ability, isPvP, now) {
   return effectiveDuration;
 }
 
-export function tryBasicAttack({ player, mobs, now, respawnMs, players }) {
+export function tryBasicAttack(/** @type {any} */ { player, mobs, now, respawnMs, players }) {
   if (!player || player.dead) return { success: false };
   const config = getBasicAttackConfig(player);
   if (now < (player.globalCooldownUntil ?? 0)) {
@@ -437,7 +439,7 @@ export function tryBasicAttack({ player, mobs, now, respawnMs, players }) {
     return { success: false, reason: 'no_target' };
   }
 
-  const target = Array.isArray(mobs) ? mobs.find((mob) => mob.id === player.targetId) : null;
+  const target = Array.isArray(mobs) ? mobs.find((/** @type {any} */ mob) => mob.id === player.targetId) : null;
   if (!target || target.dead || target.hp <= 0) {
     player.targetId = null;
     player.targetKind = null;
@@ -483,8 +485,8 @@ export function tryBasicAttack({ player, mobs, now, respawnMs, players }) {
 
   syncDerivedStatsOnLevelUp(player, damageResult.leveledUp);
 
-  const from = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
-  const to = { x: target.pos.x, y: target.pos.y ?? 0, z: target.pos.z };
+  const /** @type {any} */ from = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
+  const /** @type {any} */ to = { x: target.pos.x, y: target.pos.y ?? 0, z: target.pos.z };
   const durationMs = config.attackType === 'ranged' ? 200 : 180;
 
   const basicAttackAbility = getAbilityForSlot(player, 1);
@@ -518,7 +520,7 @@ export function tryBasicAttack({ player, mobs, now, respawnMs, players }) {
   };
 }
 
-function syncDerivedStatsOnLevelUp(player, leveledUp) {
+function syncDerivedStatsOnLevelUp(/** @type {any} */ player, /** @type {any} */ leveledUp) {
   if (!leveledUp) return;
   const derived = computeDerivedStats(player);
   player.maxHp = derived.maxHp;
@@ -532,20 +534,20 @@ function syncDerivedStatsOnLevelUp(player, leveledUp) {
   }
 }
 
-function computeScaledValue(base, perLevel, level) {
+function computeScaledValue(/** @type {any} */ base, /** @type {any} */ perLevel, /** @type {any} */ level) {
   const raw = (base ?? 0) + (perLevel ?? 0) * (level ?? 1);
   return Math.max(0, Math.round(raw));
 }
 
-function resolveMobTarget(player, mobs) {
+function resolveMobTarget(/** @type {any} */ player, /** @type {any} */ mobs) {
   if (!player?.targetId) return null;
   if (player.targetKind && player.targetKind !== 'mob') return null;
-  const target = Array.isArray(mobs) ? mobs.find((mob) => mob.id === player.targetId) : null;
+  const target = Array.isArray(mobs) ? mobs.find((/** @type {any} */ mob) => mob.id === player.targetId) : null;
   if (!target || target.dead || target.hp <= 0) return null;
   return target;
 }
 
-function resolvePlayerTarget(player, players, allowDead = false) {
+function resolvePlayerTarget(/** @type {any} */ player, /** @type {any} */ players, /** @type {any} */ allowDead = false) {
   if (!player?.targetId) return null;
   if (player.targetKind !== 'player') return null;
   const targetPlayer = players?.get?.(player.targetId);
@@ -554,12 +556,12 @@ function resolvePlayerTarget(player, players, allowDead = false) {
   return targetPlayer;
 }
 
-function withinRange(origin, target, range) {
+function withinRange(/** @type {any} */ origin, /** @type {any} */ target, /** @type {any} */ range) {
   if (!origin || !target || !Number.isFinite(range)) return false;
   return distance2(origin, target) <= range * range;
 }
 
-function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs, direction, players }) {
+function applyCleave(/** @type {any} */ { player, mobs, range, coneDegrees, ability, now, respawnMs, direction, players }) {
   if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false };
   const dir = direction ?? getAbilityDirection(player, mobs);
   if (!dir) return { xpGain: 0, leveledUp: false, hit: false, noDirection: true };
@@ -593,7 +595,7 @@ function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs
     hit = true;
   }
   if (players?.forEach) {
-    players.forEach((targetPlayer) => {
+    players.forEach((/** @type {any} */ targetPlayer) => {
       if (!targetPlayer || targetPlayer.dead || targetPlayer.id === player.id) return;
       if (!isPvPAllowed(player, targetPlayer, {})) return;
       const dx = (targetPlayer.pos?.x ?? 0) - player.pos.x;
@@ -609,7 +611,7 @@ function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs
       hit = true;
     });
   }
-  const xpGainByPlayerArr = Array.from(xpByPlayer.entries()).map(([playerId, v]) => ({
+  const xpGainByPlayerArr = Array.from(xpByPlayer.entries()).map((/** @type {any} */ [playerId, v]) => ({
     playerId,
     xpGain: v.xpGain,
     leveledUp: v.leveledUp,
@@ -617,7 +619,7 @@ function applyCleave({ player, mobs, range, coneDegrees, ability, now, respawnMs
   return { xpGain, leveledUp, hit, xpGainByPlayer: xpGainByPlayerArr };
 }
 
-function applyNova({ player, mobs, radius, ability, slowPct, slowDurationMs, rootDurationMs, now, respawnMs, players, center }) {
+function applyNova(/** @type {any} */ { player, mobs, radius, ability, slowPct, slowDurationMs, rootDurationMs, now, respawnMs, players, center }) {
   if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false, killed: 0 };
   const origin = center ?? player.pos;
   let xpGain = 0;
@@ -661,7 +663,7 @@ function applyNova({ player, mobs, radius, ability, slowPct, slowDurationMs, roo
   if (players?.forEach) {
     const { damage: pvpDmg, derived: pvpDerived } = computeAbilityDamage(player, ability, now, true);
     const pvpDamage = applyPvpDamageMultiplier(pvpDmg, ability, true);
-    players.forEach((targetPlayer) => {
+    players.forEach((/** @type {any} */ targetPlayer) => {
       if (!targetPlayer || targetPlayer.dead || targetPlayer.id === player.id) return;
       if (!isPvPAllowed(player, targetPlayer, {})) return;
       const dist = Math.hypot(
@@ -687,7 +689,7 @@ function applyNova({ player, mobs, radius, ability, slowPct, slowDurationMs, roo
       hit = true;
     });
   }
-  const xpGainByPlayer = Array.from(xpByPlayer.entries()).map(([playerId, v]) => ({
+  const xpGainByPlayer = Array.from(xpByPlayer.entries()).map((/** @type {any} */ [playerId, v]) => ({
     playerId,
     xpGain: v.xpGain,
     leveledUp: v.leveledUp,
@@ -695,7 +697,7 @@ function applyNova({ player, mobs, radius, ability, slowPct, slowDurationMs, roo
   return { xpGain, leveledUp, hit, killed, xpGainByPlayer };
 }
 
-export function tryUseAbility({ player, slot, mobs, players, world, now, respawnMs, placementX, placementZ }) {
+export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, world, now, respawnMs, placementX, placementZ }) {
   if (!player || player.dead) return { success: false };
   const ability = getAbilityForSlot(player, slot) ?? null;
   if (!ability) return { success: false, reason: 'unknown_ability' };
@@ -714,8 +716,8 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
   }
   const preResource = player.resource ?? 0;
 
-  let targetMob = null;
-  let targetPlayer = null;
+  let /** @type {any} */ targetMob = null;
+  let /** @type {any} */ targetPlayer = null;
   if (ability.targetType === 'targeted') {
     if (ability.targetKind === 'player') {
       targetPlayer = resolvePlayerTarget(player, players, ability.id === 'salvation');
@@ -784,7 +786,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
     return { success: true, castStarted: true };
   }
 
-  let abilityDir = null;
+  let /** @type {any} */ abilityDir = null;
   if (ability.id === 'cleave' || ability.id === 'roll_back' || ability.id === 'whirlwind' || ability.id === 'flame_wave') {
     abilityDir = getAbilityDirection(player, mobs);
     if (!abilityDir) return { success: false, reason: 'no_direction' };
@@ -808,11 +810,11 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
   let xpGain = 0;
   let leveledUp = false;
   let hit = false;
-  let combatLog = null;
+  let /** @type {any} */ combatLog = null;
 
   const handler = ABILITY_HANDLERS[ability.id];
   if (handler) {
-    const result = handler({
+    const result = /** @type {any} */ (handler({
       player,
       ability,
       targetMob,
@@ -825,7 +827,7 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
       abilityDir,
       preResource,
       placementCenter,
-    });
+    }));
     xpGain = result.xpGain ?? 0;
     leveledUp = result.leveledUp ?? false;
     hit = result.hit ?? false;
@@ -848,9 +850,9 @@ export function tryUseAbility({ player, slot, mobs, players, world, now, respawn
   return { success: true, xpGain, leveledUp, combatLog, event };
 }
 
-function buildAbilityEvent({ player, ability, targetMob, targetPlayer, abilityDir, placementCenter }) {
+function buildAbilityEvent(/** @type {any} */ { player, ability, targetMob, targetPlayer, abilityDir, placementCenter }) {
   if (!player || !ability) return null;
-  const from = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
+  const /** @type {any} */ from = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
   const center = placementCenter ?? from;
   const to = targetMob?.pos
     ? { x: targetMob.pos.x, y: targetMob.pos.y ?? 0, z: targetMob.pos.z }
@@ -859,10 +861,10 @@ function buildAbilityEvent({ player, ability, targetMob, targetPlayer, abilityDi
       : null;
   const dir = abilityDir ?? (to ? { x: to.x - from.x, z: to.z - from.z } : { x: 0, z: 1 });
   const dist = Math.hypot(dir.x, dir.z) || 1;
-  const direction = { x: dir.x / dist, z: dir.z / dist };
+  const /** @type {any} */ direction = { x: dir.x / dist, z: dir.z / dist };
   const durationMs = 400;
 
-  const event = {
+  const /** @type {any} */ event = {
     kind: 'ability',
     abilityId: ability.id,
     attackerId: player.id,
@@ -870,7 +872,7 @@ function buildAbilityEvent({ player, ability, targetMob, targetPlayer, abilityDi
     durationMs,
   };
 
-  const targetedRanged = [
+  const /** @type {any} */ targetedRanged = [
     'firebolt',
     'smite',
     'aimed_shot',
@@ -879,17 +881,17 @@ function buildAbilityEvent({ player, ability, targetMob, targetPlayer, abilityDi
     'rapid_fire',
     'arcane_missiles',
   ];
-  const targetedMelee = [
+  const /** @type {any} */ targetedMelee = [
     'shield_slam',
     'power_strike',
     'execute',
     'interrupting_strike',
     'guardians_rebuke',
   ];
-  const coneAoE = ['cleave', 'whirlwind', 'flame_wave'];
-  const radiusAoE = ['frost_nova', 'ground_slam', 'meteor', 'snare_trap'];
-  const placementAoE = ['snare_trap', 'meteor', 'prayer_of_light'];
-  const selfBuffs = [
+  const /** @type {any} */ coneAoE = ['cleave', 'whirlwind', 'flame_wave'];
+  const /** @type {any} */ radiusAoE = ['frost_nova', 'ground_slam', 'meteor', 'snare_trap'];
+  const /** @type {any} */ placementAoE = ['snare_trap', 'meteor', 'prayer_of_light'];
+  const /** @type {any} */ selfBuffs = [
     'berserk',
     'defensive_stance',
     'shield_wall',
@@ -900,8 +902,8 @@ function buildAbilityEvent({ player, ability, targetMob, targetPlayer, abilityDi
     'eagle_eye',
     'ice_barrier',
   ];
-  const movement = ['roll_back', 'blink'];
-  const heals = ['heal', 'renew', 'divine_shield', 'cleanse', 'silence', 'salvation', 'mark_target'];
+  const /** @type {any} */ movement = ['roll_back', 'blink'];
+  const /** @type {any} */ heals = ['heal', 'renew', 'divine_shield', 'cleanse', 'silence', 'salvation', 'mark_target'];
 
   if (targetedRanged.includes(ability.id) && to) {
     return { ...event, to, effectType: 'projectile' };
@@ -941,7 +943,7 @@ function buildAbilityEvent({ player, ability, targetMob, targetPlayer, abilityDi
   if (movement.includes(ability.id) && abilityDir) {
     const dashDist = ability.dashDistance ?? 3;
     const sign = ability.id === 'roll_back' ? -1 : 1;
-    const toPos = {
+    const /** @type {any} */ toPos = {
       x: from.x + abilityDir.x * dashDist * sign,
       y: from.y,
       z: from.z + abilityDir.z * dashDist * sign,
@@ -982,7 +984,7 @@ const ABILITY_HANDLERS = createAbilityHandlers({
   DOT_TICK_MS,
 });
 
-export function stepPlayerResources(player, now, dt) {
+export function stepPlayerResources(/** @type {any} */ player, /** @type {any} */ now, /** @type {any} */ dt) {
   if (!player) return;
   const resourceDef = getResourceForClass(player.classId);
   if (!resourceDef) return;
@@ -1045,7 +1047,7 @@ export function stepPlayerResources(player, now, dt) {
   }
 }
 
-function fireChannelTick(player, ability, target, mobs, now, respawnMs, players) {
+function fireChannelTick(/** @type {any} */ player, /** @type {any} */ ability, /** @type {any} */ target, /** @type {any} */ mobs, /** @type {any} */ now, /** @type {any} */ respawnMs, /** @type {any} */ players) {
   if (!target || target.dead || target.hp <= 0) return { xpGain: 0, leveledUp: false, combatLog: null };
   if (!withinRange(player.pos, target.pos, ability.range ?? 0)) return { xpGain: 0, leveledUp: false, combatLog: null };
   const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
@@ -1069,7 +1071,7 @@ function fireChannelTick(player, ability, target, mobs, now, respawnMs, players)
   };
 }
 
-export function stepPlayerCast(player, mobs, now, respawnMs, players) {
+export function stepPlayerCast(/** @type {any} */ player, /** @type {any} */ mobs, /** @type {any} */ now, /** @type {any} */ respawnMs, /** @type {any} */ players) {
   if (!player?.cast) return { xpGain: 0, leveledUp: false };
     const cast = player.cast;
     if (player.dead) {
@@ -1096,8 +1098,8 @@ export function stepPlayerCast(player, mobs, now, respawnMs, players) {
     const startedAt = cast.startedAt ?? now;
     let xpGain = 0;
     let leveledUp = false;
-    let combatLog = null;
-    const target = Array.isArray(mobs) ? mobs.find((m) => m.id === cast.targetId) : null;
+    let /** @type {any} */ combatLog = null;
+    const target = Array.isArray(mobs) ? mobs.find((/** @type {any} */ m) => m.id === cast.targetId) : null;
     let newFired = firedTicks;
     while (newFired < (ability.channelTicks ?? 3) && now >= startedAt + (newFired + 1) * tickInterval) {
       const tickResult = fireChannelTick(player, ability, target, mobs, now, respawnMs, players);
@@ -1148,8 +1150,8 @@ export function stepPlayerCast(player, mobs, now, respawnMs, players) {
 
   let xpGain = 0;
   let leveledUp = false;
-  let combatLog = null;
-  const target = Array.isArray(mobs) ? mobs.find((mob) => mob.id === cast.targetId) : null;
+  let /** @type {any} */ combatLog = null;
+  const target = Array.isArray(mobs) ? mobs.find((/** @type {any} */ mob) => mob.id === cast.targetId) : null;
   if (target && !target.dead && target.hp > 0) {
     if (withinRange(player.pos, target.pos, ability.range ?? 0)) {
       const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
@@ -1185,7 +1187,7 @@ export function stepPlayerCast(player, mobs, now, respawnMs, players) {
   return { xpGain, leveledUp, combatLog, event };
 }
 
-export function stepDotTicks(mobs, now, respawnMs, players) {
+export function stepDotTicks(/** @type {any} */ mobs, /** @type {any} */ now, /** @type {any} */ respawnMs, /** @type {any} */ players) {
   if (!Array.isArray(mobs)) return;
   for (const mob of mobs) {
     if (!mob || mob.dead || (mob.dotTicksRemaining ?? 0) <= 0) continue;
@@ -1204,7 +1206,7 @@ export function stepDotTicks(mobs, now, respawnMs, players) {
   }
 }
 
-export function stepHotTicks(players, now) {
+export function stepHotTicks(/** @type {any} */ players, /** @type {any} */ now) {
   if (!players) return;
   const arr = players instanceof Map ? Array.from(players.values()) : players;
   for (const target of arr) {

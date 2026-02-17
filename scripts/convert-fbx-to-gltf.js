@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 /**
  * Converts FBX files from hidden_resources to glTF and places them in client/assets.
  * Run: node scripts/convert-fbx-to-gltf.js
@@ -13,7 +14,7 @@ const ROOT = join(__dirname, '..');
 const HIDDEN = join(ROOT, 'hidden_resources');
 const ASSETS = join(ROOT, 'client', 'assets');
 
-const CONVERSIONS = [
+const /** @type {any} */ CONVERSIONS = [
   // Ultimate Food Pack
   {
     src: join(HIDDEN, 'Ultimate Food Pack - Oct 2019/FBX/Bottle1.fbx'),
@@ -100,11 +101,11 @@ const CONVERSIONS = [
   },
 ];
 
-async function ensureDir(filePath) {
+async function ensureDir(/** @type {any} */ filePath) {
   await mkdir(dirname(filePath), { recursive: true });
 }
 
-async function convertOne({ src, dest }) {
+async function convertOne(/** @type {any} */ { src, dest }) {
   const { existsSync } = await import('fs');
   if (!existsSync(src)) {
     console.warn(`[skip] Source not found: ${src}`);
@@ -120,7 +121,8 @@ async function convertOne({ src, dest }) {
     console.log(`[ok] ${src.split('/').pop()} → ${dest.replace(ROOT, '')}`);
     return true;
   } catch (err) {
-    console.error(`[fail] ${src}:`, err.message);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[fail] ${src}:`, message);
     return false;
   }
 }
@@ -137,7 +139,7 @@ async function main() {
   console.log(`\nDone: ${ok} converted, ${fail} failed.`);
 }
 
-main().catch((e) => {
+main().catch((/** @type {any} */ e) => {
   console.error(e);
   process.exit(1);
 });

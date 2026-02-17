@@ -1,6 +1,7 @@
+// @ts-check
 const STORAGE_KEY = 'mmorpg_keybinds';
 
-export const DEFAULT_KEYBINDS = {
+export const /** @type {any} */ DEFAULT_KEYBINDS = {
   moveForward: 'w',
   moveBack: 's',
   moveLeft: 'a',
@@ -39,7 +40,7 @@ export function getKeybinds() {
   return { ...DEFAULT_KEYBINDS };
 }
 
-export function setKeybind(action, key) {
+export function setKeybind(/** @type {any} */ action, /** @type {any} */ key) {
   const keybinds = getKeybinds();
   keybinds[action] = key;
   try {
@@ -59,11 +60,11 @@ export function resetKeybinds() {
   return { ...DEFAULT_KEYBINDS };
 }
 
-export function getKeyForAction(action) {
+export function getKeyForAction(/** @type {any} */ action) {
   return getKeybinds()[action] ?? DEFAULT_KEYBINDS[action];
 }
 
-function eventToKeyString(event) {
+function eventToKeyString(/** @type {any} */ event) {
   const key = (event.key ?? '').toLowerCase();
   if (key === 'escape' || key === 'esc') return 'Escape';
   if (key === 'tab') return 'Tab';
@@ -73,7 +74,7 @@ function eventToKeyString(event) {
   return key;
 }
 
-export function isKeyMatch(event, action) {
+export function isKeyMatch(/** @type {any} */ event, /** @type {any} */ action) {
   const bound = (getKeyForAction(action) ?? '').toLowerCase();
   const eventKey = eventToKeyString(event).toLowerCase();
   if (bound === 'escape' && (eventKey === 'escape' || eventKey === 'esc')) return true;
@@ -82,7 +83,7 @@ export function isKeyMatch(event, action) {
   return false;
 }
 
-export function getAbilitySlotFromEvent(event) {
+export function getAbilitySlotFromEvent(/** @type {any} */ event) {
   const keybinds = getKeybinds();
   const eventKey = eventToKeyString(event);
   for (let slot = 1; slot <= 10; slot++) {

@@ -1,11 +1,12 @@
-export function createInventory(slotCount) {
+// @ts-check
+export function createInventory(/** @type {any} */ slotCount) {
   const count = Math.max(0, Number(slotCount) || 0);
   return Array.from({ length: count }, () => null);
 }
 
-export function countInventory(inventory) {
+export function countInventory(/** @type {any} */ inventory) {
   if (!Array.isArray(inventory)) return 0;
-  return inventory.reduce((total, item) => total + (item?.count ?? 0), 0);
+  return inventory.reduce((/** @type {any} */ total, /** @type {any} */ item) => total + (item?.count ?? 0), 0);
 }
 
 /**
@@ -16,7 +17,7 @@ export function countInventory(inventory) {
  */
 export function countItem(inventory, kind) {
   if (!Array.isArray(inventory) || !kind) return 0;
-  return inventory.reduce((total, item) => {
+  return inventory.reduce((/** @type {any} */ total, /** @type {any} */ item) => {
     if (!item || item.kind !== kind) return total;
     return total + (Number(item.count) || 0);
   }, 0);
@@ -51,7 +52,7 @@ export function consumeItems(inventory, kind, count) {
   return true;
 }
 
-export function canAddItem(inventory, kind, stackMax = 1) {
+export function canAddItem(/** @type {any} */ inventory, /** @type {any} */ kind, /** @type {any} */ stackMax = 1) {
   if (!Array.isArray(inventory)) return false;
   const max = Math.max(1, Number(stackMax) || 1);
   for (const slot of inventory) {
@@ -61,7 +62,7 @@ export function canAddItem(inventory, kind, stackMax = 1) {
   return false;
 }
 
-export function addItem(inventory, item, stackMax = 1) {
+export function addItem(/** @type {any} */ inventory, /** @type {any} */ item, /** @type {any} */ stackMax = 1) {
   if (!Array.isArray(inventory)) return false;
   const max = Math.max(1, Number(stackMax) || 1);
   const kind = item?.kind;
@@ -91,14 +92,14 @@ export function addItem(inventory, item, stackMax = 1) {
   return false;
 }
 
-export function clearInventory(inventory) {
+export function clearInventory(/** @type {any} */ inventory) {
   if (!Array.isArray(inventory)) return;
   for (let i = 0; i < inventory.length; i += 1) {
     inventory[i] = null;
   }
 }
 
-export function swapInventorySlots(inventory, from, to) {
+export function swapInventorySlots(/** @type {any} */ inventory, /** @type {any} */ from, /** @type {any} */ to) {
   if (!Array.isArray(inventory)) return false;
   const max = inventory.length;
   if (!Number.isInteger(from) || !Number.isInteger(to)) return false;

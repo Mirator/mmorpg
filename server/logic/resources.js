@@ -1,14 +1,15 @@
+// @ts-check
 import { addItem, canAddItem, countInventory } from './inventory.js';
 import { getResourceConfig, getResourceRespawnMs } from '../../shared/economy.js';
 
-function distance2(a, b) {
+function distance2(/** @type {any} */ a, /** @type {any} */ b) {
   const dx = a.x - b.x;
   const dz = a.z - b.z;
   return dx * dx + dz * dz;
 }
 
-export function createResources(nodes) {
-  return nodes.map((node) => ({
+export function createResources(/** @type {any} */ nodes) {
+  return nodes.map((/** @type {any} */ node) => ({
     id: node.id,
     x: node.x,
     y: node.y ?? 0,
@@ -20,7 +21,7 @@ export function createResources(nodes) {
   }));
 }
 
-export function stepResources(resources, now) {
+export function stepResources(/** @type {any} */ resources, /** @type {any} */ now) {
   for (const resource of resources) {
     if (!resource.available && resource.respawnAt <= now) {
       resource.available = true;
@@ -29,12 +30,12 @@ export function stepResources(resources, now) {
   }
 }
 
-export function tryHarvest(resources, player, now, config) {
+export function tryHarvest(/** @type {any} */ resources, /** @type {any} */ player, /** @type {any} */ now, /** @type {any} */ config) {
   const harvestRadius = config.harvestRadius ?? 2;
   const respawnMs = config.respawnMs ?? 15_000;
   const stackMax = config.stackMax ?? player.invStackMax ?? 20;
 
-  let closest = null;
+  let /** @type {any} */ closest = null;
   let closestDist2 = harvestRadius * harvestRadius;
 
   for (const resource of resources) {

@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.checkjs.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": [
+      "node"
+    ],
+    "lib": [
+      "ES2022"
+    ]
+  },
+  "include": [
+    "server/**/*.js",
+    "server/**/*.d.ts",
+    "shared/**/*.js"
+  ],
+  "exclude": [
+    "**/*.test.js",
+    "server/test/**/*.js",
+    "client/**",
+    "admin/**",
+    "e2e/**",
+    "scripts/**",
+    "node_modules/**"
+  ]
+}

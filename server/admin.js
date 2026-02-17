@@ -1,53 +1,95 @@
+// @ts-check
 import { worldSnapshot } from './logic/world.js';
 import { xpToNext } from '../shared/progression.js';
 import { getEquippedWeapon } from '../shared/equipment.js';
 import { computeRawAttributes, computeDerivedStats } from '../shared/attributes.js';
 
+/** @typedef {import('./types/domain.d.ts').Corpse} Corpse */
+/** @typedef {import('./types/domain.d.ts').HttpRequestLike} HttpRequestLike */
+/** @typedef {import('./types/domain.d.ts').HttpResponseLike} HttpResponseLike */
+/** @typedef {import('./types/domain.d.ts').MobEntity} MobEntity */
+/** @typedef {import('./types/domain.d.ts').PlayerMap} PlayerMap */
+/** @typedef {import('./types/domain.d.ts').ResourceNode} ResourceNode */
+/** @typedef {import('./types/domain.d.ts').SerializedCorpse} SerializedCorpse */
+/** @typedef {import('./types/domain.d.ts').SerializedMob} SerializedMob */
+/** @typedef {import('./types/domain.d.ts').SerializedResource} SerializedResource */
+/** @typedef {import('./types/domain.d.ts').ServerPlayer} ServerPlayer */
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {string | null}
+ */
 export function resolveAdminPassword(env = process.env) {
   const value = env.ADMIN_PASSWORD;
   return (typeof value === 'string' && value.trim().length > 0) ? value.trim() : null;
 }
 
+/**
+ * @param {PlayerMap} players
+ * @returns {Record<string, {
+ *   x: number, y: number, z: number, hp: number, maxHp: number,
+ *   classId: string | null, level: number, xp: number, xpToNext: number,
+ *   inv: number, invCap: number, invSlots: number, invStackMax: number,
+ *   inventory: import('./types/domain.d.ts').Inventory, currencyCopper: number,
+ *   equipment: Record<string, unknown> | null, weaponKind: string | null,
+ *   dead: boolean, respawnAt: number
+ * }>}
+ */
 export function serializePlayers(players) {
+  /** @type {Record<string, {
+   *   x: number, y: number, z: number, hp: number, maxHp: number,
+   *   classId: string | null, level: number, xp: number, xpToNext: number,
+   *   inv: number, invCap: number, invSlots: number, invStackMax: number,
+   *   inventory: import('./types/domain.d.ts').Inventory, currencyCopper: number,
+   *   equipment: Record<string, unknown> | null, weaponKind: string | null,
+   *   dead: boolean, respawnAt: number
+   * }>} */
   const out = {};
   for (const [id, p] of players.entries()) {
+    if (!p.pos) continue;
     out[id] = {
       x: p.pos.x,
-      y: p.pos.y,
+      y: p.pos.y ?? 0,
       z: p.pos.z,
-      hp: p.hp,
-      maxHp: p.maxHp,
+      hp: p.hp ?? 0,
+      maxHp: p.maxHp ?? 0,
       classId: p.classId ?? null,
       level: p.level ?? 1,
       xp: p.xp ?? 0,
       xpToNext: xpToNext(p.level ?? 1),
-      inv: p.inv,
-      invCap: p.invCap,
-      invSlots: p.invSlots,
-      invStackMax: p.invStackMax,
-      inventory: p.inventory,
+      inv: p.inv ?? 0,
+      invCap: p.invCap ?? 0,
+      invSlots: p.invSlots ?? 0,
+      invStackMax: p.invStackMax ?? 0,
+      inventory: p.inventory ?? [],
       currencyCopper: p.currencyCopper ?? 0,
       equipment: p.equipment ?? null,
       weaponKind: getEquippedWeapon(p.equipment, p.classId)?.kind ?? null,
-      dead: p.dead,
+      dead: Boolean(p.dead),
       respawnAt: p.respawnAt ?? 0,
     };
   }
   return out;
 }
 
+/**
+ * @param {PlayerMap} players
+ * @returns {import('./types/domain.d.ts').PublicPlayersById}
+ */
 export function serializePlayersPublic(players) {
+  /** @type {import('./types/domain.d.ts').PublicPlayersById} */
   const out = {};
   for (const [id, p] of players.entries()) {
+    if (!p.pos) continue;
     out[id] = {
       x: p.pos.x,
-      y: p.pos.y,
+      y: p.pos.y ?? 0,
       z: p.pos.z,
-      hp: p.hp,
-      maxHp: p.maxHp,
-      inv: p.inv,
+      hp: p.hp ?? 0,
+      maxHp: p.maxHp ?? 0,
+      inv: p.inv ?? 0,
       currencyCopper: p.currencyCopper ?? 0,
-      dead: p.dead,
+      dead: Boolean(p.dead),
       classId: p.classId ?? null,
       level: p.level ?? 1,
       name: p.name ?? null,
@@ -57,6 +99,10 @@ export function serializePlayersPublic(players) {
   return out;
 }
 
+/**
+ * @param {ServerPlayer | null | undefined} player
+ * @returns {Record<string, unknown> | null}
+ */
 export function serializePlayerPrivate(player) {
   if (!player) return null;
   const attributes = computeRawAttributes(player);
@@ -99,6 +145,10 @@ export function serializePlayerPrivate(player) {
   };
 }
 
+/**
+ * @param {ResourceNode[]} resources
+ * @returns {SerializedResource[]}
+ */
 export function serializeResources(resources) {
   return resources.map((r) => ({
     id: r.id,
@@ -106,11 +156,15 @@ export function serializeResources(resources) {
     y: r.y ?? 0,
     z: r.z,
     type: r.type ?? 'crystal',
-    available: r.available,
-    respawnAt: r.respawnAt,
+    available: Boolean(r.available),
+    respawnAt: r.respawnAt ?? 0,
   }));
 }
 
+/**
+ * @param {Corpse[] | null | undefined} corpses
+ * @returns {SerializedCorpse[]}
+ */
 export function serializeCorpses(corpses) {
   if (!Array.isArray(corpses)) return [];
   return corpses.map((c) => ({
@@ -119,19 +173,23 @@ export function serializeCorpses(corpses) {
     x: c.pos.x,
     y: c.pos.y ?? 0,
     z: c.pos.z,
-    itemCount: (c.inventory ?? []).filter((s) => s).length,
+    itemCount: (c.inventory ?? []).filter((slot) => slot !== null).length,
     expiresAt: c.expiresAt ?? 0,
   }));
 }
 
+/**
+ * @param {MobEntity[]} mobs
+ * @returns {SerializedMob[]}
+ */
 export function serializeMobs(mobs) {
   return mobs.map((m) => ({
     id: m.id,
-    x: m.pos.x,
-    y: m.pos.y ?? 0,
-    z: m.pos.z,
-    state: m.state,
-    targetId: m.targetId,
+    x: m.pos?.x ?? m.x ?? 0,
+    y: m.pos?.y ?? m.y ?? 0,
+    z: m.pos?.z ?? m.z ?? 0,
+    state: typeof m.state === 'string' ? m.state : null,
+    targetId: typeof m.targetId === 'string' ? m.targetId : null,
     level: m.level ?? 1,
     hp: m.hp ?? 0,
     maxHp: m.maxHp ?? 0,
@@ -141,6 +199,15 @@ export function serializeMobs(mobs) {
   }));
 }
 
+/**
+ * @param {{
+ *   world: unknown,
+ *   players: PlayerMap,
+ *   resources: ResourceNode[],
+ *   mobs: MobEntity[],
+ *   now?: number
+ * }} params
+ */
 export function buildAdminState({ world, players, resources, mobs, now = Date.now() }) {
   return {
     t: now,
@@ -151,11 +218,25 @@ export function buildAdminState({ world, players, resources, mobs, now = Date.no
   };
 }
 
+/**
+ * @param {HttpRequestLike} req
+ * @returns {string}
+ */
 export function getProvidedAdminPassword(req) {
   const headerPass = typeof req.get === 'function' ? req.get('x-admin-pass') : '';
   return headerPass || '';
 }
 
+/**
+ * @param {{
+ *   password: string | null,
+ *   world: unknown,
+ *   players: PlayerMap,
+ *   resources: ResourceNode[],
+ *   mobs: MobEntity[]
+ * }} params
+ * @returns {(req: HttpRequestLike, res: HttpResponseLike) => void}
+ */
 export function createAdminStateHandler({ password, world, players, resources, mobs }) {
   return (req, res) => {
     const provided = getProvidedAdminPassword(req);

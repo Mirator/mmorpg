@@ -1,3 +1,4 @@
+// @ts-check
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { clone as cloneSkeleton } from './vendor/SkeletonUtils.js';
@@ -11,11 +12,11 @@ const resolvedTextures = new Map();
 const loader = new GLTFLoader();
 const textureLoader = new THREE.TextureLoader();
 
-export function loadGltf(url) {
+export function loadGltf(/** @type {any} */ url) {
   if (!gltfCache.has(url)) {
     gltfCache.set(
       url,
-      new Promise((resolve, reject) => {
+      new Promise((/** @type {any} */ resolve, /** @type {any} */ reject) => {
         loader.load(url, resolve, undefined, reject);
       })
     );
@@ -23,14 +24,14 @@ export function loadGltf(url) {
   return gltfCache.get(url);
 }
 
-export function loadTexture(url) {
+export function loadTexture(/** @type {any} */ url) {
   if (!texturePromises.has(url)) {
     texturePromises.set(
       url,
-      new Promise((resolve, reject) => {
+      new Promise((/** @type {any} */ resolve, /** @type {any} */ reject) => {
         textureLoader.load(
           url,
-          (tex) => {
+          (/** @type {any} */ tex) => {
             tex.colorSpace = THREE.SRGBColorSpace;
             tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
             resolvedTextures.set(url, tex);
@@ -45,15 +46,15 @@ export function loadTexture(url) {
   return texturePromises.get(url);
 }
 
-export function getTexture(url) {
+export function getTexture(/** @type {any} */ url) {
   return resolvedTextures.get(url) ?? null;
 }
 
-export function cloneSkinned(model) {
+export function cloneSkinned(/** @type {any} */ model) {
   return cloneSkeleton(model);
 }
 
-export function normalizeToHeight(object, targetHeight) {
+export function normalizeToHeight(/** @type {any} */ object, /** @type {any} */ targetHeight) {
   if (!object) return object;
   const box = new THREE.Box3().setFromObject(object);
   const size = new THREE.Vector3();
@@ -68,17 +69,19 @@ export function normalizeToHeight(object, targetHeight) {
   return object;
 }
 
-function findSkinnedMeshes(root) {
+function findSkinnedMeshes(/** @type {any} */ root) {
+  /** @type {any[]} */
   const meshes = [];
-  root.traverse((node) => {
+  root.traverse((/** @type {any} */ node) => {
     if (node?.isSkinnedMesh) meshes.push(node);
   });
   return meshes;
 }
 
-function findSkeleton(root) {
+function findSkeleton(/** @type {any} */ root) {
+  /** @type {any | null} */
   let skeleton = null;
-  root.traverse((node) => {
+  root.traverse((/** @type {any} */ node) => {
     if (!skeleton && node?.isSkinnedMesh && node.skeleton) {
       skeleton = node.skeleton;
     }
@@ -86,7 +89,7 @@ function findSkeleton(root) {
   return skeleton;
 }
 
-function attachSimpleHead(root) {
+function attachSimpleHead(/** @type {any} */ root) {
   const skeleton = findSkeleton(root);
   const head = skeleton?.getBoneByName?.('Head') ?? skeleton?.getBoneByName?.('head') ?? null;
   if (!head || head.getObjectByName?.('SimpleHead')) return;
@@ -113,14 +116,14 @@ function attachSimpleHead(root) {
   head.add(headMesh);
 }
 
-function removeHoodFromModel(root) {
-  const toRemove = [];
-  root.traverse((node) => {
+function removeHoodFromModel(/** @type {any} */ root) {
+  const /** @type {any} */ toRemove = [];
+  root.traverse((/** @type {any} */ node) => {
     if (node.name && node.name.includes('Head_Hood')) {
       toRemove.push(node);
     }
   });
-  toRemove.forEach((node) => node.parent?.remove(node));
+  toRemove.forEach((/** @type {any} */ node) => node.parent?.remove(node));
 }
 
 export async function assembleVendorModel() {
@@ -154,15 +157,15 @@ export async function assemblePlayerModel() {
     return base;
   }
 
-  const baseBoneNames = new Set(baseSkeleton.bones.map((bone) => bone.name));
+  const baseBoneNames = new Set(baseSkeleton.bones.map((/** @type {any} */ bone) => bone.name));
   let canBind = true;
   const outfitMeshes = findSkinnedMeshes(outfit);
   if (!outfitMeshes.length) {
     canBind = false;
   } else {
     for (const mesh of outfitMeshes) {
-      const boneNames = (mesh.skeleton?.bones ?? []).map((bone) => bone.name);
-      const allMatch = boneNames.every((name) => baseBoneNames.has(name));
+      const boneNames = (mesh.skeleton?.bones ?? []).map((/** @type {any} */ bone) => bone.name);
+      const allMatch = boneNames.every((/** @type {any} */ name) => baseBoneNames.has(name));
       if (!allMatch) {
         canBind = false;
         break;
@@ -195,17 +198,17 @@ export async function loadPlayerAnimations() {
   return gltf.animations ?? [];
 }
 
-function findClipByKeywords(clips, keywords) {
-  const lower = keywords.map((keyword) => keyword.toLowerCase());
+function findClipByKeywords(/** @type {any} */ clips, /** @type {any} */ keywords) {
+  const lower = keywords.map((/** @type {any} */ keyword) => keyword.toLowerCase());
   return (
-    clips.find((clip) => {
+    clips.find((/** @type {any} */ clip) => {
       const name = clip?.name?.toLowerCase?.() ?? '';
-      return lower.some((keyword) => name.includes(keyword));
+      return lower.some((/** @type {any} */ keyword) => name.includes(keyword));
     }) ?? null
   );
 }
 
-export function pickClips(clips, overrides = {}) {
+export function pickClips(/** @type {any} */ clips, /** @type {any} */ overrides = {}) {
   const clipList = Array.isArray(clips) ? clips : [];
   const idleNames = overrides.idleNames ?? null;
   const walkNames = overrides.walkNames ?? null;
@@ -216,10 +219,10 @@ export function pickClips(clips, overrides = {}) {
   const attackKeywords = overrides.attackKeywords ?? ['attack', 'slash', 'swing', 'punch', 'bite'];
   const deathKeywords = overrides.deathKeywords ?? ['death'];
 
-  const findByName = (names) => {
+  const findByName = (/** @type {any} */ names) => {
     if (!Array.isArray(names) || !names.length) return null;
     for (const name of names) {
-      const match = clipList.find((clip) => clip?.name === name);
+      const match = clipList.find((/** @type {any} */ clip) => clip?.name === name);
       if (match) return match;
     }
     return null;
@@ -256,15 +259,15 @@ export function pickClips(clips, overrides = {}) {
 export async function preloadAllAssets(onProgress) {
   const list = getPreloadAssetList();
 
-  const tasks = [
+  const /** @type {any} */ tasks = [
     assemblePlayerModel(),
     assembleVendorModel(),
     loadPlayerAnimations(),
-    ...list.mobs.map((url) => loadGltf(url)),
-    ...list.environment.map((url) => loadGltf(url)),
-    ...(list.rocks ?? []).map((url) => loadGltf(url)),
-    ...(list.resourceNodes ?? []).map((url) => loadGltf(url)),
-    ...(list.textures ?? []).map((url) => loadTexture(url)),
+    ...list.mobs.map((/** @type {any} */ url) => loadGltf(url)),
+    ...list.environment.map((/** @type {any} */ url) => loadGltf(url)),
+    ...(list.rocks ?? []).map((/** @type {any} */ url) => loadGltf(url)),
+    ...(list.resourceNodes ?? []).map((/** @type {any} */ url) => loadGltf(url)),
+    ...(list.textures ?? []).map((/** @type {any} */ url) => loadTexture(url)),
   ];
 
   const total = tasks.length;
@@ -272,8 +275,8 @@ export async function preloadAllAssets(onProgress) {
 
   onProgress?.(0, total);
 
-  const wrapped = tasks.map((p) =>
-    p.then((v) => {
+  const wrapped = tasks.map((/** @type {any} */ p) =>
+    p.then((/** @type {any} */ v) => {
       loaded++;
       onProgress?.(loaded, total);
       return v;

@@ -1,6 +1,8 @@
+// @ts-check
 import { PrismaClient } from '@prisma/client';
 
-let prisma;
+/** @type {PrismaClient | null} */
+let prisma = null;
 
 export function getPrismaClient() {
   if (!prisma) {

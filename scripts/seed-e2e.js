@@ -1,3 +1,4 @@
+// @ts-check
 import 'dotenv/config';
 import { hashPassword, generateId } from '../server/auth.js';
 import { createAccount, findAccountByUsernameLower } from '../server/db/accountRepo.js';

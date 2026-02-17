@@ -41,7 +41,7 @@ const ARMOR_PEN_CAP = 0.3;
 
 /**
  * Compute raw attributes (base + level progression + gear).
- * @param {Object} player - Player with classId, level, equipment
+ * @param {any} player - Player with classId, level, equipment
  * @returns {RawAttributes}
  */
 export function computeRawAttributes(player) {
@@ -77,7 +77,8 @@ export function computeRawAttributes(player) {
  * @returns {EffectiveAttributes}
  */
 export function computeEffectiveAttributes(raw, classId) {
-  const mult = CLASS_MULTIPLIERS[classId] ?? CLASS_MULTIPLIERS.fighter;
+  const multipliersByClass = /** @type {Record<string, any>} */ (CLASS_MULTIPLIERS);
+  const mult = multipliersByClass[classId] ?? CLASS_MULTIPLIERS.fighter;
   return {
     str: (raw.str ?? 0) * (mult.str ?? 1),
     dex: (raw.dex ?? 0) * (mult.dex ?? 1),
@@ -130,7 +131,7 @@ function getBaseManaRegen(classId) {
 
 /**
  * Compute all derived combat stats.
- * @param {Object} player - Player with classId, level, equipment
+ * @param {any} player - Player with classId, level, equipment
  * @returns {DerivedStats}
  */
 export function computeDerivedStats(player) {

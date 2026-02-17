@@ -1,3 +1,4 @@
+// @ts-check
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import {
   getKeybinds,
@@ -5,14 +6,14 @@ import {
   isKeyMatch,
 } from './keybinds.js';
 
-const MOVE_ACTION_TO_KEY = {
+const /** @type {any} */ MOVE_ACTION_TO_KEY = {
   moveForward: 'w',
   moveBack: 's',
   moveLeft: 'a',
   moveRight: 'd',
 };
 
-export function createInputHandler({
+export function createInputHandler(/** @type {any} */ {
   renderer,
   camera,
   isUiBlocking,
@@ -40,13 +41,13 @@ export function createInputHandler({
   onPlacementUpdate,
   onTogglePauseMenu,
 }) {
-  const keys = { w: false, a: false, s: false, d: false };
+  const /** @type {any} */ keys = { w: false, a: false, s: false, d: false };
 
   function sendInput() {
     onInputChange?.({ ...keys });
   }
 
-  function handleMoveKey(event, isDown) {
+  function handleMoveKey(/** @type {any} */ event, /** @type {any} */ isDown) {
     if (isUiBlocking()) return;
     const keybinds = getKeybinds();
     for (const [action, keyName] of Object.entries(MOVE_ACTION_TO_KEY)) {
@@ -87,7 +88,7 @@ export function createInputHandler({
     }
   }
 
-  window.addEventListener('keydown', (event) => {
+  window.addEventListener('keydown', (/** @type {any} */ event) => {
     if (isKeyMatch(event, 'fullscreen') && !event.repeat) {
       const handler = onToggleFullscreen ?? toggleFullscreen;
       handler();
@@ -151,7 +152,7 @@ export function createInputHandler({
     handleMoveKey(event, true);
   });
 
-  window.addEventListener('keyup', (event) => {
+  window.addEventListener('keyup', (/** @type {any} */ event) => {
     if (isMenuOpen?.()) return;
     if (isUiBlocking()) return;
     handleMoveKey(event, false);
@@ -161,14 +162,14 @@ export function createInputHandler({
   const mouse = new THREE.Vector2();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-  function getGroundPoint(ndc) {
+  function getGroundPoint(/** @type {any} */ ndc) {
     raycaster.setFromCamera(ndc, camera);
     const point = new THREE.Vector3();
     const hit = raycaster.ray.intersectPlane(groundPlane, point);
     return hit ? { x: point.x, y: point.y ?? 0, z: point.z } : null;
   }
 
-  renderer.domElement.addEventListener('click', (event) => {
+  renderer.domElement.addEventListener('click', (/** @type {any} */ event) => {
     if (isUiBlocking()) return;
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -193,7 +194,7 @@ export function createInputHandler({
     if (pos) onMoveTarget?.(pos);
   });
 
-  renderer.domElement.addEventListener('mousemove', (event) => {
+  renderer.domElement.addEventListener('mousemove', (/** @type {any} */ event) => {
     if (!getPlacementMode?.() || !onPlacementUpdate) return;
     const rect = renderer.domElement.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;

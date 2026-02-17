@@ -1,3 +1,4 @@
+// @ts-check
 import { showErrorOverlay, hideErrorOverlay } from './error-overlay.js';
 import { createRenderSystem } from './render.js';
 import { createGameState } from './state.js';
@@ -30,9 +31,9 @@ const characterNameEl = document.getElementById('overlay-character-name');
 const overlayEl = document.getElementById('overlay');
 const loadingScreenEl = document.getElementById('loading-screen');
 const loadingTextEl = document.getElementById('loading-text');
-const loadingProgressBarEl = document.querySelector('.loading-progress-bar');
+const loadingProgressBarEl = /** @type {HTMLElement | null} */ (document.querySelector('.loading-progress-bar'));
 
-function showLoadingScreen(text = 'Loading...', progress) {
+function showLoadingScreen(text = 'Loading...', /** @type {any} */ progress = undefined) {
   if (loadingTextEl) loadingTextEl.textContent = text;
   loadingScreenEl?.classList.add('visible');
   if (loadingProgressBarEl) {
@@ -54,6 +55,28 @@ const MAX_SNAPSHOT_AGE_MS = 2000;
 const MAX_SNAPSHOTS = 60;
 const DEFAULT_PLAYER_SPEED = PLAYER_CONFIG.speed;
 
+/**
+ * @typedef {{ kind: string, id: string | number }} SelectedTarget
+ * @typedef {{
+ *   partyId?: string | null;
+ *   targetKind?: string | null;
+ *   targetId?: string | number | null;
+ *   duelOpponentId?: string | number | null;
+ *   moveSpeedMultiplier?: number;
+ *   [key: string]: any;
+ * } | null} LocalPlayerRef
+ * @typedef {{ send?: (payload: any) => void, close?: () => void }} NetLike
+ * @typedef {{
+ *   seq: number;
+ *   net: NetLike | null;
+ *   closingNet: NetLike | null;
+ *   playerId: string | null;
+ *   currentMe: LocalPlayerRef;
+ *   selectedTarget: SelectedTarget | null;
+ *   pingMs: number | null;
+ * }} ClientCtx
+ */
+
 const renderSystem = createRenderSystem({ app });
 const minimap = createMinimap(document.getElementById('minimap-container'));
 const gameState = createGameState({
@@ -62,6 +85,7 @@ const gameState = createGameState({
   maxSnapshotAgeMs: MAX_SNAPSHOT_AGE_MS,
 });
 
+/** @type {ClientCtx} */
 const ctx = {
   seq: 0,
   net: null,
@@ -72,16 +96,16 @@ const ctx = {
   pingMs: null,
 };
 
-let nearestVendor = null;
+let /** @type {any} */ nearestVendor = null;
 let inVendorRange = false;
-let inputHandler = null;
+let /** @type {any} */ inputHandler = null;
 
-function sendWithSeq(msg) {
+function sendWithSeq(/** @type {any} */ msg) {
   ctx.seq += 1;
   ctx.net?.send?.({ ...msg, seq: ctx.seq });
 }
 
-function setWorld(config) {
+function setWorld(/** @type {any} */ config) {
   const worldConfig = config ?? null;
   gameState.setWorldConfig(worldConfig);
   renderSystem.updateWorld(worldConfig);
@@ -105,34 +129,37 @@ function updateLocalUi() {
   if (typeof updateDuelPanel === 'function') updateDuelPanel();
 }
 
+/** @type {{ current: any | null }} */
 const authRef = { current: null };
+/** @type {{ current: any | null }} */
 const connectionRef = { current: null };
+/** @type {{ current: any | null }} */
 const combatRef = { current: null };
 
 const chat = createChat({
-  onSend: (channel, text) => {
+  onSend: (/** @type {any} */ channel, /** @type {any} */ text) => {
     sendWithSeq({ type: 'chat', channel, text });
   },
   isInParty: () => !!ctx.currentMe?.partyId,
 });
 
 const ui = createUiState({
-  onInventorySwap: (from, to) => {
+  onInventorySwap: (/** @type {any} */ from, /** @type {any} */ to) => {
     sendWithSeq({ type: 'inventorySwap', from, to });
   },
-  onEquipmentSwap: ({ fromType, fromSlot, toType, toSlot }) => {
+  onEquipmentSwap: (/** @type {any} */ { fromType, fromSlot, toType, toSlot }) => {
     sendWithSeq({ type: 'equipSwap', fromType, fromSlot, toType, toSlot });
   },
-  onVendorSell: (slot, vendorId) => {
+  onVendorSell: (/** @type {any} */ slot, /** @type {any} */ vendorId) => {
     sendWithSeq({ type: 'vendorSell', slot, vendorId });
   },
-  onVendorBuy: (kind, count, vendorId) => {
+  onVendorBuy: (/** @type {any} */ kind, /** @type {any} */ count, /** @type {any} */ vendorId) => {
     sendWithSeq({ type: 'vendorBuy', vendorId, kind, count });
   },
-  onCraft: (recipeId, count) => {
+  onCraft: (/** @type {any} */ recipeId, /** @type {any} */ count) => {
     sendWithSeq({ type: 'craft', recipeId, count });
   },
-  onAbilityClick: (slot) => {
+  onAbilityClick: (/** @type {any} */ slot) => {
     combatRef.current?.useAbility(slot);
   },
   onUiOpen: () => {
@@ -142,20 +169,20 @@ const ui = createUiState({
     connectionRef.current?.sendRespawn();
   },
   isChatFocused: () => chat.isChatFocused(),
-  onTradeOfferAddSlot: (slot) => connectionRef.current?.sendTradeOfferAddSlot?.(slot),
-  onTradeOfferAddCopper: (amount) => connectionRef.current?.sendTradeOfferAddCopper?.(amount),
-  onTradeOfferRemoveItem: (index) => connectionRef.current?.sendTradeOfferRemoveItem?.(index),
+  onTradeOfferAddSlot: (/** @type {any} */ slot) => connectionRef.current?.sendTradeOfferAddSlot?.(slot),
+  onTradeOfferAddCopper: (/** @type {any} */ amount) => connectionRef.current?.sendTradeOfferAddCopper?.(amount),
+  onTradeOfferRemoveItem: (/** @type {any} */ index) => connectionRef.current?.sendTradeOfferRemoveItem?.(index),
   onTradeOfferRemoveCopper: () => connectionRef.current?.sendTradeOfferRemoveCopper?.(),
   onTradeConfirm: () => connectionRef.current?.sendTradeConfirm?.(),
   onTradeCancel: () => connectionRef.current?.sendTradeCancel?.(),
 });
 
 const menu = createMenu({
-  onSignIn: (data) => authRef.current?.signIn(data),
-  onSignUp: (data) => authRef.current?.signUp(data),
-  onSelectCharacter: (char) => authRef.current?.connectCharacter(char),
-  onCreateCharacter: (data) => authRef.current?.createCharacter(data),
-  onDeleteCharacter: (char) => authRef.current?.deleteCharacter(char),
+  onSignIn: (/** @type {any} */ data) => authRef.current?.signIn(data),
+  onSignUp: (/** @type {any} */ data) => authRef.current?.signUp(data),
+  onSelectCharacter: (/** @type {any} */ char) => authRef.current?.connectCharacter(char),
+  onCreateCharacter: (/** @type {any} */ data) => authRef.current?.createCharacter(data),
+  onDeleteCharacter: (/** @type {any} */ char) => authRef.current?.deleteCharacter(char),
   onSignOut: () => authRef.current?.signOut(),
 });
 
@@ -176,8 +203,11 @@ const combat = createCombat({
 });
 combatRef.current = combat;
 
+/** @type {{ inviterId: string | number, inviterName: string } | null} */
 let pendingPartyInvite = null;
+/** @type {{ challengerId: string | number, challengerName: string } | null} */
 let pendingDuelRequest = null;
+/** @type {{ traderId: string | number, traderName: string } | null} */
 let pendingTradeRequest = null;
 
 const connection = createConnection({
@@ -185,16 +215,16 @@ const connection = createConnection({
   renderSystem,
   ui,
   ctx,
-  onCombatEvents: (event, now, eventTime) =>
+  onCombatEvents: (/** @type {any} */ event, /** @type {any} */ now, /** @type {any} */ eventTime) =>
     combat.handleCombatEvent(event, now, eventTime),
-  onAbilityFailed: (reason, slot) => ui.showAbilityError(reason, slot),
-  onChatMessage: (data) => {
+  onAbilityFailed: (/** @type {any} */ reason, /** @type {any} */ slot) => ui.showAbilityError(reason, slot),
+  onChatMessage: (/** @type {any} */ data) => {
     const channel = data?.channel ?? 'area';
     chat.addMessage(channel, data);
   },
-  onCombatLog: (entries) => chat.addCombatLogEntries(entries),
+  onCombatLog: (/** @type {any} */ entries) => chat.addCombatLogEntries(entries),
   onConnected: () => chat.addSystemMessage('Connected to game'),
-  onPartyInvite: (invite) => {
+  onPartyInvite: (/** @type {any} */ invite) => {
     pendingPartyInvite = invite;
     const panel = document.getElementById('party-panel');
     const toast = document.getElementById('party-invite-toast');
@@ -205,7 +235,7 @@ const connection = createConnection({
       textEl.textContent = `${invite.inviterName} invited you to party`;
     }
   },
-  onDuelRequest: (req) => {
+  onDuelRequest: (/** @type {any} */ req) => {
     pendingDuelRequest = req;
     const panel = document.getElementById('duel-panel');
     const toast = document.getElementById('duel-request-toast');
@@ -221,16 +251,16 @@ const connection = createConnection({
     const toast = document.getElementById('duel-request-toast');
     if (toast) toast.classList.add('hidden');
   },
-  onDuelEnded: (reason) => {
+  onDuelEnded: (/** @type {any} */ reason) => {
     pendingDuelRequest = null;
     const toast = document.getElementById('duel-request-toast');
     if (toast) toast.classList.add('hidden');
     ui.showToast?.(reason === 'forfeit' ? 'Duel forfeited' : reason === 'death' ? 'Duel ended' : 'Duel ended');
   },
-  onDuelDeclined: (data) => {
+  onDuelDeclined: (/** @type {any} */ data) => {
     ui.showToast?.(`${data.targetName} declined your duel`);
   },
-  onTradeRequest: (req) => {
+  onTradeRequest: (/** @type {any} */ req) => {
     pendingTradeRequest = req;
     const toast = document.getElementById('trade-request-toast');
     const textEl = document.getElementById('trade-request-text');
@@ -239,7 +269,7 @@ const connection = createConnection({
       textEl.textContent = `${req.traderName} wants to trade`;
     }
   },
-  onTradeOpened: (data) => {
+  onTradeOpened: (/** @type {any} */ data) => {
     pendingTradeRequest = null;
     const toast = document.getElementById('trade-request-toast');
     if (toast) toast.classList.add('hidden');
@@ -253,7 +283,7 @@ const connection = createConnection({
     });
     ui.setInventoryOpen?.(true);
   },
-  onTradeOfferUpdate: (data) => {
+  onTradeOfferUpdate: (/** @type {any} */ data) => {
     ui.playerTradeUI?.setOffers?.(data);
   },
   onTradeCompleted: () => {
@@ -267,7 +297,7 @@ const connection = createConnection({
   onTradeDeclined: () => {
     ui.showToast?.('Trade declined');
   },
-  onTradeError: (err) => {
+  onTradeError: (/** @type {any} */ err) => {
     ui.showToast?.(`Trade error: ${err ?? 'unknown'}`);
   },
   updateLocalUi,
@@ -295,7 +325,7 @@ function updatePartyPanel() {
   if (toast) {
     toast.classList.toggle('hidden', !pendingPartyInvite);
   }
-  if (statusEl) {
+  if (statusEl instanceof HTMLElement) {
     statusEl.style.display = inParty ? 'block' : 'none';
   }
   if (leaveBtn) {
@@ -321,7 +351,7 @@ function updateDuelPanel() {
   if (toast) {
     toast.classList.toggle('hidden', !pendingDuelRequest);
   }
-  if (statusEl) {
+  if (statusEl instanceof HTMLElement) {
     statusEl.style.display = inDuel ? 'block' : 'none';
   }
   if (forfeitBtn) {
@@ -470,10 +500,10 @@ function initTradeButtons() {
 }
 initTradeButtons();
 
-auth.setOnConnectCharacter(async (character) => {
+auth.setOnConnectCharacter(async (/** @type {any} */ character) => {
   showLoadingScreen('Loading assets...', 0);
   try {
-    await preloadAllAssets((loaded, total) => {
+    await preloadAllAssets((/** @type {any} */ loaded, /** @type {any} */ total) => {
       showLoadingScreen('Loading assets...', Math.round((loaded / total) * 100));
     });
     showLoadingScreen('Connecting...');
@@ -497,7 +527,7 @@ function getShowFps() {
   }
 }
 
-function setShowFps(value) {
+function setShowFps(/** @type {any} */ value) {
   try {
     localStorage.setItem(FPS_STORAGE_KEY, value ? '1' : '0');
   } catch {
@@ -544,18 +574,25 @@ inputHandler = createInputHandler({
   onToggleInventory: ui.toggleInventory,
   onToggleCharacter: ui.toggleCharacter,
   onToggleSkills: ui.toggleSkills,
+  onToggleFullscreen: () => {
+    if (!document.fullscreenElement) {
+      renderSystem.renderer.domElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  },
   onInteract: handleInteract,
-  onAbility: (slot) => combat.useAbility(slot),
-  onMoveTarget: (pos, opts) => connection.sendMoveTarget(pos, opts),
+  onAbility: (/** @type {any} */ slot) => combat.useAbility(slot),
+  onMoveTarget: (/** @type {any} */ pos, /** @type {any} */ opts) => connection.sendMoveTarget(pos, opts),
   onInputChange: connection.sendInput,
   onTargetSelect: combat.selectTarget,
   onCycleTarget: combat.cycleTarget,
-  pickTarget: (ndc) => renderSystem.pickTarget(ndc),
-  onTradeTab: (tab) => ui.vendorUI?.setTab?.(tab),
+  pickTarget: (/** @type {any} */ ndc) => renderSystem.pickTarget(ndc),
+  onTradeTab: (/** @type {any} */ tab) => ui.vendorUI?.setTab?.(tab),
   getPlacementMode: () => combat.getPlacementMode(),
-  onPlacementConfirm: (pos) => combat.confirmPlacement(pos),
+  onPlacementConfirm: (/** @type {any} */ pos) => combat.confirmPlacement(pos),
   onPlacementCancel: () => combat.cancelPlacement(),
-  onPlacementUpdate: (pos) => combat.updatePlacementCursor(pos),
+  onPlacementUpdate: (/** @type {any} */ pos) => combat.updatePlacementCursor(pos),
   onTogglePauseMenu: () => {
     if (ctx.net && !ui.isMenuOpen()) {
       if (pauseMenu.isOpen()) {
@@ -598,7 +635,7 @@ function getPlayerSpeed() {
   return baseSpeed * multiplier;
 }
 
-function stepFrame(dt, now) {
+function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   const { positions, localPos: serverLocalPos } = gameState.renderInterpolatedPlayers(now);
   renderSystem.updatePlayerPositions(positions, {
     localPlayerId: ctx.playerId ?? null,
@@ -704,7 +741,7 @@ function stepFrame(dt, now) {
         ? gameState.getWorldConfig().playerInvSlots * gameState.getWorldConfig().playerInvStackMax
         : 5);
     const inv = localState?.inv ?? 0;
-    let nearestResource = null;
+    let /** @type {any} */ nearestResource = null;
     const radiusSq = radius * radius;
     if (!localState?.dead && inv < invCap) {
       for (const resource of gameState.getLatestResources()) {
@@ -745,9 +782,6 @@ function stepFrame(dt, now) {
     fpsFrameCount = 0;
     fpsLastTime = now;
   }
-    fpsFrameCount = 0;
-    fpsLastTime = now;
-  }
 
   renderSystem.renderFrame();
   minimap.render({
@@ -784,7 +818,7 @@ if (renderSystem.isWebGLReady()) {
   animate();
 }
 
-window.advanceTime = (ms) => {
+window.advanceTime = (/** @type {any} */ ms) => {
   manualStepping = true;
   const stepMs = 1000 / 60;
   const steps = Math.max(1, Math.round(ms / stepMs));
@@ -842,7 +876,7 @@ function buildTextState() {
       harvestRadius,
       vendors: worldConfig?.vendors ?? [],
       vendorInteractRadius: worldConfig?.vendorInteractRadius ?? 2.5,
-      obstacles: obstacles.map((o) => ({ x: o.x, z: o.z, r: o.r })),
+      obstacles: obstacles.map((/** @type {any} */ o) => ({ x: o.x, z: o.z, r: o.r })),
     },
     serverTime: gameState.getServerNow(),
     player: me
@@ -897,7 +931,7 @@ function buildTextState() {
     skills: {
       open: ui.isSkillsOpen(),
     },
-    abilities: abilities.map((ability) => ({
+    abilities: abilities.map((/** @type {any} */ ability) => ({
       id: ability.id,
       name: ability.name,
       slot: ability.slot,
@@ -916,8 +950,8 @@ function buildTextState() {
     combat: {
       targetSelectRange: combat.getTargetSelectRange(),
       recentEvents: combat.getCombatEvents()
-        .filter((event) => event.attackerId === ctx.playerId)
-        .map((event) => ({
+        .filter((/** @type {any} */ event) => event.attackerId === ctx.playerId)
+        .map((/** @type {any} */ event) => ({
           kind: event.kind ?? null,
           attackType: event.attackType ?? null,
           attackerId: event.attackerId ?? null,
@@ -940,7 +974,7 @@ function buildTextState() {
       slots: inventorySlotCount,
       stackMax: inventoryStackMax,
       items: inventorySlots
-        .map((item, index) =>
+        .map((/** @type {any} */ item, /** @type {any} */ index) =>
           item
             ? {
                 slot: index,
@@ -953,14 +987,14 @@ function buildTextState() {
         )
         .filter(Boolean),
     },
-    resources: gameState.getLatestResources().map((r) => ({
+    resources: gameState.getLatestResources().map((/** @type {any} */ r) => ({
       id: r.id,
       x: r.x,
       z: r.z,
       available: r.available,
       respawnAt: r.respawnAt ?? 0,
     })),
-    mobs: gameState.getLatestMobs().map((m) => ({
+    mobs: gameState.getLatestMobs().map((/** @type {any} */ m) => ({
       id: m.id,
       x: m.x,
       z: m.z,
@@ -978,7 +1012,7 @@ function buildTextState() {
 window.render_game_to_text = () => JSON.stringify(buildTextState());
 
 window.__game = {
-  moveTo: (x, z) => {
+  moveTo: (/** @type {any} */ x, /** @type {any} */ z) => {
     connection.sendMoveTarget({ x, z });
   },
   clearInput: () => {
@@ -987,21 +1021,21 @@ window.__game = {
   interact: () => {
     connection.sendInteract();
   },
-  projectToScreen: (x, z) => {
+  projectToScreen: (/** @type {any} */ x, /** @type {any} */ z) => {
     return renderSystem.projectToScreen({ x, z });
   },
   getState: () => buildTextState(),
-  selectTarget: (selection) => {
+  selectTarget: (/** @type {any} */ selection) => {
     combat.selectTarget(selection);
   },
 };
 
-function getNearestVendor(pos) {
+function getNearestVendor(/** @type {any} */ pos) {
   const worldConfig = gameState.getWorldConfig();
   if (!pos || !Array.isArray(worldConfig?.vendors)) {
     return { vendor: null, distance: Infinity };
   }
-  let bestVendor = null;
+  let /** @type {any} */ bestVendor = null;
   let bestDist = Infinity;
   for (const vendor of worldConfig.vendors) {
     const dx = vendor.x - pos.x;
@@ -1031,7 +1065,7 @@ if (isGuestSession) {
   (async () => {
     showLoadingScreen('Loading assets...', 0);
     try {
-      await preloadAllAssets((loaded, total) => {
+      await preloadAllAssets((/** @type {any} */ loaded, /** @type {any} */ total) => {
         showLoadingScreen('Loading assets...', Math.round((loaded / total) * 100));
       });
       showLoadingScreen('Connecting...');

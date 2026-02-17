@@ -1,7 +1,8 @@
-/** @param {import('../abilityHandlers').AbilityHandlerDeps} d */
+// @ts-check
+/** @param {import('../abilityHandlers.js').AbilityHandlerDeps} d */
 export function createGuardianHandlers(d) {
   return {
-    shield_slam(ctx) {
+    shield_slam(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
@@ -11,7 +12,7 @@ export function createGuardianHandlers(d) {
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
-      let result = null;
+      let /** @type {any} */ result = null;
       if (d.rollHit(derived.accuracy, 0)) {
         if (targetPlayer) {
           result = d.applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
@@ -53,7 +54,7 @@ export function createGuardianHandlers(d) {
           : null,
       };
     },
-    defensive_stance(ctx) {
+    defensive_stance(/** @type {any} */ ctx) {
       const { player, ability } = ctx;
       player.defensiveStanceUntil = ctx.now + (ability.durationMs ?? 0);
       player.defensiveStancePvpDamageTakenMultiplier = ability.pvpDamageTakenMultiplier ?? 0.8;
@@ -61,21 +62,21 @@ export function createGuardianHandlers(d) {
       player.damageTakenMultiplier = ability.damageTakenMultiplier ?? 0.7;
       return {};
     },
-    taunt(ctx) {
+    taunt(/** @type {any} */ ctx) {
       const { player, ability, targetMob } = ctx;
       if (!targetMob) return {};
       targetMob.targetId = player.id;
       targetMob.tauntedUntil = ctx.now + (ability.durationMs ?? 3000);
       return {};
     },
-    shield_wall(ctx) {
+    shield_wall(/** @type {any} */ ctx) {
       const { player, ability } = ctx;
       player.shieldWallUntil = ctx.now + (ability.durationMs ?? 3000);
       player.shieldWallDamageTakenMultiplier = ability.damageTakenMultiplier ?? 0.5;
       player.shieldWallPvpDamageTakenMultiplier = ability.pvpDamageTakenMultiplier ?? 0.7;
       return {};
     },
-    fortify(ctx) {
+    fortify(/** @type {any} */ ctx) {
       const { player, ability } = ctx;
       const baseMaxHp = player.maxHp ?? 100;
       const mult = ability.maxHpMultiplier ?? 1.2;
@@ -87,7 +88,7 @@ export function createGuardianHandlers(d) {
       player.fortifyUntil = ctx.now + (ability.durationMs ?? 8000);
       return {};
     },
-    ground_slam(ctx) {
+    ground_slam(/** @type {any} */ ctx) {
       const { player, ability, mobs, players, now, respawnMs } = ctx;
       const result = d.applyNova({
         player,
@@ -115,7 +116,7 @@ export function createGuardianHandlers(d) {
             : null,
       };
     },
-    guardians_rebuke(ctx) {
+    guardians_rebuke(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
@@ -125,7 +126,7 @@ export function createGuardianHandlers(d) {
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
-      let result = null;
+      let /** @type {any} */ result = null;
       if (d.rollHit(derived.accuracy, 0)) {
         if (targetPlayer) {
           result = d.applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
@@ -156,7 +157,7 @@ export function createGuardianHandlers(d) {
           : null,
       };
     },
-    unbreakable(ctx) {
+    unbreakable(/** @type {any} */ ctx) {
       const { player, ability } = ctx;
       player.ccImmuneUntil = ctx.now + (ability.durationMs ?? 4000);
       return {};

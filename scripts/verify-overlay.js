@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * Verifies the player unit frame overlay layout.
  * Run with: node scripts/verify-overlay.js
@@ -30,11 +31,11 @@ function resetE2eDatabase() {
   if (result.status !== 0) throw new Error('Failed to reset e2e database');
 }
 
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+function sleep(/** @type {any} */ ms) {
+  return new Promise((/** @type {any} */ r) => setTimeout(r, ms));
 }
 
-async function waitForServer(proc) {
+async function waitForServer(/** @type {any} */ proc) {
   const start = Date.now();
   while (Date.now() - start < 8000) {
     try {
@@ -81,7 +82,7 @@ async function main() {
     await page.click('#signup-form button[type="submit"]');
 
     await page.waitForFunction(
-      () => document.querySelector('#menu')?.dataset?.step === 'characters',
+      () => document.querySelector('#menu')?.getAttribute('data-step') === 'characters',
       { timeout: 10000 }
     );
     await page.click('#character-create-open');
@@ -132,7 +133,7 @@ async function main() {
   }
 }
 
-main().catch((err) => {
+main().catch((/** @type {any} */ err) => {
   console.error(err);
   process.exit(1);
 });

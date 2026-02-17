@@ -47,7 +47,7 @@ import { COMBAT_CONFIG } from './config.js';
 export const DEFAULT_CLASS_ID = 'fighter';
 export const ABILITY_SLOTS = 10;
 
-export const CLASS_RESOURCES = {
+export const /** @type {any} */ CLASS_RESOURCES = {
   guardian: {
     type: 'stamina',
     max: 100,
@@ -81,7 +81,7 @@ export const CLASS_RESOURCES = {
 };
 
 /** Base attributes per class (spec Section 2) */
-export const CLASS_BASE_ATTRIBUTES = {
+export const /** @type {any} */ CLASS_BASE_ATTRIBUTES = {
   fighter: { str: 12, dex: 8, int: 4, vit: 10, spi: 4 },
   guardian: { str: 8, dex: 5, int: 4, vit: 14, spi: 6 },
   mage: { str: 3, dex: 6, int: 14, vit: 6, spi: 10 },
@@ -90,7 +90,7 @@ export const CLASS_BASE_ATTRIBUTES = {
 };
 
 /** Primary and secondary attributes for +1/+0.5 per-level gain */
-export const CLASS_ATTRIBUTE_PROGRESSION = {
+export const /** @type {any} */ CLASS_ATTRIBUTE_PROGRESSION = {
   fighter: { primary: 'str', secondary: 'dex' },
   guardian: { primary: 'vit', secondary: 'spi' },
   mage: { primary: 'int', secondary: 'spi' },
@@ -98,7 +98,7 @@ export const CLASS_ATTRIBUTE_PROGRESSION = {
   ranger: { primary: 'dex', secondary: 'str' },
 };
 
-export const CLASSES = [
+export const /** @type {any} */ CLASSES = [
   {
     id: 'guardian',
     name: 'Guardian',
@@ -141,17 +141,19 @@ export const CLASSES = [
   },
 ];
 
-export const CLASS_BY_ID = Object.fromEntries(CLASSES.map((klass) => [klass.id, klass]));
+export const CLASS_BY_ID = Object.fromEntries(CLASSES.map((/** @type {any} */ klass) => [klass.id, klass]));
 
-export function isValidClassId(id) {
+/** @typedef {{ attackType?: string, range?: number, kind?: string }} WeaponLike */
+
+export function isValidClassId(/** @type {any} */ id) {
   return typeof id === 'string' && Boolean(CLASS_BY_ID[id]);
 }
 
-export function getClassById(id) {
+export function getClassById(/** @type {any} */ id) {
   return CLASS_BY_ID[id] ?? CLASS_BY_ID[DEFAULT_CLASS_ID];
 }
 
-export function getResourceForClass(classId) {
+export function getResourceForClass(/** @type {any} */ classId) {
   const resource = CLASS_RESOURCES[classId];
   if (resource) return resource;
   return CLASS_RESOURCES[DEFAULT_CLASS_ID] ?? null;
@@ -165,17 +167,23 @@ import {
 export { CLASS_ABILITY_TEMPLATES } from './abilityTemplates.js';
 
 
+/**
+ * @param {string} classId
+ * @param {number} [level]
+ * @param {WeaponLike | null} [weaponDef]
+ */
 export function getAbilitiesForClass(classId, level = 1, weaponDef = null) {
   const klass = getClassById(classId);
   const attackType = weaponDef?.attackType ?? null;
-  const range = Number.isFinite(weaponDef?.range) ? weaponDef.range : klass.attackRange;
+  const weaponRange = weaponDef?.range;
+  const range = Number.isFinite(weaponRange) ? weaponRange : klass.attackRange;
   let name = 'Basic Attack';
   if (attackType === 'melee') {
     name = 'Slash';
   } else if (attackType === 'ranged') {
     name = weaponDef?.kind?.includes('bow') ? 'Shot' : 'Bolt';
   }
-  const abilities = [
+  const /** @type {any} */ abilities = [
     {
       id: 'basic_attack',
       name,
@@ -200,12 +208,24 @@ export function getAbilitiesForClass(classId, level = 1, weaponDef = null) {
   return abilities;
 }
 
+/**
+ * @param {string} classId
+ * @param {number} slot
+ * @param {number} [level]
+ * @param {WeaponLike | null} [weaponDef]
+ */
 export function getAbilityForSlot(classId, slot, level = 1, weaponDef = null) {
   const abilities = getAbilitiesForClass(classId, level, weaponDef);
-  return abilities.find((ability) => ability.slot === slot) ?? null;
+  return abilities.find((/** @type {any} */ ability) => ability.slot === slot) ?? null;
 }
 
+/**
+ * @param {string} classId
+ * @param {string} abilityId
+ * @param {number} [level]
+ * @param {WeaponLike | null} [weaponDef]
+ */
 export function getAbilityById(classId, abilityId, level = 1, weaponDef = null) {
   const abilities = getAbilitiesForClass(classId, level, weaponDef);
-  return abilities.find((ability) => ability.id === abilityId) ?? null;
+  return abilities.find((/** @type {any} */ ability) => ability.id === abilityId) ?? null;
 }

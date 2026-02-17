@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * @typedef {Object} AbilityHandlerDeps
  * @property {Function} computeAbilityDamage

@@ -1,8 +1,9 @@
+// @ts-check
 import { applyWASD } from '../../shared/math.js';
 
 export { applyWASD };
 
-export function stepTowardTarget(pos, target, dt, speed, epsilon = 0.1) {
+export function stepTowardTarget(/** @type {any} */ pos, /** @type {any} */ target, /** @type {any} */ dt, /** @type {any} */ speed, /** @type {any} */ epsilon = 0.1) {
   if (!target) return { pos: { ...pos }, target: null };
 
   const dx = target.x - pos.x;
@@ -40,10 +41,10 @@ export function stepTowardTarget(pos, target, dt, speed, epsilon = 0.1) {
   };
 }
 
-export function stepPlayer(state, input, dt, config = {}) {
+export function stepPlayer(/** @type {any} */ state, /** @type {any} */ input, /** @type {any} */ dt, /** @type {any} */ config = {}) {
   const speed = config.speed ?? 3;
   const epsilon = config.targetEpsilon ?? 0.1;
-  const pos = {
+  const /** @type {any} */ pos = {
     x: state.pos.x,
     y: state.pos.y ?? 0,
     z: state.pos.z,

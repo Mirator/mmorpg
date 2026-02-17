@@ -1,3 +1,4 @@
+// @ts-check
 import { getItemDisplayName } from '../../../shared/economy.js';
 import { getRecipeById } from '../../../shared/recipes.js';
 import { getWeaponDef } from '../../../shared/equipment.js';
@@ -9,7 +10,7 @@ import {
 } from '../../logic/inventory.js';
 import { countInventory } from '../../logic/inventory.js';
 
-export function handleCraft(ctx) {
+export function handleCraft(/** @type {any} */ ctx) {
   const { player, msg, persistence, nextItemIdRef } = ctx;
   const recipe = getRecipeById(msg.recipeId);
   if (!recipe) return;
@@ -18,7 +19,7 @@ export function handleCraft(ctx) {
     const need = input.count * craftCount;
     if (countItem(player.inventory, input.kind) < need) return;
   }
-  const consumed = [];
+  const /** @type {any} */ consumed = [];
   for (const input of recipe.inputs) {
     const need = input.count * craftCount;
     if (!consumeItems(player.inventory, input.kind, need)) {

@@ -1,4 +1,5 @@
-export const CLASS_ABILITY_TEMPLATES = {
+// @ts-check
+export const /** @type {any} */ CLASS_ABILITY_TEMPLATES = {
   guardian: [
     {
       id: 'shield_slam',
@@ -540,7 +541,7 @@ export const CLASS_ABILITY_TEMPLATES = {
   ],
 };
 
-export function resolveAbilityRange(template, baseRange) {
+export function resolveAbilityRange(/** @type {any} */ template, /** @type {any} */ baseRange) {
   if (Number.isFinite(template?.range)) return template.range;
   if (Number.isFinite(template?.rangeMultiplier)) {
     return baseRange * template.rangeMultiplier;

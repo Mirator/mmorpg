@@ -1,7 +1,8 @@
-/** @param {import('../abilityHandlers').AbilityHandlerDeps} d */
+// @ts-check
+/** @param {import('../abilityHandlers.js').AbilityHandlerDeps} d */
 export function createMageHandlers(d) {
   return {
-    firebolt(ctx) {
+    firebolt(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
@@ -11,7 +12,7 @@ export function createMageHandlers(d) {
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
-      let result = null;
+      let /** @type {any} */ result = null;
       if (d.rollHit(derived.accuracy, 0)) {
         if (targetPlayer) {
           result = d.applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
@@ -46,7 +47,7 @@ export function createMageHandlers(d) {
           : null,
       };
     },
-    flame_wave(ctx) {
+    flame_wave(/** @type {any} */ ctx) {
       const { player, ability, mobs, players, now, respawnMs, abilityDir } = ctx;
       const result = d.applyCleave({
         player,
@@ -74,7 +75,7 @@ export function createMageHandlers(d) {
             : null,
       };
     },
-    ice_barrier(ctx) {
+    ice_barrier(/** @type {any} */ ctx) {
       const { player, ability } = ctx;
       const derived = d.computeDerivedStats(player);
       const absorb = Math.max(0, Math.floor((ability.baseValue ?? 25) + derived.magicPower * (ability.coefficient ?? 0.9)));
@@ -82,11 +83,11 @@ export function createMageHandlers(d) {
       player.absorbUntil = ctx.now + 60000;
       return {};
     },
-    blink(ctx) {
+    blink(/** @type {any} */ ctx) {
       const { player, ability, world, abilityDir } = ctx;
       const dir = abilityDir ?? (player.lastMoveDir ?? { x: 0, z: 1 });
       const dist = ability.dashDistance ?? 4;
-      const nextPos = {
+      const /** @type {any} */ nextPos = {
         x: player.pos.x + dir.x * dist,
         y: player.pos.y ?? 0,
         z: player.pos.z + dir.z * dist,
@@ -94,14 +95,14 @@ export function createMageHandlers(d) {
       player.pos = d.applyCollisions(nextPos, world, 0.6);
       return {};
     },
-    counterspell(ctx) {
+    counterspell(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
       target.castingLockoutUntil = ctx.now + (ability.interruptLockoutMs ?? 2000);
       return { hit: true };
     },
-    meteor(ctx) {
+    meteor(/** @type {any} */ ctx) {
       const { player, ability, mobs, players, now, respawnMs, placementCenter } = ctx;
       const result = d.applyNova({
         player,
@@ -128,7 +129,7 @@ export function createMageHandlers(d) {
             : null,
       };
     },
-    frost_nova(ctx) {
+    frost_nova(/** @type {any} */ ctx) {
       const { player, ability, mobs, players, now, respawnMs } = ctx;
       const result = d.applyNova({
         player,

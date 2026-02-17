@@ -1,3 +1,4 @@
+// @ts-check
 import 'dotenv/config';
 
 if (process.env.DATABASE_URL_TEST) {

@@ -1,13 +1,14 @@
+// @ts-check
 import { getClassById, getAbilitiesForClass } from '/shared/classes.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 import { xpToNext } from '/shared/progression.js';
 
-function formatTargetType(type) {
+function formatTargetType(/** @type {any} */ type) {
   if (!type) return 'None';
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
-export function createSkillsPanelUpdater(elements) {
+export function createSkillsPanelUpdater(/** @type {any} */ elements) {
   const {
     skillsListEl,
     skillsClassEl,
@@ -16,7 +17,7 @@ export function createSkillsPanelUpdater(elements) {
   } = elements;
   let skillsRenderKey = '';
 
-  return function updateSkillsPanel(me, getCurrentClassId) {
+  return function updateSkillsPanel(/** @type {any} */ me, /** @type {any} */ getCurrentClassId) {
     if (!skillsListEl) return;
     if (!me) {
       if (skillsClassEl) skillsClassEl.textContent = '--';

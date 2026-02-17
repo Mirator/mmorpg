@@ -1,3 +1,4 @@
+// @ts-check
 import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -36,10 +37,44 @@ const CLIENT_DIR = path.resolve(__dirname, '../client');
 const ADMIN_DIR = path.resolve(__dirname, '../admin');
 const SHARED_DIR = path.resolve(__dirname, '../shared');
 
+/** @typedef {import('./types/domain.d.ts').AuthAccount} AuthAccount */
+/** @typedef {import('./types/domain.d.ts').HttpConfig} HttpConfig */
+/** @typedef {import('./types/domain.d.ts').HttpRequestLike} HttpRequestLike */
+/** @typedef {import('./types/domain.d.ts').HttpResponseLike} HttpResponseLike */
+/** @typedef {import('./types/domain.d.ts').MobEntity} MobEntity */
+/** @typedef {import('./types/domain.d.ts').NextFunctionLike} NextFunctionLike */
+/** @typedef {import('./types/domain.d.ts').PlayerMap} PlayerMap */
+/** @typedef {import('./types/domain.d.ts').ResourceNode} ResourceNode */
+/** @typedef {import('./types/domain.d.ts').SpawnerLike} SpawnerLike */
+
+/** @typedef {Error & { code?: string }} DbError */
+
+/**
+ * @param {unknown} err
+ * @returns {err is DbError}
+ */
+function isUniqueConstraintError(err) {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    /** @type {{ code?: unknown }} */ (err).code === 'P2002'
+  );
+}
+
+/**
+ * @param {HttpResponseLike} res
+ * @param {number} status
+ * @param {string} message
+ */
 function sendError(res, status, message) {
   res.status(status).json({ error: message });
 }
 
+/**
+ * @param {HttpRequestLike} req
+ * @returns {string | null}
+ */
 function getBearerToken(req) {
   const auth = typeof req.get === 'function' ? req.get('authorization') : '';
   if (!auth || typeof auth !== 'string') return null;
@@ -49,6 +84,11 @@ function getBearerToken(req) {
   return token.length > 0 ? token : null;
 }
 
+/**
+ * @param {HttpResponseLike} res
+ * @param {string} token
+ * @param {HttpConfig} config
+ */
 function setSessionCookie(res, token, config) {
   res.cookie(config.sessionCookieName, token, {
     httpOnly: true,
@@ -59,6 +99,10 @@ function setSessionCookie(res, token, config) {
   });
 }
 
+/**
+ * @param {HttpResponseLike} res
+ * @param {HttpConfig} config
+ */
 function clearSessionCookie(res, config) {
   res.clearCookie(config.sessionCookieName, {
     httpOnly: true,
@@ -68,6 +112,17 @@ function clearSessionCookie(res, config) {
   });
 }
 
+/**
+ * @param {{
+ *   config: HttpConfig,
+ *   world: unknown,
+ *   players: PlayerMap,
+ *   resources: ResourceNode[],
+ *   mobs: MobEntity[],
+ *   spawner: SpawnerLike,
+ *   mapConfigPath: string
+ * }} deps
+ */
 export function createHttpApp({
   config,
   world,
@@ -129,23 +184,24 @@ export function createHttpApp({
     legacyHeaders: false,
     message: { error: 'Too many attempts, try again soon.' },
     keyGenerator: (req) => {
-      const ip = req.ip ?? 'unknown';
+      const request = /** @type {HttpRequestLike} */ (/** @type {unknown} */ (req));
+      const ip = request.ip ?? 'unknown';
       const username =
-        typeof req.body?.username === 'string'
-          ? req.body.username.toLowerCase().trim()
+        typeof request.body?.username === 'string'
+          ? request.body.username.toLowerCase().trim()
           : '';
       return `${ip}:${username || 'unknown'}`;
     },
   });
 
-  app.get('/favicon.ico', (req, res) => {
+  app.get('/favicon.ico', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     res.redirect(302, '/favicon.svg');
   });
 
-  app.get('/admin', (req, res) => {
+  app.get('/admin', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     res.sendFile(path.join(ADMIN_DIR, 'index.html'));
   });
-  app.get('/admin/map', (req, res) => {
+  app.get('/admin/map', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     res.sendFile(path.join(ADMIN_DIR, 'map.html'));
   });
   app.use('/admin', express.static(ADMIN_DIR));
@@ -170,13 +226,14 @@ export function createHttpApp({
   app.get('/admin/map-config', mapHandlers.getHandler);
   app.put('/admin/map-config', mapHandlers.putHandler);
 
-  app.post('/api/auth/signup', authLimiter, async (req, res) => {
+  app.post('/api/auth/signup', authLimiter, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     const normalized = normalizeUsername(req.body?.username);
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
     if (!normalized) {
       sendError(res, 400, 'Username must be 3-20 characters (letters, numbers, underscore).');
       return;
     }
-    if (!isValidPassword(req.body?.password)) {
+    if (!isValidPassword(password)) {
       sendError(res, 400, 'Password must be 8-64 characters.');
       return;
     }
@@ -195,7 +252,7 @@ export function createHttpApp({
       return;
     }
 
-    const { hash, salt } = await hashPassword(req.body.password);
+    const { hash, salt } = await hashPassword(password);
     const accountId = generateId();
     const now = new Date();
 
@@ -210,7 +267,7 @@ export function createHttpApp({
       });
     } catch (err) {
       if (sendDbError(res, err)) return;
-      if (err?.code === 'P2002') {
+      if (isUniqueConstraintError(err)) {
         sendError(res, 409, 'Username already taken.');
         return;
       }
@@ -237,20 +294,21 @@ export function createHttpApp({
 
     setSessionCookie(res, token, config);
 
-    const payload = { account: { id: accountId, username: normalized.name } };
     if (config.exposeAuthToken) {
-      payload.token = token;
+      res.json({ account: { id: accountId, username: normalized.name }, token });
+      return;
     }
-    res.json(payload);
+    res.json({ account: { id: accountId, username: normalized.name } });
   });
 
-  app.post('/api/auth/login', authLimiter, async (req, res) => {
+  app.post('/api/auth/login', authLimiter, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     const normalized = normalizeUsername(req.body?.username);
+    const password = typeof req.body?.password === 'string' ? req.body.password : '';
     if (!normalized) {
       sendError(res, 400, 'Invalid username or password.');
       return;
     }
-    if (!isValidPassword(req.body?.password ?? '')) {
+    if (!isValidPassword(password)) {
       sendError(res, 400, 'Invalid username or password.');
       return;
     }
@@ -269,7 +327,7 @@ export function createHttpApp({
       return;
     }
 
-    const ok = await verifyPassword(req.body.password, account.passwordHash, account.passwordSalt);
+    const ok = await verifyPassword(password, account.passwordHash, account.passwordSalt);
     if (!ok) {
       sendError(res, 401, 'Invalid username or password.');
       return;
@@ -296,14 +354,14 @@ export function createHttpApp({
 
     setSessionCookie(res, token, config);
 
-    const payload = { account: { id: account.id, username: account.username } };
     if (config.exposeAuthToken) {
-      payload.token = token;
+      res.json({ account: { id: account.id, username: account.username }, token });
+      return;
     }
-    res.json(payload);
+    res.json({ account: { id: account.id, username: account.username } });
   });
 
-  async function requireAuth(req, res, next) {
+  async function requireAuth(/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res, /** @type {NextFunctionLike} */ next) {
     const token =
       normalizeId(getBearerToken(req)) ??
       normalizeId(getCookieValue(req, config.sessionCookieName));
@@ -346,7 +404,11 @@ export function createHttpApp({
     next();
   }
 
-  app.post('/api/auth/logout', requireAuth, async (req, res) => {
+  app.post('/api/auth/logout', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    if (!req.authToken) {
+      sendError(res, 401, 'Unauthorized');
+      return;
+    }
     try {
       await deleteSession(req.authToken);
     } catch (err) {
@@ -356,7 +418,12 @@ export function createHttpApp({
     res.json({ ok: true });
   });
 
-  app.post('/api/ws-ticket', requireAuth, async (req, res) => {
+  app.post('/api/ws-ticket', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    const account = req.account;
+    if (!account) {
+      sendError(res, 401, 'Unauthorized');
+      return;
+    }
     const characterId = normalizeId(req.body?.characterId);
     if (!characterId) {
       sendError(res, 400, 'Invalid character.');
@@ -373,21 +440,26 @@ export function createHttpApp({
       return;
     }
 
-    if (!character || character.accountId !== req.account.id) {
+    if (!character || character.accountId !== account.id) {
       sendError(res, 404, 'Character not found.');
       return;
     }
 
     const ticket = createTicket({
-      accountId: req.account.id,
+      accountId: account.id,
       characterId: character.id,
     });
     res.json({ ticket });
   });
 
-  app.get('/api/characters', requireAuth, async (req, res) => {
+  app.get('/api/characters', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    const account = req.account;
+    if (!account) {
+      sendError(res, 401, 'Unauthorized');
+      return;
+    }
     try {
-      const characters = await listCharacters(req.account.id);
+      const characters = await listCharacters(account.id);
       res.json({ characters });
     } catch (err) {
       if (sendDbError(res, err)) return;
@@ -396,13 +468,19 @@ export function createHttpApp({
     }
   });
 
-  app.post('/api/characters', requireAuth, async (req, res) => {
+  app.post('/api/characters', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    const account = req.account;
+    if (!account) {
+      sendError(res, 401, 'Unauthorized');
+      return;
+    }
     const normalized = normalizeCharacterName(req.body?.name);
+    const classId = typeof req.body?.classId === 'string' ? req.body.classId : '';
     if (!normalized) {
       sendError(res, 400, 'Character name must be 3-16 letters/numbers/spaces.');
       return;
     }
-    if (!isValidClassId(req.body?.classId)) {
+    if (!isValidClassId(classId)) {
       sendError(res, 400, 'Invalid class selection.');
       return;
     }
@@ -425,7 +503,7 @@ export function createHttpApp({
     const basePlayer = createBasePlayerState({
       world,
       spawn,
-      classId: req.body.classId,
+      classId,
     });
     const state = serializePlayerState(basePlayer);
     const id = generateId();
@@ -434,7 +512,7 @@ export function createHttpApp({
     try {
       await createCharacter({
         id,
-        accountId: req.account.id,
+        accountId: account.id,
         name: normalized.name,
         nameLower: normalized.lower,
         state,
@@ -442,7 +520,7 @@ export function createHttpApp({
       });
     } catch (err) {
       if (sendDbError(res, err)) return;
-      if (err?.code === 'P2002') {
+      if (isUniqueConstraintError(err)) {
         sendError(res, 409, 'Character name already taken.');
         return;
       }
@@ -461,7 +539,12 @@ export function createHttpApp({
     });
   });
 
-  app.delete('/api/characters/:id', requireAuth, async (req, res) => {
+  app.delete('/api/characters/:id', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    const account = req.account;
+    if (!account) {
+      sendError(res, 401, 'Unauthorized');
+      return;
+    }
     const characterId = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
     if (!characterId) {
       sendError(res, 400, 'Invalid character.');
@@ -478,7 +561,7 @@ export function createHttpApp({
       return;
     }
 
-    if (!existing || existing.accountId !== req.account.id) {
+    if (!existing || existing.accountId !== account.id) {
       sendError(res, 404, 'Character not found.');
       return;
     }
@@ -486,7 +569,7 @@ export function createHttpApp({
     const active = players.get(characterId);
     if (active) {
       try {
-        active.ws?.close(4002, 'Character deleted');
+        active.ws?.close?.(4002, 'Character deleted');
       } catch {
         // ignore close errors
       }
@@ -494,7 +577,7 @@ export function createHttpApp({
     }
 
     try {
-      const result = await deleteCharacter(req.account.id, characterId);
+      const result = await deleteCharacter(account.id, characterId);
       if (result.count === 0) {
         sendError(res, 404, 'Character not found.');
         return;
@@ -509,8 +592,8 @@ export function createHttpApp({
     res.json({ ok: true });
   });
 
-  app.use((req, res) => {
-    const acceptsHtml = req.accepts('html');
+  app.use((/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    const acceptsHtml = req.accepts?.('html');
     if (acceptsHtml) {
       res.status(404).send('Not Found');
       return;
@@ -518,7 +601,7 @@ export function createHttpApp({
     res.status(404).json({ error: 'Not Found' });
   });
 
-  app.use((err, req, res, next) => {
+  app.use((/** @type {unknown} */ err, /** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res, /** @type {NextFunctionLike} */ next) => {
     console.error('Unhandled error:', err);
     if (res.headersSent) {
       next(err);

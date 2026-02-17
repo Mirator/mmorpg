@@ -1,30 +1,47 @@
+// @ts-check
 const ACCOUNT_KEY = 'mmorpg_account';
 const LAST_CHARACTER_PREFIX = 'mmorpg_last_character_';
 
 // Auth uses HttpOnly session cookie by default. Token is only stored in memory when the server
 // returns it (EXPOSE_AUTH_TOKEN=true, dev/testing only). Never store tokens in localStorage.
 
-export function createAuth({
+/**
+ * @typedef {{
+ *   method?: string;
+ *   body?: unknown;
+ * }} ApiFetchOptions
+ */
+
+export function createAuth(/** @type {any} */ {
   menu,
   ui,
   accountNameEl,
   characterNameEl,
 }) {
-  let onConnectCharacter = null;
-  let onDisconnect = null;
+  let /** @type {any} */ onConnectCharacter = null;
+  let /** @type {any} */ onDisconnect = null;
 
-  function setOnConnectCharacter(fn) {
+  function setOnConnectCharacter(/** @type {any} */ fn) {
     onConnectCharacter = fn;
   }
-  function setOnDisconnect(fn) {
+  function setOnDisconnect(/** @type {any} */ fn) {
     onDisconnect = fn;
   }
-  let authToken = null;
-  let currentAccount = null;
-  let currentCharacter = null;
-  let lastCharacterId = null;
+  let /** @type {any} */ authToken = null;
+  let /** @type {any} */ currentAccount = null;
+  let /** @type {any} */ currentCharacter = null;
+  let /** @type {any} */ lastCharacterId = null;
 
-  function saveAuthToken(token) {
+  /**
+   * @param {unknown} err
+   * @param {string} fallback
+   * @returns {string}
+   */
+  function getErrorMessage(err, fallback) {
+    return err instanceof Error ? err.message : fallback;
+  }
+
+  function saveAuthToken(/** @type {any} */ token) {
     authToken = token ?? null;
   }
 
@@ -42,7 +59,7 @@ export function createAuth({
     return null;
   }
 
-  function saveStoredAccount(account) {
+  function saveStoredAccount(/** @type {any} */ account) {
     if (!account || typeof account.id !== 'string') return;
     localStorage.setItem(ACCOUNT_KEY, JSON.stringify(account));
   }
@@ -61,7 +78,7 @@ export function createAuth({
     return localStorage.getItem(key);
   }
 
-  function saveLastCharacterId(id) {
+  function saveLastCharacterId(/** @type {any} */ id) {
     const key = getLastCharacterKey();
     if (!key) return;
     if (id) {
@@ -97,7 +114,12 @@ export function createAuth({
     updateOverlayLabels();
   }
 
+  /**
+   * @param {string} path
+   * @param {ApiFetchOptions} [options]
+   */
   async function apiFetch(path, { method = 'GET', body } = {}) {
+    /** @type {Record<string, string>} */
     const headers = {};
     if (body) {
       headers['Content-Type'] = 'application/json';
@@ -111,7 +133,7 @@ export function createAuth({
       body: body ? JSON.stringify(body) : undefined,
       credentials: 'same-origin',
     });
-    let payload = null;
+    let /** @type {any} */ payload = null;
     try {
       payload = await res.json();
     } catch {
@@ -134,7 +156,7 @@ export function createAuth({
     updateOverlayLabels();
   }
 
-  async function signIn({ username, password }) {
+  async function signIn(/** @type {any} */ { username, password }) {
     menu.setLoading(true);
     menu.setError('auth', '');
     try {
@@ -148,13 +170,13 @@ export function createAuth({
       menu.setAccount(currentAccount);
       await loadCharacters();
     } catch (err) {
-      menu.setError('auth', err.message || 'Unable to sign in.');
+      menu.setError('auth', getErrorMessage(err, 'Unable to sign in.'));
     } finally {
       menu.setLoading(false);
     }
   }
 
-  async function signUp({ username, password }) {
+  async function signUp(/** @type {any} */ { username, password }) {
     menu.setLoading(true);
     menu.setError('auth', '');
     try {
@@ -168,13 +190,13 @@ export function createAuth({
       menu.setAccount(currentAccount);
       await loadCharacters();
     } catch (err) {
-      menu.setError('auth', err.message || 'Unable to create account.');
+      menu.setError('auth', getErrorMessage(err, 'Unable to create account.'));
     } finally {
       menu.setLoading(false);
     }
   }
 
-  async function createCharacter({ name, classId }) {
+  async function createCharacter(/** @type {any} */ { name, classId }) {
     menu.setLoading(true);
     menu.setError('create', '');
     try {
@@ -190,7 +212,7 @@ export function createAuth({
       }
       menu.setError('create', 'Unable to create character.');
     } catch (err) {
-      menu.setError('create', err.message || 'Unable to create character.');
+      menu.setError('create', getErrorMessage(err, 'Unable to create character.'));
     } finally {
       menu.setLoading(false);
     }
@@ -235,7 +257,7 @@ export function createAuth({
     menu.setLoading(false);
   }
 
-  async function deleteCharacter(character) {
+  async function deleteCharacter(/** @type {any} */ character) {
     if (!character?.id) return;
     const confirmDelete = window.confirm(`Delete ${character.name ?? 'this character'}? This cannot be undone.`);
     if (!confirmDelete) return;
@@ -250,13 +272,13 @@ export function createAuth({
       }
       await loadCharacters();
     } catch (err) {
-      menu.setError('characters', err.message || 'Unable to delete character.');
+      menu.setError('characters', getErrorMessage(err, 'Unable to delete character.'));
     } finally {
       menu.setLoading(false);
     }
   }
 
-  async function connectCharacter(character) {
+  async function connectCharacter(/** @type {any} */ character) {
     if (!character?.id) return;
     menu.setLoading(true);
     menu.setError('characters', '');
@@ -270,7 +292,7 @@ export function createAuth({
       menu.setOpen(false);
       ui.setMenuOpen(false);
     } catch (err) {
-      menu.setError('characters', err.message || 'Unable to connect.');
+      menu.setError('characters', getErrorMessage(err, 'Unable to connect.'));
       ui.setMenuOpen(true);
     } finally {
       menu.setLoading(false);
@@ -297,7 +319,7 @@ export function createAuth({
     getCharacter: () => currentCharacter,
     getAuthToken: () => authToken,
     getLastCharacterId: () => lastCharacterId,
-    setCharacter: (c) => { currentCharacter = c; },
+    setCharacter: (/** @type {any} */ c) => { currentCharacter = c; },
     setOnConnectCharacter,
     setOnDisconnect,
     updateOverlayLabels,

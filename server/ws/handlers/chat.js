@@ -1,7 +1,8 @@
+// @ts-check
 import { getPartyForPlayer } from '../../logic/party.js';
 import { addMessage as addChatMessage } from '../../logic/chat.js';
 
-export function handleChat(ctx) {
+export function handleChat(/** @type {any} */ ctx) {
   const { player, players, msg, config, safeSend, allowChatMessage } = ctx;
   if (player.isGuest) return;
   if (!allowChatMessage()) return;
@@ -11,7 +12,7 @@ export function handleChat(ctx) {
     if (!party) return;
     const stored = addChatMessage(channel, player.id, player.name ?? player.persistName ?? 'Unknown', text, Date.now());
     if (!stored) return;
-    const payload = {
+    const /** @type {any} */ payload = {
       type: 'chat',
       channel: stored.channel,
       authorId: stored.authorId,
@@ -30,7 +31,7 @@ export function handleChat(ctx) {
   const now = Date.now();
   const stored = addChatMessage(channel, authorId, authorName, text, now);
   if (!stored) return;
-  const payload = {
+  const /** @type {any} */ payload = {
     type: 'chat',
     channel: stored.channel,
     authorId: stored.authorId,

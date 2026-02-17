@@ -16,16 +16,28 @@ import {
   isTrading,
 } from '../../logic/trade.js';
 
+/** @typedef {import('../../types/domain.d.ts').TradeHandlerContext} TradeHandlerContext */
+/** @typedef {import('../../types/domain.d.ts').TradeOffer} TradeOffer */
+
+/**
+ * @param {TradeOffer} offer
+ * @returns {TradeOffer}
+ */
 function serializeOffer(offer) {
   return {
-    items: offer.items.map((i) => (i ? { ...i } : null)),
+    items: offer.items.map((item) => (item ? { ...item } : null)),
     copper: offer.copper ?? 0,
   };
 }
 
+/**
+ * @param {TradeHandlerContext} ctx
+ */
 export function handleTradeRequest(ctx) {
   const { player, players, msg, safeSend } = ctx;
-  const target = players.get(msg.targetId);
+  const targetId = msg.targetId;
+  if (typeof targetId !== 'string') return;
+  const target = players.get(targetId);
   if (!target?.ws || target.dead || player.dead) return;
   if (isTrading(player) || isTrading(target)) return;
   if (!playersInRange(player, target)) return;
@@ -37,9 +49,14 @@ export function handleTradeRequest(ctx) {
   });
 }
 
+/**
+ * @param {TradeHandlerContext} ctx
+ */
 export function handleTradeAccept(ctx) {
   const { player, players, msg, safeSend, sendPrivateState, persistence } = ctx;
-  const trader = players.get(msg.traderId);
+  const traderId = msg.traderId;
+  if (typeof traderId !== 'string') return;
+  const trader = players.get(traderId);
   if (!trader?.ws || trader.dead || player.dead) return;
   if (isTrading(player) || isTrading(trader)) return;
   if (!playersInRange(player, trader)) return;
@@ -52,15 +69,13 @@ export function handleTradeAccept(ctx) {
 
   const payload = {
     type: 'tradeOpened',
-    partnerId: null,
-    partnerName: null,
+    partnerId: trader.id,
+    partnerName: trader.name ?? trader.persistName ?? 'Unknown',
     myOffer: serializeOffer(getMyOffer(player)),
     theirOffer: serializeOffer(getOtherOffer(player)),
     confirmed: false,
     theirConfirmed: false,
   };
-  payload.partnerId = trader.id;
-  payload.partnerName = trader.name ?? trader.persistName ?? 'Unknown';
 
   const payloadTrader = {
     type: 'tradeOpened',
@@ -76,14 +91,22 @@ export function handleTradeAccept(ctx) {
   safeSend(trader.ws, payloadTrader);
 }
 
+/**
+ * @param {TradeHandlerContext} ctx
+ */
 export function handleTradeDecline(ctx) {
   const { player, players, msg, safeSend } = ctx;
-  const trader = players.get(msg.traderId);
+  const traderId = msg.traderId;
+  if (typeof traderId !== 'string') return;
+  const trader = players.get(traderId);
   if (trader?.ws) {
     safeSend(trader.ws, { type: 'tradeDeclined', targetId: player.id });
   }
 }
 
+/**
+ * @param {TradeHandlerContext} ctx
+ */
 export function handleTradeOffer(ctx) {
   const { player, players, msg, safeSend, sendPrivateState, persistence } = ctx;
   const session = getTradeSession(player.id);
@@ -92,7 +115,7 @@ export function handleTradeOffer(ctx) {
   if (!partner?.ws) return;
 
   let updated = false;
-  let error = null;
+  let /** @type {string | undefined} */ error;
 
   if (msg.op === 'add') {
     if (msg.slot !== undefined) {
@@ -115,7 +138,7 @@ export function handleTradeOffer(ctx) {
     }
   }
 
-  if (error) {
+  if (error !== undefined) {
     safeSend(player.ws, { type: 'tradeError', error });
     return;
   }
@@ -132,6 +155,9 @@ export function handleTradeOffer(ctx) {
   }
 }
 
+/**
+ * @param {TradeHandlerContext} ctx
+ */
 export function handleTradeConfirm(ctx) {
   const { player, safeSend, sendPrivateState, persistence } = ctx;
   const session = getTradeSession(player.id);
@@ -174,6 +200,9 @@ export function handleTradeConfirm(ctx) {
   }
 }
 
+/**
+ * @param {TradeHandlerContext} ctx
+ */
 export function handleTradeCancel(ctx) {
   const { player, safeSend, sendPrivateState, persistence } = ctx;
   const partner = getTradePartner(player);

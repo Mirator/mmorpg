@@ -84,6 +84,17 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 npm test
 ```
 
+`npm test` now runs local static checks first (`npm run check:tscheck:coverage` + `npm run typecheck`) and then unit/integration tests (`npm run test:unit`).
+Type checks are JS-only and incremental: files participate when they opt in with `// @ts-check` + JSDoc.
+
+Useful test commands:
+
+- `npm test` - `@ts-check` coverage guard + typecheck (server + client + tools) + unit/integration tests.
+- `npm run typecheck` - static typecheck only (server + client + tools).
+- `npm run check:tscheck:coverage` - enforce `// @ts-check` headers on first-party non-test JS.
+- `npm run test:unit` - unit/integration tests only (Vitest).
+- `npm run test:e2e` - Playwright E2E only.
+
 ### E2E Testing
 
 **Prerequisites**

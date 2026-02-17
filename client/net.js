@@ -1,7 +1,8 @@
-export function createNet({ url, onOpen, onClose, onMessage, onError }) {
+// @ts-check
+export function createNet(/** @type {any} */ { url, onOpen, onClose, onMessage, onError }) {
   const ws = new WebSocket(url);
 
-  function send(msg) {
+  function send(/** @type {any} */ msg) {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
     }
@@ -11,7 +12,7 @@ export function createNet({ url, onOpen, onClose, onMessage, onError }) {
     onOpen?.();
   });
 
-  ws.addEventListener('close', (event) => {
+  ws.addEventListener('close', (/** @type {any} */ event) => {
     onClose?.(event);
   });
 
@@ -19,7 +20,7 @@ export function createNet({ url, onOpen, onClose, onMessage, onError }) {
     onError?.();
   });
 
-  ws.addEventListener('message', (event) => {
+  ws.addEventListener('message', (/** @type {any} */ event) => {
     let msg;
     try {
       msg = JSON.parse(event.data);

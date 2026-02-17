@@ -1,3 +1,4 @@
+// @ts-check
 import { spawnSync } from 'node:child_process';
 import process from 'node:process';
 import dotenv from 'dotenv';
@@ -25,19 +26,20 @@ export function resetE2eDatabase() {
   }
 }
 
-export function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export function sleep(/** @type {any} */ ms) {
+  return new Promise((/** @type {any} */ resolve) => setTimeout(resolve, ms));
 }
 
-export async function getMenuStatus(page) {
+export async function getMenuStatus(/** @type {any} */ page) {
   return page.evaluate(() => {
     const menu = document.querySelector('#menu');
     const authError = document.querySelector('#menu-auth-error')?.textContent?.trim() ?? '';
     const charactersError =
       document.querySelector('#menu-characters-error')?.textContent?.trim() ?? '';
     const createError = document.querySelector('#menu-create-error')?.textContent?.trim() ?? '';
+    const step = menu?.getAttribute('data-step') ?? null;
     return {
-      step: menu?.dataset?.step ?? null,
+      step,
       open: menu?.classList?.contains('open') ?? false,
       loading: menu?.classList?.contains('loading') ?? false,
       authError,
@@ -47,7 +49,7 @@ export async function getMenuStatus(page) {
   });
 }
 
-export async function getLoadingScreenState(page) {
+export async function getLoadingScreenState(/** @type {any} */ page) {
   return page.evaluate(() => {
     const el = document.querySelector('#loading-screen');
     if (!el) return { visible: false, text: null };
@@ -58,7 +60,7 @@ export async function getLoadingScreenState(page) {
   });
 }
 
-export async function waitForLoadingScreenToDisappear(page, timeoutMs = LOADING_TIMEOUT_MS) {
+export async function waitForLoadingScreenToDisappear(/** @type {any} */ page, /** @type {any} */ timeoutMs = LOADING_TIMEOUT_MS) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const state = await getLoadingScreenState(page);
@@ -68,9 +70,9 @@ export async function waitForLoadingScreenToDisappear(page, timeoutMs = LOADING_
   throw new Error('Loading screen did not disappear within timeout');
 }
 
-export async function waitForMenuStepOrError(page, step, timeoutMs) {
+export async function waitForMenuStepOrError(/** @type {any} */ page, /** @type {any} */ step, /** @type {any} */ timeoutMs) {
   const start = Date.now();
-  let lastState = null;
+  let /** @type {any} */ lastState = null;
   while (Date.now() - start < timeoutMs) {
     const state = await getMenuStatus(page);
     lastState = state;
@@ -90,9 +92,10 @@ export async function waitForMenuStepOrError(page, step, timeoutMs) {
   };
 }
 
-export function withTimeout(promise, ms, label) {
+export function withTimeout(/** @type {any} */ promise, /** @type {any} */ ms, /** @type {any} */ label) {
+  /** @type {ReturnType<typeof setTimeout> | undefined} */
   let timeoutId;
-  const timeout = new Promise((_, reject) => {
+  const timeout = new Promise((/** @type {any} */ _, /** @type {any} */ reject) => {
     timeoutId = setTimeout(() => {
       reject(new Error(`${label} timed out after ${ms}ms`));
     }, ms);
@@ -103,21 +106,21 @@ export function withTimeout(promise, ms, label) {
   ]);
 }
 
-export async function waitForServer(proc) {
+export async function waitForServer(/** @type {any} */ proc) {
   return withTimeout(
-    new Promise((resolve, reject) => {
-      const onData = (data) => {
+    new Promise((/** @type {any} */ resolve, /** @type {any} */ reject) => {
+      const onData = (/** @type {any} */ data) => {
         const text = data.toString();
         if (text.includes('Server running')) {
           cleanup();
-          resolve();
+          resolve(undefined);
         }
       };
-      const onError = (err) => {
+      const onError = (/** @type {any} */ err) => {
         cleanup();
         reject(err);
       };
-      const onExit = (code) => {
+      const onExit = (/** @type {any} */ code) => {
         cleanup();
         reject(new Error(`Server exited early with code ${code}`));
       };
@@ -137,7 +140,7 @@ export async function waitForServer(proc) {
   );
 }
 
-export async function getState(page) {
+export async function getState(/** @type {any} */ page) {
   const text = await page.evaluate(() => {
     if (typeof window.render_game_to_text === 'function') {
       return window.render_game_to_text();
@@ -148,8 +151,8 @@ export async function getState(page) {
   return JSON.parse(text);
 }
 
-export async function advance(page, ms) {
-  await page.evaluate((delta) => {
+export async function advance(/** @type {any} */ page, /** @type {any} */ ms) {
+  await page.evaluate((/** @type {any} */ delta) => {
     if (typeof window.advanceTime === 'function') {
       return window.advanceTime(delta);
     }
@@ -157,13 +160,13 @@ export async function advance(page, ms) {
   }, ms);
 }
 
-export function distance(a, b) {
+export function distance(/** @type {any} */ a, /** @type {any} */ b) {
   const dx = a.x - b.x;
   const dz = a.z - b.z;
   return Math.hypot(dx, dz);
 }
 
-export function segmentDistanceToPoint(a, b, p) {
+export function segmentDistanceToPoint(/** @type {any} */ a, /** @type {any} */ b, /** @type {any} */ p) {
   const abx = b.x - a.x;
   const abz = b.z - a.z;
   const apx = p.x - a.x;
@@ -172,11 +175,11 @@ export function segmentDistanceToPoint(a, b, p) {
   if (abLen2 === 0) return Math.hypot(apx, apz);
   let t = (apx * abx + apz * abz) / abLen2;
   t = Math.max(0, Math.min(1, t));
-  const closest = { x: a.x + abx * t, z: a.z + abz * t };
+  const /** @type {any} */ closest = { x: a.x + abx * t, z: a.z + abz * t };
   return distance(closest, p);
 }
 
-export function hasLineOfSight(from, to, obstacles, buffer = 0.8) {
+export function hasLineOfSight(/** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ obstacles, /** @type {any} */ buffer = 0.8) {
   if (!Array.isArray(obstacles)) return true;
   for (const obs of obstacles) {
     const dist = segmentDistanceToPoint(from, to, obs);
@@ -185,9 +188,9 @@ export function hasLineOfSight(from, to, obstacles, buffer = 0.8) {
   return true;
 }
 
-export async function waitForCondition(page, condition, timeoutMs, label) {
+export async function waitForCondition(/** @type {any} */ page, /** @type {any} */ condition, /** @type {any} */ timeoutMs, /** @type {any} */ label) {
   const start = Date.now();
-  let lastState = null;
+  let /** @type {any} */ lastState = null;
   while (Date.now() - start < timeoutMs) {
     const state = await getState(page);
     lastState = state;

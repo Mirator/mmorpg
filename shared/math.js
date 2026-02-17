@@ -1,10 +1,11 @@
-export function normalize2(x, z) {
+// @ts-check
+export function normalize2(/** @type {any} */ x, /** @type {any} */ z) {
   const len = Math.hypot(x, z);
   if (len === 0) return { x: 0, z: 0 };
   return { x: x / len, z: z / len };
 }
 
-export function applyWASD(keys = {}) {
+export function applyWASD(/** @type {any} */ keys = {}) {
   // Match camera-facing movement so "W" moves up on screen.
   // Camera is fixed at (20, 20, 20) looking at (0, 0, 0),
   // so forward on the ground plane is (-1, -1) and right is (1, -1).

@@ -1,7 +1,8 @@
-/** @param {import('../abilityHandlers').AbilityHandlerDeps} d */
+// @ts-check
+/** @param {import('../abilityHandlers.js').AbilityHandlerDeps} d */
 export function createPriestHandlers(d) {
   return {
-    heal(ctx) {
+    heal(/** @type {any} */ ctx) {
       const { player, ability, targetPlayer, mobs, now } = ctx;
       const healTarget = targetPlayer ?? player;
       const baseValue = ability.baseValue ?? 15;
@@ -20,7 +21,7 @@ export function createPriestHandlers(d) {
         healTarget.targetId &&
         (healTarget.combatTagUntil ?? 0) > now
       ) {
-        const supportMob = Array.isArray(mobs) ? mobs.find((m) => m.id === healTarget.targetId) : null;
+        const supportMob = Array.isArray(mobs) ? mobs.find((/** @type {any} */ m) => m.id === healTarget.targetId) : null;
         if (supportMob && !supportMob.dead && supportMob.hp > 0) {
           supportMob.supportBy = supportMob.supportBy ?? {};
           supportMob.supportBy[player.id] = (supportMob.supportBy[player.id] ?? 0) + 1;
@@ -33,7 +34,7 @@ export function createPriestHandlers(d) {
         },
       };
     },
-    renew(ctx) {
+    renew(/** @type {any} */ ctx) {
       const { player, ability, targetPlayer, mobs, now } = ctx;
       const healTarget = targetPlayer ?? player;
       const derived = d.computeDerivedStats(player);
@@ -45,7 +46,7 @@ export function createPriestHandlers(d) {
       healTarget.hotSourceId = player.id;
       healTarget.hotNextTickAt = ctx.now + d.DOT_TICK_MS;
       if (ability.supportTag && healTarget !== player && healTarget.targetId && (healTarget.combatTagUntil ?? 0) > now) {
-        const supportMob = Array.isArray(mobs) ? mobs.find((m) => m.id === healTarget.targetId) : null;
+        const supportMob = Array.isArray(mobs) ? mobs.find((/** @type {any} */ m) => m.id === healTarget.targetId) : null;
         if (supportMob && !supportMob.dead && supportMob.hp > 0) {
           supportMob.supportBy = supportMob.supportBy ?? {};
           supportMob.supportBy[player.id] = (supportMob.supportBy[player.id] ?? 0) + 1;
@@ -58,7 +59,7 @@ export function createPriestHandlers(d) {
         },
       };
     },
-    cleanse(ctx) {
+    cleanse(/** @type {any} */ ctx) {
       const { targetPlayer } = ctx;
       const target = targetPlayer ?? ctx.player;
       target.dotTicksRemaining = 0;
@@ -71,7 +72,7 @@ export function createPriestHandlers(d) {
       target.rootedUntil = 0;
       return { hit: true };
     },
-    divine_shield(ctx) {
+    divine_shield(/** @type {any} */ ctx) {
       const { player, ability, targetPlayer, mobs, now } = ctx;
       const target = targetPlayer ?? player;
       const derived = d.computeDerivedStats(player);
@@ -79,7 +80,7 @@ export function createPriestHandlers(d) {
       target.absorbAmount = absorb;
       target.absorbUntil = ctx.now + 30000;
       if (ability.supportTag && target !== player && target.targetId && (target.combatTagUntil ?? 0) > now) {
-        const supportMob = Array.isArray(mobs) ? mobs.find((m) => m.id === target.targetId) : null;
+        const supportMob = Array.isArray(mobs) ? mobs.find((/** @type {any} */ m) => m.id === target.targetId) : null;
         if (supportMob && !supportMob.dead && supportMob.hp > 0) {
           supportMob.supportBy = supportMob.supportBy ?? {};
           supportMob.supportBy[player.id] = (supportMob.supportBy[player.id] ?? 0) + 1;
@@ -92,7 +93,7 @@ export function createPriestHandlers(d) {
         },
       };
     },
-    prayer_of_light(ctx) {
+    prayer_of_light(/** @type {any} */ ctx) {
       const { player, ability, players, mobs, now, placementCenter } = ctx;
       const derived = d.computeDerivedStats(player);
       const rawHeal = Math.max(0, Math.floor((ability.baseValue ?? 12) + derived.healingPower * (ability.coefficient ?? 0.5)));
@@ -113,13 +114,13 @@ export function createPriestHandlers(d) {
         combatLog: totalHealed > 0 ? { healAmount: totalHealed, healTarget: 'party' } : null,
       };
     },
-    silence(ctx) {
+    silence(/** @type {any} */ ctx) {
       const { targetPlayer } = ctx;
       const target = targetPlayer ?? ctx.player;
       target.castingLockoutUntil = ctx.now + (ctx.ability.interruptLockoutMs ?? 2000);
       return { hit: true };
     },
-    salvation(ctx) {
+    salvation(/** @type {any} */ ctx) {
       const { player, ability, targetPlayer } = ctx;
       if (!targetPlayer || !targetPlayer.dead) return {};
       targetPlayer.hp = Math.floor((targetPlayer.maxHp ?? 100) * 0.5);
@@ -134,7 +135,7 @@ export function createPriestHandlers(d) {
         },
       };
     },
-    smite(ctx) {
+    smite(/** @type {any} */ ctx) {
       const { player, ability, targetMob, targetPlayer, mobs, players, now, respawnMs } = ctx;
       const target = targetMob ?? targetPlayer;
       if (!target) return {};
@@ -144,7 +145,7 @@ export function createPriestHandlers(d) {
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
-      let result = null;
+      let /** @type {any} */ result = null;
       if (d.rollHit(derived.accuracy, 0)) {
         if (targetPlayer) {
           result = d.applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });

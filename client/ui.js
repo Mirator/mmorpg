@@ -1,3 +1,4 @@
+// @ts-check
 import { formatCurrency } from '/shared/economy.js';
 import { xpToNext } from '/shared/progression.js';
 
@@ -28,7 +29,7 @@ const targetHpEl = document.getElementById('target-hp');
 const targetHpFillEl = document.getElementById('target-hp-fill');
 const targetHpValueEl = document.getElementById('target-hp-value');
 
-let eventTimeout = null;
+let /** @type {any} */ eventTimeout = null;
 const toastContainer = document.createElement('div');
 toastContainer.id = 'toast-container';
 toastContainer.className = 'toast-container';
@@ -36,7 +37,7 @@ document.body.appendChild(toastContainer);
 
 const TOAST_DURATION_MS = 2500;
 
-export function showToast(message) {
+export function showToast(/** @type {any} */ message) {
   if (!message || !toastContainer) return;
   const toast = document.createElement('div');
   toast.className = 'toast';
@@ -51,7 +52,7 @@ export function showToast(message) {
   setTimeout(remove, TOAST_DURATION_MS);
 }
 
-function setBar(fillEl, valueEl, value, max) {
+function setBar(/** @type {any} */ fillEl, /** @type {any} */ valueEl, /** @type {any} */ value, /** @type {any} */ max) {
   if (fillEl) {
     if (Number.isFinite(value) && Number.isFinite(max) && max > 0) {
       const clamped = Math.max(0, Math.min(1, value / max));
@@ -69,16 +70,16 @@ function setBar(fillEl, valueEl, value, max) {
   }
 }
 
-function formatResourceLabel(resourceType) {
+function formatResourceLabel(/** @type {any} */ resourceType) {
   if (!resourceType) return 'Resource';
   return resourceType.charAt(0).toUpperCase() + resourceType.slice(1);
 }
 
-export function setStatus(text) {
+export function setStatus(/** @type {any} */ text) {
   if (statusEl) statusEl.textContent = text;
 }
 
-export function updateHud(player, now) {
+export function updateHud(/** @type {any} */ player, /** @type {any} */ now) {
   if (!player) {
     if (levelEl) levelEl.textContent = '--';
     if (overlayLevelEl) overlayLevelEl.textContent = '--';
@@ -168,7 +169,7 @@ export function updateHud(player, now) {
   }
 }
 
-export function updateTargetHud(target) {
+export function updateTargetHud(/** @type {any} */ target) {
   if (!targetHudEl) return;
   if (!target) {
     targetHudEl.classList.remove('visible');
@@ -182,7 +183,7 @@ export function updateTargetHud(target) {
   targetHudEl.classList.add('visible');
   if (targetNameEl) targetNameEl.textContent = target.name ?? '--';
   if (targetMetaEl) {
-    const metaParts = [];
+    const /** @type {any} */ metaParts = [];
     if (target.kind === 'vendor') metaParts.push('Vendor');
     if (target.kind === 'player') metaParts.push('Player');
     if (target.kind === 'mob') metaParts.push('Enemy');
@@ -198,7 +199,7 @@ export function updateTargetHud(target) {
   }
 }
 
-export function showPrompt(text) {
+export function showPrompt(/** @type {any} */ text) {
   if (!promptEl) return;
   promptEl.textContent = text;
   promptEl.classList.add('visible');
@@ -209,7 +210,7 @@ export function clearPrompt() {
   promptEl.classList.remove('visible');
 }
 
-export function showEvent(text) {
+export function showEvent(/** @type {any} */ text) {
   if (!eventEl) return;
   eventEl.textContent = text;
   eventEl.classList.remove('show');

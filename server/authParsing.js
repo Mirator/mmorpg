@@ -1,6 +1,7 @@
+// @ts-check
 const ID_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
-export function normalizeId(raw, maxLength = 64) {
+export function normalizeId(/** @type {any} */ raw, /** @type {any} */ maxLength = 64) {
   if (typeof raw !== 'string') return null;
   const trimmed = raw.trim();
   if (!trimmed || trimmed.length > maxLength) return null;
@@ -8,7 +9,7 @@ export function normalizeId(raw, maxLength = 64) {
   return trimmed;
 }
 
-export function getCookieValue(req, name) {
+export function getCookieValue(/** @type {any} */ req, /** @type {any} */ name) {
   const header = req?.headers?.cookie;
   if (!header || typeof header !== 'string') return null;
   const parts = header.split(';');

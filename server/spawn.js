@@ -1,4 +1,5 @@
-export function createSpawner(world) {
+// @ts-check
+export function createSpawner(/** @type {any} */ world) {
   let nextSpawnIndex = 0;
   return {
     getSpawnPoint() {

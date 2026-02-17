@@ -1,12 +1,13 @@
-function titleCaseParts(value) {
+// @ts-check
+function titleCaseParts(/** @type {any} */ value) {
   return value
     .split(/[-_\s]+/)
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((/** @type {any} */ part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 }
 
-export function deriveTargetName({ kind, id, name }) {
+export function deriveTargetName(/** @type {any} */ { kind, id, name }) {
   if (typeof name === 'string' && name.trim()) return name.trim();
   if (kind === 'mob') {
     const mobId = typeof id === 'string' ? id : '';
@@ -23,14 +24,14 @@ export function deriveTargetName({ kind, id, name }) {
   return 'Target';
 }
 
-export function resolveTarget(selection, { mobs, players, vendors }) {
+export function resolveTarget(/** @type {any} */ selection, /** @type {any} */ { mobs, players, vendors }) {
   if (!selection || !selection.kind || !selection.id) return null;
   const kind = selection.kind;
   const id = selection.id;
 
   if (kind === 'mob') {
     const list = Array.isArray(mobs) ? mobs : [];
-    const mob = list.find((item) => item?.id === id);
+    const mob = list.find((/** @type {any} */ item) => item?.id === id);
     if (!mob || mob.dead || mob.hp <= 0) return null;
     return {
       kind,
@@ -51,9 +52,9 @@ export function resolveTarget(selection, { mobs, players, vendors }) {
     const pool = Array.isArray(players)
       ? players
       : players && typeof players === 'object'
-        ? Object.entries(players).map(([pid, player]) => ({ id: pid, ...player }))
+        ? Object.entries(players).map((/** @type {any} */ [pid, player]) => ({ id: pid, ...player }))
         : [];
-    const player = pool.find((item) => item?.id === id);
+    const player = pool.find((/** @type {any} */ item) => item?.id === id);
     if (!player) return null;
     return {
       kind,
@@ -72,7 +73,7 @@ export function resolveTarget(selection, { mobs, players, vendors }) {
 
   if (kind === 'vendor') {
     const list = Array.isArray(vendors) ? vendors : [];
-    const vendor = list.find((item) => item?.id === id);
+    const vendor = list.find((/** @type {any} */ item) => item?.id === id);
     if (!vendor) return null;
     return {
       kind,

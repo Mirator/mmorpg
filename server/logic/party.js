@@ -1,6 +1,14 @@
+// @ts-check
 import crypto from 'node:crypto';
 
+/** @typedef {import('../types/domain.d.ts').PartyData} PartyData */
+/** @typedef {import('../types/domain.d.ts').PartyInvite} PartyInvite */
+/** @typedef {import('../types/domain.d.ts').PlayerMap} PlayerMap */
+/** @typedef {import('../types/domain.d.ts').ServerPlayer} ServerPlayer */
+
+/** @type {Map<string, PartyData>} */
 const parties = new Map();
+/** @type {Map<string, PartyInvite>} */
 const pendingInvites = new Map();
 
 function generatePartyId() {
@@ -13,7 +21,7 @@ function generatePartyId() {
 /**
  * Create a party with the leader as sole member.
  * @param {string} leaderId
- * @param {Map<string, object>} players - Players Map to check existing party and set partyId
+ * @param {PlayerMap} players - Players Map to check existing party and set partyId
  * @returns {string | null} partyId or null if leader already in a party
  */
 export function createParty(leaderId, players) {
@@ -32,7 +40,7 @@ export function createParty(leaderId, players) {
  * @param {string} partyId
  * @param {string} inviterId
  * @param {string} targetId
- * @param {Map<string, object>} players - Players Map to check if target is in party
+ * @param {PlayerMap} players - Players Map to check if target is in party
  * @returns {{ ok: boolean, reason?: string }}
  */
 export function invitePlayer(partyId, inviterId, targetId, players) {
@@ -68,7 +76,7 @@ export function acceptInvite(playerId, inviterId) {
 /**
  * Leave the current party.
  * @param {string} playerId
- * @param {Map<string, object>} players - Players Map to clear player.partyId
+ * @param {PlayerMap} players - Players Map to clear player.partyId
  * @returns {{ ok: boolean, disbanded?: boolean }}
  */
 export function leaveParty(playerId, players) {
@@ -104,7 +112,7 @@ export function getPartyMembers(partyId) {
 /**
  * Get the party a player belongs to.
  * @param {string} playerId
- * @param {Map<string, object>} players - Players Map to look up player.partyId
+ * @param {PlayerMap} players - Players Map to look up player.partyId
  * @returns {{ id: string, memberIds: string[] } | null}
  */
 export function getPartyForPlayer(playerId, players) {
@@ -119,7 +127,7 @@ export function getPartyForPlayer(playerId, players) {
 
 /**
  * Set a player's partyId. Used when joining/leaving.
- * @param {object} player
+ * @param {ServerPlayer | null | undefined} player
  * @param {string | null} partyId
  */
 export function setPlayerPartyId(player, partyId) {

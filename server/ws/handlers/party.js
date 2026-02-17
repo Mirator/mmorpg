@@ -1,3 +1,4 @@
+// @ts-check
 import {
   createParty,
   getPartyForPlayer,
@@ -8,7 +9,7 @@ import {
   leaveParty,
 } from '../../logic/party.js';
 
-export function handlePartyInvite(ctx) {
+export function handlePartyInvite(/** @type {any} */ ctx) {
   const { player, players, msg, safeSend, sendPrivateState } = ctx;
   if (player.isGuest) return;
   const target = players.get(msg.targetId);
@@ -26,7 +27,7 @@ export function handlePartyInvite(ctx) {
   }
 }
 
-export function handlePartyAccept(ctx) {
+export function handlePartyAccept(/** @type {any} */ ctx) {
   const { player, players, msg, sendPrivateState, persistence } = ctx;
   if (player.isGuest) return;
   const result = acceptInvite(player.id, msg.inviterId);
@@ -41,7 +42,7 @@ export function handlePartyAccept(ctx) {
   }
 }
 
-export function handlePartyLeave(ctx) {
+export function handlePartyLeave(/** @type {any} */ ctx) {
   const { player, players, ws, sendPrivateState, persistence } = ctx;
   const partyBefore = getPartyForPlayer(player.id, players);
   leaveParty(player.id, players);

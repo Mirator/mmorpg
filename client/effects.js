@@ -1,3 +1,4 @@
+// @ts-check
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
 function makeSlashMesh() {
@@ -37,15 +38,15 @@ function makeImpactMesh() {
   return mesh;
 }
 
-export function createEffectsSystem(scene) {
-  const effects = [];
+export function createEffectsSystem(/** @type {any} */ scene) {
+  const /** @type {any} */ effects = [];
 
-  function addEffect(effect) {
+  function addEffect(/** @type {any} */ effect) {
     effects.push(effect);
     scene.add(effect.mesh);
   }
 
-  function spawnSlash({ to, durationMs = 180, now = performance.now() }) {
+  function spawnSlash(/** @type {any} */ { to, durationMs = 180, now = performance.now() }) {
     if (!to) return;
     const mesh = makeSlashMesh();
     mesh.position.set(to.x, (to.y ?? 0) + 0.2, to.z);
@@ -57,7 +58,7 @@ export function createEffectsSystem(scene) {
     });
   }
 
-  function spawnProjectile({ from, to, durationMs = 200, now = performance.now() }) {
+  function spawnProjectile(/** @type {any} */ { from, to, durationMs = 200, now = performance.now() }) {
     if (!from || !to) return;
     const mesh = makeProjectileMesh();
     mesh.position.set(from.x, (from.y ?? 0) + 0.6, from.z);
@@ -71,7 +72,7 @@ export function createEffectsSystem(scene) {
     });
   }
 
-  function spawnImpact({ to, durationMs = 140, now = performance.now() }) {
+  function spawnImpact(/** @type {any} */ { to, durationMs = 140, now = performance.now() }) {
     if (!to) return;
     const mesh = makeImpactMesh();
     mesh.position.set(to.x, (to.y ?? 0) + 0.15, to.z);
@@ -83,7 +84,7 @@ export function createEffectsSystem(scene) {
     });
   }
 
-  function spawnNova({ center, radius = 2.5, color = 0x88ccff, durationMs = 400, now = performance.now() }) {
+  function spawnNova(/** @type {any} */ { center, radius = 2.5, color = 0x88ccff, durationMs = 400, now = performance.now() }) {
     if (!center) return;
     const geometry = new THREE.RingGeometry(radius * 0.3, radius, 32);
     const material = new THREE.MeshBasicMaterial({
@@ -103,7 +104,7 @@ export function createEffectsSystem(scene) {
     });
   }
 
-  function spawnCone({ from, direction, coneDegrees = 90, range = 5, color = 0xff6633, durationMs = 400, now = performance.now() }) {
+  function spawnCone(/** @type {any} */ { from, direction, coneDegrees = 90, range = 5, color = 0xff6633, durationMs = 400, now = performance.now() }) {
     if (!from || !direction) return;
     const angle = (coneDegrees * Math.PI) / 180;
     const geometry = new THREE.ConeGeometry(range * Math.tan(angle / 2), range, 16, 1, true);
@@ -125,7 +126,7 @@ export function createEffectsSystem(scene) {
     });
   }
 
-  function spawnBuffAura({ center, color = 0xffdd66, durationMs = 600, now = performance.now() }) {
+  function spawnBuffAura(/** @type {any} */ { center, color = 0xffdd66, durationMs = 600, now = performance.now() }) {
     if (!center) return;
     const geometry = new THREE.RingGeometry(0.4, 1.2, 24);
     const material = new THREE.MeshBasicMaterial({
@@ -145,7 +146,7 @@ export function createEffectsSystem(scene) {
     });
   }
 
-  function spawnDashTrail({ from, to, durationMs = 300, now = performance.now() }) {
+  function spawnDashTrail(/** @type {any} */ { from, to, durationMs = 300, now = performance.now() }) {
     if (!from || !to) return;
     const dx = to.x - from.x;
     const dz = to.z - from.z;
@@ -169,7 +170,7 @@ export function createEffectsSystem(scene) {
     });
   }
 
-  function spawnHealRing({ center, radius = 5, color = 0xffdd66, durationMs = 500, now = performance.now() }) {
+  function spawnHealRing(/** @type {any} */ { center, radius = 5, color = 0xffdd66, durationMs = 500, now = performance.now() }) {
     if (!center) return;
     const geometry = new THREE.RingGeometry(radius * 0.5, radius, 32);
     const material = new THREE.MeshBasicMaterial({
@@ -189,7 +190,7 @@ export function createEffectsSystem(scene) {
     });
   }
 
-  function update(now) {
+  function update(/** @type {any} */ now) {
     for (let i = effects.length - 1; i >= 0; i -= 1) {
       const effect = effects[i];
       const elapsed = now - effect.start;

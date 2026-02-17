@@ -1,3 +1,4 @@
+// @ts-check
 import {
   getKeybinds,
   setKeybind,
@@ -5,7 +6,7 @@ import {
   DEFAULT_KEYBINDS,
 } from './keybinds.js';
 
-const CONTROLS = [
+const /** @type {any} */ CONTROLS = [
   { key: 'W A S D', action: 'Move' },
   { key: 'Click', action: 'Move to location' },
   { key: 'Click / TAB', action: 'Select / cycle targets' },
@@ -18,7 +19,7 @@ const CONTROLS = [
   { key: 'ESC', action: 'Game menu' },
 ];
 
-const KEYBIND_LABELS = {
+const /** @type {any} */ KEYBIND_LABELS = {
   moveForward: 'Move forward',
   moveBack: 'Move back',
   moveLeft: 'Move left',
@@ -44,14 +45,14 @@ const KEYBIND_LABELS = {
   ability10: 'Ability 10',
 };
 
-function formatKeyForDisplay(key) {
+function formatKeyForDisplay(/** @type {any} */ key) {
   if (!key) return '—';
   if (key === 'Escape') return 'ESC';
   if (key.length === 1) return key.toUpperCase();
   return key;
 }
 
-export function createPauseMenu({
+export function createPauseMenu(/** @type {any} */ {
   onResume,
   onReturnToCharacterScreen,
   onSignOut,
@@ -73,13 +74,13 @@ export function createPauseMenu({
   const signOutBtn = document.getElementById('pause-signout-btn');
   const controlsBackBtn = document.getElementById('pause-controls-back-btn');
   const optionsBackBtn = document.getElementById('pause-options-back-btn');
-  const fpsToggle = document.getElementById('pause-fps-toggle');
+  const fpsToggle = /** @type {HTMLInputElement | null} */ (document.getElementById('pause-fps-toggle'));
   const keybindsResetBtn = document.getElementById('keybinds-reset-btn');
 
   let open = false;
   let showingControls = false;
   let showingOptions = false;
-  let rebindingAction = null;
+  let /** @type {any} */ rebindingAction = null;
 
   function renderControls() {
     if (!controlsList) return;
@@ -119,7 +120,7 @@ export function createPauseMenu({
     }
   }
 
-  function handleRebindKey(event) {
+  function handleRebindKey(/** @type {any} */ event) {
     if (!rebindingAction) return;
     event.preventDefault();
     event.stopPropagation();
@@ -143,7 +144,7 @@ export function createPauseMenu({
     window.removeEventListener('keydown', handleRebindKey);
   }
 
-  function setOpen(next) {
+  function setOpen(/** @type {any} */ next) {
     open = !!next;
     root?.classList.toggle('open', open);
     root?.setAttribute('aria-hidden', String(!open));
