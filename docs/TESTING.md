@@ -24,7 +24,7 @@
 
 - `npm run test:e2e`
   - Runs Playwright end-to-end scenario in `e2e/playwright-e2e.js`.
-  - Covers account flow, world interactions, inventory/equipment, vendor trade, targeting/combat, XP, and death/respawn HUD behavior.
+  - Covers account flow, world interactions, inventory/equipment, vendor trade, targeting/combat, XP, and death/respawn HUD behavior. Player-to-player trade and PvP duels are implemented but not yet covered by E2E scenarios.
   - Verifies vendor interactions on both:
     - deterministic desktop viewport (`1280x720`)
     - small viewport fallback (`560x840`)

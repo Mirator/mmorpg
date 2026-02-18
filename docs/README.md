@@ -14,7 +14,7 @@
 - [UI Log](./ui/spec_log.md)
 - [Assets / 3D Models](./assets/spec_models.md)
 - [Network Protocol](./network/spec_protocol.md)
-- [Party and Chat](./social/spec_party_and_chat.md)
+- [Party and Chat](./social/spec_party_and_chat.md) — also duel and trade (adjacent social features)
 - [Auth and Persistence](./platform/spec_auth_persistence.md)
 - [Documentation Review (2026-02-16)](./documentation_review_2026-02-16.md)
 

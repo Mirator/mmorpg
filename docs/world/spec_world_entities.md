@@ -96,6 +96,8 @@ The game has a **single world/location** (no zones or multiple maps). All world 
 
 Use `getMobStats(mobType)` to resolve stats. Dummy: 1 HP, no damage, no movement, no aggro.
 
+**Loot tables:** Each mob type has an associated loot table in [shared/lootTables.js](../../shared/lootTables.js) (`MOB_LOOT_TABLES`). On kill, the attacker receives rolled drops (items/copper) per the table. See [Economy spec §6](../economy/spec_economy.md#6-mob-loot-drops).
+
 ---
 
 ## 4. Resource Types

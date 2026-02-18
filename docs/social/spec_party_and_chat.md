@@ -115,8 +115,15 @@ Client retention (`client/chat.js`):
   - `xp_gain`, `level_up`, `death`
 - Other combat events remain in combat tab only.
 
-## 7. Known Boundaries
+## 7. Adjacent Social Features
+
+**Duel:** Opt-in PvP via `duelRequest` / `duelAccept`. Players must be in range (5m). See [Combat spec §12](../combat/spec_combat.md#12-pvp-duels).
+
+**Trade:** Player-to-player trading via `tradeRequest` / `tradeAccept`. Same 5m range constraint. See [Economy spec §5](../economy/spec_economy.md#5-player-to-player-trading).
+
+## 8. Known Boundaries
 
 - No kick/promote/leader-transfer mechanics are implemented.
 - No invite timeout/expiry is currently enforced in pending invite storage.
+- Duel and trade requests have no timeout; they persist until accepted/declined or requester disconnects.
 - No server-side historical replay is sent on connect (buffers are for current runtime only).

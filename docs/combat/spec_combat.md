@@ -262,7 +262,36 @@ Player private state includes precomputed `attributes` (raw STR/DEX/INT/VIT/SPI)
 
 ---
 
-# 12. Design Principles
+# 12. PvP Duels
+
+PvP damage is only allowed during an **opt-in duel**. Outside duels, `isPvPAllowed` returns false and abilities that target players fail.
+
+## 12.1 Duel Flow
+
+1. Player A targets Player B and sends `duelRequest`.
+2. Player B receives `duelRequestReceived`; can Accept or Decline.
+3. On Accept: both get `duelActive`; `duelOpponentId` is set on both players.
+4. `isPvPAllowed(attacker, target)` returns true when both have mutual `duelOpponentId`.
+5. Duel ends on: either player dies, `duelForfeit`, or disconnect.
+
+## 12.2 Duel Penalties
+
+- No corpse/inventory loss on duel death (same as PvE death behavior).
+- Duel state is cleared on death; both players receive `duelEnded`.
+
+**Source:** [server/logic/pvp.js](../../server/logic/pvp.js), [server/logic/duel.js](../../server/logic/duel.js), [server/ws/handlers/duel.js](../../server/ws/handlers/duel.js)
+
+---
+
+# 13. Mob Loot Drops
+
+On mob death, the killer (or DOT source) receives loot per the mob's loot table. See [Economy spec](../economy/spec_economy.md#6-mob-loot-drops) for loot table format and per-mob entries. Loot is rolled in `applyDamageToMob` and granted via `rollAndGrantLoot`.
+
+**Source:** [shared/lootTables.js](../../shared/lootTables.js), [server/logic/loot.js](../../server/logic/loot.js)
+
+---
+
+# 14. Design Principles
 
 1. Defense primarily gear-driven.
 2. Sustain weaker than burst.

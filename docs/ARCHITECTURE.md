@@ -24,8 +24,8 @@ The server is composed in `server/createServer.js`:
 
 ### Server
 
-- `server/ws/handlers/*`: message-specific handlers (ability, movement/input, inventory/equipment, party, chat, vendor, respawn).
-- `server/logic/*`: gameplay rules and tick-step logic.
+- `server/ws/handlers/*`: message-specific handlers (ability, movement/input, inventory/equipment, party, chat, vendor, craft, duel, trade, respawn).
+- `server/logic/*`: gameplay rules and tick-step logic (combat, loot, duel, trade, party, etc.).
 - `server/db/*`: repository layer and state migration/serialization.
 - `server/authParsing.js`: shared cookie/id parsing used by both HTTP and WS paths.
 
@@ -34,7 +34,7 @@ The server is composed in `server/createServer.js`:
 - `client/client.js`: composition root (menu/auth, connection, rendering, UI, input).
 - `client/connection.js`: WebSocket lifecycle, reconnect, and inbound message routing.
 - `client/ui-state.js`: inventory/character/vendor/death UI state and interactions.
-- `client/style/*.css`: domain-scoped styling (`chat.css` for chat/party only, `vendor.css` for vendor UI only).
+- `client/style/*.css`: domain-scoped styling (`chat.css` for chat/party/duel/trade, `vendor.css` for vendor UI).
 
 ### Shared
 

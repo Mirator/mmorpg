@@ -129,17 +129,81 @@ Resource nodes are placed in the world (from map config). Each node has:
 | armor_legs_cloth            | Cloth Leggings     | 40c   | armor      |
 | armor_feet_leather          | Leather Boots      | 45c   | armor      |
 
-**Source:** [shared/economy.js](../../shared/economy.js), [server/ws.js](../../server/ws.js) (vendorSell, vendorBuy handlers)
+**Source:** [shared/economy.js](../../shared/economy.js), [server/ws/handlers/vendor.js](../../server/ws/handlers/vendor.js)
 
 ---
 
-# 5. Crafting
+# 5. Player-to-Player Trading
 
 ## 5.1 Overview
 
+Players can trade items and copper directly with each other. Trading is opt-in: one player requests a trade, the other must accept.
+
+## 5.2 Flow
+
+1. Player A targets Player B and clicks "Trade" (or sends `tradeRequest`).
+2. Player B receives `tradeRequestReceived`; can Accept or Decline.
+3. On Accept: both receive `tradeOpened`; trade panel opens.
+4. Each player adds items (drag from inventory to offer area) and/or copper.
+5. Both click Confirm; when both are confirmed, server executes the swap.
+6. Either player can Cancel at any time before both confirm.
+
+## 5.3 Constraints
+
+- Both players must be within 5m range, alive, and not already trading.
+- Offers are validated on execute: inventory space, copper availability.
+- On disconnect or Cancel, offered items are returned to the owner.
+
+## 5.4 Protocol
+
+See [Network Protocol Specification](../network/spec_protocol.md) for full message contracts.
+
+**Source:** [server/logic/trade.js](../../server/logic/trade.js), [server/ws/handlers/trade.js](../../server/ws/handlers/trade.js), [client/trade.js](../../client/trade.js)
+
+---
+
+# 6. Mob Loot Drops
+
+## 6.1 Overview
+
+When a mob is killed, the killer (or the player who applied the killing DOT) receives loot based on the mob's loot table. Each mob type has a configurable table of item drops with chance and quantity ranges.
+
+## 6.2 Loot Table Format
+
+**Source:** [shared/lootTables.js](../../shared/lootTables.js)
+
+Each entry: `{ kind, minCount, maxCount, chancePct }`
+
+- `chancePct`: 0–100; rolled once per kill (100 = guaranteed)
+- `minCount` / `maxCount`: quantity range if drop succeeds
+
+## 6.3 Per-Mob Tables
+
+| mobType | Sample drops |
+|---------|--------------|
+| fox | flower (40%), herb (20%) |
+| stag | herb (50%), flower (35%), wood (15%) |
+| wolf | herb (60%), ore (25%), consumable_minor_health_potion (5%) |
+| orc | ore (80%), crystal (30%), herb (25%), weapon_training_sword (2%), armor_chest_leather (1%) |
+| dummy | (no loot) |
+
+## 6.4 Integration
+
+- Loot is granted in `applyDamageToMob` (combat.js) when `mob.hp <= 0`.
+- Recipient is the attacker (solo) or DOT source player.
+- Uses shared `nextItemIdRef` for new item IDs; items added via `addItem`.
+
+**Source:** [server/logic/loot.js](../../server/logic/loot.js), [server/logic/combat.js](../../server/logic/combat.js)
+
+---
+
+# 7. Crafting
+
+## 7.1 Overview
+
 Crafting consumes ingredients from inventory and produces output items. No location or station required; crafting can be done anywhere.
 
-## 5.2 Recipe Format
+## 7.2 Recipe Format
 
 ```js
 {
@@ -154,7 +218,7 @@ Crafting consumes ingredients from inventory and produces output items. No locat
 }
 ```
 
-## 5.3 Recipes
+## 7.3 Recipes
 
 | ID                 | Inputs              | Output                    | Category   |
 |--------------------|---------------------|---------------------------|------------|
@@ -162,7 +226,7 @@ Crafting consumes ingredients from inventory and produces output items. No locat
 | herb_health_potion | 2 herb             | Minor Health Potion × 1   | consumable |
 | herb_mana_potion   | 2 herb, 1 crystal  | Minor Mana Potion × 1     | consumable |
 
-## 5.4 Protocol
+## 7.4 Protocol
 
 **Client → Server:** `craft` message
 
@@ -178,7 +242,7 @@ Crafting consumes ingredients from inventory and produces output items. No locat
 - `recipeId`: Required, non-empty string
 - `count`: Optional, integer 1–99, default 1 (number of times to craft)
 
-## 5.5 Server Logic
+## 7.5 Server Logic
 
 1. Look up recipe by `recipeId`; reject if not found
 2. For each input: `countItem(inventory, kind) >= input.count × craftCount`
@@ -189,7 +253,7 @@ Crafting consumes ingredients from inventory and produces output items. No locat
 
 **Source:** [shared/recipes.js](../../shared/recipes.js), [shared/protocol.js](../../shared/protocol.js), [server/ws.js](../../server/ws.js)
 
-## 5.6 UI
+## 7.6 UI
 
 - Craft tab in inventory panel (I key)
 - Recipe list with ingredients (have/need), output, count input, Craft button
@@ -200,7 +264,7 @@ Crafting consumes ingredients from inventory and produces output items. No locat
 
 ---
 
-# 6. Item Display Names
+# 8. Item Display Names
 
 `getItemDisplayName(kind)` resolves display names in order:
 
@@ -212,7 +276,7 @@ Crafting consumes ingredients from inventory and produces output items. No locat
 
 ---
 
-# 7. Configuration Summary
+# 9. Configuration Summary
 
 | Config              | Default | Description                    |
 |---------------------|---------|--------------------------------|

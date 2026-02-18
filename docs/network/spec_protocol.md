@@ -50,6 +50,16 @@ All client messages are JSON and validated by `parseClientMessage`.
 | `partyAccept` | `{ type: 'partyAccept', inviterId, seq? }` | Accepts pending invite from inviter. |
 | `partyLeave` | `{ type: 'partyLeave', seq? }` | Leaves current party. |
 | `craft` | `{ type: 'craft', recipeId, count?, seq? }` | `count` clamped to `1..99`. |
+| `duelRequest` | `{ type: 'duelRequest', targetId, seq? }` | Challenges target player to a duel. |
+| `duelAccept` | `{ type: 'duelAccept', challengerId, seq? }` | Accepts pending duel from challenger. |
+| `duelDecline` | `{ type: 'duelDecline', challengerId, seq? }` | Declines duel from challenger. |
+| `duelForfeit` | `{ type: 'duelForfeit', seq? }` | Ends active duel early. |
+| `tradeRequest` | `{ type: 'tradeRequest', targetId, seq? }` | Requests trade with target player. |
+| `tradeAccept` | `{ type: 'tradeAccept', traderId, seq? }` | Accepts pending trade from requester. |
+| `tradeDecline` | `{ type: 'tradeDecline', traderId, seq? }` | Declines trade from requester. |
+| `tradeOffer` | `{ type: 'tradeOffer', op: 'add'|'remove', slot?, copper?, seq? }` | Add/remove item (by inv slot or offer index) or copper. |
+| `tradeConfirm` | `{ type: 'tradeConfirm', seq? }` | Locks and executes trade when both confirmed. |
+| `tradeCancel` | `{ type: 'tradeCancel', seq? }` | Aborts active trade. |
 
 ## 4. Server -> Client Messages
 
@@ -57,12 +67,23 @@ All client messages are JSON and validated by `parseClientMessage`.
 |---|---|---|
 | `welcome` | `{ type: 'welcome', id, snapshot, config }` | First post-auth payload. `snapshot` includes `world` and initial public state. |
 | `state` | `{ type: 'state', t, full?, players?, resources?, mobs?, corpses?, removedPlayers?, removedResources?, removedMobs?, removedCorpses? }` | Full or delta world state payload. |
-| `me` | `{ type: 'me', t, id, data }` | Private player state (`inventory`, `currency`, `equipment`, `resource`, `cooldowns`, `attributes`, `derivedStats`, etc.). |
+| `me` | `{ type: 'me', t, id, data }` | Private player state (`inventory`, `currency`, `equipment`, `resource`, `cooldowns`, `attributes`, `derivedStats`, `duelOpponentId`, etc.). |
 | `combatEvent` | `{ type: 'combatEvent', t, events: [...] }` | AOI-filtered combat VFX event stream. |
 | `abilityFailed` | `{ type: 'abilityFailed', reason, slot }` | Returned when ability request is rejected. |
 | `chat` | `{ type: 'chat', channel, authorId, author, text, timestamp }` | Chat channel broadcast payload. |
 | `combatLog` | `{ type: 'combatLog', entries: [...] }` | Structured combat log entries. |
 | `partyInviteReceived` | `{ type: 'partyInviteReceived', inviterId, inviterName }` | Invite notification to target player. |
+| `duelRequestReceived` | `{ type: 'duelRequestReceived', challengerId, challengerName }` | Duel challenge notification. |
+| `duelActive` | `{ type: 'duelActive', opponentId, opponentName }` | Duel started; both players can deal PvP damage. |
+| `duelEnded` | `{ type: 'duelEnded', reason }` | Duel ended (`reason`: `forfeit`, `death`, `disconnect`). |
+| `duelDeclined` | `{ type: 'duelDeclined', targetId, targetName }` | Target declined the duel. |
+| `tradeRequestReceived` | `{ type: 'tradeRequestReceived', traderId, traderName }` | Trade request notification. |
+| `tradeOpened` | `{ type: 'tradeOpened', partnerId, partnerName, myOffer, theirOffer }` | Trade window opened. |
+| `tradeOfferUpdate` | `{ type: 'tradeOfferUpdate', myOffer, theirOffer, confirmed?, theirConfirmed? }` | Offer changed or confirmed. |
+| `tradeCompleted` | `{ type: 'tradeCompleted' }` | Trade executed successfully. |
+| `tradeCancelled` | `{ type: 'tradeCancelled' }` | Trade aborted. |
+| `tradeDeclined` | `{ type: 'tradeDeclined', targetId? }` | Target declined the trade. |
+| `tradeError` | `{ type: 'tradeError', error }` | Trade validation or execution error. |
 
 ## 5. Sequence Semantics
 

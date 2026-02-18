@@ -6,7 +6,7 @@ This document describes the game as it exists today in the codebase. It is meant
 
 **Overview**
 Genre: lightweight top-down multiplayer RPG with real-time combat, harvesting, and trading.
-Core loop: sign in → create/select character → move around world → harvest resources → sell to vendor → fight mobs → gain XP and level up.
+Core loop: sign in → create/select character → move around world → harvest resources → sell to vendor → fight mobs (loot drops) → gain XP and level up. Optional: player-to-player trade, PvP duels.
 Multiplayer: all connected players share the same world state and see each other in real time.
 
 **World And Map**
@@ -101,6 +101,12 @@ Selling rules:
 - Item removed from inventory.
 - Currency added to player total.
 
+Mob loot:
+- On kill, attacker receives drops from mob's loot table (shared/lootTables.js). Per-mob-type chances and quantity ranges.
+
+Player-to-player trading:
+- Target a player and click Trade. Other player accepts or declines. Both add items/copper to offer; both confirm to execute. Range: 5m.
+
 **Combat And Progression**
 Basic attack:
 - Ability slot: 1
@@ -110,6 +116,7 @@ Basic attack:
 
 Mobs:
 - States: idle, wander, chase, dead
+- Loot: On kill, attacker receives drops from mob's loot table (per mobType in shared/lootTables.js)
 - Aggro radius: 12 units
 - Leash radius: 18 units
 - Attack range: 1.4 units
@@ -123,6 +130,9 @@ Mob levels:
 - Level scales with distance from base.
 - Max level: 30
 - Max HP formula: 20 + 8 × level
+
+PvP duels:
+- Opt-in via duel request/accept. While duel active, both can damage each other. Ends on death, forfeit, or disconnect. No corpse loss on duel death.
 
 XP and leveling:
 - XP is awarded on mob kill.
@@ -152,6 +162,7 @@ Panels and controls:
 
 Prompts and feedback:
 - Contextual prompt for harvesting or vendor interaction.
+- Duel and Trade panels when targeting a player (Duel, Trade buttons; accept/decline toasts).
 - Event toasts for XP, level-up, harvesting, and sales.
 - Damage flash when HP decreases.
 - Combat VFX for melee slashes and ranged projectiles.
@@ -218,6 +229,8 @@ Client → server messages:
 - `vendorBuy` `{ type: 'vendorBuy', vendorId, kind, count?, seq? }`
 - `chat` `{ type: 'chat', channel, text, seq? }`
 - `partyInvite` / `partyAccept` / `partyLeave`
+- `duelRequest` / `duelAccept` / `duelDecline` / `duelForfeit`
+- `tradeRequest` / `tradeAccept` / `tradeDecline` / `tradeOffer` / `tradeConfirm` / `tradeCancel`
 - `craft` `{ type: 'craft', recipeId, count?, seq? }`
 
 Server → client messages:
@@ -240,6 +253,8 @@ Server → client messages:
   - `{ type: 'combatLog', entries: [ ... ] }`
 - `partyInviteReceived`
   - `{ type: 'partyInviteReceived', inviterId, inviterName }`
+- `duelRequestReceived` / `duelActive` / `duelEnded` / `duelDeclined`
+- `tradeRequestReceived` / `tradeOpened` / `tradeOfferUpdate` / `tradeCompleted` / `tradeCancelled` / `tradeDeclined` / `tradeError`
 
 **Appendix B: HTTP API**
 Auth:
