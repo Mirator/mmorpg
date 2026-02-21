@@ -177,6 +177,124 @@ describe('class abilities', () => {
     expect(ranger.abilityCooldowns.aimed_shot).toBeGreaterThan(0);
   });
 
+  it('sets facing toward target when a targeted ability starts', () => {
+    const fighter = makePlayer({ classId: 'fighter', level: 2, resource: 100 });
+    const mob = makeMob('m1', 1, 1);
+    fighter.targetId = mob.id;
+    fighter.targetKind = 'mob';
+
+    const result = tryUseAbility({
+      player: fighter,
+      slot: 2,
+      mobs: [mob],
+      players: new Map(),
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+    expect(result.success).toBe(true);
+    expect(fighter.lastMoveDir?.x).toBeCloseTo(Math.SQRT1_2, 5);
+    expect(fighter.lastMoveDir?.z).toBeCloseTo(Math.SQRT1_2, 5);
+  });
+
+  it('sets facing toward placement when using placement abilities', () => {
+    const ranger = makePlayer({ classId: 'ranger', level: 15, resource: 100 });
+    const result = tryUseAbility({
+      player: ranger,
+      slot: 6,
+      mobs: [],
+      players: new Map(),
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+      placementX: 0,
+      placementZ: 4,
+    });
+    expect(result.success).toBe(true);
+    expect(ranger.lastMoveDir?.x).toBeCloseTo(0, 5);
+    expect(ranger.lastMoveDir?.z).toBeCloseTo(1, 5);
+  });
+
+  it('sets facing at cast start for cast-time abilities', () => {
+    const ranger = makePlayer({ classId: 'ranger', level: 2 });
+    const mob = makeMob('m1', 4, 0);
+    ranger.targetId = mob.id;
+    ranger.targetKind = 'mob';
+
+    const result = tryUseAbility({
+      player: ranger,
+      slot: 2,
+      mobs: [mob],
+      players: new Map(),
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+    expect(result.success).toBe(true);
+    expect(result.castStarted).toBe(true);
+    expect(ranger.lastMoveDir?.x).toBeCloseTo(1, 5);
+    expect(ranger.lastMoveDir?.z).toBeCloseTo(0, 5);
+  });
+
+  it('keeps facing unchanged for self abilities without cast direction', () => {
+    const fighter = makePlayer({
+      classId: 'fighter',
+      level: 6,
+      resource: 100,
+      lastMoveDir: { x: 1, z: 0 },
+    });
+    const result = tryUseAbility({
+      player: fighter,
+      slot: 4,
+      mobs: [],
+      players: new Map(),
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+    expect(result.success).toBe(true);
+    expect(fighter.lastMoveDir).toEqual({ x: 1, z: 0 });
+  });
+
+  it('does not change facing when ability use fails', () => {
+    const fighter = makePlayer({
+      classId: 'fighter',
+      level: 2,
+      resource: 100,
+      lastMoveDir: { x: 0, z: 1 },
+    });
+    const result = tryUseAbility({
+      player: fighter,
+      slot: 2,
+      mobs: [],
+      players: new Map(),
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+    expect(result.success).toBe(false);
+    expect(result.reason).toBe('no_target');
+    expect(fighter.lastMoveDir).toEqual({ x: 0, z: 1 });
+  });
+
+  it('sets facing toward target when basic attack succeeds', () => {
+    const fighter = makePlayer({ classId: 'fighter' });
+    const mob = makeMob('m1', 0, 1.5);
+    fighter.targetId = mob.id;
+    fighter.targetKind = 'mob';
+
+    const result = tryBasicAttack({
+      player: fighter,
+      mobs: [mob],
+      now: 0,
+      respawnMs: 10_000,
+      players: new Map(),
+    });
+    expect(result.success).toBe(true);
+    expect(fighter.lastMoveDir?.x).toBeCloseTo(0, 5);
+    expect(fighter.lastMoveDir?.z).toBeCloseTo(1, 5);
+  });
+
   it('cleave damages mobs in the cone only', () => {
     const fighter = makePlayer({ classId: 'fighter', level: 3, resource: 100 });
     const mobFront = makeMob('m1', 2, 0);

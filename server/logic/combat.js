@@ -209,6 +209,38 @@ function getAbilityDirection(/** @type {any} */ player, /** @type {any} */ mobs)
   return null;
 }
 
+function normalizeDirection(/** @type {any} */ dir) {
+  if (!dir) return null;
+  const x = Number(dir.x);
+  const z = Number(dir.z);
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+  const dist = Math.hypot(x, z);
+  if (dist <= 0.0001) return null;
+  return { x: x / dist, z: z / dist };
+}
+
+function getDirectionBetweenPoints(/** @type {any} */ from, /** @type {any} */ to) {
+  if (!from || !to) return null;
+  const dx = (to.x ?? 0) - (from.x ?? 0);
+  const dz = (to.z ?? 0) - (from.z ?? 0);
+  return normalizeDirection({ x: dx, z: dz });
+}
+
+function resolveCastFacingDirection(/** @type {any} */ { player, abilityDir, targetMob, targetPlayer, placementCenter }) {
+  return (
+    normalizeDirection(abilityDir) ??
+    getDirectionBetweenPoints(player?.pos, targetMob?.pos) ??
+    getDirectionBetweenPoints(player?.pos, targetPlayer?.pos) ??
+    getDirectionBetweenPoints(player?.pos, placementCenter)
+  );
+}
+
+function applyFacingDirection(/** @type {any} */ player, /** @type {any} */ direction) {
+  const dir = normalizeDirection(direction);
+  if (!player || !dir) return;
+  player.lastMoveDir = dir;
+}
+
 const XP_RANGE_METERS = 35;
 const XP_RANGE2 = XP_RANGE_METERS * XP_RANGE_METERS;
 const DAMAGE_ELIGIBILITY_PCT = 0.10;
@@ -450,6 +482,7 @@ export function tryBasicAttack(/** @type {any} */ { player, mobs, now, respawnMs
   if (dist2 > config.range * config.range) {
     return { success: false, reason: 'out_of_range' };
   }
+  applyFacingDirection(player, getDirectionBetweenPoints(player.pos, target.pos));
 
   player.attackCooldownUntil = now + config.cooldownMs;
   player.globalCooldownUntil = now + GLOBAL_COOLDOWN_MS;
@@ -771,6 +804,16 @@ export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, 
 
   if (ability.id === 'aimed_shot' || ability.id === 'rapid_fire' || ability.id === 'arcane_missiles') {
     if (!targetMob) return { success: false, reason: 'no_target' };
+    applyFacingDirection(
+      player,
+      resolveCastFacingDirection({
+        player,
+        abilityDir: null,
+        targetMob,
+        targetPlayer: null,
+        placementCenter: null,
+      })
+    );
     if (!ability.exemptFromGCD) {
       player.globalCooldownUntil = now + GLOBAL_COOLDOWN_MS;
     }
@@ -796,6 +839,16 @@ export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, 
     ability.requirePlacement && Number.isFinite(placementX) && Number.isFinite(placementZ)
       ? { x: placementX, y: player.pos?.y ?? 0, z: placementZ }
       : null;
+  applyFacingDirection(
+    player,
+    resolveCastFacingDirection({
+      player,
+      abilityDir,
+      targetMob,
+      targetPlayer,
+      placementCenter,
+    })
+  );
 
   if (ability.consumeAllRage) {
     player.resource = 0;

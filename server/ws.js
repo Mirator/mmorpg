@@ -304,6 +304,20 @@ export function createWebSocketServer({
   }
 
   /**
+   * @param {unknown} dir
+   * @returns {{ x: number, z: number } | null}
+   */
+  function normalizeFacingDir(dir) {
+    if (!dir || typeof dir !== 'object') return null;
+    const x = Number(/** @type {any} */ (dir).x);
+    const z = Number(/** @type {any} */ (dir).z);
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+    const dist = Math.hypot(x, z);
+    if (dist <= 0.0001) return null;
+    return { x: x / dist, z: z / dist };
+  }
+
+  /**
    * @param {string | null | undefined} playerId
    * @returns {string[]}
    */
@@ -326,7 +340,8 @@ export function createWebSocketServer({
     for (const [id, p] of playersMap.entries()) {
       if (!p?.pos) continue;
       if (includeSet.has(id) || isInAOI(p.pos, centerPos)) {
-        out[id] = {
+        /** @type {import('./types/domain.d.ts').PublicPlayerState} */
+        const playerState = {
           x: p.pos.x,
           y: p.pos.y ?? 0,
           z: p.pos.z,
@@ -339,6 +354,12 @@ export function createWebSocketServer({
           level: p.level ?? 1,
           name: p.name ?? null,
         };
+        const facingDir = normalizeFacingDir(p.lastMoveDir);
+        if (facingDir) {
+          playerState.dirX = facingDir.x;
+          playerState.dirZ = facingDir.z;
+        }
+        out[id] = playerState;
       }
     }
     return out;

@@ -637,9 +637,11 @@ function getPlayerSpeed() {
 
 function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   const { positions, localPos: serverLocalPos } = gameState.renderInterpolatedPlayers(now);
+  const latestPlayers = gameState.getLatestPlayers();
   renderSystem.updatePlayerPositions(positions, {
     localPlayerId: ctx.playerId ?? null,
     inputKeys: inputHandler.getKeys(),
+    playerStates: latestPlayers,
   });
 
   const localState = gameState.getLocalPlayer();
@@ -656,7 +658,11 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   if (predictedPos && ctx.playerId) {
     renderSystem.updatePlayerPositions(
       { [ctx.playerId]: predictedPos },
-      { localPlayerId: ctx.playerId, inputKeys: inputHandler.getKeys() }
+      {
+        localPlayerId: ctx.playerId,
+        inputKeys: inputHandler.getKeys(),
+        playerStates: latestPlayers,
+      }
     );
   }
 
@@ -674,7 +680,7 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   renderSystem.updateWorldMobs(interpolatedMobs);
 
   renderSystem.animateWorldMeshes(now);
-  const players = gameState.getLatestPlayers();
+  const players = latestPlayers;
   const deadPlayerIds = new Set();
   if (players && typeof players === 'object') {
     for (const [id, p] of Object.entries(players)) {

@@ -68,7 +68,7 @@ export interface ServerPlayer {
   abilityCooldowns?: Record<string, number>;
   globalCooldownUntil?: number;
   combatTagUntil?: number;
-  lastMoveDir?: string | null;
+  lastMoveDir?: { x: number; z: number } | null;
   movedThisTick?: boolean;
   cast?: {
     id: string;
@@ -257,6 +257,8 @@ export interface PublicPlayerState {
   classId: string | null;
   level: number;
   name: string | null;
+  dirX?: number;
+  dirZ?: number;
   duelOpponentId?: string | null;
 }
 

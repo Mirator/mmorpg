@@ -243,14 +243,23 @@ export function createRenderSystem(/** @type {any} */ { app }) {
   }
 
   function updatePlayerPositions(/** @type {any} */ positions, /** @type {any} */ options = {}) {
-    const { localPlayerId, inputKeys } = options;
+    const { localPlayerId, inputKeys, playerStates } = options;
     const hasMovementInput = inputKeys && (inputKeys.w || inputKeys.a || inputKeys.s || inputKeys.d);
 
     for (const [id, pos] of Object.entries(positions)) {
       const mesh = ensurePlayerMesh(id);
       const prev = mesh.userData.lastPos;
       const nextPos = new THREE.Vector3(pos.x, pos.y ?? 0, pos.z);
-      if (prev) {
+      const facingState = playerStates?.[id];
+      const dirX = Number(facingState?.dirX);
+      const dirZ = Number(facingState?.dirZ);
+      const hasFacingDir =
+        Number.isFinite(dirX) &&
+        Number.isFinite(dirZ) &&
+        Math.hypot(dirX, dirZ) > 0.0001;
+      if (hasFacingDir) {
+        mesh.rotation.y = Math.atan2(dirX, dirZ);
+      } else if (prev) {
         const dx = nextPos.x - prev.x;
         const dz = nextPos.z - prev.z;
         const distSq = dx * dx + dz * dz;
