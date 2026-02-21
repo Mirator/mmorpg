@@ -10,6 +10,12 @@ import {
   normalizeToHeight,
   pickClips,
 } from './assets.js';
+import {
+  CHARACTER_HEIGHT,
+  computeEnvironmentScale,
+  ENV_SCALE_PROFILE,
+  ENV_SCALE_TARGETS,
+} from './environmentScale.js';
 
 const LOD_FAR_DISTANCE = 63; // 50 * 1.25
 
@@ -43,7 +49,6 @@ const /** @type {any} */ RESOURCE_TYPE_COLORS = {
   tree: { active: 0x8b6914, dim: 0x3d3228 },
   flower: { active: 0xe85d9a, dim: 0x4a2a35 },
 };
-const VILLAGE_CENTER_HEIGHT = 4.8;
 const CORPSE_MARKER_HEIGHT = 1.2;
 
 const mobPrototypeCache = new Map();
@@ -92,6 +97,51 @@ function centerModelOnGroundXZ(/** @type {any} */ model) {
   box.getCenter(center);
   model.position.x -= center.x;
   model.position.z -= center.z;
+}
+
+function getModelBounds(/** @type {any} */ model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  return { x: size.x, y: size.y, z: size.z };
+}
+
+function applyEnvironmentScaleToModel(
+  /** @type {any} */ model,
+  /** @type {any} */ { key, category, baseRadius, profile }
+) {
+  const scaleInfo = computeEnvironmentScale({
+    key,
+    category,
+    modelBounds: getModelBounds(model),
+    baseRadius,
+    profile,
+  });
+  if (!scaleInfo.valid) return scaleInfo;
+
+  model.scale.set(scaleInfo.scale.x, scaleInfo.scale.y, scaleInfo.scale.z);
+  model.updateMatrixWorld(true);
+  const nextBox = new THREE.Box3().setFromObject(model);
+  model.position.y -= nextBox.min.y;
+  model.updateMatrixWorld(true);
+  return scaleInfo;
+}
+
+function recordEnvironmentScale(/** @type {any} */ worldState, /** @type {any} */ id, /** @type {any} */ entry) {
+  if (!worldState?.environmentScaleDebug) return;
+  worldState.environmentScaleDebug.set(id, entry);
+}
+
+function exposeEnvironmentScaleDebug(/** @type {any} */ worldState) {
+  if (typeof window === 'undefined') return;
+  (/** @type {any} */ (window)).__debugEnvironmentScale = () => ({
+    profile: ENV_SCALE_PROFILE,
+    characterHeight: CHARACTER_HEIGHT,
+    targets: ENV_SCALE_TARGETS[ENV_SCALE_PROFILE],
+    entries: Array.from(worldState.environmentScaleDebug?.values?.() ?? []).sort((a, b) =>
+      String(a?.id ?? '').localeCompare(String(b?.id ?? ''))
+    ),
+  });
 }
 
 function createLODModel(/** @type {any} */ fullModel, /** @type {any} */ impostorType = 'box') {
@@ -259,8 +309,25 @@ async function hydrateVillageCenter(/** @type {any} */ worldState, /** @type {an
   if (!gltf?.scene) return;
 
   const model = cloneStatic(gltf.scene);
-  normalizeToHeight(model, VILLAGE_CENTER_HEIGHT);
+  const scaleInfo = applyEnvironmentScaleToModel(model, {
+    key: 'villageCenterModel',
+    category: 'villageCenter',
+    baseRadius: worldState.base?.radius ?? 8,
+    profile: ENV_SCALE_PROFILE,
+  });
   centerModelOnGroundXZ(model);
+  recordEnvironmentScale(worldState, 'villageCenterModel', {
+    ...scaleInfo,
+    id: 'villageCenterModel',
+    key: 'villageCenterModel',
+    category: 'villageCenter',
+    placement: {
+      x: village.position?.x ?? 0,
+      y: village.position?.y ?? 0,
+      z: village.position?.z ?? 0,
+      rotation: village.rotation?.y ?? 0,
+    },
+  });
 
   const existing = village.userData.centerModel;
   if (existing) village.remove(existing);
@@ -551,11 +618,13 @@ export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
     corpseMeshes: new Map(),
     vendorMeshes,
     vendorControllers: new Map(),
+    environmentScaleDebug: new Map(),
     isActive: true,
     lastResources: [],
     lastMobs: [],
     lastCorpses: [],
   };
+  exposeEnvironmentScaleDebug(worldState);
 
   for (const vendor of world?.vendors ?? []) {
     const vendorMesh = buildVendorMesh(vendor, worldState);
@@ -730,7 +799,25 @@ async function addEnvironmentModel(/** @type {any} */ worldState, /** @type {any
   if (!worldState.isActive) return;
 
   const model = cloneStatic(gltf.scene);
-  normalizeToHeight(model, placement.height ?? 4);
+  const scaleInfo = applyEnvironmentScaleToModel(model, {
+    key,
+    category: placement.category ?? 'house',
+    baseRadius: worldState.base?.radius ?? 8,
+    profile: ENV_SCALE_PROFILE,
+  });
+  centerModelOnGroundXZ(model);
+  recordEnvironmentScale(worldState, key, {
+    ...scaleInfo,
+    id: key,
+    key,
+    category: placement.category ?? 'house',
+    placement: {
+      x: placement.x,
+      y: placement.y ?? 0,
+      z: placement.z,
+      rotation: placement.rotation ?? 0,
+    },
+  });
   const lod = createLODModel(model, 'box');
   lod.position.set(placement.x, placement.y ?? 0, placement.z);
   lod.rotation.y = placement.rotation ?? 0;
@@ -770,12 +857,12 @@ async function loadEnvironmentModels(/** @type {any} */ worldState, /** @type {a
   const diag = ring * 0.7;
   const towerRadius = 65;
   const /** @type {any} */ placements = [
-    { key: 'market', x: base.x + ring, z: base.z, rotation: Math.PI / 2, height: 4.8 },
-    { key: 'barracks', x: base.x - ring, z: base.z, rotation: -Math.PI / 2, height: 5.6 },
-    { key: 'storage', x: base.x, z: base.z + ring, rotation: Math.PI, height: 4.4 },
-    { key: 'houseA', x: base.x, z: base.z - ring, rotation: 0, height: 3.6 },
-    { key: 'houseB', x: base.x + diag, z: base.z + diag, rotation: Math.PI / 4, height: 3.8 },
-    { key: 'bellTower', x: base.x, z: base.z + towerRadius, rotation: 0, height: 8 },
+    { key: 'market', category: 'civic', x: base.x + ring, z: base.z, rotation: Math.PI / 2 },
+    { key: 'barracks', category: 'civic', x: base.x - ring, z: base.z, rotation: -Math.PI / 2 },
+    { key: 'storage', category: 'mill', x: base.x, z: base.z + ring, rotation: Math.PI },
+    { key: 'houseA', category: 'house', x: base.x, z: base.z - ring, rotation: 0 },
+    { key: 'houseB', category: 'house', x: base.x + diag, z: base.z + diag, rotation: Math.PI / 4 },
+    { key: 'bellTower', category: 'tower', x: base.x, z: base.z + towerRadius, rotation: 0 },
   ];
 
   await Promise.all([
