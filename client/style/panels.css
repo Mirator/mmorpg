@@ -153,11 +153,19 @@
 }
 
 .character-model-placeholder {
+  position: relative;
+  overflow: hidden;
   flex: 1;
-  min-height: 100px;
+  min-height: 160px;
   border-radius: 8px;
   border: 1px dashed rgba(139, 119, 71, 0.35);
-  background: rgba(0, 0, 0, 0.2);
+  background: radial-gradient(circle at 50% 20%, rgba(95, 130, 180, 0.22), rgba(0, 0, 0, 0.28) 70%);
+}
+
+.character-model-placeholder canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .equipment-grid-slot {
@@ -730,4 +738,3 @@
   align-items: center;
   justify-content: center;
 }
-

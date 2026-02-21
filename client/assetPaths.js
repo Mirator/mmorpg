@@ -9,6 +9,8 @@ const WEAPONS_ROOT = '/assets/weapons';
 export const ASSET_PATHS = {
   playerModel: `${ASSET_ROOT}/outfits/Male_Peasant.gltf`,
   vendorModel: `${ASSET_ROOT}/outfits/Male_Ranger.gltf`,
+  villageCenterModel: `${ENV_ROOT}/TownCenter_FirstAge_Level1.gltf`,
+  corpseMarker: `${ENV_ROOT}/graveyard/grave.glb`,
   playerBase: `${ASSET_ROOT}/base/Superhero_Male_FullBody.gltf`,
   playerOutfit: `${ASSET_ROOT}/outfits/Male_Peasant.gltf`,
   playerAnimations: `${ASSET_ROOT}/animations/UAL1_Standard.glb`,
@@ -59,10 +61,10 @@ export const ASSET_PATHS = {
   },
   resourceNodes: {
     crystal: `${RESOURCES_ROOT}/Crystal1.glb`,
-    ore: `${RESOURCES_ROOT}/Crystal2.glb`,
-    herb: `${RESOURCES_ROOT}/Crystal3.glb`,
-    tree: `${RESOURCES_ROOT}/Crystal1.glb`,
-    flower: `${RESOURCES_ROOT}/Crystal3.glb`,
+    ore: `${RESOURCES_ROOT}/nodes/ore/Resource_Rock_1.gltf`,
+    herb: `${RESOURCES_ROOT}/nodes/herb/Plant_1.gltf`,
+    tree: `${RESOURCES_ROOT}/nodes/tree/Resource_Tree_Group_Cut.gltf`,
+    flower: `${RESOURCES_ROOT}/nodes/flower/Flower_3_Single.gltf`,
   },
 };
 
@@ -91,6 +93,8 @@ export function getPreloadAssetList() {
   return {
     player: ['assemblePlayerModel', 'loadPlayerAnimations'],
     vendor: [ASSET_PATHS.vendorModel],
+    villageCenter: [ASSET_PATHS.villageCenterModel],
+    corpses: [ASSET_PATHS.corpseMarker],
     mobs: Object.values(ASSET_PATHS.monsters),
     environment: Object.values(ASSET_PATHS.environment),
     rocks: ASSET_PATHS.rocks ?? [],

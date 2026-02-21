@@ -5,6 +5,8 @@ describe('assetPaths', () => {
   it('has expected ASSET_PATHS structure', () => {
     expect(ASSET_PATHS).toHaveProperty('playerModel');
     expect(ASSET_PATHS).toHaveProperty('vendorModel');
+    expect(ASSET_PATHS).toHaveProperty('villageCenterModel');
+    expect(ASSET_PATHS).toHaveProperty('corpseMarker');
     expect(ASSET_PATHS).toHaveProperty('playerBase');
     expect(ASSET_PATHS).toHaveProperty('playerOutfit');
     expect(ASSET_PATHS).toHaveProperty('playerAnimations');
@@ -17,10 +19,17 @@ describe('assetPaths', () => {
     expect(ASSET_PATHS.environment).toHaveProperty('barracks');
     expect(ASSET_PATHS.environment).toHaveProperty('storage');
     expect(ASSET_PATHS.environment).toHaveProperty('trees');
+    expect(ASSET_PATHS).toHaveProperty('resourceNodes');
+    expect(ASSET_PATHS.resourceNodes.ore).toBe('/assets/resources/nodes/ore/Resource_Rock_1.gltf');
+    expect(ASSET_PATHS.resourceNodes.tree).toBe('/assets/resources/nodes/tree/Resource_Tree_Group_Cut.gltf');
+    expect(ASSET_PATHS.resourceNodes.herb).toBe('/assets/resources/nodes/herb/Plant_1.gltf');
+    expect(ASSET_PATHS.resourceNodes.flower).toBe('/assets/resources/nodes/flower/Flower_3_Single.gltf');
   });
 
   it('ASSET_PATHS uses /assets/ root for models and environment', () => {
     expect(ASSET_PATHS.playerModel).toMatch(/^\/assets\//);
+    expect(ASSET_PATHS.villageCenterModel).toMatch(/^\/assets\//);
+    expect(ASSET_PATHS.corpseMarker).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.monsters.orc).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.environment.market).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.environment.trees).toMatch(/^\/assets\//);
@@ -37,6 +46,14 @@ describe('assetPaths', () => {
     expect(list).toHaveProperty('vendor');
     expect(Array.isArray(list.vendor)).toBe(true);
     expect(list.vendor).toContain(ASSET_PATHS.vendorModel);
+
+    expect(list).toHaveProperty('villageCenter');
+    expect(Array.isArray(list.villageCenter)).toBe(true);
+    expect(list.villageCenter).toContain(ASSET_PATHS.villageCenterModel);
+
+    expect(list).toHaveProperty('corpses');
+    expect(Array.isArray(list.corpses)).toBe(true);
+    expect(list.corpses).toContain(ASSET_PATHS.corpseMarker);
 
     expect(list).toHaveProperty('mobs');
     expect(Array.isArray(list.mobs)).toBe(true);

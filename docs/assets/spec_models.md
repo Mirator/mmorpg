@@ -56,7 +56,16 @@ Placed around the base in `loadEnvironmentModels`. Keys map to placement slots.
 
 **Source:** Medieval Village Pack (Buildings), Ultimate Fantasy RTS (trees)
 
-### 3.2 Additional Environment (Unused in Placements)
+### 3.2 Base Center + Corpse Marker
+
+| Purpose | Path | Model |
+|---------|------|-------|
+| Village center model | `/assets/environment/TownCenter_FirstAge_Level1.gltf` | Town Center (First Age) |
+| Corpse marker | `/assets/environment/graveyard/grave.glb` | Grave |
+
+**Source:** Ultimate Fantasy RTS, Kenney Graveyard Kit
+
+### 3.3 Additional Environment (Unused in Placements)
 
 | Path | Model |
 |------|-------|
@@ -66,7 +75,7 @@ Placed around the base in `loadEnvironmentModels`. Keys map to placement slots.
 | `/assets/environment/Stable.glb` | Stable |
 | `/assets/environment/Bell_Tower.glb` | Bell Tower |
 
-### 3.3 Obstacles (Rocks)
+### 3.4 Obstacles (Rocks)
 
 Randomly placed as obstacles. One of three variants per obstacle.
 
@@ -78,7 +87,7 @@ Randomly placed as obstacles. One of three variants per obstacle.
 
 **Source:** Stylized Nature MegaKit
 
-### 3.4 Medieval Structures (Unused)
+### 3.5 Medieval Structures (Unused)
 
 | Path | Model |
 |------|-------|
@@ -96,12 +105,12 @@ Mineable resource visuals. Selected by `resource.type` in `buildResourceMesh` / 
 | resourceType | Path | Model |
 |--------------|------|-------|
 | crystal | `/assets/resources/Crystal1.glb` | Crystal 1 |
-| ore | `/assets/resources/Crystal2.glb` | Crystal 2 |
-| herb | `/assets/resources/Crystal3.glb` | Crystal 3 |
-| tree | `/assets/resources/Crystal1.glb` | Crystal 1 |
-| flower | `/assets/resources/Crystal3.glb` | Crystal 3 |
+| ore | `/assets/resources/nodes/ore/Resource_Rock_1.gltf` | Resource Rock |
+| herb | `/assets/resources/nodes/herb/Plant_1.gltf` | Plant 1 |
+| tree | `/assets/resources/nodes/tree/Resource_Tree_Group_Cut.gltf` | Tree Group Cut |
+| flower | `/assets/resources/nodes/flower/Flower_3_Single.gltf` | Flower 3 Single |
 
-**Source:** Ultimate RPG Items Pack
+**Source:** Ultimate RPG Items Pack (crystal), Ultimate Fantasy RTS (ore/tree), Stylized Nature MegaKit (herb/flower)
 
 ---
 
@@ -167,11 +176,13 @@ Assets preloaded at game entry (see `getPreloadAssetList`):
 
 1. Player (assemble + animations)
 2. Vendor model
-3. Mob models (all 9, including dummy)
-4. Environment models (6)
-5. Rocks (3)
-6. Resource node models (Crystal1, Crystal2, Crystal3)
-7. Ground texture
+3. Village center model
+4. Corpse marker model
+5. Mob models (all 9, including dummy)
+6. Environment models (7, includes trees)
+7. Rocks (3)
+8. Resource node models (crystal + ore/tree/herb/flower)
+9. Ground texture
 
 ---
 

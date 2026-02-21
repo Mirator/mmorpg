@@ -263,6 +263,8 @@ export async function preloadAllAssets(onProgress) {
     assemblePlayerModel(),
     assembleVendorModel(),
     loadPlayerAnimations(),
+    ...(list.villageCenter ?? []).map((/** @type {any} */ url) => loadGltf(url)),
+    ...(list.corpses ?? []).map((/** @type {any} */ url) => loadGltf(url)),
     ...list.mobs.map((/** @type {any} */ url) => loadGltf(url)),
     ...list.environment.map((/** @type {any} */ url) => loadGltf(url)),
     ...(list.rocks ?? []).map((/** @type {any} */ url) => loadGltf(url)),

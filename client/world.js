@@ -43,6 +43,8 @@ const /** @type {any} */ RESOURCE_TYPE_COLORS = {
   tree: { active: 0x8b6914, dim: 0x3d3228 },
   flower: { active: 0xe85d9a, dim: 0x4a2a35 },
 };
+const VILLAGE_CENTER_HEIGHT = 4.8;
+const CORPSE_MARKER_HEIGHT = 1.2;
 
 const mobPrototypeCache = new Map();
 let /** @type {any} */ vendorPrototypePromise = null;
@@ -82,6 +84,14 @@ function getVendorClips() {
 
 function cloneStatic(/** @type {any} */ scene) {
   return scene.clone(true);
+}
+
+function centerModelOnGroundXZ(/** @type {any} */ model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  model.position.x -= center.x;
+  model.position.z -= center.z;
 }
 
 function createLODModel(/** @type {any} */ fullModel, /** @type {any} */ impostorType = 'box') {
@@ -230,10 +240,36 @@ function buildVillage(/** @type {any} */ base) {
   );
   totem.position.y = 0.8;
   village.add(totem);
+  village.userData.centerFallback = totem;
 
   village.position.set(base.x, base.y ?? 0, base.z);
   village.userData.base = base;
   return village;
+}
+
+async function hydrateVillageCenter(/** @type {any} */ worldState, /** @type {any} */ village) {
+  if (!worldState?.isActive) return;
+  if (worldState.baseMesh !== village) return;
+  const modelUrl = ASSET_PATHS.villageCenterModel;
+  if (!modelUrl) return;
+
+  const gltf = await loadGltf(modelUrl);
+  if (!worldState.isActive) return;
+  if (worldState.baseMesh !== village) return;
+  if (!gltf?.scene) return;
+
+  const model = cloneStatic(gltf.scene);
+  normalizeToHeight(model, VILLAGE_CENTER_HEIGHT);
+  centerModelOnGroundXZ(model);
+
+  const existing = village.userData.centerModel;
+  if (existing) village.remove(existing);
+  if (village.userData.centerFallback) {
+    village.remove(village.userData.centerFallback);
+    village.userData.centerFallback = null;
+  }
+  village.userData.centerModel = model;
+  village.add(model);
 }
 
 function buildObstacleMesh(/** @type {any} */ obstacle) {
@@ -243,8 +279,9 @@ function buildObstacleMesh(/** @type {any} */ obstacle) {
   return group;
 }
 
-function buildCorpseMesh() {
+function buildCorpseMesh(/** @type {any} */ worldState, /** @type {any} */ corpseId) {
   const group = new THREE.Group();
+  const fallback = new THREE.Group();
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(0.6, 0.15, 0.4),
     new THREE.MeshStandardMaterial({
@@ -253,7 +290,7 @@ function buildCorpseMesh() {
     })
   );
   base.position.y = 0.075;
-  group.add(base);
+  fallback.add(base);
   const cross = new THREE.Mesh(
     new THREE.BoxGeometry(0.08, 0.5, 0.08),
     new THREE.MeshStandardMaterial({
@@ -262,7 +299,7 @@ function buildCorpseMesh() {
     })
   );
   cross.position.set(0, 0.4, 0);
-  group.add(cross);
+  fallback.add(cross);
   const crossBar = new THREE.Mesh(
     new THREE.BoxGeometry(0.35, 0.08, 0.08),
     new THREE.MeshStandardMaterial({
@@ -271,7 +308,16 @@ function buildCorpseMesh() {
     })
   );
   crossBar.position.set(0, 0.55, 0);
-  group.add(crossBar);
+  fallback.add(crossBar);
+  group.add(fallback);
+  group.userData.placeholder = fallback;
+  group.userData.corpseId = corpseId;
+  group.rotation.y = Math.random() * Math.PI * 2;
+
+  hydrateCorpseMesh(worldState, corpseId, group).catch((/** @type {any} */ err) => {
+    console.warn('[world] Failed to load corpse marker model:', err);
+  });
+
   return group;
 }
 
@@ -333,6 +379,29 @@ async function hydrateResourceMesh(/** @type {any} */ type, /** @type {any} */ g
   group.userData.crystal = model;
   group.add(model);
   group.rotation.y = Math.random() * Math.PI * 2;
+}
+
+async function hydrateCorpseMesh(/** @type {any} */ worldState, /** @type {any} */ corpseId, /** @type {any} */ group) {
+  if (!worldState?.isActive) return;
+  const modelUrl = ASSET_PATHS.corpseMarker;
+  if (!modelUrl) return;
+
+  const gltf = await loadGltf(modelUrl);
+  if (!worldState.isActive) return;
+  if (worldState.corpseMeshes.get(corpseId) !== group) return;
+  if (!gltf?.scene) return;
+
+  const model = cloneStatic(gltf.scene);
+  normalizeToHeight(model, CORPSE_MARKER_HEIGHT);
+  centerModelOnGroundXZ(model);
+
+  const fallback = group.userData.placeholder;
+  if (fallback) {
+    group.remove(fallback);
+    group.userData.placeholder = null;
+  }
+  group.userData.marker = model;
+  group.add(model);
 }
 
 function buildMobMesh(/** @type {any} */ worldState, /** @type {any} */ mob) {
@@ -497,6 +566,10 @@ export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
   group.add(ground, baseMesh, envGroup, ...obstacleMeshes);
   scene.add(group);
 
+  hydrateVillageCenter(worldState, baseMesh).catch((/** @type {any} */ err) => {
+    console.warn('[world] Failed to load village center model:', err);
+  });
+
   loadEnvironmentModels(worldState, envGroup, base).catch(
     (/** @type {any} */ err) => {
       console.warn('[world] Failed to load environment models:', err);
@@ -584,7 +657,7 @@ export function updateCorpses(/** @type {any} */ worldState, /** @type {any} */ 
     seen.add(corpse.id);
     let mesh = worldState.corpseMeshes.get(corpse.id);
     if (!mesh) {
-      mesh = buildCorpseMesh();
+      mesh = buildCorpseMesh(worldState, corpse.id);
       worldState.corpseMeshes.set(corpse.id, mesh);
       worldState.group.add(mesh);
     }

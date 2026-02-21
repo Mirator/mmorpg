@@ -107,10 +107,10 @@ Use `getMobStats(mobType)` to resolve stats. Dummy: 1 HP, no damage, no movement
 | type | itemKind | itemName | Sell Price | Respawn (ms) | 3D Model |
 |------|----------|----------|------------|--------------|----------|
 | crystal | crystal | Crystal | 10c | 15,000 | `/assets/resources/Crystal1.glb` |
-| ore | ore | Iron Ore | 15c | 20,000 | `/assets/resources/Crystal2.glb` |
-| herb | herb | Healing Herb | 12c | 12,000 | `/assets/resources/Crystal3.glb` |
-| tree | wood | Wood | 8c | 25,000 | `/assets/resources/Crystal1.glb` |
-| flower | flower | Flower | 10c | 10,000 | `/assets/resources/Crystal3.glb` |
+| ore | ore | Iron Ore | 15c | 20,000 | `/assets/resources/nodes/ore/Resource_Rock_1.gltf` |
+| herb | herb | Healing Herb | 12c | 12,000 | `/assets/resources/nodes/herb/Plant_1.gltf` |
+| tree | wood | Wood | 8c | 25,000 | `/assets/resources/nodes/tree/Resource_Tree_Group_Cut.gltf` |
+| flower | flower | Flower | 10c | 10,000 | `/assets/resources/nodes/flower/Flower_3_Single.gltf` |
 
 **Usage:**
 - Map config `resourceNodes[].type` selects harvest output, visual, and respawn time
@@ -134,6 +134,8 @@ Vendors are placed in the map config. Each has:
 
 At runtime, `resolveVendorBuyItems(vendor)` in [shared/economy.js](../../shared/economy.js) resolves the full catalog; world vendors include `buyItems` in the snapshot for the client.
 
+Corpse markers use `/assets/environment/graveyard/grave.glb` (`ASSET_PATHS.corpseMarker`) and the village center uses `/assets/environment/TownCenter_FirstAge_Level1.gltf` (`ASSET_PATHS.villageCenterModel`) in [client/world.js](../../client/world.js).
+
 ---
 
 ## 6. Config Sources Summary
@@ -144,7 +146,7 @@ At runtime, `resolveVendorBuyItems(vendor)` in [shared/economy.js](../../shared/
 | Entity type lists | shared/entityTypes.js | MOB_TYPES, RESOURCE_TYPES — validation and UI |
 | Economy (harvest output) | shared/economy.js | RESOURCE_TYPES (itemKind, itemName, sellPrice) |
 | Runtime defaults | shared/config.js | WORLD_CONFIG, MOB_CONFIG, RESOURCE_CONFIG, VENDOR_CONFIG |
-| 3D model paths | client/assetPaths.js | ASSET_PATHS.monsters, ASSET_PATHS.resourceNodes |
+| 3D model paths | client/assetPaths.js | ASSET_PATHS.monsters, ASSET_PATHS.resourceNodes, ASSET_PATHS.villageCenterModel, ASSET_PATHS.corpseMarker |
 
 ---
 

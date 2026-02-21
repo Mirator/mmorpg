@@ -31,6 +31,7 @@ import { createPlayerTradeUI } from './trade.js';
 import { getRecipeById } from '/shared/recipes.js';
 import { createAbilityBar } from './ui-state/abilityBar.js';
 import { createSkillsPanelUpdater } from './ui-state/skillsPanel.js';
+import { createCharacterPreview } from './character-preview.js';
 
 function formatItemName(/** @type {any} */ kind) {
   if (!kind) return 'Item';
@@ -60,6 +61,9 @@ export function createUiState(/** @type {any} */ {
   const inventoryPanel = document.getElementById('inventory-panel');
   const characterSheetPanel = document.getElementById('character-sheet-panel');
   const characterSheetClose = document.getElementById('character-sheet-close');
+  const characterModelPreviewEl = /** @type {HTMLElement | null} */ (
+    document.getElementById('character-model-preview')
+  );
   const characterView = document.getElementById('character-view');
   const skillsView = document.getElementById('skills-view');
   const sheetTabBtns = /** @type {NodeListOf<HTMLElement>} */ (
@@ -134,6 +138,7 @@ export function createUiState(/** @type {any} */ {
     skillsLevelEl,
     skillsXpEl,
   });
+  const characterPreview = createCharacterPreview(characterModelPreviewEl);
   let wasDead = false;
 
   /** @type {{ hp: number | null, inv: number | null, currencyCopper: number | null, level: number | null, totalXp: number | null }} */
@@ -164,6 +169,7 @@ export function createUiState(/** @type {any} */ {
     characterOpen = !!next;
     characterSheetPanel?.classList.toggle('open', characterOpen);
     document.body.classList.toggle('character-open', characterOpen);
+    characterPreview?.setOpen?.(characterOpen);
     if (characterOpen) {
       clearPrompt();
       onUiOpen?.();
@@ -175,6 +181,7 @@ export function createUiState(/** @type {any} */ {
     characterTab = tab;
     characterView?.classList.toggle('active', tab === 'character');
     skillsView?.classList.toggle('active', tab === 'skills');
+    characterPreview?.setVisible?.(tab === 'character');
     for (const btn of sheetTabBtns ?? []) {
       btn.classList.toggle('active', btn.dataset.tab === tab);
     }
@@ -550,6 +557,7 @@ export function createUiState(/** @type {any} */ {
       if (charStatLevel) charStatLevel.textContent = String(me.level ?? 1);
       if (charStatClass) charStatClass.textContent = klass?.name ?? me?.classId ?? '--';
       if (charSheetCharMeta) charSheetCharMeta.textContent = `Level ${me.level ?? 1} ${klass?.name ?? me?.classId ?? '--'}`;
+      characterPreview?.setPlayer?.(me);
       if (lastStats.hp !== null && me.hp < lastStats.hp) {
         flashDamage();
       }
@@ -626,6 +634,7 @@ export function createUiState(/** @type {any} */ {
       if (charStatLevel) charStatLevel.textContent = '--';
       if (charStatClass) charStatClass.textContent = '--';
       if (charSheetCharMeta) charSheetCharMeta.textContent = 'Level 1 --';
+      characterPreview?.setPlayer?.(null);
       lastStats.hp = null;
       lastStats.inv = null;
       lastStats.currencyCopper = null;
@@ -642,6 +651,7 @@ export function createUiState(/** @type {any} */ {
   setMenuOpen(true);
   setCharacterTab('character');
   setInventoryTab('inventory');
+  characterPreview?.setOpen?.(false);
 
   for (const btn of inventoryTabBtns ?? []) {
     btn.addEventListener('click', () => {
@@ -716,5 +726,6 @@ export function createUiState(/** @type {any} */ {
     vendorUI,
     playerTradeUI,
     showToast,
+    dispose: () => characterPreview?.dispose?.(),
   };
 }
