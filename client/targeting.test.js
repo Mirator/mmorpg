@@ -2,14 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { deriveTargetName, resolveTarget } from './targeting.js';
 
 describe('targeting helpers', () => {
-  it('derives mob names from ids', () => {
+  it('derives mob names from mob type and falls back to ids', () => {
+    expect(deriveTargetName({ kind: 'mob', id: 'm1', mobType: 'fox' })).toBe('Wild Fox');
+    expect(deriveTargetName({ kind: 'mob', id: 'm1', mobType: 'dummy' })).toBe('Training Dummy');
     expect(deriveTargetName({ kind: 'mob', id: 'm1' })).toBe('Mob 1');
     expect(deriveTargetName({ kind: 'mob', id: 'm-test' })).toBe('Test Mob');
   });
 
   it('resolves mob, player, and vendor targets', () => {
     const mobs = [
-      { id: 'm1', x: 1, z: 2, level: 3, hp: 12, maxHp: 20, dead: false },
+      { id: 'm1', x: 1, z: 2, level: 3, hp: 12, maxHp: 20, dead: false, mobType: 'fox' },
     ];
     const players = {
       p1: { x: 5, z: 6, level: 2, hp: 30, maxHp: 50, name: 'Ava' },
@@ -17,7 +19,7 @@ describe('targeting helpers', () => {
     const vendors = [{ id: 'v1', x: 0, z: 0, name: 'General Vendor' }];
 
     const mobTarget = resolveTarget({ kind: 'mob', id: 'm1' }, { mobs, players, vendors });
-    expect(mobTarget?.name).toBe('Mob 1');
+    expect(mobTarget?.name).toBe('Wild Fox');
     expect(mobTarget?.level).toBe(3);
     expect(mobTarget?.hp).toBe(12);
 

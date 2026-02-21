@@ -15,7 +15,7 @@ import { COMBAT_CONFIG } from '../../shared/config.js';
 import { getEquippedWeapon } from '../../shared/equipment.js';
 import { computeDerivedStats, computeHitChance } from '../../shared/attributes.js';
 import { getMobMaxHp } from './mobs.js';
-import { getMobStats } from '../../shared/entityTypes.js';
+import { getMobDisplayName as resolveMobDisplayName, getMobStats } from '../../shared/entityTypes.js';
 import { applyCollisions } from './collision.js';
 import { isPvPAllowed } from './pvp.js';
 import { createAbilityHandlers } from './combat/abilityHandlers.js';
@@ -133,13 +133,11 @@ function distance2(/** @type {any} */ a, /** @type {any} */ b) {
   return dx * dx + dz * dz;
 }
 
-function getMobDisplayName(/** @type {any} */ mob) {
-  if (!mob) return 'Enemy';
-  const level = mob.level ?? 1;
-  return `Enemy (Lv.${level})`;
-}
-
 const COMBAT_TAG_MS = 5000;
+
+function getMobDisplayName(/** @type {any} */ mob) {
+  return resolveMobDisplayName(mob?.mobType);
+}
 
 function clamp(/** @type {any} */ value, /** @type {any} */ min, /** @type {any} */ max) {
   return Math.max(min, Math.min(max, value));

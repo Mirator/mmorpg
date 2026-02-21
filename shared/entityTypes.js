@@ -16,6 +16,20 @@ export const MOB_TYPES = [
   'dummy',
 ];
 
+/** Display names used in UI/combat text for each mob type. */
+/** @type {Record<string, string>} */
+export const MOB_DISPLAY_NAMES = {
+  orc: 'Savage Orc',
+  demon: 'Infernal Demon',
+  yeti: 'Frost Yeti',
+  tribal: 'Tribal Raider',
+  wolf: 'Feral Wolf',
+  fox: 'Wild Fox',
+  bull: 'Raging Bull',
+  stag: 'Great Stag',
+  dummy: 'Training Dummy',
+};
+
 /** Resource type keys from economy (single source of truth for harvest output). */
 export const RESOURCE_TYPE_LIST = Object.keys(RESOURCE_TYPES);
 
@@ -66,6 +80,18 @@ export function getMobStats(mobType) {
 export function isValidMobType(type) {
   if (!type || typeof type !== 'string') return false;
   return VALID_MOB_TYPES.has(type.trim().toLowerCase());
+}
+
+/**
+ * Resolve a mob display name from mob type.
+ * @param {string} [mobType]
+ * @param {string} [fallback]
+ * @returns {string}
+ */
+export function getMobDisplayName(mobType, fallback = 'Enemy') {
+  if (typeof mobType !== 'string' || mobType.trim().length === 0) return fallback;
+  const key = mobType.trim().toLowerCase();
+  return MOB_DISPLAY_NAMES[key] ?? fallback;
 }
 
 /**

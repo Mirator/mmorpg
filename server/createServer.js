@@ -8,6 +8,7 @@ import { createWebSocketServer } from './ws.js';
 import { createGameLoop } from './gameLoop.js';
 import { createSpawner } from './spawn.js';
 import { createPersistence } from './persistence.js';
+import { getMobDisplayName } from '../shared/entityTypes.js';
 import { serializePlayerState } from './db/playerState.js';
 import { savePlayer } from './db/playerRepo.js';
 import { disconnectPrisma } from './db/client.js';
@@ -133,14 +134,8 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
     nextItemIdRef,
   });
 
-  function getMobDisplayName(/** @type {any} */ mob) {
-    if (!mob) return 'Enemy';
-    const level = mob.level ?? 1;
-    return `Enemy (Lv.${level})`;
-  }
-
   const onPlayerDamaged = (/** @type {any} */ player, /** @type {any} */ mob, /** @type {any} */ damage, /** @type {any} */ now) => {
-    const mobName = getMobDisplayName(mob);
+    const mobName = getMobDisplayName(mob?.mobType);
     ws.sendCombatLogToPlayer(player.id, [
       {
         kind: 'damage_received',

@@ -27,7 +27,7 @@ function makePlayer(weaponKind) {
   };
 }
 
-function makeMob(x) {
+function makeMob(x, mobType = 'orc') {
   return {
     id: 'm1',
     pos: { x, y: 0, z: 0 },
@@ -35,6 +35,7 @@ function makeMob(x) {
     hp: 20,
     maxHp: 20,
     dead: false,
+    mobType,
   };
 }
 
@@ -96,7 +97,7 @@ describe('combat', () => {
   it('grants xp on kill without forcing a level up', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const player = makePlayer('weapon_training_sword');
-    const mob = makeMob(1.2);
+    const mob = makeMob(1.2, 'fox');
     mob.hp = 5;
     player.targetId = mob.id;
     const result = tryBasicAttack({
@@ -108,6 +109,7 @@ describe('combat', () => {
     expect(result.success).toBe(true);
     expect(result.xpGain).toBeGreaterThan(0);
     expect(result.leveledUp).toBe(false);
+    expect(result.combatLog?.targetName).toBe('Wild Fox');
     expect(player.level).toBe(1);
     expect(player.xp).toBe(result.xpGain);
     vi.restoreAllMocks();

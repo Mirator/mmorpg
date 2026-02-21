@@ -1,4 +1,6 @@
 // @ts-check
+import { getMobDisplayName } from '/shared/entityTypes.js';
+
 function titleCaseParts(/** @type {any} */ value) {
   return value
     .split(/[-_\s]+/)
@@ -7,9 +9,13 @@ function titleCaseParts(/** @type {any} */ value) {
     .join(' ');
 }
 
-export function deriveTargetName(/** @type {any} */ { kind, id, name }) {
+export function deriveTargetName(/** @type {any} */ { kind, id, name, mobType }) {
   if (typeof name === 'string' && name.trim()) return name.trim();
   if (kind === 'mob') {
+    const mobTypeValue = typeof mobType === 'string' ? mobType.trim() : '';
+    if (mobTypeValue) {
+      return getMobDisplayName(mobTypeValue);
+    }
     const mobId = typeof id === 'string' ? id : '';
     const numeric = mobId.match(/^m-?(\d+)$/);
     if (numeric) {
@@ -36,7 +42,7 @@ export function resolveTarget(/** @type {any} */ selection, /** @type {any} */ {
     return {
       kind,
       id: mob.id,
-      name: deriveTargetName({ kind, id: mob.id, name: mob.name }),
+      name: deriveTargetName({ kind, id: mob.id, name: mob.name, mobType: mob.mobType }),
       level: mob.level ?? 1,
       hp: mob.hp ?? 0,
       maxHp: mob.maxHp ?? 0,
