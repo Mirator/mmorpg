@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap');
-
 .module-page {
   max-width: 1400px;
 }
@@ -10,7 +8,7 @@
 }
 
 .module-header .title {
-  font-family: 'Chakra Petch', 'Space Grotesk', system-ui, sans-serif;
+  font-family: 'Cinzel', serif;
 }
 
 .admin-nav {
@@ -20,7 +18,7 @@
 }
 
 .admin-nav .link {
-  border: 1px solid #2f3f4c;
+  border: 1px solid var(--panel-border-strong);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 13px;
@@ -39,9 +37,9 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid #2a3944;
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
-  background: #0d151c;
+  background: var(--panel-soft);
   min-height: 42px;
 }
 
@@ -51,9 +49,9 @@
 }
 
 .alias-row button {
-  background: #1b262e;
+  background: var(--panel-soft);
   color: var(--text);
-  border: 1px solid #2a3944;
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 12px;
@@ -70,8 +68,8 @@
 }
 
 .module-card {
-  background: #0b1116;
-  border: 1px solid #25333e;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 10px;
   display: grid;
@@ -101,8 +99,8 @@
 .module-card input,
 .module-card select,
 .module-card textarea {
-  background: #101821;
-  border: 1px solid #2a3944;
+  background: var(--panel-soft);
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
   color: var(--text);
   padding: 7px 9px;
@@ -116,9 +114,9 @@
 
 .toolbar button,
 .module-card button {
-  background: #1b262e;
+  background: var(--panel-soft);
   color: var(--text);
-  border: 1px solid #2a3944;
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
   padding: 7px 10px;
   font-size: 12px;
@@ -127,7 +125,7 @@
 .toolbar button.primary,
 .module-card button.primary {
   background: var(--accent);
-  color: #06261c;
+  color: var(--ink-strong);
   border-color: transparent;
   font-weight: 700;
 }
@@ -142,16 +140,16 @@
 .list-item {
   display: grid;
   gap: 4px;
-  border: 1px solid #25333e;
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
   padding: 8px;
-  background: #10171e;
+  background: var(--panel-soft);
   cursor: pointer;
 }
 
 .list-item.active {
-  border-color: rgba(95, 184, 255, 0.7);
-  box-shadow: 0 0 0 1px rgba(95, 184, 255, 0.35) inset;
+  border-color: rgba(var(--accent-rgb), 0.7);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.35) inset;
 }
 
 .list-item .meta {
@@ -164,34 +162,34 @@
   align-items: center;
   border-radius: 999px;
   padding: 2px 8px;
-  border: 1px solid #2a3944;
+  border: 1px solid var(--panel-border);
   font-size: 11px;
   color: var(--muted);
 }
 
 .pill.status-Draft {
-  border-color: rgba(95, 184, 255, 0.45);
-  color: #96d4ff;
+  border-color: rgba(var(--accent-rgb), 0.45);
+  color: #e5c88f;
 }
 
 .pill.status-Review-Requested {
-  border-color: rgba(255, 180, 77, 0.45);
-  color: #ffd08d;
+  border-color: rgba(var(--warning-rgb), 0.45);
+  color: #f0d39a;
 }
 
 .pill.status-Approved {
-  border-color: rgba(94, 242, 194, 0.45);
-  color: #8ffff0;
+  border-color: rgba(var(--accent-2-rgb), 0.45);
+  color: #c3dfb6;
 }
 
 .pill.status-Published {
-  border-color: rgba(120, 228, 120, 0.45);
-  color: #9ef29e;
+  border-color: rgba(var(--ok-rgb), 0.45);
+  color: #b7daa1;
 }
 
 .pill.status-Rolled-Back {
-  border-color: rgba(255, 107, 107, 0.45);
-  color: #ffb0b0;
+  border-color: rgba(var(--error-rgb), 0.45);
+  color: #e0a396;
 }
 
 .kv {
@@ -212,9 +210,9 @@
 .canvas-preview {
   width: 100%;
   min-height: 280px;
-  border: 1px solid #2a3944;
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
-  background: linear-gradient(180deg, #162432, #0f171f);
+  background: linear-gradient(180deg, #2b2116, #18120d);
 }
 
 .note {
@@ -226,7 +224,7 @@
 .table-wrap {
   overflow: auto;
   max-height: 420px;
-  border: 1px solid #24323c;
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
 }
 
@@ -239,21 +237,21 @@
 .table-wrap th,
 .table-wrap td {
   padding: 8px;
-  border-bottom: 1px solid #20303b;
+  border-bottom: 1px solid var(--panel-border);
   text-align: left;
 }
 
 .table-wrap tbody tr:hover {
-  background: rgba(94, 242, 194, 0.05);
+  background: rgba(var(--accent-2-rgb), 0.05);
 }
 
 .code-panel {
   min-height: 200px;
   max-height: 360px;
   overflow: auto;
-  border: 1px solid #22323f;
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
-  background: #0d141b;
+  background: var(--panel);
   padding: 10px;
   font-size: 12px;
   line-height: 1.4;
@@ -262,7 +260,7 @@
 iframe.preview-frame {
   width: 100%;
   min-height: 480px;
-  border: 1px solid #22323f;
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
   background: #000;
 }

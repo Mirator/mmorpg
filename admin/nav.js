@@ -63,7 +63,7 @@ function createAreaId() {
 
 function drawCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#0f1820';
+  ctx.fillStyle = '#120f0b';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   const mapSize = Math.max(1, state.mapSize);
@@ -75,7 +75,7 @@ function drawCanvas() {
     y: (z + half) * scale,
   });
 
-  ctx.strokeStyle = '#355065';
+  ctx.strokeStyle = '#5a472f';
   ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
 
   const areas = [...navAreas()];
@@ -85,19 +85,19 @@ function drawCanvas() {
 
     ctx.beginPath();
     ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = area.id === state.selectedId ? 'rgba(95, 184, 255, 0.35)' : 'rgba(94, 242, 194, 0.23)';
+    ctx.fillStyle = area.id === state.selectedId ? 'rgba(200, 155, 60, 0.35)' : 'rgba(111, 159, 98, 0.23)';
     ctx.fill();
-    ctx.strokeStyle = area.id === state.selectedId ? '#5fb8ff' : '#5ef2c2';
+    ctx.strokeStyle = area.id === state.selectedId ? '#c89b3c' : '#6f9f62';
     ctx.stroke();
 
-    ctx.fillStyle = '#e6edf3';
+    ctx.fillStyle = '#f2eadc';
     ctx.font = '11px monospace';
     ctx.fillText(area.id, center.x + 4, center.y - 4);
   }
 
   if (state.showBakePreview && areas.length >= 2) {
     const sorted = [...areas].sort((a, b) => String(a.id).localeCompare(String(b.id)));
-    ctx.strokeStyle = '#ffb44d';
+    ctx.strokeStyle = '#d8b46b';
     ctx.lineWidth = 1.6;
     ctx.beginPath();
 
@@ -111,7 +111,7 @@ function drawCanvas() {
     });
     ctx.stroke();
 
-    ctx.fillStyle = '#ffb44d';
+    ctx.fillStyle = '#d8b46b';
     ctx.fillText('Bake preview path overlay', 10, canvas.height - 12);
   }
 }
@@ -131,7 +131,7 @@ function renderTable() {
   for (const area of list) {
     const tr = document.createElement('tr');
     if (area.id === state.selectedId) {
-      tr.style.background = 'rgba(95, 184, 255, 0.1)';
+      tr.style.background = 'rgba(200, 155, 60, 0.12)';
     }
 
     tr.innerHTML = [

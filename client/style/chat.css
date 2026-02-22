@@ -5,7 +5,7 @@
   width: 320px;
   padding: 8px 12px;
   border-radius: 12px 12px 0 0;
-  border: 1px solid rgba(77, 163, 255, 0.35);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
   border-bottom: none;
   background: var(--panel);
   z-index: 49;
@@ -28,14 +28,14 @@
   padding: 4px 10px;
   font-size: 12px;
   border-radius: 8px;
-  border: 1px solid rgba(77, 163, 255, 0.4);
-  background: rgba(77, 163, 255, 0.15);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.15);
   color: var(--text);
   cursor: pointer;
 }
 
 .party-btn:hover {
-  background: rgba(77, 163, 255, 0.25);
+  background: rgba(var(--accent-rgb), 0.25);
 }
 
 .party-btn.small {
@@ -267,7 +267,7 @@
   height: 240px;
   padding: 0;
   border-radius: 12px 12px 0 0;
-  border: 1px solid rgba(77, 163, 255, 0.35);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
   border-bottom: none;
   background: var(--panel);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
@@ -287,7 +287,7 @@
 
 .chat-tab {
   padding: 6px 10px;
-  border: 1px solid rgba(77, 163, 255, 0.35);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
   border-radius: 8px 8px 0 0;
   border-bottom: none;
   background: rgba(12, 18, 26, 0.9);
@@ -303,7 +303,7 @@
 }
 
 .chat-tab.active {
-  border-color: rgba(77, 163, 255, 0.6);
+  border-color: rgba(var(--accent-rgb), 0.6);
   background: var(--panel);
   color: var(--text);
 }
@@ -366,13 +366,13 @@
 .chat-input-wrap {
   padding: 8px;
   flex-shrink: 0;
-  border-top: 1px solid rgba(77, 163, 255, 0.2);
+  border-top: 1px solid rgba(var(--accent-rgb), 0.2);
 }
 
 .chat-input-wrap input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid rgba(77, 163, 255, 0.35);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
   border-radius: 8px;
   background: rgba(12, 18, 26, 0.9);
   color: var(--text);

@@ -14,8 +14,8 @@
 .toast {
   padding: 10px 18px;
   border-radius: 10px;
-  background: rgba(6, 12, 18, 0.92);
-  border: 1px solid rgba(77, 163, 255, 0.4);
+  background: rgba(20, 16, 11, 0.92);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
   color: var(--text);
   font-size: 14px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);

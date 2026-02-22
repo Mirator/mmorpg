@@ -1,16 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root {
-  color-scheme: light;
-  --bg: #0e1418;
-  --panel: #151d23;
-  --panel-border: #22303a;
-  --text: #e6edf3;
-  --muted: #92a0ac;
-  --accent: #5ef2c2;
-  --warning: #ffb44d;
-  --error: #ff6b6b;
-  --ok: #5fb8ff;
+  color-scheme: dark;
+  --bg: #12100b;
+  --bg-glow: #2a2218;
+  --panel: #18140f;
+  --panel-soft: #211a12;
+  --panel-border: #3a2f22;
+  --panel-border-strong: #5a472f;
+  --text: #f2eadc;
+  --muted: #b9aa92;
+  --accent: #c89b3c;
+  --accent-rgb: 200, 155, 60;
+  --accent-2: #6f9f62;
+  --accent-2-rgb: 111, 159, 98;
+  --warning: #d8b46b;
+  --warning-rgb: 216, 180, 107;
+  --error: #c8614f;
+  --error-rgb: 200, 97, 79;
+  --ok: #88bf73;
+  --ok-rgb: 136, 191, 115;
+  --ink-strong: #20170e;
 }
 
 * {
@@ -20,7 +30,7 @@
 body {
   margin: 0;
   font-family: 'Space Grotesk', system-ui, sans-serif;
-  background: radial-gradient(circle at top, #1a2630, var(--bg));
+  background: radial-gradient(circle at top, var(--bg-glow), var(--bg));
   color: var(--text);
 }
 
@@ -40,6 +50,7 @@ body {
 }
 
 .title {
+  font-family: 'Cinzel', serif;
   font-size: 32px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -60,7 +71,7 @@ body {
 }
 
 .panel {
-  background: var(--panel);
+  background: linear-gradient(180deg, var(--panel-soft), var(--panel));
   border: 1px solid var(--panel-border);
   border-radius: 16px;
   padding: 16px 20px;
@@ -68,9 +79,11 @@ body {
 }
 
 .panel-title {
+  font-family: 'Cinzel', serif;
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 12px;
+  letter-spacing: 0.3px;
 }
 
 .auth {
@@ -91,8 +104,8 @@ label {
 input[type='password'] {
   flex: 1;
   min-width: 220px;
-  background: #0b1116;
-  border: 1px solid #2b3a46;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
   color: var(--text);
   padding: 10px 12px;
   border-radius: 10px;
@@ -102,7 +115,7 @@ input[type='password'] {
 button {
   background: var(--accent);
   border: none;
-  color: #06261c;
+  color: var(--ink-strong);
   font-weight: 700;
   padding: 10px 18px;
   border-radius: 10px;
@@ -114,6 +127,15 @@ button:hover {
   filter: brightness(1.05);
 }
 
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.24);
+}
+
 #auth-hint {
   color: var(--muted);
   font-size: 13px;
@@ -123,23 +145,23 @@ button:hover {
   font-weight: 600;
   padding: 8px 12px;
   border-radius: 10px;
-  background: #0b1116;
-  border: 1px solid #2b3a46;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
 }
 
 .status.ok {
   color: var(--ok);
-  border-color: rgba(95, 184, 255, 0.4);
+  border-color: rgba(var(--ok-rgb), 0.44);
 }
 
 .status.warning {
   color: var(--warning);
-  border-color: rgba(255, 180, 77, 0.4);
+  border-color: rgba(var(--warning-rgb), 0.45);
 }
 
 .status.error {
   color: var(--error);
-  border-color: rgba(255, 107, 107, 0.4);
+  border-color: rgba(var(--error-rgb), 0.45);
 }
 
 .summary-grid {
@@ -149,8 +171,8 @@ button:hover {
 }
 
 .summary-card {
-  background: #0b1116;
-  border: 1px solid #28343f;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 12px;
 }
@@ -187,8 +209,8 @@ button:hover {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  background: #0b1116;
-  border: 1px solid #24323c;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
   border-radius: 12px;
   padding: 6px 10px;
   font-size: 13px;
@@ -196,9 +218,9 @@ button:hover {
 }
 
 .pager button {
-  background: #1b262e;
+  background: var(--panel-soft);
   color: var(--text);
-  border: 1px solid #2a3944;
+  border: 1px solid var(--panel-border);
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 12px;
@@ -219,7 +241,7 @@ th,
 td {
   text-align: left;
   padding: 10px 8px;
-  border-bottom: 1px solid #24323c;
+  border-bottom: 1px solid var(--panel-border);
   white-space: nowrap;
 }
 
@@ -229,7 +251,7 @@ th {
 }
 
 tbody tr:hover {
-  background: rgba(94, 242, 194, 0.05);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 
 @media (max-width: 700px) {

@@ -201,12 +201,12 @@ function drawArrow(fromX, fromY, toX, toY) {
 
 function renderGraph() {
   graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
-  graphCtx.fillStyle = '#0f1820';
+  graphCtx.fillStyle = '#120f0b';
   graphCtx.fillRect(0, 0, graphCanvas.width, graphCanvas.height);
 
   const list = triggerList();
   if (!list.length) {
-    graphCtx.fillStyle = '#92a0ac';
+    graphCtx.fillStyle = '#b9aa92';
     graphCtx.font = '12px monospace';
     graphCtx.fillText('No triggers to render.', 12, 22);
     return;
@@ -223,21 +223,21 @@ function renderGraph() {
     const y = (index + 1) * gapY;
     const isSelected = trigger.id === state.selectedTriggerId;
 
-    graphCtx.fillStyle = isSelected ? '#5fb8ff' : '#223748';
+    graphCtx.fillStyle = isSelected ? '#c89b3c' : '#2d2419';
     graphCtx.fillRect(triggerX - 70, y - 16, 140, 32);
-    graphCtx.fillStyle = '#e6edf3';
+    graphCtx.fillStyle = '#f2eadc';
     graphCtx.fillText(trigger.name || trigger.id, triggerX - 62, y - 2);
 
     const actionRefs = Array.isArray(trigger.actionRefs) ? trigger.actionRefs : [];
     actionRefs.slice(0, 2).forEach((actionRef, actionIndex) => {
       const actionY = y + actionIndex * 18 - 9;
-      graphCtx.fillStyle = '#2d4d38';
+      graphCtx.fillStyle = '#31472a';
       graphCtx.fillRect(actionX - 70, actionY - 8, 140, 16);
-      graphCtx.fillStyle = '#e6edf3';
+      graphCtx.fillStyle = '#f2eadc';
       graphCtx.fillText(actionRef, actionX - 62, actionY + 2);
 
-      graphCtx.strokeStyle = '#90f0c0';
-      graphCtx.fillStyle = '#90f0c0';
+      graphCtx.strokeStyle = '#a8cc8f';
+      graphCtx.fillStyle = '#a8cc8f';
       drawArrow(triggerX + 70, y, actionX - 70, actionY);
     });
   });

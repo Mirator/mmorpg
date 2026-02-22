@@ -177,20 +177,20 @@ const OVERLAY_FIELD_DEFS = {
 };
 
 const COLORS = {
-  terrain: '#2a3944',
-  grid: 'rgba(148, 165, 183, 0.18)',
-  base: '#5fb8ff',
-  spawnPoints: '#d8b880',
-  obstacles: '#3a3f44',
-  structures: '#9b7b53',
-  resourceNodes: '#5ef2c2',
-  vendors: '#ffd54f',
-  mobSpawns: '#ff6b6b',
-  navAreas: '#5ef2c2',
-  triggers: '#ffb44d',
-  lightingRegions: '#f9f871',
-  path: '#5fb8ff',
-  selected: '#ffffff',
+  terrain: '#5a472f',
+  grid: 'rgba(185, 170, 146, 0.2)',
+  base: '#c89b3c',
+  spawnPoints: '#d8b46b',
+  obstacles: '#514535',
+  structures: '#8f6b32',
+  resourceNodes: '#6f9f62',
+  vendors: '#d8b46b',
+  mobSpawns: '#c8614f',
+  navAreas: '#88bf73',
+  triggers: '#d8b46b',
+  lightingRegions: '#e7d08f',
+  path: '#c89b3c',
+  selected: '#f2eadc',
 };
 
 const state = {
@@ -1088,7 +1088,7 @@ function drawOverlayCircle(collection, item, metrics, selected) {
 
   const center = worldToCanvas({ x: Number(item.x ?? 0), z: Number(item.z ?? 0) }, metrics);
   const radius = Math.max(4, Number(item.radius ?? 1) * metrics.scale);
-  const color = COLORS[collection] ?? '#ffffff';
+  const color = COLORS[collection] ?? COLORS.selected;
 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, layer.opacity / 100));
@@ -1142,7 +1142,7 @@ function drawPaths(metrics) {
         && state.selectedOverlay.pathId === pathDef.id
         && state.selectedOverlay.nodeId === node.id;
 
-      ctx.fillStyle = selected ? '#ffffff' : COLORS.path;
+      ctx.fillStyle = selected ? COLORS.selected : COLORS.path;
       ctx.beginPath();
       ctx.arc(p.x, p.y, selected ? 5 : 4, 0, Math.PI * 2);
       ctx.fill();
@@ -1209,7 +1209,7 @@ function renderCanvas() {
 
 function renderMiniMap(metrics) {
   miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
-  miniCtx.fillStyle = '#0f1820';
+  miniCtx.fillStyle = '#120f0b';
   miniCtx.fillRect(0, 0, miniCanvas.width, miniCanvas.height);
 
   if (!state.mapConfig) return;
@@ -1222,7 +1222,7 @@ function renderMiniMap(metrics) {
     y: ((pos.z + half) / mapSize) * miniCanvas.height,
   });
 
-  miniCtx.strokeStyle = '#355065';
+  miniCtx.strokeStyle = '#5a472f';
   miniCtx.lineWidth = 1;
   miniCtx.strokeRect(1, 1, miniCanvas.width - 2, miniCanvas.height - 2);
 
@@ -1233,7 +1233,7 @@ function renderMiniMap(metrics) {
     if (!layer?.visible) continue;
 
     const p = toMini({ x: entity.x, z: entity.z });
-    miniCtx.fillStyle = COLORS[ref.type] ?? '#ffffff';
+    miniCtx.fillStyle = COLORS[ref.type] ?? COLORS.selected;
     miniCtx.fillRect(p.x - 1, p.y - 1, 3, 3);
   }
 
@@ -1249,7 +1249,7 @@ function renderMiniMap(metrics) {
   const miniA = toMini({ x: worldA.x, z: worldA.z });
   const miniB = toMini({ x: worldB.x, z: worldB.z });
 
-  miniCtx.strokeStyle = '#5fb8ff';
+  miniCtx.strokeStyle = COLORS.base;
   miniCtx.lineWidth = 1.5;
   miniCtx.strokeRect(
     Math.min(miniA.x, miniB.x),

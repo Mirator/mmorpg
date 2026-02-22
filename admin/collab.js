@@ -62,7 +62,7 @@ function mapSize() {
 
 function renderCommentCanvas() {
   commentCtx.clearRect(0, 0, commentCanvas.width, commentCanvas.height);
-  commentCtx.fillStyle = '#0f1820';
+  commentCtx.fillStyle = '#120f0b';
   commentCtx.fillRect(0, 0, commentCanvas.width, commentCanvas.height);
 
   const size = mapSize();
@@ -74,12 +74,12 @@ function renderCommentCanvas() {
     y: (z + half) * scale,
   });
 
-  commentCtx.strokeStyle = '#355065';
+  commentCtx.strokeStyle = '#5a472f';
   commentCtx.strokeRect(1, 1, commentCanvas.width - 2, commentCanvas.height - 2);
 
   for (const comment of state.comments) {
     const point = toCanvas(Number(comment.x ?? 0), Number(comment.z ?? 0));
-    commentCtx.fillStyle = comment.status === 'resolved' ? '#8a99a5' : '#ffb44d';
+    commentCtx.fillStyle = comment.status === 'resolved' ? '#9c8b73' : '#d8b46b';
     commentCtx.beginPath();
     commentCtx.arc(point.x, point.y, 4, 0, Math.PI * 2);
     commentCtx.fill();

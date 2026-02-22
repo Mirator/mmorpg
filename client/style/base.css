@@ -1,19 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #090f16;
-  --surface-1: rgba(10, 17, 28, 0.9);
-  --surface-2: rgba(16, 25, 39, 0.94);
-  --surface-3: rgba(23, 35, 53, 0.98);
-  --panel: rgba(6, 12, 18, 0.72);
-  --text: #e6edf3;
-  --muted: #9fb0c2;
-  --accent: #4da3ff;
-  --accent-2: #5ef2c2;
-  --danger: #ff6767;
-  --warning: #ffd17f;
-  --success: #6de2a7;
-  --focus-ring: 0 0 0 3px rgba(94, 242, 194, 0.22);
+  --bg: #12100b;
+  --surface-1: rgba(24, 20, 14, 0.9);
+  --surface-2: rgba(34, 28, 20, 0.94);
+  --surface-3: rgba(45, 36, 26, 0.98);
+  --panel: rgba(16, 12, 9, 0.76);
+  --text: #f2eadc;
+  --muted: #b9aa92;
+  --accent: #c89b3c;
+  --accent-2: #6f9f62;
+  --accent-rgb: 200, 155, 60;
+  --accent-2-rgb: 111, 159, 98;
+  --danger: #c8614f;
+  --warning: #d8b46b;
+  --success: #88bf73;
+  --focus-ring: 0 0 0 3px rgba(200, 155, 60, 0.24);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -32,15 +34,15 @@
   --motion-slow: 360ms;
   --easing-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
 
-  --frame-gold: #e8c547;
-  --frame-gold-dim: #b8962e;
-  --frame-health: #2ecc71;
-  --frame-health-dim: #27ae60;
-  --frame-mana: #3498db;
-  --frame-mana-dim: #2980b9;
-  --frame-stamina: #95a5a6;
-  --frame-rage: #e74c3c;
-  --frame-focus: #f39c12;
+  --frame-gold: #d2a85a;
+  --frame-gold-dim: #8f6b32;
+  --frame-health: #79b85f;
+  --frame-health-dim: #4f7f3d;
+  --frame-mana: #5d8ec4;
+  --frame-mana-dim: #3f6792;
+  --frame-stamina: #9f8e6b;
+  --frame-rage: #b95546;
+  --frame-focus: #d19a45;
 }
 
 * {
@@ -55,7 +57,7 @@ body,
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: radial-gradient(circle at 25% 10%, #122235 0%, var(--bg) 50%, #060a10 100%);
+  background: radial-gradient(circle at 25% 10%, #2a2318 0%, var(--bg) 52%, #090704 100%);
   font-family: 'Space Grotesk', sans-serif;
   color: var(--text);
 }
@@ -80,7 +82,7 @@ h3,
 }
 
 .ui-card {
-  border: 1px solid rgba(77, 163, 255, 0.28);
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
   border-radius: 14px;
   background: linear-gradient(180deg, var(--surface-3), var(--surface-1));
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
@@ -88,8 +90,8 @@ h3,
 
 .ui-pill {
   border-radius: 999px;
-  border: 1px solid rgba(77, 163, 255, 0.3);
-  background: rgba(10, 17, 28, 0.82);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  background: rgba(22, 17, 12, 0.82);
 }
 
 body.menu-open #chat-panel,

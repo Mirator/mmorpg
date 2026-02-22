@@ -244,12 +244,12 @@ function entitiesForDiff(mapConfig) {
 
 function renderVisualDiff() {
   visualCtx.clearRect(0, 0, visualCanvas.width, visualCanvas.height);
-  visualCtx.fillStyle = '#0f1820';
+  visualCtx.fillStyle = '#120f0b';
   visualCtx.fillRect(0, 0, visualCanvas.width, visualCanvas.height);
 
   const patch = selectedPatch();
   if (!patch || !state.mapConfig) {
-    visualCtx.fillStyle = '#92a0ac';
+    visualCtx.fillStyle = '#b9aa92';
     visualCtx.font = '12px monospace';
     visualCtx.fillText('Select a patch to view visual diff.', 12, 24);
     return;
@@ -258,7 +258,7 @@ function renderVisualDiff() {
   const liveMap = state.mapConfig;
   const stagedMap = patch.sourceSnapshot?.mapConfig;
   if (!stagedMap) {
-    visualCtx.fillStyle = '#92a0ac';
+    visualCtx.fillStyle = '#b9aa92';
     visualCtx.font = '12px monospace';
     visualCtx.fillText('Patch snapshot has no map config.', 12, 24);
     return;
@@ -273,7 +273,7 @@ function renderVisualDiff() {
     y: (z + half) * scale,
   });
 
-  visualCtx.strokeStyle = '#2d465a';
+  visualCtx.strokeStyle = '#5a472f';
   visualCtx.strokeRect(1, 1, visualCanvas.width - 2, visualCanvas.height - 2);
 
   const liveEntities = entitiesForDiff(liveMap);
@@ -281,19 +281,19 @@ function renderVisualDiff() {
 
   for (const entity of liveEntities) {
     const pos = toCanvas(entity.x, entity.z);
-    visualCtx.fillStyle = 'rgba(95, 184, 255, 0.65)';
+    visualCtx.fillStyle = 'rgba(200, 155, 60, 0.7)';
     visualCtx.fillRect(pos.x - 2, pos.y - 2, 4, 4);
   }
 
   for (const entity of stagedEntities) {
     const pos = toCanvas(entity.x, entity.z);
-    visualCtx.fillStyle = 'rgba(94, 242, 194, 0.75)';
+    visualCtx.fillStyle = 'rgba(111, 159, 98, 0.78)';
     visualCtx.fillRect(pos.x - 2, pos.y - 2, 4, 4);
   }
 
-  visualCtx.fillStyle = '#92a0ac';
+  visualCtx.fillStyle = '#b9aa92';
   visualCtx.font = '12px monospace';
-  visualCtx.fillText('Blue=live, Green=staged patch snapshot', 12, visualCanvas.height - 12);
+  visualCtx.fillText('Gold=live, Moss=staged patch snapshot', 12, visualCanvas.height - 12);
 }
 
 function renderDetails() {

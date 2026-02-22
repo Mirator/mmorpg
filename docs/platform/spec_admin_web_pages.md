@@ -43,6 +43,17 @@ Implemented admin pages:
 
 All pages are in-place replacements on the existing `/admin*` route space.
 
+### 1.1 Visual Theme
+
+Admin pages are styled with the same "Kingdom Ember" fantasy direction used by the player menu/loading flow:
+
+- warm dark surfaces and leather-neutral panels
+- primary accent: aged gold (`#c89b3c`)
+- secondary accent: moss green (`#6f9f62`)
+- warning/error/success tones aligned to fantasy palette tokens
+
+Theme tokens live in `admin/style.css`, and all admin module pages plus canvas overlays consume those colors.
+
 ## 2. Access, Auth, and Alias
 
 ### 2.1 Password auth

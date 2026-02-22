@@ -7,6 +7,17 @@ const VENDOR_CSS = path.resolve(process.cwd(), 'client/style/vendor.css');
 const BASE_CSS = path.resolve(process.cwd(), 'client/style/base.css');
 const MENU_CSS = path.resolve(process.cwd(), 'client/style/menu.css');
 const OVERLAY_CSS = path.resolve(process.cwd(), 'client/style/overlay.css');
+const PANELS_CSS = path.resolve(process.cwd(), 'client/style/panels.css');
+const TOAST_CSS = path.resolve(process.cwd(), 'client/style/toast.css');
+const ADMIN_STYLE_CSS = path.resolve(process.cwd(), 'admin/style.css');
+const ADMIN_DASHBOARD_CSS = path.resolve(process.cwd(), 'admin/dashboard.css');
+const ADMIN_MAP_CSS = path.resolve(process.cwd(), 'admin/map.css');
+const ADMIN_MODULE_CSS = path.resolve(process.cwd(), 'admin/module.css');
+const ADMIN_MAP_JS = path.resolve(process.cwd(), 'admin/map.js');
+const ADMIN_NAV_JS = path.resolve(process.cwd(), 'admin/nav.js');
+const ADMIN_PATCHES_JS = path.resolve(process.cwd(), 'admin/patches.js');
+const ADMIN_EVENTS_JS = path.resolve(process.cwd(), 'admin/events.js');
+const ADMIN_COLLAB_JS = path.resolve(process.cwd(), 'admin/collab.js');
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');
@@ -41,9 +52,19 @@ describe('style scope integrity', () => {
     }
   });
 
-  it('contains base design token and accessibility primitives', () => {
+  it('contains fantasy palette tokens and accessibility primitives', () => {
     const baseCss = read(BASE_CSS);
-    for (const token of ['--surface-1', '--surface-2', '--motion-base', '--focus-ring']) {
+    for (const token of [
+      '--bg: #12100b',
+      '--accent: #c89b3c',
+      '--accent-2: #6f9f62',
+      '--danger: #c8614f',
+      '--success: #88bf73',
+      '--accent-rgb: 200, 155, 60',
+      '--accent-2-rgb: 111, 159, 98',
+      '--motion-base',
+      '--focus-ring',
+    ]) {
       expect(baseCss).toContain(token);
     }
     expect(baseCss).toContain('@media (prefers-reduced-motion: reduce)');
@@ -61,5 +82,42 @@ describe('style scope integrity', () => {
     for (const selector of ['.loading-stage', '.loading-tip', '.loading-progress-bar.indeterminate', '.entry-banner']) {
       expect(overlayCss).toContain(selector);
     }
+  });
+
+  it('does not contain legacy sci-fi signature colors in primary style files', () => {
+    const styles = [BASE_CSS, MENU_CSS, OVERLAY_CSS, PANELS_CSS, VENDOR_CSS, CHAT_CSS, TOAST_CSS]
+      .map(read)
+      .join('\n');
+    expect(styles).not.toMatch(/rgba\(\s*77\s*,\s*163\s*,\s*255/i);
+    expect(styles).not.toMatch(/rgba\(\s*94\s*,\s*242\s*,\s*194/i);
+    expect(styles).not.toMatch(/#4da3ff/i);
+    expect(styles).not.toMatch(/#5ef2c2/i);
+  });
+
+  it('keeps admin UI on the fantasy palette and removes legacy sci-fi signatures', () => {
+    const adminStyleCss = read(ADMIN_STYLE_CSS);
+    for (const token of ['--bg: #12100b', '--accent: #c89b3c', '--accent-2: #6f9f62']) {
+      expect(adminStyleCss).toContain(token);
+    }
+
+    const adminUi = [
+      ADMIN_STYLE_CSS,
+      ADMIN_DASHBOARD_CSS,
+      ADMIN_MAP_CSS,
+      ADMIN_MODULE_CSS,
+      ADMIN_MAP_JS,
+      ADMIN_NAV_JS,
+      ADMIN_PATCHES_JS,
+      ADMIN_EVENTS_JS,
+      ADMIN_COLLAB_JS,
+    ]
+      .map(read)
+      .join('\n');
+
+    expect(adminUi).not.toMatch(/rgba\(\s*95\s*,\s*184\s*,\s*255/i);
+    expect(adminUi).not.toMatch(/rgba\(\s*94\s*,\s*242\s*,\s*194/i);
+    expect(adminUi).not.toMatch(/#5fb8ff/i);
+    expect(adminUi).not.toMatch(/#5ef2c2/i);
+    expect(adminUi).not.toMatch(/#0f1820/i);
   });
 });
