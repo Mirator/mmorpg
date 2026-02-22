@@ -1,7 +1,7 @@
 // @ts-check
 // @ts-nocheck
 
-import { ensureAdminAlias, renderAdminAlias } from './admin-alias.js';
+import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
 
 const POLL_MS = 1000;
@@ -11,6 +11,7 @@ const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admi
 const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
 const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
 const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
 
 const launchBtn = /** @type {HTMLButtonElement} */ (document.getElementById('launch-preview-btn'));
 const refreshBtn = /** @type {HTMLButtonElement} */ (document.getElementById('refresh-telemetry-btn'));
@@ -25,9 +26,8 @@ const densityEl = /** @type {HTMLElement} */ (document.getElementById('telemetry
 const updatedAtEl = /** @type {HTMLElement} */ (document.getElementById('telemetry-updated-at'));
 
 const state = {
-  password: '',
   alias: '',
-  api: /** @type {ReturnType<typeof createDesignerApi> | null} */ (null),
+  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
   pollTimer: /** @type {ReturnType<typeof setInterval> | null} */ (null),
   mapConfig: /** @type {any | null} */ (null),
   previewUrl: '',
@@ -38,12 +38,23 @@ function setStatus(message, tone = 'neutral') {
   statusEl.className = `status ${tone}`;
 }
 
-function getPassword() {
-  return state.password;
-}
-
 function getAlias() {
   return state.alias;
+}
+
+function setLockedState(message = 'Status: locked') {
+  stopPolling();
+  state.mapConfig = null;
+  state.previewUrl = '';
+  previewFrame.src = 'about:blank';
+  previewNote.textContent = '';
+  playerCountEl.textContent = '0';
+  spawnCountEl.textContent = '0';
+  mobCountEl.textContent = '0';
+  resourceCountEl.textContent = '0';
+  densityEl.textContent = '--';
+  updatedAtEl.textContent = '--';
+  setStatus(message, 'warning');
 }
 
 function stopPolling() {
@@ -60,7 +71,6 @@ function formatDensity(players, mapSize) {
 }
 
 async function refreshTelemetry() {
-  if (!state.api) return;
   const [adminState, mapConfig] = await Promise.all([
     state.api.getAdminState(),
     state.api.getMapConfig(),
@@ -84,8 +94,6 @@ async function refreshTelemetry() {
 }
 
 async function launchPreview() {
-  if (!state.api) return;
-
   const payload = await state.api.createPlaytestSession();
   state.previewUrl = payload?.clientUrl || '/?guest=1';
   previewFrame.src = state.previewUrl;
@@ -103,16 +111,21 @@ async function unlock() {
     return;
   }
 
-  state.password = password;
   state.alias = alias;
   renderAdminAlias(aliasLabel, `Alias: ${alias}`);
-  state.api = createDesignerApi({ getPassword, getAlias });
 
   try {
+    await state.api.unlockAdminSession(password);
+    passInput.value = '';
     await Promise.all([launchPreview(), refreshTelemetry()]);
     stopPolling();
     state.pollTimer = setInterval(() => {
-      refreshTelemetry().catch(() => {});
+      refreshTelemetry().catch((err) => {
+        const error = /** @type {Error & { status?: number }} */ (err);
+        if (error.status === 401) {
+          setLockedState('Status: session expired. Unlock again.');
+        }
+      });
     }, POLL_MS);
     setStatus('Status: playtest session ready.', 'ok');
   } catch (err) {
@@ -122,6 +135,25 @@ async function unlock() {
       return;
     }
     setStatus(`Status: ${error.message}`, 'error');
+  }
+}
+
+async function restoreSession() {
+  try {
+    await state.api.getAdminSession();
+    await Promise.all([launchPreview(), refreshTelemetry()]);
+    stopPolling();
+    state.pollTimer = setInterval(() => {
+      refreshTelemetry().catch((err) => {
+        const error = /** @type {Error & { status?: number }} */ (err);
+        if (error.status === 401) {
+          setLockedState('Status: session expired. Unlock again.');
+        }
+      });
+    }, POLL_MS);
+    setStatus('Status: playtest session ready.', 'ok');
+  } catch {
+    setLockedState('Status: locked');
   }
 }
 
@@ -138,30 +170,47 @@ aliasBtn.addEventListener('click', () => {
 });
 
 launchBtn.addEventListener('click', async () => {
-  if (!state.api) return;
   try {
     await launchPreview();
     setStatus('Status: preview launched.', 'ok');
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
 refreshBtn.addEventListener('click', async () => {
-  if (!state.api) return;
   try {
     await refreshTelemetry();
     setStatus('Status: telemetry refreshed.', 'ok');
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setStatus(`Status: ${error.message}`, 'error');
   }
+});
+
+lockBtn.addEventListener('click', async () => {
+  try {
+    await state.api.logoutAdminSession();
+  } catch {
+    // ignore and force local lock state
+  }
+  setLockedState('Status: locked');
 });
 
 window.addEventListener('beforeunload', () => {
   stopPolling();
 });
 
-renderAdminAlias(aliasLabel, 'Alias: --');
-setStatus('Status: locked', 'warning');
+state.alias = getStoredAdminAlias();
+renderAdminAlias(aliasLabel, state.alias ? `Alias: ${state.alias}` : 'Alias: --');
+setStatus('Status: checking session...', 'neutral');
+restoreSession().catch(() => {});

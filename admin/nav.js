@@ -1,7 +1,7 @@
 // @ts-check
 // @ts-nocheck
 
-import { ensureAdminAlias, renderAdminAlias } from './admin-alias.js';
+import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
 import { createDesignerStore } from './designer-store.js';
 
@@ -10,6 +10,7 @@ const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admi
 const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
 const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
 const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
 
 const tableBody = /** @type {HTMLElement} */ (document.getElementById('nav-table-body'));
 const navCountEl = /** @type {HTMLElement} */ (document.getElementById('nav-count'));
@@ -21,9 +22,8 @@ const removeBtn = /** @type {HTMLButtonElement} */ (document.getElementById('rem
 const selectedMeta = /** @type {HTMLElement} */ (document.getElementById('selected-nav-meta'));
 
 const state = {
-  password: '',
   alias: '',
-  api: /** @type {ReturnType<typeof createDesignerApi> | null} */ (null),
+  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
   store: /** @type {ReturnType<typeof createDesignerStore> | null} */ (null),
   selectedId: /** @type {string | null} */ (null),
   showBakePreview: false,
@@ -35,12 +35,36 @@ function setStatus(message, tone = 'neutral') {
   statusEl.className = `status ${tone}`;
 }
 
-function getPassword() {
-  return state.password;
-}
-
 function getAlias() {
   return state.alias;
+}
+
+function ensureStore() {
+  if (state.store) return state.store;
+  state.store = createDesignerStore({
+    getDesignerState: () => state.api.getDesignerState(),
+    putDesignerState: (expectedRevision, zoneState) => state.api.putDesignerState(expectedRevision, zoneState),
+  });
+  return state.store;
+}
+
+function setLockedState(message = 'Status: locked') {
+  state.store = null;
+  state.selectedId = null;
+  state.showBakePreview = false;
+  renderAll();
+  setStatus(message, 'warning');
+}
+
+/**
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+function handleUnauthorized(err) {
+  const error = /** @type {Error & { status?: number }} */ (err);
+  if (error.status !== 401) return false;
+  setLockedState('Status: session expired. Unlock again.');
+  return true;
 }
 
 function snapshot() {
@@ -219,19 +243,14 @@ async function unlock() {
     return;
   }
 
-  state.password = password;
   state.alias = alias;
   renderAdminAlias(aliasLabel, `Alias: ${alias}`);
 
-  state.api = createDesignerApi({ getPassword, getAlias });
-  state.store = createDesignerStore({
-    getDesignerState: () => state.api.getDesignerState(),
-    putDesignerState: (expectedRevision, zoneState) => state.api.putDesignerState(expectedRevision, zoneState),
-  });
-
   try {
+    await state.api.unlockAdminSession(password);
+    passInput.value = '';
     const [storeSnapshot, mapConfig] = await Promise.all([
-      state.store.load(),
+      ensureStore().load(),
       state.api.getMapConfig(),
     ]);
     state.mapSize = Number(mapConfig?.mapSize ?? 400);
@@ -245,6 +264,22 @@ async function unlock() {
       return;
     }
     setStatus(`Status: ${error.message}`, 'error');
+  }
+}
+
+async function restoreSession() {
+  try {
+    await state.api.getAdminSession();
+    const [storeSnapshot, mapConfig] = await Promise.all([
+      ensureStore().load(),
+      state.api.getMapConfig(),
+    ]);
+    state.mapSize = Number(mapConfig?.mapSize ?? 400);
+    state.selectedId = storeSnapshot.zoneState?.navAreas?.[0]?.id ?? null;
+    renderAll();
+    setStatus('Status: navmesh editor ready.', 'ok');
+  } catch {
+    setLockedState('Status: locked');
   }
 }
 
@@ -296,6 +331,7 @@ canvas.addEventListener('click', async (event) => {
     state.selectedId = newArea.id;
     setStatus('Status: nav area added.', 'ok');
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setStatus(`Status: ${error.message}`, 'error');
   }
@@ -336,6 +372,7 @@ tableBody.addEventListener('change', async (event) => {
     });
     setStatus('Status: nav cost updated.', 'ok');
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setStatus(`Status: ${error.message}`, 'error');
   }
@@ -368,11 +405,23 @@ removeBtn.addEventListener('click', async () => {
     state.selectedId = null;
     setStatus('Status: nav area removed.', 'ok');
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
-renderAdminAlias(aliasLabel, 'Alias: --');
-setStatus('Status: locked', 'warning');
+lockBtn.addEventListener('click', async () => {
+  try {
+    await state.api.logoutAdminSession();
+  } catch {
+    // ignore and force local lock state
+  }
+  setLockedState('Status: locked');
+});
+
+state.alias = getStoredAdminAlias();
+renderAdminAlias(aliasLabel, state.alias ? `Alias: ${state.alias}` : 'Alias: --');
+setStatus('Status: checking session...', 'neutral');
 drawCanvas();
+restoreSession().catch(() => {});

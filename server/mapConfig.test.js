@@ -38,6 +38,7 @@ function createResponse() {
 function createRequest({ headerPass, body } = {}) {
   return {
     body,
+    query: {},
     get(name) {
       if (name.toLowerCase() !== 'x-admin-pass') return undefined;
       return headerPass;
@@ -76,6 +77,25 @@ describe('map config handlers', () => {
 
     const res = createResponse();
     handlers.getHandler(createRequest({ headerPass: 'secret' }), res);
+    expect(res.statusCode).toBe(200);
+    expect(res.body.mapSize).toBe(config.mapSize);
+  });
+
+  it('supports custom authorization callback', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mapcfg-'));
+    const filePath = path.join(tmpDir, 'world-map.json');
+    const config = buildConfig();
+    fs.writeFileSync(filePath, JSON.stringify(config), 'utf8');
+    const handlers = createMapConfigHandlers({
+      password: 'secret',
+      mapConfigPath: filePath,
+      isAuthorized: (req) => req.query?.allow === '1',
+    });
+
+    const req = createRequest({ headerPass: 'bad' });
+    req.query = { allow: '1' };
+    const res = createResponse();
+    handlers.getHandler(req, res);
     expect(res.statusCode).toBe(200);
     expect(res.body.mapSize).toBe(config.mapSize);
   });

@@ -60,6 +60,10 @@ export function getServerConfig(/** @type {any} */ env = process.env) {
   );
   
   const maxPayloadBytes = parseIntEnv(env.MAX_PAYLOAD_BYTES, 16 * 1024);
+  const adminMaxPayloadBytesRaw = parseIntEnv(env.ADMIN_MAX_PAYLOAD_BYTES, 256 * 1024);
+  const adminMaxPayloadBytes = adminMaxPayloadBytesRaw > 0
+    ? adminMaxPayloadBytesRaw
+    : 256 * 1024;
   const msgRateIntervalMs = parseIntEnv(env.MSG_RATE_INTERVAL_MS, 1000);
   const heartbeatIntervalMs = parseIntEnv(env.HEARTBEAT_INTERVAL_MS, 30_000);
   const persistIntervalMs = parseIntEnv(env.PERSIST_INTERVAL_MS, 5000);
@@ -86,6 +90,15 @@ export function getServerConfig(/** @type {any} */ env = process.env) {
   const sessionCookieSecure = env.SESSION_COOKIE_SECURE === undefined
     ? env.NODE_ENV === 'production'
     : parseBoolEnv(env.SESSION_COOKIE_SECURE);
+  const adminSessionCookieName = env.ADMIN_SESSION_COOKIE_NAME ?? 'mmorpg_admin_session';
+  const adminSessionIdleTimeoutMsRaw = parseIntEnv(env.ADMIN_SESSION_IDLE_TIMEOUT_MS, 30 * 60 * 1000);
+  const adminSessionIdleTimeoutMs = adminSessionIdleTimeoutMsRaw > 0
+    ? adminSessionIdleTimeoutMsRaw
+    : 30 * 60 * 1000;
+  const adminSessionCookieSameSite = parseSameSiteEnv(env.ADMIN_SESSION_COOKIE_SAMESITE, 'strict');
+  const adminSessionCookieSecure = env.ADMIN_SESSION_COOKIE_SECURE === undefined
+    ? sessionCookieSecure
+    : parseBoolEnv(env.ADMIN_SESSION_COOKIE_SECURE);
   const exposeAuthToken = parseBoolEnv(env.EXPOSE_AUTH_TOKEN);
 
   const defaultOrigins = new Set([
@@ -104,6 +117,7 @@ export function getServerConfig(/** @type {any} */ env = process.env) {
     allowedOrigins,
     maxConnectionsPerIp,
     maxPayloadBytes,
+    adminMaxPayloadBytes,
     msgRateMax,
     msgRateIntervalMs,
     heartbeatIntervalMs,
@@ -115,6 +129,10 @@ export function getServerConfig(/** @type {any} */ env = process.env) {
     sessionCookieName,
     sessionCookieSameSite,
     sessionCookieSecure,
+    adminSessionCookieName,
+    adminSessionIdleTimeoutMs,
+    adminSessionCookieSameSite,
+    adminSessionCookieSecure,
     exposeAuthToken,
     tickHz: 60,
     broadcastHz: 20,

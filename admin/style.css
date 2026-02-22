@@ -127,6 +127,12 @@ button:hover {
   filter: brightness(1.05);
 }
 
+.alias-row .lock-btn {
+  background: rgba(var(--error-rgb), 0.2);
+  border-color: rgba(var(--error-rgb), 0.45);
+  color: #ffd9d1;
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,

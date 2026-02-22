@@ -146,8 +146,10 @@ async function requestJson(baseUrl, route, { method = 'GET', body, cookie, heade
   return { res, payload };
 }
 
-async function requestText(baseUrl, route) {
-  const res = await fetch(`${baseUrl}${route}`);
+async function requestText(baseUrl, route, { cookie, headers: extraHeaders } = {}) {
+  const headers = { ...(extraHeaders ?? {}) };
+  if (cookie) headers.cookie = cookie;
+  const res = await fetch(`${baseUrl}${route}`, { headers });
   const text = await res.text();
   return { res, text };
 }
@@ -394,6 +396,138 @@ describe('admin designer APIs', () => {
     }
   });
 
+  it('supports admin cookie unlock/session/logout and patches html/json split', async () => {
+    const files = createTempAdminFiles();
+    const config = getServerConfig({
+      HOST: '127.0.0.1',
+      PORT: '3000',
+      ADMIN_SESSION_IDLE_TIMEOUT_MS: '5000',
+    });
+    const world = createWorldFromConfig(buildMapConfig());
+
+    const app = createHttpApp({
+      config,
+      world,
+      players: new Map(),
+      resources: [],
+      mobs: [],
+      spawner: { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+    });
+
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const unlockFail = await requestJson(baseUrl, '/admin/auth/unlock', {
+        method: 'POST',
+        body: { password: 'bad' },
+      });
+      expect(unlockFail.res.status).toBe(401);
+
+      const unlock = await requestJson(baseUrl, '/admin/auth/unlock', {
+        method: 'POST',
+        body: { password: '1234' },
+      });
+      expect(unlock.res.status).toBe(200);
+      expect(unlock.payload).toEqual({ ok: true });
+
+      const cookie = unlock.res.headers.get('set-cookie')?.split(';')[0] ?? '';
+      expect(cookie).toContain(`${config.adminSessionCookieName}=`);
+
+      const sessionOk = await requestJson(baseUrl, '/admin/auth/session', {
+        cookie,
+      });
+      expect(sessionOk.res.status).toBe(200);
+      expect(sessionOk.payload).toEqual({ ok: true });
+
+      const stateOk = await requestJson(baseUrl, '/admin/state', {
+        cookie,
+      });
+      expect(stateOk.res.status).toBe(200);
+
+      const designerOk = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
+        cookie,
+      });
+      expect(designerOk.res.status).toBe(200);
+
+      const patchesHtml = await requestText(baseUrl, '/admin/patches', {
+        cookie,
+      });
+      expect(patchesHtml.res.status).toBe(200);
+      expect(patchesHtml.text).toContain('Patch Manager');
+
+      const patchesJson = await requestJson(baseUrl, '/admin/patches?zone=world-map', {
+        cookie,
+        headers: { 'x-admin-api': '1' },
+      });
+      expect(patchesJson.res.status).toBe(200);
+      expect(Array.isArray(patchesJson.payload?.patches)).toBe(true);
+
+      const logout = await requestJson(baseUrl, '/admin/auth/logout', {
+        method: 'POST',
+        cookie,
+      });
+      expect(logout.res.status).toBe(200);
+      expect(logout.payload).toEqual({ ok: true });
+
+      const stateAfterLogout = await requestJson(baseUrl, '/admin/state', {
+        cookie,
+      });
+      expect(stateAfterLogout.res.status).toBe(401);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+      files.cleanup();
+    }
+  });
+
+  it('expires admin cookie session after idle timeout', async () => {
+    const files = createTempAdminFiles();
+    const config = getServerConfig({
+      HOST: '127.0.0.1',
+      PORT: '3000',
+      ADMIN_SESSION_IDLE_TIMEOUT_MS: '20',
+    });
+    const world = createWorldFromConfig(buildMapConfig());
+
+    const app = createHttpApp({
+      config,
+      world,
+      players: new Map(),
+      resources: [],
+      mobs: [],
+      spawner: { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+    });
+
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const unlock = await requestJson(baseUrl, '/admin/auth/unlock', {
+        method: 'POST',
+        body: { password: '1234' },
+      });
+      expect(unlock.res.status).toBe(200);
+
+      const cookie = unlock.res.headers.get('set-cookie')?.split(';')[0] ?? '';
+      expect(cookie).toContain(`${config.adminSessionCookieName}=`);
+
+      const initialState = await requestJson(baseUrl, '/admin/state', { cookie });
+      expect(initialState.res.status).toBe(200);
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const afterIdle = await requestJson(baseUrl, '/admin/state', { cookie });
+      expect(afterIdle.res.status).toBe(401);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+      files.cleanup();
+    }
+  });
+
   it('returns revision and lock conflicts', async () => {
     const files = createTempAdminFiles();
     const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
@@ -412,7 +546,7 @@ describe('admin designer APIs', () => {
 
     const { server, baseUrl } = await startServer(app);
     try {
-      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice' };
+      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice', 'x-admin-api': '1' };
       const initial = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
       expect(initial.res.status).toBe(200);
 
@@ -464,7 +598,7 @@ describe('admin designer APIs', () => {
 
       const blockedCreate = await requestJson(baseUrl, '/admin/prefabs?zone=world-map', {
         method: 'POST',
-        headers: { 'x-admin-pass': '1234', 'x-admin-alias': 'bob' },
+        headers: { 'x-admin-pass': '1234', 'x-admin-alias': 'bob', 'x-admin-api': '1' },
         body: {
           name: 'Locked',
           entityType: 'structures',
@@ -474,6 +608,65 @@ describe('admin designer APIs', () => {
         },
       });
       expect(blockedCreate.res.status).toBe(423);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+      files.cleanup();
+    }
+  });
+
+  it('allows larger admin JSON payloads than global payload limit', async () => {
+    const files = createTempAdminFiles();
+    const config = getServerConfig({
+      HOST: '127.0.0.1',
+      PORT: '3000',
+      MAX_PAYLOAD_BYTES: '1024',
+      ADMIN_MAX_PAYLOAD_BYTES: '65536',
+    });
+    const world = createWorldFromConfig(buildMapConfig());
+
+    const app = createHttpApp({
+      config,
+      world,
+      players: new Map(),
+      resources: [],
+      mobs: [],
+      spawner: { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+    });
+
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice', 'x-admin-api': '1' };
+      const initial = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      expect(initial.res.status).toBe(200);
+
+      const longComment = 'x'.repeat(8_000);
+      const save = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
+        method: 'PUT',
+        headers,
+        body: {
+          expectedRevision: initial.payload.revision,
+          zoneState: {
+            ...initial.payload.zoneState,
+            comments: [
+              {
+                id: 'comment-large',
+                x: 0,
+                y: 0,
+                z: 0,
+                text: longComment,
+                status: 'open',
+                alias: 'alice',
+                t: new Date().toISOString(),
+              },
+            ],
+          },
+        },
+      });
+      expect(save.res.status).toBe(200);
     } finally {
       await new Promise((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()));
@@ -500,7 +693,7 @@ describe('admin designer APIs', () => {
 
     const { server, baseUrl } = await startServer(app);
     try {
-      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice' };
+      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice', 'x-admin-api': '1' };
       const state = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
       expect(state.res.status).toBe(200);
 

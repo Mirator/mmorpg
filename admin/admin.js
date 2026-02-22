@@ -1,7 +1,7 @@
 // @ts-check
 // @ts-nocheck
 
-import { ensureAdminAlias, renderAdminAlias } from './admin-alias.js';
+import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
 
 const POLL_INTERVAL_MS = 1000;
@@ -15,6 +15,7 @@ const refreshBtn = /** @type {HTMLButtonElement} */ (document.getElementById('re
 const zoneBody = /** @type {HTMLElement} */ (document.getElementById('zone-body'));
 const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
 const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
 
 const playersEl = /** @type {HTMLElement} */ (document.getElementById('count-players'));
 const densityEl = /** @type {HTMLElement} */ (document.getElementById('density-value'));
@@ -26,9 +27,8 @@ let pollTimer = /** @type {ReturnType<typeof setInterval> | null} */ (null);
 let pollCount = 0;
 
 const state = {
-  password: '',
   alias: '',
-  api: /** @type {ReturnType<typeof createDesignerApi> | null} */ (null),
+  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
   latestAdminState: /** @type {any | null} */ (null),
   latestMapConfig: /** @type {any | null} */ (null),
   latestAudit: /** @type {any[]} */ ([]),
@@ -38,10 +38,6 @@ const state = {
 function setStatus(message, tone = 'neutral') {
   statusEl.textContent = message;
   statusEl.className = `status ${tone}`;
-}
-
-function getPassword() {
-  return state.password;
 }
 
 function getAlias() {
@@ -140,11 +136,6 @@ function renderMetrics() {
 }
 
 async function pollOnce(forceRefresh = false) {
-  if (!state.api) {
-    setStatus('Status: waiting for unlock', 'warning');
-    return;
-  }
-
   try {
     state.latestAdminState = await state.api.getAdminState();
 
@@ -167,7 +158,7 @@ async function pollOnce(forceRefresh = false) {
   } catch (err) {
     const error = /** @type {Error & { status?: number }} */ (err);
     if (error.status === 401) {
-      setStatus('Status: invalid password', 'error');
+      setStatus('Status: session expired. Unlock again.', 'warning');
       setControlsEnabled(false);
       stopPolling();
       return;
@@ -194,17 +185,35 @@ async function unlock() {
     return;
   }
 
-  state.password = password;
   state.alias = alias;
   renderAdminAlias(aliasLabel, `Alias: ${alias}`);
-  state.api = createDesignerApi({
-    getPassword,
-    getAlias,
-  });
 
-  setStatus('Status: connecting...', 'neutral');
-  setControlsEnabled(true);
-  startPolling();
+  setStatus('Status: unlocking...', 'neutral');
+  try {
+    await state.api.unlockAdminSession(password);
+    passInput.value = '';
+    setControlsEnabled(true);
+    startPolling();
+  } catch (err) {
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setStatus('Status: invalid password', 'error');
+      return;
+    }
+    setStatus(`Status: ${error.message}`, 'error');
+  }
+}
+
+async function restoreSession() {
+  try {
+    await state.api.getAdminSession();
+    setControlsEnabled(true);
+    setStatus('Status: restoring session...', 'neutral');
+    startPolling();
+  } catch (err) {
+    setControlsEnabled(false);
+    setStatus('Status: locked', 'warning');
+  }
 }
 
 form.addEventListener('submit', async (event) => {
@@ -223,6 +232,19 @@ aliasBtn.addEventListener('click', () => {
   renderAdminAlias(aliasLabel, `Alias: ${alias}`);
 });
 
-renderAdminAlias(aliasLabel, 'Alias: --');
-setStatus('Status: waiting for password', 'warning');
+lockBtn.addEventListener('click', async () => {
+  try {
+    await state.api.logoutAdminSession();
+  } catch {
+    // ignore and continue to local lock state
+  }
+  stopPolling();
+  setControlsEnabled(false);
+  setStatus('Status: locked', 'warning');
+});
+
+state.alias = getStoredAdminAlias();
+renderAdminAlias(aliasLabel, state.alias ? `Alias: ${state.alias}` : 'Alias: --');
+setStatus('Status: checking session...', 'neutral');
 setControlsEnabled(false);
+restoreSession().catch(() => {});

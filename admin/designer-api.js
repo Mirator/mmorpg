@@ -26,7 +26,7 @@ async function parsePayload(res) {
 
 /**
  * @param {{
- *   getPassword: () => string,
+ *   getPassword?: () => string,
  *   getAlias?: () => string,
  *   getZoneKey?: () => string
  * }} deps
@@ -47,12 +47,8 @@ export function createDesignerApi({ getPassword, getAlias, getZoneKey }) {
    * @param {{ method?: string, body?: unknown, mutating?: boolean, zoneScoped?: boolean }} [options]
    */
   async function request(url, options = {}) {
-    const password = getPassword();
-    if (!password) {
-      const error = /** @type {ApiError} */ (new Error('Admin password is not set.'));
-      error.status = 401;
-      throw error;
-    }
+    const rawPassword = typeof getPassword === 'function' ? getPassword() : '';
+    const password = typeof rawPassword === 'string' ? rawPassword.trim() : '';
 
     const method = options.method ?? 'GET';
     const zoneScoped = options.zoneScoped !== false;
@@ -60,8 +56,9 @@ export function createDesignerApi({ getPassword, getAlias, getZoneKey }) {
 
     /** @type {Record<string, string>} */
     const headers = {
-      'x-admin-pass': password,
+      'x-admin-api': '1',
     };
+    if (password) headers['x-admin-pass'] = password;
 
     if (options.mutating) {
       headers['x-admin-alias'] = resolveAlias();
@@ -77,6 +74,7 @@ export function createDesignerApi({ getPassword, getAlias, getZoneKey }) {
       method,
       headers,
       body,
+      credentials: 'same-origin',
     });
 
     const payload = await parsePayload(res);
@@ -98,6 +96,27 @@ export function createDesignerApi({ getPassword, getAlias, getZoneKey }) {
   }
 
   return {
+    unlockAdminSession(password) {
+      return request('/admin/auth/unlock', {
+        method: 'POST',
+        zoneScoped: false,
+        body: { password },
+      });
+    },
+
+    getAdminSession() {
+      return request('/admin/auth/session', {
+        zoneScoped: false,
+      });
+    },
+
+    logoutAdminSession() {
+      return request('/admin/auth/logout', {
+        method: 'POST',
+        zoneScoped: false,
+      });
+    },
+
     getAdminState() {
       return request('/admin/state', { zoneScoped: false });
     },

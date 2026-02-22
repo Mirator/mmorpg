@@ -310,4 +310,20 @@ describe('admin endpoint handler', () => {
     handler(req, res);
     expect(res.statusCode).toBe(401);
   });
+
+  it('accepts custom authorization callback when provided', () => {
+    const handlerWithCallback = createAdminStateHandler({
+      password: 'secret',
+      isAuthorized: (req) => req.query?.allow === '1',
+      world,
+      players,
+      resources,
+      mobs,
+    });
+    const req = createRequest({ headerPass: 'bad' });
+    req.query = { allow: '1' };
+    const res = createResponse();
+    handlerWithCallback(req, res);
+    expect(res.statusCode).toBe(200);
+  });
 });

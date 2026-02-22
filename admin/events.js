@@ -1,7 +1,7 @@
 // @ts-check
 // @ts-nocheck
 
-import { ensureAdminAlias, renderAdminAlias } from './admin-alias.js';
+import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
 import { createDesignerStore } from './designer-store.js';
 
@@ -10,6 +10,7 @@ const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admi
 const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
 const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
 const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
 
 const triggerListEl = /** @type {HTMLElement} */ (document.getElementById('trigger-list'));
 const triggerCountEl = /** @type {HTMLElement} */ (document.getElementById('trigger-count'));
@@ -37,9 +38,8 @@ const selectedMeta = /** @type {HTMLElement} */ (document.getElementById('select
 const deleteBtn = /** @type {HTMLButtonElement} */ (document.getElementById('delete-trigger-btn'));
 
 const state = {
-  password: '',
   alias: '',
-  api: /** @type {ReturnType<typeof createDesignerApi> | null} */ (null),
+  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
   store: /** @type {ReturnType<typeof createDesignerStore> | null} */ (null),
   selectedTriggerId: /** @type {string | null} */ (null),
 };
@@ -49,12 +49,24 @@ function setStatus(message, tone = 'neutral') {
   statusEl.className = `status ${tone}`;
 }
 
-function getPassword() {
-  return state.password;
-}
-
 function getAlias() {
   return state.alias;
+}
+
+function ensureStore() {
+  if (state.store) return state.store;
+  state.store = createDesignerStore({
+    getDesignerState: () => state.api.getDesignerState(),
+    putDesignerState: (expectedRevision, zoneState) => state.api.putDesignerState(expectedRevision, zoneState),
+  });
+  return state.store;
+}
+
+function setLockedState(message = 'Status: locked') {
+  state.store = null;
+  state.selectedTriggerId = null;
+  renderAll();
+  setStatus(message, 'warning');
 }
 
 function parseCsv(value) {
@@ -305,18 +317,13 @@ async function unlock() {
     return;
   }
 
-  state.password = password;
   state.alias = alias;
   renderAdminAlias(aliasLabel, `Alias: ${alias}`);
 
-  state.api = createDesignerApi({ getPassword, getAlias });
-  state.store = createDesignerStore({
-    getDesignerState: () => state.api.getDesignerState(),
-    putDesignerState: (expectedRevision, zoneState) => state.api.putDesignerState(expectedRevision, zoneState),
-  });
-
   try {
-    await state.store.load();
+    await state.api.unlockAdminSession(password);
+    passInput.value = '';
+    await ensureStore().load();
     renderAll();
     setStatus('Status: trigger editor ready.', 'ok');
   } catch (err) {
@@ -326,6 +333,17 @@ async function unlock() {
       return;
     }
     setStatus(`Status: ${error.message}`, 'error');
+  }
+}
+
+async function restoreSession() {
+  try {
+    await state.api.getAdminSession();
+    await ensureStore().load();
+    renderAll();
+    setStatus('Status: trigger editor ready.', 'ok');
+  } catch {
+    setLockedState('Status: locked');
   }
 }
 
@@ -384,7 +402,11 @@ createForm.addEventListener('submit', async (event) => {
     state.selectedTriggerId = targetId;
     setStatus('Status: trigger saved.', 'ok');
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setStatus(`Status: ${error.message}`, 'error');
   }
 });
@@ -404,12 +426,27 @@ deleteBtn.addEventListener('click', async () => {
     state.selectedTriggerId = null;
     setStatus('Status: trigger deleted.', 'ok');
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
-renderAdminAlias(aliasLabel, 'Alias: --');
-setStatus('Status: locked', 'warning');
+lockBtn.addEventListener('click', async () => {
+  try {
+    await state.api.logoutAdminSession();
+  } catch {
+    // ignore and force local lock state
+  }
+  setLockedState('Status: locked');
+});
+
+state.alias = getStoredAdminAlias();
+renderAdminAlias(aliasLabel, state.alias ? `Alias: ${state.alias}` : 'Alias: --');
+setStatus('Status: checking session...', 'neutral');
 renderValidation();
 renderGraph();
+restoreSession().catch(() => {});

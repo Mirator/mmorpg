@@ -1,7 +1,7 @@
 // @ts-check
 // @ts-nocheck
 
-import { ensureAdminAlias, renderAdminAlias } from './admin-alias.js';
+import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
 
 const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
@@ -9,6 +9,7 @@ const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admi
 const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
 const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
 const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
 
 const listEl = /** @type {HTMLElement} */ (document.getElementById('prefab-list'));
 const countEl = /** @type {HTMLElement} */ (document.getElementById('prefab-count'));
@@ -35,11 +36,10 @@ const saveEditBtn = /** @type {HTMLButtonElement} */ (document.getElementById('s
 const deleteBtn = /** @type {HTMLButtonElement} */ (document.getElementById('delete-prefab-btn'));
 
 const state = {
-  password: '',
   alias: '',
   prefabs: /** @type {any[]} */ ([]),
   selectedId: /** @type {string | null} */ (null),
-  api: /** @type {ReturnType<typeof createDesignerApi> | null} */ (null),
+  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
 };
 
 function setStatus(message, tone = 'neutral') {
@@ -47,12 +47,16 @@ function setStatus(message, tone = 'neutral') {
   statusEl.className = `status ${tone}`;
 }
 
-function getPassword() {
-  return state.password;
-}
-
 function getAlias() {
   return state.alias;
+}
+
+function setLockedState(message = 'Status: locked') {
+  state.prefabs = [];
+  state.selectedId = null;
+  renderList();
+  renderDetails();
+  setStatus(message, 'warning');
 }
 
 function parseTagInput(raw) {
@@ -144,7 +148,6 @@ function renderDetails() {
 }
 
 async function reloadPrefabs() {
-  if (!state.api) return;
   const payload = await state.api.getPrefabs();
   state.prefabs = Array.isArray(payload.prefabs) ? payload.prefabs : [];
   if (!selectedPrefab()) {
@@ -164,17 +167,14 @@ async function handleUnlock() {
     return;
   }
 
-  state.password = password;
   state.alias = alias;
   renderAdminAlias(aliasLabel, `Alias: ${alias}`);
-  state.api = createDesignerApi({
-    getPassword,
-    getAlias,
-  });
 
-  setStatus('Status: connecting...', 'neutral');
+  setStatus('Status: unlocking...', 'neutral');
 
   try {
+    await state.api.unlockAdminSession(password);
+    passInput.value = '';
     await reloadPrefabs();
     setStatus('Status: prefab registry loaded', 'ok');
   } catch (err) {
@@ -184,6 +184,16 @@ async function handleUnlock() {
       return;
     }
     setStatus(`Status: ${error.message}`, 'error');
+  }
+}
+
+async function restoreSession() {
+  try {
+    await state.api.getAdminSession();
+    await reloadPrefabs();
+    setStatus('Status: prefab registry loaded', 'ok');
+  } catch {
+    setLockedState('Status: locked');
   }
 }
 
@@ -201,7 +211,6 @@ aliasBtn.addEventListener('click', () => {
 
 createForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!state.api) return;
 
   try {
     const payload = {
@@ -218,13 +227,16 @@ createForm.addEventListener('submit', async (event) => {
     createDefaults.value = '{}';
     setStatus('Status: prefab created', 'ok');
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
 saveEditBtn.addEventListener('click', async () => {
-  if (!state.api) return;
   const prefab = selectedPrefab();
   if (!prefab) return;
 
@@ -239,13 +251,16 @@ saveEditBtn.addEventListener('click', async () => {
     await reloadPrefabs();
     setStatus('Status: prefab updated', 'ok');
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
 deleteBtn.addEventListener('click', async () => {
-  if (!state.api) return;
   const prefab = selectedPrefab();
   if (!prefab) return;
 
@@ -258,10 +273,25 @@ deleteBtn.addEventListener('click', async () => {
     await reloadPrefabs();
     setStatus('Status: prefab deleted', 'ok');
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
-renderAdminAlias(aliasLabel, 'Alias: --');
-setStatus('Status: locked', 'warning');
+lockBtn.addEventListener('click', async () => {
+  try {
+    await state.api.logoutAdminSession();
+  } catch {
+    // ignore and force local lock state
+  }
+  setLockedState('Status: locked');
+});
+
+state.alias = getStoredAdminAlias();
+renderAdminAlias(aliasLabel, state.alias ? `Alias: ${state.alias}` : 'Alias: --');
+setStatus('Status: checking session...', 'neutral');
+restoreSession().catch(() => {});

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 0,
+  "revision": 18,
   "zones": {
     "world-map": {
       "prefabs": [],
@@ -21,9 +21,5645 @@
           "debug": null
         }
       },
-      "patches": [],
-      "audit": [],
-      "lastPublishedPatchId": ""
+      "patches": [
+        {
+          "id": "patch-mly8s4wn-49qole",
+          "title": "foxes",
+          "description": "",
+          "dependencyIds": [],
+          "status": "Published",
+          "sourceSnapshot": {
+            "mapConfig": {
+              "version": 2,
+              "mapSize": 400,
+              "base": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "radius": 9
+              },
+              "spawnPoints": [
+                {
+                  "x": 6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": -5.46
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": -5.46
+                }
+              ],
+              "obstacles": [
+                {
+                  "x": 32,
+                  "y": 0,
+                  "z": 28,
+                  "radius": 4
+                },
+                {
+                  "x": -30,
+                  "y": 0,
+                  "z": 35,
+                  "radius": 3.5
+                },
+                {
+                  "x": 38,
+                  "y": 0,
+                  "z": -25,
+                  "radius": 4
+                },
+                {
+                  "x": -35,
+                  "y": 0,
+                  "z": -30,
+                  "radius": 3
+                },
+                {
+                  "x": 52,
+                  "y": 0,
+                  "z": 25,
+                  "radius": 5
+                },
+                {
+                  "x": -48,
+                  "y": 0,
+                  "z": 38,
+                  "radius": 4.5
+                },
+                {
+                  "x": 55,
+                  "y": 0,
+                  "z": -20,
+                  "radius": 4
+                },
+                {
+                  "x": -50,
+                  "y": 0,
+                  "z": -45,
+                  "radius": 5
+                },
+                {
+                  "x": 65,
+                  "y": 0,
+                  "z": 5,
+                  "radius": 6
+                },
+                {
+                  "x": -120,
+                  "y": 0,
+                  "z": 100,
+                  "radius": 8
+                },
+                {
+                  "x": 90,
+                  "y": 0,
+                  "z": -110,
+                  "radius": 7
+                },
+                {
+                  "x": -90,
+                  "y": 0,
+                  "z": -100,
+                  "radius": 8
+                },
+                {
+                  "x": 150,
+                  "y": 0,
+                  "z": 80,
+                  "radius": 9
+                },
+                {
+                  "x": -140,
+                  "y": 0,
+                  "z": -120,
+                  "radius": 7
+                },
+                {
+                  "x": 100,
+                  "y": 0,
+                  "z": 130,
+                  "radius": 6
+                }
+              ],
+              "structures": [
+                {
+                  "id": "s-market",
+                  "kind": "market",
+                  "x": 15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 1.5708,
+                  "colliderRadius": 3.6,
+                  "collides": true
+                },
+                {
+                  "id": "s-barracks",
+                  "kind": "barracks",
+                  "x": -15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": -1.5708,
+                  "colliderRadius": 3.4,
+                  "collides": true
+                },
+                {
+                  "id": "s-storage",
+                  "kind": "storage",
+                  "x": 0,
+                  "y": 0,
+                  "z": 15,
+                  "rotation": 3.1416,
+                  "colliderRadius": 3.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-a",
+                  "kind": "houseA",
+                  "x": 0,
+                  "y": 0,
+                  "z": -15,
+                  "rotation": 0,
+                  "colliderRadius": 3.1,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-b",
+                  "kind": "houseB",
+                  "x": 10.5,
+                  "y": 0,
+                  "z": 10.5,
+                  "rotation": 0.7854,
+                  "colliderRadius": 3,
+                  "collides": true
+                },
+                {
+                  "id": "s-bell-tower",
+                  "kind": "bellTower",
+                  "x": 0,
+                  "y": 0,
+                  "z": 65,
+                  "rotation": 0,
+                  "colliderRadius": 2.2,
+                  "collides": true
+                },
+                {
+                  "id": "s-village-center",
+                  "kind": "villageCenter",
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 0,
+                  "colliderRadius": 2.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-1",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-2",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-3",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-4",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-5",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-6",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-7",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-8",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                }
+              ],
+              "resourceNodes": [
+                {
+                  "id": "r1",
+                  "x": 6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 6,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r3",
+                  "x": -6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r4",
+                  "x": 15,
+                  "y": 0,
+                  "z": 5,
+                  "type": "flower"
+                },
+                {
+                  "id": "r5",
+                  "x": -12,
+                  "y": 0,
+                  "z": 14,
+                  "type": "herb"
+                },
+                {
+                  "id": "r6",
+                  "x": 10,
+                  "y": 0,
+                  "z": -18,
+                  "type": "flower"
+                },
+                {
+                  "id": "r7",
+                  "x": -18,
+                  "y": 0,
+                  "z": -10,
+                  "type": "herb"
+                },
+                {
+                  "id": "r8",
+                  "x": 20,
+                  "y": 0,
+                  "z": 12,
+                  "type": "herb"
+                },
+                {
+                  "id": "r9",
+                  "x": 35,
+                  "y": 0,
+                  "z": 8,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r10",
+                  "x": -30,
+                  "y": 0,
+                  "z": 25,
+                  "type": "ore"
+                },
+                {
+                  "id": "r11",
+                  "x": 28,
+                  "y": 0,
+                  "z": -22,
+                  "type": "herb"
+                },
+                {
+                  "id": "r12",
+                  "x": -25,
+                  "y": 0,
+                  "z": -28,
+                  "type": "tree"
+                },
+                {
+                  "id": "r13",
+                  "x": 50,
+                  "y": 0,
+                  "z": 15,
+                  "type": "ore"
+                },
+                {
+                  "id": "r14",
+                  "x": -45,
+                  "y": 0,
+                  "z": 30,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r15",
+                  "x": 48,
+                  "y": 0,
+                  "z": -25,
+                  "type": "herb"
+                },
+                {
+                  "id": "r16",
+                  "x": 62,
+                  "y": 0,
+                  "z": 10,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r17",
+                  "x": -60,
+                  "y": 0,
+                  "z": 20,
+                  "type": "ore"
+                },
+                {
+                  "id": "r18",
+                  "x": 80,
+                  "y": 0,
+                  "z": 50,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r19",
+                  "x": -85,
+                  "y": 0,
+                  "z": -60,
+                  "type": "ore"
+                },
+                {
+                  "id": "r20",
+                  "x": 100,
+                  "y": 0,
+                  "z": -40,
+                  "type": "herb"
+                },
+                {
+                  "id": "r21",
+                  "x": -70,
+                  "y": 0,
+                  "z": 90,
+                  "type": "flower"
+                },
+                {
+                  "id": "r22",
+                  "x": 120,
+                  "y": 0,
+                  "z": 70,
+                  "type": "tree"
+                },
+                {
+                  "id": "r23",
+                  "x": -110,
+                  "y": 0,
+                  "z": -80,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r24",
+                  "x": 90,
+                  "y": 0,
+                  "z": -120,
+                  "type": "ore"
+                },
+                {
+                  "id": "r25",
+                  "x": -95,
+                  "y": 0,
+                  "z": 100,
+                  "type": "herb"
+                },
+                {
+                  "id": "r26",
+                  "x": 150,
+                  "y": 0,
+                  "z": -50,
+                  "type": "flower"
+                },
+                {
+                  "id": "r27",
+                  "x": -130,
+                  "y": 0,
+                  "z": 60,
+                  "type": "tree"
+                },
+                {
+                  "id": "r28",
+                  "x": 140,
+                  "y": 0,
+                  "z": 90,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r29",
+                  "x": -150,
+                  "y": 0,
+                  "z": -90,
+                  "type": "ore"
+                },
+                {
+                  "id": "r30",
+                  "x": 170,
+                  "y": 0,
+                  "z": -30,
+                  "type": "herb"
+                }
+              ],
+              "vendors": [
+                {
+                  "id": "vendor-1",
+                  "name": "General Vendor",
+                  "x": 4,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "id": "vendor-2",
+                  "name": "Weapons Vendor",
+                  "x": 0,
+                  "y": 0,
+                  "z": 4
+                },
+                {
+                  "id": "vendor-3",
+                  "name": "Supplies Vendor",
+                  "x": -4,
+                  "y": 0,
+                  "z": 0
+                }
+              ],
+              "mobSpawns": [
+                {
+                  "id": "d1",
+                  "x": 5,
+                  "y": 0,
+                  "z": 2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d2",
+                  "x": -2,
+                  "y": 0,
+                  "z": 5,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d3",
+                  "x": -5,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m1",
+                  "x": 30,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 36,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m3",
+                  "x": 28,
+                  "y": 0,
+                  "z": 28,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m4",
+                  "x": -32,
+                  "y": 0,
+                  "z": 20,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m5",
+                  "x": 70,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m6",
+                  "x": 0,
+                  "y": 0,
+                  "z": 76,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m7",
+                  "x": 55,
+                  "y": 0,
+                  "z": 55,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m8",
+                  "x": -60,
+                  "y": 0,
+                  "z": 50,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m9",
+                  "x": 98,
+                  "y": 0,
+                  "z": 4,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m10",
+                  "x": 102,
+                  "y": 0,
+                  "z": -8,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m11",
+                  "x": 96,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m12",
+                  "x": 110,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m13",
+                  "x": 0,
+                  "y": 0,
+                  "z": 110,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m14",
+                  "x": 130,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m15",
+                  "x": 0,
+                  "y": 0,
+                  "z": 130,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m16",
+                  "x": 120,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "bull",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m17",
+                  "x": 180,
+                  "y": 0,
+                  "z": -140,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 8,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m18",
+                  "x": -160,
+                  "y": 0,
+                  "z": 180,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 7,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m19",
+                  "x": 190,
+                  "y": 0,
+                  "z": 80,
+                  "mobType": "demon",
+                  "aggressive": true,
+                  "level": 10,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m20",
+                  "x": -4,
+                  "y": 0,
+                  "z": -15,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m21",
+                  "x": -8,
+                  "y": 0,
+                  "z": -12,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m22",
+                  "x": -12,
+                  "y": 0,
+                  "z": -9,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m23",
+                  "x": -15,
+                  "y": 0,
+                  "z": -5,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m24",
+                  "x": -23,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m25",
+                  "x": -12,
+                  "y": 0,
+                  "z": -19,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m26",
+                  "x": -7,
+                  "y": 0,
+                  "z": -22,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m27",
+                  "x": -1,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m28",
+                  "x": 3,
+                  "y": 0,
+                  "z": -27,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m29",
+                  "x": 8,
+                  "y": 0,
+                  "z": -28,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m30",
+                  "x": 11,
+                  "y": 0,
+                  "z": -26,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m31",
+                  "x": 11,
+                  "y": 0,
+                  "z": -22,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m32",
+                  "x": 11,
+                  "y": 0,
+                  "z": -17,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m33",
+                  "x": 10,
+                  "y": 0,
+                  "z": -13,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m34",
+                  "x": 10,
+                  "y": 0,
+                  "z": -8,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m35",
+                  "x": 8,
+                  "y": 0,
+                  "z": -12,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m36",
+                  "x": 6,
+                  "y": 0,
+                  "z": -16,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m37",
+                  "x": 6,
+                  "y": 0,
+                  "z": -20,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m38",
+                  "x": 2,
+                  "y": 0,
+                  "z": -20,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m39",
+                  "x": -2,
+                  "y": 0,
+                  "z": -18,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m40",
+                  "x": -6,
+                  "y": 0,
+                  "z": -15,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m41",
+                  "x": -9,
+                  "y": 0,
+                  "z": -13,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m42",
+                  "x": -12,
+                  "y": 0,
+                  "z": -10,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m43",
+                  "x": -16,
+                  "y": 0,
+                  "z": -7,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m44",
+                  "x": -18,
+                  "y": 0,
+                  "z": -11,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m45",
+                  "x": -16,
+                  "y": 0,
+                  "z": -15,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m46",
+                  "x": -12,
+                  "y": 0,
+                  "z": -18,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m47",
+                  "x": -9,
+                  "y": 0,
+                  "z": -20,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m48",
+                  "x": -4,
+                  "y": 0,
+                  "z": -23,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m49",
+                  "x": -1,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m50",
+                  "x": 3,
+                  "y": 0,
+                  "z": -27,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m51",
+                  "x": 0,
+                  "y": 0,
+                  "z": -23,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m52",
+                  "x": -4,
+                  "y": 0,
+                  "z": -18,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m53",
+                  "x": -8,
+                  "y": 0,
+                  "z": -15,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m54",
+                  "x": -11,
+                  "y": 0,
+                  "z": -11,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m55",
+                  "x": -14,
+                  "y": 0,
+                  "z": -9,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m56",
+                  "x": -14,
+                  "y": 0,
+                  "z": -13,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m57",
+                  "x": -10,
+                  "y": 0,
+                  "z": -18,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m58",
+                  "x": -5,
+                  "y": 0,
+                  "z": -21,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m59",
+                  "x": 0,
+                  "y": 0,
+                  "z": -24,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m60",
+                  "x": 4,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                }
+              ]
+            },
+            "zoneState": {
+              "prefabs": [],
+              "navAreas": [],
+              "triggers": [],
+              "paths": [],
+              "lightingRegions": [],
+              "comments": []
+            }
+          },
+          "publishedBaseline": {
+            "mapConfig": {
+              "version": 2,
+              "mapSize": 400,
+              "base": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "radius": 9
+              },
+              "spawnPoints": [
+                {
+                  "x": 6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": -5.46
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": -5.46
+                }
+              ],
+              "obstacles": [
+                {
+                  "x": 32,
+                  "y": 0,
+                  "z": 28,
+                  "radius": 4
+                },
+                {
+                  "x": -30,
+                  "y": 0,
+                  "z": 35,
+                  "radius": 3.5
+                },
+                {
+                  "x": 38,
+                  "y": 0,
+                  "z": -25,
+                  "radius": 4
+                },
+                {
+                  "x": -35,
+                  "y": 0,
+                  "z": -30,
+                  "radius": 3
+                },
+                {
+                  "x": 52,
+                  "y": 0,
+                  "z": 25,
+                  "radius": 5
+                },
+                {
+                  "x": -48,
+                  "y": 0,
+                  "z": 38,
+                  "radius": 4.5
+                },
+                {
+                  "x": 55,
+                  "y": 0,
+                  "z": -20,
+                  "radius": 4
+                },
+                {
+                  "x": -50,
+                  "y": 0,
+                  "z": -45,
+                  "radius": 5
+                },
+                {
+                  "x": 65,
+                  "y": 0,
+                  "z": 5,
+                  "radius": 6
+                },
+                {
+                  "x": -120,
+                  "y": 0,
+                  "z": 100,
+                  "radius": 8
+                },
+                {
+                  "x": 90,
+                  "y": 0,
+                  "z": -110,
+                  "radius": 7
+                },
+                {
+                  "x": -90,
+                  "y": 0,
+                  "z": -100,
+                  "radius": 8
+                },
+                {
+                  "x": 150,
+                  "y": 0,
+                  "z": 80,
+                  "radius": 9
+                },
+                {
+                  "x": -140,
+                  "y": 0,
+                  "z": -120,
+                  "radius": 7
+                },
+                {
+                  "x": 100,
+                  "y": 0,
+                  "z": 130,
+                  "radius": 6
+                }
+              ],
+              "structures": [
+                {
+                  "id": "s-market",
+                  "kind": "market",
+                  "x": 15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 1.5708,
+                  "colliderRadius": 3.6,
+                  "collides": true
+                },
+                {
+                  "id": "s-barracks",
+                  "kind": "barracks",
+                  "x": -15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": -1.5708,
+                  "colliderRadius": 3.4,
+                  "collides": true
+                },
+                {
+                  "id": "s-storage",
+                  "kind": "storage",
+                  "x": 0,
+                  "y": 0,
+                  "z": 15,
+                  "rotation": 3.1416,
+                  "colliderRadius": 3.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-a",
+                  "kind": "houseA",
+                  "x": 0,
+                  "y": 0,
+                  "z": -15,
+                  "rotation": 0,
+                  "colliderRadius": 3.1,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-b",
+                  "kind": "houseB",
+                  "x": 10.5,
+                  "y": 0,
+                  "z": 10.5,
+                  "rotation": 0.7854,
+                  "colliderRadius": 3,
+                  "collides": true
+                },
+                {
+                  "id": "s-bell-tower",
+                  "kind": "bellTower",
+                  "x": 0,
+                  "y": 0,
+                  "z": 65,
+                  "rotation": 0,
+                  "colliderRadius": 2.2,
+                  "collides": true
+                },
+                {
+                  "id": "s-village-center",
+                  "kind": "villageCenter",
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 0,
+                  "colliderRadius": 2.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-1",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-2",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-3",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-4",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-5",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-6",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-7",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-8",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                }
+              ],
+              "resourceNodes": [
+                {
+                  "id": "r1",
+                  "x": 6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 6,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r3",
+                  "x": -6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r4",
+                  "x": 15,
+                  "y": 0,
+                  "z": 5,
+                  "type": "flower"
+                },
+                {
+                  "id": "r5",
+                  "x": -12,
+                  "y": 0,
+                  "z": 14,
+                  "type": "herb"
+                },
+                {
+                  "id": "r6",
+                  "x": 10,
+                  "y": 0,
+                  "z": -18,
+                  "type": "flower"
+                },
+                {
+                  "id": "r7",
+                  "x": -18,
+                  "y": 0,
+                  "z": -10,
+                  "type": "herb"
+                },
+                {
+                  "id": "r8",
+                  "x": 20,
+                  "y": 0,
+                  "z": 12,
+                  "type": "herb"
+                },
+                {
+                  "id": "r9",
+                  "x": 35,
+                  "y": 0,
+                  "z": 8,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r10",
+                  "x": -30,
+                  "y": 0,
+                  "z": 25,
+                  "type": "ore"
+                },
+                {
+                  "id": "r11",
+                  "x": 28,
+                  "y": 0,
+                  "z": -22,
+                  "type": "herb"
+                },
+                {
+                  "id": "r12",
+                  "x": -25,
+                  "y": 0,
+                  "z": -28,
+                  "type": "tree"
+                },
+                {
+                  "id": "r13",
+                  "x": 50,
+                  "y": 0,
+                  "z": 15,
+                  "type": "ore"
+                },
+                {
+                  "id": "r14",
+                  "x": -45,
+                  "y": 0,
+                  "z": 30,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r15",
+                  "x": 48,
+                  "y": 0,
+                  "z": -25,
+                  "type": "herb"
+                },
+                {
+                  "id": "r16",
+                  "x": 62,
+                  "y": 0,
+                  "z": 10,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r17",
+                  "x": -60,
+                  "y": 0,
+                  "z": 20,
+                  "type": "ore"
+                },
+                {
+                  "id": "r18",
+                  "x": 80,
+                  "y": 0,
+                  "z": 50,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r19",
+                  "x": -85,
+                  "y": 0,
+                  "z": -60,
+                  "type": "ore"
+                },
+                {
+                  "id": "r20",
+                  "x": 100,
+                  "y": 0,
+                  "z": -40,
+                  "type": "herb"
+                },
+                {
+                  "id": "r21",
+                  "x": -70,
+                  "y": 0,
+                  "z": 90,
+                  "type": "flower"
+                },
+                {
+                  "id": "r22",
+                  "x": 120,
+                  "y": 0,
+                  "z": 70,
+                  "type": "tree"
+                },
+                {
+                  "id": "r23",
+                  "x": -110,
+                  "y": 0,
+                  "z": -80,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r24",
+                  "x": 90,
+                  "y": 0,
+                  "z": -120,
+                  "type": "ore"
+                },
+                {
+                  "id": "r25",
+                  "x": -95,
+                  "y": 0,
+                  "z": 100,
+                  "type": "herb"
+                },
+                {
+                  "id": "r26",
+                  "x": 150,
+                  "y": 0,
+                  "z": -50,
+                  "type": "flower"
+                },
+                {
+                  "id": "r27",
+                  "x": -130,
+                  "y": 0,
+                  "z": 60,
+                  "type": "tree"
+                },
+                {
+                  "id": "r28",
+                  "x": 140,
+                  "y": 0,
+                  "z": 90,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r29",
+                  "x": -150,
+                  "y": 0,
+                  "z": -90,
+                  "type": "ore"
+                },
+                {
+                  "id": "r30",
+                  "x": 170,
+                  "y": 0,
+                  "z": -30,
+                  "type": "herb"
+                }
+              ],
+              "vendors": [
+                {
+                  "id": "vendor-1",
+                  "name": "General Vendor",
+                  "x": 4,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "id": "vendor-2",
+                  "name": "Weapons Vendor",
+                  "x": 0,
+                  "y": 0,
+                  "z": 4
+                },
+                {
+                  "id": "vendor-3",
+                  "name": "Supplies Vendor",
+                  "x": -4,
+                  "y": 0,
+                  "z": 0
+                }
+              ],
+              "mobSpawns": [
+                {
+                  "id": "d1",
+                  "x": 5,
+                  "y": 0,
+                  "z": 2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d2",
+                  "x": -2,
+                  "y": 0,
+                  "z": 5,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d3",
+                  "x": -5,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m1",
+                  "x": 30,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 36,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m3",
+                  "x": 28,
+                  "y": 0,
+                  "z": 28,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m4",
+                  "x": -32,
+                  "y": 0,
+                  "z": 20,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m5",
+                  "x": 70,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m6",
+                  "x": 0,
+                  "y": 0,
+                  "z": 76,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m7",
+                  "x": 55,
+                  "y": 0,
+                  "z": 55,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m8",
+                  "x": -60,
+                  "y": 0,
+                  "z": 50,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m9",
+                  "x": 98,
+                  "y": 0,
+                  "z": 4,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m10",
+                  "x": 102,
+                  "y": 0,
+                  "z": -8,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m11",
+                  "x": 96,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m12",
+                  "x": 110,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m13",
+                  "x": 0,
+                  "y": 0,
+                  "z": 110,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m14",
+                  "x": 130,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m15",
+                  "x": 0,
+                  "y": 0,
+                  "z": 130,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m16",
+                  "x": 120,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "bull",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m17",
+                  "x": 180,
+                  "y": 0,
+                  "z": -140,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 8,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m18",
+                  "x": -160,
+                  "y": 0,
+                  "z": 180,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 7,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m19",
+                  "x": 190,
+                  "y": 0,
+                  "z": 80,
+                  "mobType": "demon",
+                  "aggressive": true,
+                  "level": 10,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m20",
+                  "x": -4,
+                  "y": 0,
+                  "z": -15,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m21",
+                  "x": -8,
+                  "y": 0,
+                  "z": -12,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m22",
+                  "x": -12,
+                  "y": 0,
+                  "z": -9,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m23",
+                  "x": -15,
+                  "y": 0,
+                  "z": -5,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m24",
+                  "x": -23,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m25",
+                  "x": -12,
+                  "y": 0,
+                  "z": -19,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m26",
+                  "x": -7,
+                  "y": 0,
+                  "z": -22,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m27",
+                  "x": -1,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m28",
+                  "x": 3,
+                  "y": 0,
+                  "z": -27,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m29",
+                  "x": 8,
+                  "y": 0,
+                  "z": -28,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m30",
+                  "x": 11,
+                  "y": 0,
+                  "z": -26,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m31",
+                  "x": 11,
+                  "y": 0,
+                  "z": -22,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m32",
+                  "x": 11,
+                  "y": 0,
+                  "z": -17,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m33",
+                  "x": 10,
+                  "y": 0,
+                  "z": -13,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m34",
+                  "x": 10,
+                  "y": 0,
+                  "z": -8,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m35",
+                  "x": 8,
+                  "y": 0,
+                  "z": -12,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m36",
+                  "x": 6,
+                  "y": 0,
+                  "z": -16,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m37",
+                  "x": 6,
+                  "y": 0,
+                  "z": -20,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m38",
+                  "x": 2,
+                  "y": 0,
+                  "z": -20,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m39",
+                  "x": -2,
+                  "y": 0,
+                  "z": -18,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m40",
+                  "x": -6,
+                  "y": 0,
+                  "z": -15,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m41",
+                  "x": -9,
+                  "y": 0,
+                  "z": -13,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m42",
+                  "x": -12,
+                  "y": 0,
+                  "z": -10,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m43",
+                  "x": -16,
+                  "y": 0,
+                  "z": -7,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m44",
+                  "x": -18,
+                  "y": 0,
+                  "z": -11,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m45",
+                  "x": -16,
+                  "y": 0,
+                  "z": -15,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m46",
+                  "x": -12,
+                  "y": 0,
+                  "z": -18,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m47",
+                  "x": -9,
+                  "y": 0,
+                  "z": -20,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m48",
+                  "x": -4,
+                  "y": 0,
+                  "z": -23,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m49",
+                  "x": -1,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m50",
+                  "x": 3,
+                  "y": 0,
+                  "z": -27,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m51",
+                  "x": 0,
+                  "y": 0,
+                  "z": -23,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m52",
+                  "x": -4,
+                  "y": 0,
+                  "z": -18,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m53",
+                  "x": -8,
+                  "y": 0,
+                  "z": -15,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m54",
+                  "x": -11,
+                  "y": 0,
+                  "z": -11,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m55",
+                  "x": -14,
+                  "y": 0,
+                  "z": -9,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m56",
+                  "x": -14,
+                  "y": 0,
+                  "z": -13,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m57",
+                  "x": -10,
+                  "y": 0,
+                  "z": -18,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m58",
+                  "x": -5,
+                  "y": 0,
+                  "z": -21,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m59",
+                  "x": 0,
+                  "y": 0,
+                  "z": -24,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m60",
+                  "x": 4,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                }
+              ]
+            },
+            "zoneState": {
+              "prefabs": [],
+              "navAreas": [],
+              "triggers": [],
+              "paths": [],
+              "lightingRegions": [],
+              "comments": []
+            },
+            "fromPatchId": ""
+          },
+          "createdAt": "2026-02-22T21:10:38.807Z",
+          "updatedAt": "2026-02-22T21:11:13.190Z",
+          "createdBy": "Mirator",
+          "approvedAt": "2026-02-22T21:11:12.054Z",
+          "approvedBy": "Mirator",
+          "publishedAt": "2026-02-22T21:11:13.190Z",
+          "publishedBy": "Mirator",
+          "rolledBackAt": "",
+          "rolledBackBy": "",
+          "comments": []
+        },
+        {
+          "id": "patch-mly99bls-n22g8k",
+          "title": "fuck foxes",
+          "description": "",
+          "dependencyIds": [],
+          "status": "Published",
+          "sourceSnapshot": {
+            "mapConfig": {
+              "version": 2,
+              "mapSize": 400,
+              "base": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "radius": 9
+              },
+              "spawnPoints": [
+                {
+                  "x": 6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": -5.46
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": -5.46
+                }
+              ],
+              "obstacles": [
+                {
+                  "x": 32,
+                  "y": 0,
+                  "z": 28,
+                  "radius": 4
+                },
+                {
+                  "x": -30,
+                  "y": 0,
+                  "z": 35,
+                  "radius": 3.5
+                },
+                {
+                  "x": 38,
+                  "y": 0,
+                  "z": -25,
+                  "radius": 4
+                },
+                {
+                  "x": -35,
+                  "y": 0,
+                  "z": -30,
+                  "radius": 3
+                },
+                {
+                  "x": 52,
+                  "y": 0,
+                  "z": 25,
+                  "radius": 5
+                },
+                {
+                  "x": -48,
+                  "y": 0,
+                  "z": 38,
+                  "radius": 4.5
+                },
+                {
+                  "x": 55,
+                  "y": 0,
+                  "z": -20,
+                  "radius": 4
+                },
+                {
+                  "x": -50,
+                  "y": 0,
+                  "z": -45,
+                  "radius": 5
+                },
+                {
+                  "x": 65,
+                  "y": 0,
+                  "z": 5,
+                  "radius": 6
+                },
+                {
+                  "x": -120,
+                  "y": 0,
+                  "z": 100,
+                  "radius": 8
+                },
+                {
+                  "x": 90,
+                  "y": 0,
+                  "z": -110,
+                  "radius": 7
+                },
+                {
+                  "x": -90,
+                  "y": 0,
+                  "z": -100,
+                  "radius": 8
+                },
+                {
+                  "x": 150,
+                  "y": 0,
+                  "z": 80,
+                  "radius": 9
+                },
+                {
+                  "x": -140,
+                  "y": 0,
+                  "z": -120,
+                  "radius": 7
+                },
+                {
+                  "x": 100,
+                  "y": 0,
+                  "z": 130,
+                  "radius": 6
+                }
+              ],
+              "structures": [
+                {
+                  "id": "s-market",
+                  "kind": "market",
+                  "x": 15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 1.5708,
+                  "colliderRadius": 3.6,
+                  "collides": true
+                },
+                {
+                  "id": "s-barracks",
+                  "kind": "barracks",
+                  "x": -15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": -1.5708,
+                  "colliderRadius": 3.4,
+                  "collides": true
+                },
+                {
+                  "id": "s-storage",
+                  "kind": "storage",
+                  "x": 0,
+                  "y": 0,
+                  "z": 15,
+                  "rotation": 3.1416,
+                  "colliderRadius": 3.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-a",
+                  "kind": "houseA",
+                  "x": 0,
+                  "y": 0,
+                  "z": -15,
+                  "rotation": 0,
+                  "colliderRadius": 3.1,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-b",
+                  "kind": "houseB",
+                  "x": 10.5,
+                  "y": 0,
+                  "z": 10.5,
+                  "rotation": 0.7854,
+                  "colliderRadius": 3,
+                  "collides": true
+                },
+                {
+                  "id": "s-bell-tower",
+                  "kind": "bellTower",
+                  "x": 0,
+                  "y": 0,
+                  "z": 65,
+                  "rotation": 0,
+                  "colliderRadius": 2.2,
+                  "collides": true
+                },
+                {
+                  "id": "s-village-center",
+                  "kind": "villageCenter",
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 0,
+                  "colliderRadius": 2.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-1",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-2",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-3",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-4",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-5",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-6",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-7",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-8",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                }
+              ],
+              "resourceNodes": [
+                {
+                  "id": "r1",
+                  "x": 6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 6,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r3",
+                  "x": -6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r4",
+                  "x": 15,
+                  "y": 0,
+                  "z": 5,
+                  "type": "flower"
+                },
+                {
+                  "id": "r5",
+                  "x": -12,
+                  "y": 0,
+                  "z": 14,
+                  "type": "herb"
+                },
+                {
+                  "id": "r6",
+                  "x": 10,
+                  "y": 0,
+                  "z": -18,
+                  "type": "flower"
+                },
+                {
+                  "id": "r7",
+                  "x": -18,
+                  "y": 0,
+                  "z": -10,
+                  "type": "herb"
+                },
+                {
+                  "id": "r8",
+                  "x": 20,
+                  "y": 0,
+                  "z": 12,
+                  "type": "herb"
+                },
+                {
+                  "id": "r9",
+                  "x": 35,
+                  "y": 0,
+                  "z": 8,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r10",
+                  "x": -30,
+                  "y": 0,
+                  "z": 25,
+                  "type": "ore"
+                },
+                {
+                  "id": "r11",
+                  "x": 28,
+                  "y": 0,
+                  "z": -22,
+                  "type": "herb"
+                },
+                {
+                  "id": "r12",
+                  "x": -25,
+                  "y": 0,
+                  "z": -28,
+                  "type": "tree"
+                },
+                {
+                  "id": "r13",
+                  "x": 50,
+                  "y": 0,
+                  "z": 15,
+                  "type": "ore"
+                },
+                {
+                  "id": "r14",
+                  "x": -45,
+                  "y": 0,
+                  "z": 30,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r15",
+                  "x": 48,
+                  "y": 0,
+                  "z": -25,
+                  "type": "herb"
+                },
+                {
+                  "id": "r16",
+                  "x": 62,
+                  "y": 0,
+                  "z": 10,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r17",
+                  "x": -60,
+                  "y": 0,
+                  "z": 20,
+                  "type": "ore"
+                },
+                {
+                  "id": "r18",
+                  "x": 80,
+                  "y": 0,
+                  "z": 50,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r19",
+                  "x": -85,
+                  "y": 0,
+                  "z": -60,
+                  "type": "ore"
+                },
+                {
+                  "id": "r20",
+                  "x": 100,
+                  "y": 0,
+                  "z": -40,
+                  "type": "herb"
+                },
+                {
+                  "id": "r21",
+                  "x": -70,
+                  "y": 0,
+                  "z": 90,
+                  "type": "flower"
+                },
+                {
+                  "id": "r22",
+                  "x": 120,
+                  "y": 0,
+                  "z": 70,
+                  "type": "tree"
+                },
+                {
+                  "id": "r23",
+                  "x": -110,
+                  "y": 0,
+                  "z": -80,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r24",
+                  "x": 90,
+                  "y": 0,
+                  "z": -120,
+                  "type": "ore"
+                },
+                {
+                  "id": "r25",
+                  "x": -95,
+                  "y": 0,
+                  "z": 100,
+                  "type": "herb"
+                },
+                {
+                  "id": "r26",
+                  "x": 150,
+                  "y": 0,
+                  "z": -50,
+                  "type": "flower"
+                },
+                {
+                  "id": "r27",
+                  "x": -130,
+                  "y": 0,
+                  "z": 60,
+                  "type": "tree"
+                },
+                {
+                  "id": "r28",
+                  "x": 140,
+                  "y": 0,
+                  "z": 90,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r29",
+                  "x": -150,
+                  "y": 0,
+                  "z": -90,
+                  "type": "ore"
+                },
+                {
+                  "id": "r30",
+                  "x": 170,
+                  "y": 0,
+                  "z": -30,
+                  "type": "herb"
+                }
+              ],
+              "vendors": [
+                {
+                  "id": "vendor-1",
+                  "name": "General Vendor",
+                  "x": 4,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "id": "vendor-2",
+                  "name": "Weapons Vendor",
+                  "x": 0,
+                  "y": 0,
+                  "z": 4
+                },
+                {
+                  "id": "vendor-3",
+                  "name": "Supplies Vendor",
+                  "x": -4,
+                  "y": 0,
+                  "z": 0
+                }
+              ],
+              "mobSpawns": [
+                {
+                  "id": "d1",
+                  "x": 5,
+                  "y": 0,
+                  "z": 2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d2",
+                  "x": -2,
+                  "y": 0,
+                  "z": 5,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d3",
+                  "x": -5,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m1",
+                  "x": 30,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 36,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m3",
+                  "x": 28,
+                  "y": 0,
+                  "z": 28,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m4",
+                  "x": -32,
+                  "y": 0,
+                  "z": 20,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m5",
+                  "x": 70,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m6",
+                  "x": 0,
+                  "y": 0,
+                  "z": 76,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m7",
+                  "x": 55,
+                  "y": 0,
+                  "z": 55,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m8",
+                  "x": -60,
+                  "y": 0,
+                  "z": 50,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m9",
+                  "x": 98,
+                  "y": 0,
+                  "z": 4,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m10",
+                  "x": 102,
+                  "y": 0,
+                  "z": -8,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m11",
+                  "x": 96,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m12",
+                  "x": 110,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m13",
+                  "x": 0,
+                  "y": 0,
+                  "z": 110,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m14",
+                  "x": 130,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m15",
+                  "x": 0,
+                  "y": 0,
+                  "z": 130,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m16",
+                  "x": 120,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "bull",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m17",
+                  "x": 180,
+                  "y": 0,
+                  "z": -140,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 8,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m18",
+                  "x": -160,
+                  "y": 0,
+                  "z": 180,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 7,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m19",
+                  "x": 190,
+                  "y": 0,
+                  "z": 80,
+                  "mobType": "demon",
+                  "aggressive": true,
+                  "level": 10,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m24",
+                  "x": -23,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m43",
+                  "x": -16,
+                  "y": 0,
+                  "z": -7,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m44",
+                  "x": -18,
+                  "y": 0,
+                  "z": -11,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m48",
+                  "x": -4,
+                  "y": 0,
+                  "z": -23,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m50",
+                  "x": 3,
+                  "y": 0,
+                  "z": -27,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                }
+              ]
+            },
+            "zoneState": {
+              "prefabs": [],
+              "navAreas": [],
+              "triggers": [],
+              "paths": [],
+              "lightingRegions": [],
+              "comments": []
+            }
+          },
+          "publishedBaseline": {
+            "mapConfig": {
+              "version": 2,
+              "mapSize": 400,
+              "base": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "radius": 9
+              },
+              "spawnPoints": [
+                {
+                  "x": 6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": -5.46
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": -5.46
+                }
+              ],
+              "obstacles": [
+                {
+                  "x": 32,
+                  "y": 0,
+                  "z": 28,
+                  "radius": 4
+                },
+                {
+                  "x": -30,
+                  "y": 0,
+                  "z": 35,
+                  "radius": 3.5
+                },
+                {
+                  "x": 38,
+                  "y": 0,
+                  "z": -25,
+                  "radius": 4
+                },
+                {
+                  "x": -35,
+                  "y": 0,
+                  "z": -30,
+                  "radius": 3
+                },
+                {
+                  "x": 52,
+                  "y": 0,
+                  "z": 25,
+                  "radius": 5
+                },
+                {
+                  "x": -48,
+                  "y": 0,
+                  "z": 38,
+                  "radius": 4.5
+                },
+                {
+                  "x": 55,
+                  "y": 0,
+                  "z": -20,
+                  "radius": 4
+                },
+                {
+                  "x": -50,
+                  "y": 0,
+                  "z": -45,
+                  "radius": 5
+                },
+                {
+                  "x": 65,
+                  "y": 0,
+                  "z": 5,
+                  "radius": 6
+                },
+                {
+                  "x": -120,
+                  "y": 0,
+                  "z": 100,
+                  "radius": 8
+                },
+                {
+                  "x": 90,
+                  "y": 0,
+                  "z": -110,
+                  "radius": 7
+                },
+                {
+                  "x": -90,
+                  "y": 0,
+                  "z": -100,
+                  "radius": 8
+                },
+                {
+                  "x": 150,
+                  "y": 0,
+                  "z": 80,
+                  "radius": 9
+                },
+                {
+                  "x": -140,
+                  "y": 0,
+                  "z": -120,
+                  "radius": 7
+                },
+                {
+                  "x": 100,
+                  "y": 0,
+                  "z": 130,
+                  "radius": 6
+                }
+              ],
+              "structures": [
+                {
+                  "id": "s-market",
+                  "kind": "market",
+                  "x": 15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 1.5708,
+                  "colliderRadius": 3.6,
+                  "collides": true
+                },
+                {
+                  "id": "s-barracks",
+                  "kind": "barracks",
+                  "x": -15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": -1.5708,
+                  "colliderRadius": 3.4,
+                  "collides": true
+                },
+                {
+                  "id": "s-storage",
+                  "kind": "storage",
+                  "x": 0,
+                  "y": 0,
+                  "z": 15,
+                  "rotation": 3.1416,
+                  "colliderRadius": 3.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-a",
+                  "kind": "houseA",
+                  "x": 0,
+                  "y": 0,
+                  "z": -15,
+                  "rotation": 0,
+                  "colliderRadius": 3.1,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-b",
+                  "kind": "houseB",
+                  "x": 10.5,
+                  "y": 0,
+                  "z": 10.5,
+                  "rotation": 0.7854,
+                  "colliderRadius": 3,
+                  "collides": true
+                },
+                {
+                  "id": "s-bell-tower",
+                  "kind": "bellTower",
+                  "x": 0,
+                  "y": 0,
+                  "z": 65,
+                  "rotation": 0,
+                  "colliderRadius": 2.2,
+                  "collides": true
+                },
+                {
+                  "id": "s-village-center",
+                  "kind": "villageCenter",
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 0,
+                  "colliderRadius": 2.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-1",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-2",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-3",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-4",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-5",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-6",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-7",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-8",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                }
+              ],
+              "resourceNodes": [
+                {
+                  "id": "r1",
+                  "x": 6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 6,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r3",
+                  "x": -6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r4",
+                  "x": 15,
+                  "y": 0,
+                  "z": 5,
+                  "type": "flower"
+                },
+                {
+                  "id": "r5",
+                  "x": -12,
+                  "y": 0,
+                  "z": 14,
+                  "type": "herb"
+                },
+                {
+                  "id": "r6",
+                  "x": 10,
+                  "y": 0,
+                  "z": -18,
+                  "type": "flower"
+                },
+                {
+                  "id": "r7",
+                  "x": -18,
+                  "y": 0,
+                  "z": -10,
+                  "type": "herb"
+                },
+                {
+                  "id": "r8",
+                  "x": 20,
+                  "y": 0,
+                  "z": 12,
+                  "type": "herb"
+                },
+                {
+                  "id": "r9",
+                  "x": 35,
+                  "y": 0,
+                  "z": 8,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r10",
+                  "x": -30,
+                  "y": 0,
+                  "z": 25,
+                  "type": "ore"
+                },
+                {
+                  "id": "r11",
+                  "x": 28,
+                  "y": 0,
+                  "z": -22,
+                  "type": "herb"
+                },
+                {
+                  "id": "r12",
+                  "x": -25,
+                  "y": 0,
+                  "z": -28,
+                  "type": "tree"
+                },
+                {
+                  "id": "r13",
+                  "x": 50,
+                  "y": 0,
+                  "z": 15,
+                  "type": "ore"
+                },
+                {
+                  "id": "r14",
+                  "x": -45,
+                  "y": 0,
+                  "z": 30,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r15",
+                  "x": 48,
+                  "y": 0,
+                  "z": -25,
+                  "type": "herb"
+                },
+                {
+                  "id": "r16",
+                  "x": 62,
+                  "y": 0,
+                  "z": 10,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r17",
+                  "x": -60,
+                  "y": 0,
+                  "z": 20,
+                  "type": "ore"
+                },
+                {
+                  "id": "r18",
+                  "x": 80,
+                  "y": 0,
+                  "z": 50,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r19",
+                  "x": -85,
+                  "y": 0,
+                  "z": -60,
+                  "type": "ore"
+                },
+                {
+                  "id": "r20",
+                  "x": 100,
+                  "y": 0,
+                  "z": -40,
+                  "type": "herb"
+                },
+                {
+                  "id": "r21",
+                  "x": -70,
+                  "y": 0,
+                  "z": 90,
+                  "type": "flower"
+                },
+                {
+                  "id": "r22",
+                  "x": 120,
+                  "y": 0,
+                  "z": 70,
+                  "type": "tree"
+                },
+                {
+                  "id": "r23",
+                  "x": -110,
+                  "y": 0,
+                  "z": -80,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r24",
+                  "x": 90,
+                  "y": 0,
+                  "z": -120,
+                  "type": "ore"
+                },
+                {
+                  "id": "r25",
+                  "x": -95,
+                  "y": 0,
+                  "z": 100,
+                  "type": "herb"
+                },
+                {
+                  "id": "r26",
+                  "x": 150,
+                  "y": 0,
+                  "z": -50,
+                  "type": "flower"
+                },
+                {
+                  "id": "r27",
+                  "x": -130,
+                  "y": 0,
+                  "z": 60,
+                  "type": "tree"
+                },
+                {
+                  "id": "r28",
+                  "x": 140,
+                  "y": 0,
+                  "z": 90,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r29",
+                  "x": -150,
+                  "y": 0,
+                  "z": -90,
+                  "type": "ore"
+                },
+                {
+                  "id": "r30",
+                  "x": 170,
+                  "y": 0,
+                  "z": -30,
+                  "type": "herb"
+                }
+              ],
+              "vendors": [
+                {
+                  "id": "vendor-1",
+                  "name": "General Vendor",
+                  "x": 4,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "id": "vendor-2",
+                  "name": "Weapons Vendor",
+                  "x": 0,
+                  "y": 0,
+                  "z": 4
+                },
+                {
+                  "id": "vendor-3",
+                  "name": "Supplies Vendor",
+                  "x": -4,
+                  "y": 0,
+                  "z": 0
+                }
+              ],
+              "mobSpawns": [
+                {
+                  "id": "d1",
+                  "x": 5,
+                  "y": 0,
+                  "z": 2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d2",
+                  "x": -2,
+                  "y": 0,
+                  "z": 5,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d3",
+                  "x": -5,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m1",
+                  "x": 30,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 36,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m3",
+                  "x": 28,
+                  "y": 0,
+                  "z": 28,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m4",
+                  "x": -32,
+                  "y": 0,
+                  "z": 20,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m5",
+                  "x": 70,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m6",
+                  "x": 0,
+                  "y": 0,
+                  "z": 76,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m7",
+                  "x": 55,
+                  "y": 0,
+                  "z": 55,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m8",
+                  "x": -60,
+                  "y": 0,
+                  "z": 50,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m9",
+                  "x": 98,
+                  "y": 0,
+                  "z": 4,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m10",
+                  "x": 102,
+                  "y": 0,
+                  "z": -8,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m11",
+                  "x": 96,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m12",
+                  "x": 110,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m13",
+                  "x": 0,
+                  "y": 0,
+                  "z": 110,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m14",
+                  "x": 130,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m15",
+                  "x": 0,
+                  "y": 0,
+                  "z": 130,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m16",
+                  "x": 120,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "bull",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m17",
+                  "x": 180,
+                  "y": 0,
+                  "z": -140,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 8,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m18",
+                  "x": -160,
+                  "y": 0,
+                  "z": 180,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 7,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m19",
+                  "x": 190,
+                  "y": 0,
+                  "z": 80,
+                  "mobType": "demon",
+                  "aggressive": true,
+                  "level": 10,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m24",
+                  "x": -23,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m43",
+                  "x": -16,
+                  "y": 0,
+                  "z": -7,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m44",
+                  "x": -18,
+                  "y": 0,
+                  "z": -11,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m48",
+                  "x": -4,
+                  "y": 0,
+                  "z": -23,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m50",
+                  "x": 3,
+                  "y": 0,
+                  "z": -27,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                }
+              ]
+            },
+            "zoneState": {
+              "prefabs": [],
+              "navAreas": [],
+              "triggers": [],
+              "paths": [],
+              "lightingRegions": [],
+              "comments": []
+            },
+            "fromPatchId": "patch-mly8s4wn-49qole"
+          },
+          "createdAt": "2026-02-22T21:24:00.640Z",
+          "updatedAt": "2026-02-22T21:24:04.710Z",
+          "createdBy": "Mirator",
+          "approvedAt": "2026-02-22T21:24:04.141Z",
+          "approvedBy": "Mirator",
+          "publishedAt": "2026-02-22T21:24:04.710Z",
+          "publishedBy": "Mirator",
+          "rolledBackAt": "",
+          "rolledBackBy": "",
+          "comments": []
+        },
+        {
+          "id": "patch-mly9bg6u-kxy4ej",
+          "title": "less foxes",
+          "description": "",
+          "dependencyIds": [],
+          "status": "Published",
+          "sourceSnapshot": {
+            "mapConfig": {
+              "version": 2,
+              "mapSize": 400,
+              "base": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "radius": 9
+              },
+              "spawnPoints": [
+                {
+                  "x": 6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": -5.46
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": -5.46
+                }
+              ],
+              "obstacles": [
+                {
+                  "x": 32,
+                  "y": 0,
+                  "z": 28,
+                  "radius": 4
+                },
+                {
+                  "x": -30,
+                  "y": 0,
+                  "z": 35,
+                  "radius": 3.5
+                },
+                {
+                  "x": 38,
+                  "y": 0,
+                  "z": -25,
+                  "radius": 4
+                },
+                {
+                  "x": -35,
+                  "y": 0,
+                  "z": -30,
+                  "radius": 3
+                },
+                {
+                  "x": 52,
+                  "y": 0,
+                  "z": 25,
+                  "radius": 5
+                },
+                {
+                  "x": -48,
+                  "y": 0,
+                  "z": 38,
+                  "radius": 4.5
+                },
+                {
+                  "x": 55,
+                  "y": 0,
+                  "z": -20,
+                  "radius": 4
+                },
+                {
+                  "x": -50,
+                  "y": 0,
+                  "z": -45,
+                  "radius": 5
+                },
+                {
+                  "x": 65,
+                  "y": 0,
+                  "z": 5,
+                  "radius": 6
+                },
+                {
+                  "x": -120,
+                  "y": 0,
+                  "z": 100,
+                  "radius": 8
+                },
+                {
+                  "x": 90,
+                  "y": 0,
+                  "z": -110,
+                  "radius": 7
+                },
+                {
+                  "x": -90,
+                  "y": 0,
+                  "z": -100,
+                  "radius": 8
+                },
+                {
+                  "x": 150,
+                  "y": 0,
+                  "z": 80,
+                  "radius": 9
+                },
+                {
+                  "x": -140,
+                  "y": 0,
+                  "z": -120,
+                  "radius": 7
+                },
+                {
+                  "x": 100,
+                  "y": 0,
+                  "z": 130,
+                  "radius": 6
+                }
+              ],
+              "structures": [
+                {
+                  "id": "s-market",
+                  "kind": "market",
+                  "x": 15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 1.5708,
+                  "colliderRadius": 3.6,
+                  "collides": true
+                },
+                {
+                  "id": "s-barracks",
+                  "kind": "barracks",
+                  "x": -15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": -1.5708,
+                  "colliderRadius": 3.4,
+                  "collides": true
+                },
+                {
+                  "id": "s-storage",
+                  "kind": "storage",
+                  "x": 0,
+                  "y": 0,
+                  "z": 15,
+                  "rotation": 3.1416,
+                  "colliderRadius": 3.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-a",
+                  "kind": "houseA",
+                  "x": 0,
+                  "y": 0,
+                  "z": -15,
+                  "rotation": 0,
+                  "colliderRadius": 3.1,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-b",
+                  "kind": "houseB",
+                  "x": 10.5,
+                  "y": 0,
+                  "z": 10.5,
+                  "rotation": 0.7854,
+                  "colliderRadius": 3,
+                  "collides": true
+                },
+                {
+                  "id": "s-bell-tower",
+                  "kind": "bellTower",
+                  "x": 0,
+                  "y": 0,
+                  "z": 65,
+                  "rotation": 0,
+                  "colliderRadius": 2.2,
+                  "collides": true
+                },
+                {
+                  "id": "s-village-center",
+                  "kind": "villageCenter",
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 0,
+                  "colliderRadius": 2.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-1",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-2",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-3",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-4",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-5",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-6",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-7",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-8",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                }
+              ],
+              "resourceNodes": [
+                {
+                  "id": "r1",
+                  "x": 6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 6,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r3",
+                  "x": -6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r4",
+                  "x": 15,
+                  "y": 0,
+                  "z": 5,
+                  "type": "flower"
+                },
+                {
+                  "id": "r5",
+                  "x": -12,
+                  "y": 0,
+                  "z": 14,
+                  "type": "herb"
+                },
+                {
+                  "id": "r6",
+                  "x": 10,
+                  "y": 0,
+                  "z": -18,
+                  "type": "flower"
+                },
+                {
+                  "id": "r7",
+                  "x": -18,
+                  "y": 0,
+                  "z": -10,
+                  "type": "herb"
+                },
+                {
+                  "id": "r8",
+                  "x": 20,
+                  "y": 0,
+                  "z": 12,
+                  "type": "herb"
+                },
+                {
+                  "id": "r9",
+                  "x": 35,
+                  "y": 0,
+                  "z": 8,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r10",
+                  "x": -30,
+                  "y": 0,
+                  "z": 25,
+                  "type": "ore"
+                },
+                {
+                  "id": "r11",
+                  "x": 28,
+                  "y": 0,
+                  "z": -22,
+                  "type": "herb"
+                },
+                {
+                  "id": "r12",
+                  "x": -25,
+                  "y": 0,
+                  "z": -28,
+                  "type": "tree"
+                },
+                {
+                  "id": "r13",
+                  "x": 50,
+                  "y": 0,
+                  "z": 15,
+                  "type": "ore"
+                },
+                {
+                  "id": "r14",
+                  "x": -45,
+                  "y": 0,
+                  "z": 30,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r15",
+                  "x": 48,
+                  "y": 0,
+                  "z": -25,
+                  "type": "herb"
+                },
+                {
+                  "id": "r16",
+                  "x": 62,
+                  "y": 0,
+                  "z": 10,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r17",
+                  "x": -60,
+                  "y": 0,
+                  "z": 20,
+                  "type": "ore"
+                },
+                {
+                  "id": "r18",
+                  "x": 80,
+                  "y": 0,
+                  "z": 50,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r19",
+                  "x": -85,
+                  "y": 0,
+                  "z": -60,
+                  "type": "ore"
+                },
+                {
+                  "id": "r20",
+                  "x": 100,
+                  "y": 0,
+                  "z": -40,
+                  "type": "herb"
+                },
+                {
+                  "id": "r21",
+                  "x": -70,
+                  "y": 0,
+                  "z": 90,
+                  "type": "flower"
+                },
+                {
+                  "id": "r22",
+                  "x": 120,
+                  "y": 0,
+                  "z": 70,
+                  "type": "tree"
+                },
+                {
+                  "id": "r23",
+                  "x": -110,
+                  "y": 0,
+                  "z": -80,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r24",
+                  "x": 90,
+                  "y": 0,
+                  "z": -120,
+                  "type": "ore"
+                },
+                {
+                  "id": "r25",
+                  "x": -95,
+                  "y": 0,
+                  "z": 100,
+                  "type": "herb"
+                },
+                {
+                  "id": "r26",
+                  "x": 150,
+                  "y": 0,
+                  "z": -50,
+                  "type": "flower"
+                },
+                {
+                  "id": "r27",
+                  "x": -130,
+                  "y": 0,
+                  "z": 60,
+                  "type": "tree"
+                },
+                {
+                  "id": "r28",
+                  "x": 140,
+                  "y": 0,
+                  "z": 90,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r29",
+                  "x": -150,
+                  "y": 0,
+                  "z": -90,
+                  "type": "ore"
+                },
+                {
+                  "id": "r30",
+                  "x": 170,
+                  "y": 0,
+                  "z": -30,
+                  "type": "herb"
+                }
+              ],
+              "vendors": [
+                {
+                  "id": "vendor-1",
+                  "name": "General Vendor",
+                  "x": 4,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "id": "vendor-2",
+                  "name": "Weapons Vendor",
+                  "x": 0,
+                  "y": 0,
+                  "z": 4
+                },
+                {
+                  "id": "vendor-3",
+                  "name": "Supplies Vendor",
+                  "x": -4,
+                  "y": 0,
+                  "z": 0
+                }
+              ],
+              "mobSpawns": [
+                {
+                  "id": "d1",
+                  "x": 5,
+                  "y": 0,
+                  "z": 2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d2",
+                  "x": -2,
+                  "y": 0,
+                  "z": 5,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m1",
+                  "x": 30,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 36,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m3",
+                  "x": 28,
+                  "y": 0,
+                  "z": 28,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m4",
+                  "x": -32,
+                  "y": 0,
+                  "z": 20,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m5",
+                  "x": 70,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m6",
+                  "x": 0,
+                  "y": 0,
+                  "z": 76,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m7",
+                  "x": 55,
+                  "y": 0,
+                  "z": 55,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m8",
+                  "x": -60,
+                  "y": 0,
+                  "z": 50,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m9",
+                  "x": 98,
+                  "y": 0,
+                  "z": 4,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m10",
+                  "x": 102,
+                  "y": 0,
+                  "z": -8,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m11",
+                  "x": 96,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m12",
+                  "x": 110,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m13",
+                  "x": 0,
+                  "y": 0,
+                  "z": 110,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m14",
+                  "x": 130,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m15",
+                  "x": 0,
+                  "y": 0,
+                  "z": 130,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m16",
+                  "x": 120,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "bull",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m17",
+                  "x": 180,
+                  "y": 0,
+                  "z": -140,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 8,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m18",
+                  "x": -160,
+                  "y": 0,
+                  "z": 180,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 7,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m19",
+                  "x": 190,
+                  "y": 0,
+                  "z": 80,
+                  "mobType": "demon",
+                  "aggressive": true,
+                  "level": 10,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m24",
+                  "x": -23,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m43",
+                  "x": -16,
+                  "y": 0,
+                  "z": -7,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m44",
+                  "x": -18,
+                  "y": 0,
+                  "z": -11,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m20",
+                  "x": -3,
+                  "y": 0,
+                  "z": -3,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                }
+              ]
+            },
+            "zoneState": {
+              "prefabs": [],
+              "navAreas": [],
+              "triggers": [],
+              "paths": [],
+              "lightingRegions": [],
+              "comments": []
+            }
+          },
+          "publishedBaseline": {
+            "mapConfig": {
+              "version": 2,
+              "mapSize": 400,
+              "base": {
+                "x": 0,
+                "y": 0,
+                "z": 0,
+                "radius": 9
+              },
+              "spawnPoints": [
+                {
+                  "x": 6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": 5.46
+                },
+                {
+                  "x": -6.3,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "x": -3.15,
+                  "y": 0,
+                  "z": -5.46
+                },
+                {
+                  "x": 3.15,
+                  "y": 0,
+                  "z": -5.46
+                }
+              ],
+              "obstacles": [
+                {
+                  "x": 32,
+                  "y": 0,
+                  "z": 28,
+                  "radius": 4
+                },
+                {
+                  "x": -30,
+                  "y": 0,
+                  "z": 35,
+                  "radius": 3.5
+                },
+                {
+                  "x": 38,
+                  "y": 0,
+                  "z": -25,
+                  "radius": 4
+                },
+                {
+                  "x": -35,
+                  "y": 0,
+                  "z": -30,
+                  "radius": 3
+                },
+                {
+                  "x": 52,
+                  "y": 0,
+                  "z": 25,
+                  "radius": 5
+                },
+                {
+                  "x": -48,
+                  "y": 0,
+                  "z": 38,
+                  "radius": 4.5
+                },
+                {
+                  "x": 55,
+                  "y": 0,
+                  "z": -20,
+                  "radius": 4
+                },
+                {
+                  "x": -50,
+                  "y": 0,
+                  "z": -45,
+                  "radius": 5
+                },
+                {
+                  "x": 65,
+                  "y": 0,
+                  "z": 5,
+                  "radius": 6
+                },
+                {
+                  "x": -120,
+                  "y": 0,
+                  "z": 100,
+                  "radius": 8
+                },
+                {
+                  "x": 90,
+                  "y": 0,
+                  "z": -110,
+                  "radius": 7
+                },
+                {
+                  "x": -90,
+                  "y": 0,
+                  "z": -100,
+                  "radius": 8
+                },
+                {
+                  "x": 150,
+                  "y": 0,
+                  "z": 80,
+                  "radius": 9
+                },
+                {
+                  "x": -140,
+                  "y": 0,
+                  "z": -120,
+                  "radius": 7
+                },
+                {
+                  "x": 100,
+                  "y": 0,
+                  "z": 130,
+                  "radius": 6
+                }
+              ],
+              "structures": [
+                {
+                  "id": "s-market",
+                  "kind": "market",
+                  "x": 15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 1.5708,
+                  "colliderRadius": 3.6,
+                  "collides": true
+                },
+                {
+                  "id": "s-barracks",
+                  "kind": "barracks",
+                  "x": -15,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": -1.5708,
+                  "colliderRadius": 3.4,
+                  "collides": true
+                },
+                {
+                  "id": "s-storage",
+                  "kind": "storage",
+                  "x": 0,
+                  "y": 0,
+                  "z": 15,
+                  "rotation": 3.1416,
+                  "colliderRadius": 3.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-a",
+                  "kind": "houseA",
+                  "x": 0,
+                  "y": 0,
+                  "z": -15,
+                  "rotation": 0,
+                  "colliderRadius": 3.1,
+                  "collides": true
+                },
+                {
+                  "id": "s-house-b",
+                  "kind": "houseB",
+                  "x": 10.5,
+                  "y": 0,
+                  "z": 10.5,
+                  "rotation": 0.7854,
+                  "colliderRadius": 3,
+                  "collides": true
+                },
+                {
+                  "id": "s-bell-tower",
+                  "kind": "bellTower",
+                  "x": 0,
+                  "y": 0,
+                  "z": 65,
+                  "rotation": 0,
+                  "colliderRadius": 2.2,
+                  "collides": true
+                },
+                {
+                  "id": "s-village-center",
+                  "kind": "villageCenter",
+                  "x": 0,
+                  "y": 0,
+                  "z": 0,
+                  "rotation": 0,
+                  "colliderRadius": 2.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-1",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-2",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-3",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": 7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-4",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": 4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-5",
+                  "kind": "fence",
+                  "x": -7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-6",
+                  "kind": "fence",
+                  "x": -4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-7",
+                  "kind": "fence",
+                  "x": 4.2,
+                  "y": 0,
+                  "z": -7.3,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                },
+                {
+                  "id": "s-fence-8",
+                  "kind": "fence",
+                  "x": 7.3,
+                  "y": 0,
+                  "z": -4.2,
+                  "rotation": 0,
+                  "colliderRadius": 1.8,
+                  "collides": true
+                }
+              ],
+              "resourceNodes": [
+                {
+                  "id": "r1",
+                  "x": 6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 6,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r3",
+                  "x": -6,
+                  "y": 0,
+                  "z": 0,
+                  "type": "flower",
+                  "respawnMs": 5000
+                },
+                {
+                  "id": "r4",
+                  "x": 15,
+                  "y": 0,
+                  "z": 5,
+                  "type": "flower"
+                },
+                {
+                  "id": "r5",
+                  "x": -12,
+                  "y": 0,
+                  "z": 14,
+                  "type": "herb"
+                },
+                {
+                  "id": "r6",
+                  "x": 10,
+                  "y": 0,
+                  "z": -18,
+                  "type": "flower"
+                },
+                {
+                  "id": "r7",
+                  "x": -18,
+                  "y": 0,
+                  "z": -10,
+                  "type": "herb"
+                },
+                {
+                  "id": "r8",
+                  "x": 20,
+                  "y": 0,
+                  "z": 12,
+                  "type": "herb"
+                },
+                {
+                  "id": "r9",
+                  "x": 35,
+                  "y": 0,
+                  "z": 8,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r10",
+                  "x": -30,
+                  "y": 0,
+                  "z": 25,
+                  "type": "ore"
+                },
+                {
+                  "id": "r11",
+                  "x": 28,
+                  "y": 0,
+                  "z": -22,
+                  "type": "herb"
+                },
+                {
+                  "id": "r12",
+                  "x": -25,
+                  "y": 0,
+                  "z": -28,
+                  "type": "tree"
+                },
+                {
+                  "id": "r13",
+                  "x": 50,
+                  "y": 0,
+                  "z": 15,
+                  "type": "ore"
+                },
+                {
+                  "id": "r14",
+                  "x": -45,
+                  "y": 0,
+                  "z": 30,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r15",
+                  "x": 48,
+                  "y": 0,
+                  "z": -25,
+                  "type": "herb"
+                },
+                {
+                  "id": "r16",
+                  "x": 62,
+                  "y": 0,
+                  "z": 10,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r17",
+                  "x": -60,
+                  "y": 0,
+                  "z": 20,
+                  "type": "ore"
+                },
+                {
+                  "id": "r18",
+                  "x": 80,
+                  "y": 0,
+                  "z": 50,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r19",
+                  "x": -85,
+                  "y": 0,
+                  "z": -60,
+                  "type": "ore"
+                },
+                {
+                  "id": "r20",
+                  "x": 100,
+                  "y": 0,
+                  "z": -40,
+                  "type": "herb"
+                },
+                {
+                  "id": "r21",
+                  "x": -70,
+                  "y": 0,
+                  "z": 90,
+                  "type": "flower"
+                },
+                {
+                  "id": "r22",
+                  "x": 120,
+                  "y": 0,
+                  "z": 70,
+                  "type": "tree"
+                },
+                {
+                  "id": "r23",
+                  "x": -110,
+                  "y": 0,
+                  "z": -80,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r24",
+                  "x": 90,
+                  "y": 0,
+                  "z": -120,
+                  "type": "ore"
+                },
+                {
+                  "id": "r25",
+                  "x": -95,
+                  "y": 0,
+                  "z": 100,
+                  "type": "herb"
+                },
+                {
+                  "id": "r26",
+                  "x": 150,
+                  "y": 0,
+                  "z": -50,
+                  "type": "flower"
+                },
+                {
+                  "id": "r27",
+                  "x": -130,
+                  "y": 0,
+                  "z": 60,
+                  "type": "tree"
+                },
+                {
+                  "id": "r28",
+                  "x": 140,
+                  "y": 0,
+                  "z": 90,
+                  "type": "crystal"
+                },
+                {
+                  "id": "r29",
+                  "x": -150,
+                  "y": 0,
+                  "z": -90,
+                  "type": "ore"
+                },
+                {
+                  "id": "r30",
+                  "x": 170,
+                  "y": 0,
+                  "z": -30,
+                  "type": "herb"
+                }
+              ],
+              "vendors": [
+                {
+                  "id": "vendor-1",
+                  "name": "General Vendor",
+                  "x": 4,
+                  "y": 0,
+                  "z": 0
+                },
+                {
+                  "id": "vendor-2",
+                  "name": "Weapons Vendor",
+                  "x": 0,
+                  "y": 0,
+                  "z": 4
+                },
+                {
+                  "id": "vendor-3",
+                  "name": "Supplies Vendor",
+                  "x": -4,
+                  "y": 0,
+                  "z": 0
+                }
+              ],
+              "mobSpawns": [
+                {
+                  "id": "d1",
+                  "x": 5,
+                  "y": 0,
+                  "z": 2,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "d2",
+                  "x": -2,
+                  "y": 0,
+                  "z": 5,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m1",
+                  "x": 30,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m2",
+                  "x": 0,
+                  "y": 0,
+                  "z": 36,
+                  "mobType": "fox",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m3",
+                  "x": 28,
+                  "y": 0,
+                  "z": 28,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m4",
+                  "x": -32,
+                  "y": 0,
+                  "z": 20,
+                  "mobType": "stag",
+                  "aggressive": false,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m5",
+                  "x": 70,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m6",
+                  "x": 0,
+                  "y": 0,
+                  "z": 76,
+                  "mobType": "tribal",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m7",
+                  "x": 55,
+                  "y": 0,
+                  "z": 55,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m8",
+                  "x": -60,
+                  "y": 0,
+                  "z": 50,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 2,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m9",
+                  "x": 98,
+                  "y": 0,
+                  "z": 4,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m10",
+                  "x": 102,
+                  "y": 0,
+                  "z": -8,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m11",
+                  "x": 96,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m12",
+                  "x": 110,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 3,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m13",
+                  "x": 0,
+                  "y": 0,
+                  "z": 110,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m14",
+                  "x": 130,
+                  "y": 0,
+                  "z": 0,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 4,
+                  "levelVariance": 1
+                },
+                {
+                  "id": "m15",
+                  "x": 0,
+                  "y": 0,
+                  "z": 130,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m16",
+                  "x": 120,
+                  "y": 0,
+                  "z": -25,
+                  "mobType": "bull",
+                  "aggressive": true,
+                  "level": 5,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m17",
+                  "x": 180,
+                  "y": 0,
+                  "z": -140,
+                  "mobType": "orc",
+                  "aggressive": true,
+                  "level": 8,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m18",
+                  "x": -160,
+                  "y": 0,
+                  "z": 180,
+                  "mobType": "wolf",
+                  "aggressive": true,
+                  "level": 7,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m19",
+                  "x": 190,
+                  "y": 0,
+                  "z": 80,
+                  "mobType": "demon",
+                  "aggressive": true,
+                  "level": 10,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m24",
+                  "x": -23,
+                  "y": 0,
+                  "z": -2,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m43",
+                  "x": -16,
+                  "y": 0,
+                  "z": -7,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m44",
+                  "x": -18,
+                  "y": 0,
+                  "z": -11,
+                  "mobType": "fox",
+                  "aggressive": true,
+                  "levelVariance": 0
+                },
+                {
+                  "id": "m20",
+                  "x": -3,
+                  "y": 0,
+                  "z": -3,
+                  "mobType": "dummy",
+                  "aggressive": true,
+                  "levelVariance": 0
+                }
+              ]
+            },
+            "zoneState": {
+              "prefabs": [],
+              "navAreas": [],
+              "triggers": [],
+              "paths": [],
+              "lightingRegions": [],
+              "comments": []
+            },
+            "fromPatchId": "patch-mly99bls-n22g8k"
+          },
+          "createdAt": "2026-02-22T21:25:39.894Z",
+          "updatedAt": "2026-02-22T21:25:45.096Z",
+          "createdBy": "Mirator",
+          "approvedAt": "2026-02-22T21:25:44.557Z",
+          "approvedBy": "Mirator",
+          "publishedAt": "2026-02-22T21:25:45.096Z",
+          "publishedBy": "Mirator",
+          "rolledBackAt": "",
+          "rolledBackBy": "",
+          "comments": []
+        }
+      ],
+      "audit": [
+        {
+          "id": "audit-mly8qwel-slwqdr",
+          "t": "2026-02-22T21:09:41.133Z",
+          "alias": "Mirator",
+          "type": "designer-state",
+          "action": "designer-state.put",
+          "targetId": "",
+          "status": "ok",
+          "message": "Designer state updated.",
+          "details": {}
+        },
+        {
+          "id": "audit-mly8ru9f-m1eb8w",
+          "t": "2026-02-22T21:10:25.011Z",
+          "alias": "Mirator",
+          "type": "designer-state",
+          "action": "designer-state.put",
+          "targetId": "",
+          "status": "ok",
+          "message": "Designer state updated.",
+          "details": {}
+        },
+        {
+          "id": "audit-mly8s4wn-go1n7k",
+          "t": "2026-02-22T21:10:38.807Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.create",
+          "targetId": "patch-mly8s4wn-49qole",
+          "status": "ok",
+          "message": "Created patch foxes.",
+          "details": {}
+        },
+        {
+          "id": "audit-mly8ste4-jrdis3",
+          "t": "2026-02-22T21:11:10.540Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.request-approval",
+          "targetId": "patch-mly8s4wn-49qole",
+          "status": "ok",
+          "message": "patch.request-approval (Review Requested).",
+          "details": {}
+        },
+        {
+          "id": "audit-mly8suk6-wip1e6",
+          "t": "2026-02-22T21:11:12.054Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.approve",
+          "targetId": "patch-mly8s4wn-49qole",
+          "status": "ok",
+          "message": "patch.approve (Approved).",
+          "details": {}
+        },
+        {
+          "id": "audit-mly8svfr-y3a5ol",
+          "t": "2026-02-22T21:11:13.191Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.publish",
+          "targetId": "patch-mly8s4wn-49qole",
+          "status": "ok",
+          "message": "Published patch foxes.",
+          "details": {
+            "restartRequired": true
+          }
+        },
+        {
+          "id": "audit-mly91opk-6wun02",
+          "t": "2026-02-22T21:18:04.376Z",
+          "alias": "debug-admin",
+          "type": "designer-state",
+          "action": "designer-state.put",
+          "targetId": "",
+          "status": "ok",
+          "message": "Designer state updated.",
+          "details": {}
+        },
+        {
+          "id": "audit-mly98lc4-4qlifm",
+          "t": "2026-02-22T21:23:26.596Z",
+          "alias": "Mirator",
+          "type": "designer-state",
+          "action": "designer-state.put",
+          "targetId": "",
+          "status": "ok",
+          "message": "Designer state updated.",
+          "details": {}
+        },
+        {
+          "id": "audit-mly994s1-plwt80",
+          "t": "2026-02-22T21:23:51.793Z",
+          "alias": "Mirator",
+          "type": "designer-state",
+          "action": "designer-state.put",
+          "targetId": "",
+          "status": "ok",
+          "message": "Designer state updated.",
+          "details": {}
+        },
+        {
+          "id": "audit-mly99bls-6vw3ml",
+          "t": "2026-02-22T21:24:00.640Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.create",
+          "targetId": "patch-mly99bls-n22g8k",
+          "status": "ok",
+          "message": "Created patch fuck foxes.",
+          "details": {}
+        },
+        {
+          "id": "audit-mly99dvr-6xm9n3",
+          "t": "2026-02-22T21:24:03.591Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.request-approval",
+          "targetId": "patch-mly99bls-n22g8k",
+          "status": "ok",
+          "message": "patch.request-approval (Review Requested).",
+          "details": {}
+        },
+        {
+          "id": "audit-mly99eb1-roqp79",
+          "t": "2026-02-22T21:24:04.141Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.approve",
+          "targetId": "patch-mly99bls-n22g8k",
+          "status": "ok",
+          "message": "patch.approve (Approved).",
+          "details": {}
+        },
+        {
+          "id": "audit-mly99equ-ctmxf3",
+          "t": "2026-02-22T21:24:04.710Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.publish",
+          "targetId": "patch-mly99bls-n22g8k",
+          "status": "ok",
+          "message": "Published patch fuck foxes.",
+          "details": {
+            "restartRequired": true
+          }
+        },
+        {
+          "id": "audit-mly9baw8-on0ay6",
+          "t": "2026-02-22T21:25:33.032Z",
+          "alias": "Mirator",
+          "type": "designer-state",
+          "action": "designer-state.put",
+          "targetId": "",
+          "status": "ok",
+          "message": "Designer state updated.",
+          "details": {}
+        },
+        {
+          "id": "audit-mly9bg6u-yecfga",
+          "t": "2026-02-22T21:25:39.894Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.create",
+          "targetId": "patch-mly9bg6u-kxy4ej",
+          "status": "ok",
+          "message": "Created patch less foxes.",
+          "details": {}
+        },
+        {
+          "id": "audit-mly9bje2-uzejvf",
+          "t": "2026-02-22T21:25:44.042Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.request-approval",
+          "targetId": "patch-mly9bg6u-kxy4ej",
+          "status": "ok",
+          "message": "patch.request-approval (Review Requested).",
+          "details": {}
+        },
+        {
+          "id": "audit-mly9bjsd-22lr86",
+          "t": "2026-02-22T21:25:44.557Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.approve",
+          "targetId": "patch-mly9bg6u-kxy4ej",
+          "status": "ok",
+          "message": "patch.approve (Approved).",
+          "details": {}
+        },
+        {
+          "id": "audit-mly9bk7c-e4kgt5",
+          "t": "2026-02-22T21:25:45.096Z",
+          "alias": "Mirator",
+          "type": "patch",
+          "action": "patch.publish",
+          "targetId": "patch-mly9bg6u-kxy4ej",
+          "status": "ok",
+          "message": "Published patch less foxes.",
+          "details": {
+            "restartRequired": true
+          }
+        }
+      ],
+      "lastPublishedPatchId": "patch-mly9bg6u-kxy4ej"
     }
   }
 }

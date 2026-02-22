@@ -68,12 +68,14 @@ function getAdminPassword(/** @type {any} */ req) {
   return '';
 }
 
-export function createMapConfigHandlers(/** @type {any} */ { password, mapConfigPath }) {
+export function createMapConfigHandlers(/** @type {any} */ { password, mapConfigPath, isAuthorized }) {
   const mapPath = mapConfigPath;
 
   const guard = (/** @type {any} */ req, /** @type {any} */ res) => {
-    const provided = getAdminPassword(req);
-    if (provided !== password) {
+    const authorized = typeof isAuthorized === 'function'
+      ? isAuthorized(req)
+      : getAdminPassword(req) === password;
+    if (!authorized) {
       res.status(401).json({ error: 'Unauthorized' });
       return false;
     }

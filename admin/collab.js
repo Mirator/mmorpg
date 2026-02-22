@@ -1,7 +1,7 @@
 // @ts-check
 // @ts-nocheck
 
-import { ensureAdminAlias, renderAdminAlias } from './admin-alias.js';
+import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
 
 const LAYERS = ['terrain', 'props', 'spawns', 'navmesh', 'triggers', 'lighting', 'debug'];
@@ -11,6 +11,7 @@ const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admi
 const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
 const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
 const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
 
 const zoneLockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('zone-lock-btn'));
 const zoneLockMeta = /** @type {HTMLElement} */ (document.getElementById('zone-lock-meta'));
@@ -34,9 +35,8 @@ const auditTypeFilter = /** @type {HTMLInputElement} */ (document.getElementById
 const auditActionFilter = /** @type {HTMLInputElement} */ (document.getElementById('audit-action-filter'));
 
 const state = {
-  password: '',
   alias: '',
-  api: /** @type {ReturnType<typeof createDesignerApi> | null} */ (null),
+  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
   mapConfig: /** @type {any | null} */ (null),
   locks: /** @type {any | null} */ (null),
   comments: /** @type {any[]} */ ([]),
@@ -48,12 +48,31 @@ function setStatus(message, tone = 'neutral') {
   statusEl.className = `status ${tone}`;
 }
 
-function getPassword() {
-  return state.password;
-}
-
 function getAlias() {
   return state.alias;
+}
+
+function setLockedState(message = 'Status: locked') {
+  state.mapConfig = null;
+  state.locks = null;
+  state.comments = [];
+  state.audit = [];
+  renderZoneLock();
+  renderLayerLocks();
+  renderComments();
+  renderAudit();
+  setStatus(message, 'warning');
+}
+
+/**
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+function handleUnauthorized(err) {
+  const error = /** @type {Error & { status?: number }} */ (err);
+  if (error.status !== 401) return false;
+  setLockedState('Status: session expired. Unlock again.');
+  return true;
 }
 
 function mapSize() {
@@ -195,8 +214,6 @@ function renderAudit() {
 }
 
 async function reloadAll() {
-  if (!state.api) return;
-
   const [mapConfig, locksPayload, commentsPayload, auditPayload] = await Promise.all([
     state.api.getMapConfig(),
     state.api.getLocks(),
@@ -225,13 +242,12 @@ async function unlock() {
     return;
   }
 
-  state.password = password;
   state.alias = alias;
   renderAdminAlias(aliasLabel, `Alias: ${alias}`);
 
-  state.api = createDesignerApi({ getPassword, getAlias });
-
   try {
+    await state.api.unlockAdminSession(password);
+    passInput.value = '';
     await reloadAll();
     setStatus('Status: collaboration tools ready.', 'ok');
   } catch (err) {
@@ -241,6 +257,16 @@ async function unlock() {
       return;
     }
     setStatus(`Status: ${error.message}`, 'error');
+  }
+}
+
+async function restoreSession() {
+  try {
+    await state.api.getAdminSession();
+    await reloadAll();
+    setStatus('Status: collaboration tools ready.', 'ok');
+  } catch {
+    setLockedState('Status: locked');
   }
 }
 
@@ -257,7 +283,6 @@ aliasBtn.addEventListener('click', () => {
 });
 
 zoneLockBtn.addEventListener('click', async () => {
-  if (!state.api) return;
   const action = zoneLockBtn.dataset.action;
   if (action !== 'acquire' && action !== 'release') return;
 
@@ -269,6 +294,7 @@ zoneLockBtn.addEventListener('click', async () => {
     await reloadAll();
     setStatus(`Status: zone lock ${action}d.`, 'ok');
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setStatus(`Status: ${error.message}`, 'error');
   }
@@ -278,7 +304,7 @@ layerLocksEl.addEventListener('click', async (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
   const button = target.closest('button[data-layer-id]');
-  if (!(button instanceof HTMLButtonElement) || !state.api) return;
+  if (!(button instanceof HTMLButtonElement)) return;
 
   const layerId = button.dataset.layerId;
   const action = button.dataset.action;
@@ -292,6 +318,7 @@ layerLocksEl.addEventListener('click', async (event) => {
     await reloadAll();
     setStatus(`Status: ${layerId} lock ${action}d.`, 'ok');
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setStatus(`Status: ${error.message}`, 'error');
   }
@@ -315,7 +342,6 @@ commentCanvas.addEventListener('click', (event) => {
 
 commentForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!state.api) return;
 
   try {
     await state.api.createComment({
@@ -331,6 +357,7 @@ commentForm.addEventListener('submit', async (event) => {
     await reloadAll();
     setStatus('Status: comment created.', 'ok');
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setStatus(`Status: ${error.message}`, 'error');
   }
@@ -338,7 +365,7 @@ commentForm.addEventListener('submit', async (event) => {
 
 commentsEl.addEventListener('click', async (event) => {
   const target = event.target;
-  if (!(target instanceof HTMLElement) || !state.api) return;
+  if (!(target instanceof HTMLElement)) return;
   const button = target.closest('button[data-comment-id]');
   if (!(button instanceof HTMLButtonElement)) return;
 
@@ -355,6 +382,7 @@ commentsEl.addEventListener('click', async (event) => {
     await reloadAll();
     setStatus(`Status: comment ${action}d.`, 'ok');
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setStatus(`Status: ${error.message}`, 'error');
   }
@@ -366,9 +394,20 @@ for (const input of [auditAliasFilter, auditTypeFilter, auditActionFilter]) {
   });
 }
 
-renderAdminAlias(aliasLabel, 'Alias: --');
-setStatus('Status: locked', 'warning');
+lockBtn.addEventListener('click', async () => {
+  try {
+    await state.api.logoutAdminSession();
+  } catch {
+    // ignore and force local lock state
+  }
+  setLockedState('Status: locked');
+});
+
+state.alias = getStoredAdminAlias();
+renderAdminAlias(aliasLabel, state.alias ? `Alias: ${state.alias}` : 'Alias: --');
+setStatus('Status: checking session...', 'neutral');
 renderZoneLock();
 renderLayerLocks();
 renderComments();
 renderAudit();
+restoreSession().catch(() => {});

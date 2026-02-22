@@ -57,6 +57,17 @@
   font-size: 12px;
 }
 
+.alias-row .lock-btn {
+  background: rgba(var(--error-rgb), 0.2);
+  border-color: rgba(var(--error-rgb), 0.45);
+  color: #ffd9d1;
+}
+
+.alias-row .lock-btn:hover {
+  filter: none;
+  background: rgba(var(--error-rgb), 0.28);
+}
+
 .module-layout {
   display: grid;
   grid-template-columns: minmax(260px, 0.9fr) minmax(400px, 1.35fr) minmax(260px, 0.9fr);

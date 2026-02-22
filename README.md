@@ -25,13 +25,24 @@ Available admin screens:
 - `/admin/collab` (Collaboration locks/comments/audit)
 - `/admin/playtest` (Preview / playtest launcher)
 
-Core admin APIs use `x-admin-pass`:
+Admin APIs accept either:
+
+- a valid admin session cookie (`mmorpg_admin_session` by default), or
+- `x-admin-pass` (legacy/script compatibility)
+
+Admin unlock/session endpoints:
+
+- `POST /admin/auth/unlock` `{ password }` -> `{ ok: true }` + admin session cookie
+- `GET /admin/auth/session` -> `{ ok: true }` when authorized
+- `POST /admin/auth/logout` -> `{ ok: true }` and clears admin session cookie
+
+Core admin APIs:
 
 - `GET /admin/state`
 - `GET /admin/map-config`
 - `PUT /admin/map-config`
 
-Phase-2 designer APIs (`x-admin-pass` + `x-admin-alias` on mutating requests):
+Phase-2 designer APIs (`x-admin-alias` on mutating requests):
 
 - `GET|PUT /admin/designer-state?zone=world-map`
 - `GET|POST /admin/prefabs?zone=world-map`
@@ -48,6 +59,8 @@ Phase-2 designer APIs (`x-admin-pass` + `x-admin-alias` on mutating requests):
 - `POST /admin/locks/layer/:layerId?zone=world-map`
 - `GET /admin/audit?zone=world-map&limit=200`
 - `POST /admin/playtest/session?zone=world-map`
+
+For JSON API calls to `GET /admin/patches`, send `x-admin-api: 1` (otherwise the route serves HTML).
 
 On localhost, default admin password is `1234` (override with `ADMIN_PASSWORD`). When binding to a
 non-localhost host, `ADMIN_PASSWORD` is **required** and the server will fail to start if unset.
@@ -78,6 +91,10 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 
 - `PORT`, `HOST` (default `3000`, `127.0.0.1`)
 - `ADMIN_PASSWORD` (default `1234` on localhost only; **required** when HOST is not 127.0.0.1 or localhost)
+- `ADMIN_SESSION_COOKIE_NAME` (default `mmorpg_admin_session`)
+- `ADMIN_SESSION_IDLE_TIMEOUT_MS` (default `1800000` = 30 minutes)
+- `ADMIN_SESSION_COOKIE_SAMESITE` (`lax`, `strict`, or `none`; default `strict`)
+- `ADMIN_SESSION_COOKIE_SECURE` (`true` to force Secure admin session cookie; default follows `SESSION_COOKIE_SECURE`)
 - `MAP_CONFIG_PATH` (override map config file; default `server/data/world-map.json`)
 - `MAP_DESIGNER_STATE_PATH` (override designer-state file; default `server/data/world-map.designer.json`)
 - `AUTO_MIGRATE_DEV` (`true` to auto-run `prisma migrate dev` on localhost; default `true`)
@@ -89,6 +106,7 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 - `ALLOW_NO_ORIGIN_REMOTE` (`true` to allow missing Origin header on non-localhost hosts)
 - `MAX_CONNECTIONS_PER_IP` (default `5`)
 - `MAX_PAYLOAD_BYTES` (default `16384`)
+- `ADMIN_MAX_PAYLOAD_BYTES` (default `262144`; used for `/admin` JSON bodies like designer-state saves)
 - `MSG_RATE_MAX` (default `60`)
 - `MSG_RATE_INTERVAL_MS` (default `1000`)
 - `HEARTBEAT_INTERVAL_MS` (default `30000`)

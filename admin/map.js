@@ -27,7 +27,7 @@ import { STRUCTURE_KIND_LIST } from '/shared/mapConfig.js';
 import { createDefaultZoneDesignerState } from '/shared/mapDesignerState.js';
 import { createDesignerApi } from './designer-api.js';
 import { createDesignerStore } from './designer-store.js';
-import { ensureAdminAlias, renderAdminAlias } from './admin-alias.js';
+import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 
 const ZONE_KEY = 'world-map';
 const DRAFT_KEY = 'ra.admin.mapv2.phase2.draft';
@@ -47,6 +47,7 @@ const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admi
 const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
 const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
 const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
 const workspacePanel = /** @type {HTMLElement} */ (document.getElementById('workspace-panel'));
 const saveStatusEl = /** @type {HTMLElement} */ (document.getElementById('save-status'));
 const errorsEl = /** @type {HTMLElement} */ (document.getElementById('errors'));
@@ -194,9 +195,11 @@ const COLORS = {
 };
 
 const state = {
-  adminPassword: '',
   adminAlias: '',
-  api: /** @type {ReturnType<typeof createDesignerApi> | null} */ (null),
+  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({
+    getAlias: readAlias,
+    getZoneKey: () => ZONE_KEY,
+  })),
   designerStore: /** @type {ReturnType<typeof createDesignerStore> | null} */ (null),
 
   mapConfig: null,
@@ -265,12 +268,46 @@ function setControlsEnabled(enabled) {
   mapSizeInput.disabled = !enabled;
 }
 
-function readPassword() {
-  return state.adminPassword;
-}
-
 function readAlias() {
   return state.adminAlias;
+}
+
+function ensureDesignerStore() {
+  if (state.designerStore) return state.designerStore;
+  state.designerStore = createDesignerStore({
+    getDesignerState: () => state.api.getDesignerState(),
+    putDesignerState: (expectedRevision, zoneState) => state.api.putDesignerState(expectedRevision, zoneState),
+  });
+  return state.designerStore;
+}
+
+function setLockedState(message = 'Status: locked') {
+  stopPlaytestPolling();
+  state.designerStore = null;
+  state.mapConfig = null;
+  state.zoneState = createDefaultZoneDesignerState();
+  state.selected = [];
+  state.selectedOverlay = null;
+  state.history = createHistory(100);
+  state.unsaved = false;
+  syncLayerLocksFromZone();
+  setControlsEnabled(false);
+  setErrors([]);
+  setStatus(message, 'warning');
+  setSaveStatus('No map loaded.', 'neutral');
+  setModeNotice('Unlock with admin password to start editing.');
+  renderAll();
+}
+
+/**
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+function handleUnauthorized(err) {
+  const error = /** @type {Error & { status?: number }} */ (err);
+  if (error.status !== 401) return false;
+  setLockedState('Status: session expired. Unlock again.');
+  return true;
 }
 
 function stopPlaytestPolling() {
@@ -2050,9 +2087,13 @@ async function launchPlaytest() {
 
 function startPlaytestPolling() {
   if (state.playtest.pollTimer || !state.api) return;
-  refreshPlaytestTelemetry().catch(() => {});
+  refreshPlaytestTelemetry().catch((err) => {
+    if (handleUnauthorized(err)) return;
+  });
   state.playtest.pollTimer = setInterval(() => {
-    refreshPlaytestTelemetry().catch(() => {});
+    refreshPlaytestTelemetry().catch((err) => {
+      if (handleUnauthorized(err)) return;
+    });
   }, PLAYTEST_POLL_MS);
 }
 
@@ -2112,39 +2153,37 @@ async function handleLayerLockClick(event) {
     setSaveStatus(`${layerId} lock ${requestAction}d.`, 'ok');
     renderAll();
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setSaveStatus(error.message, 'error');
   }
 }
 
-async function unlockAndLoad(password) {
-  state.adminPassword = password;
-  setStatus('Status: connecting...', 'neutral');
+async function unlockAndLoad({ password = '', useExistingSession = false } = {}) {
+  setStatus(useExistingSession ? 'Status: restoring session...' : 'Status: connecting...', 'neutral');
 
-  const alias = ensureAdminAlias();
-  if (!alias) {
-    setStatus('Status: alias required', 'warning');
-    return;
+  if (!useExistingSession) {
+    const alias = ensureAdminAlias();
+    if (!alias) {
+      setStatus('Status: alias required', 'warning');
+      return;
+    }
+    state.adminAlias = alias;
+    renderAdminAlias(aliasLabel, `Alias: ${alias}`);
   }
 
-  state.adminAlias = alias;
-  renderAdminAlias(aliasLabel, `Alias: ${alias}`);
-
-  state.api = createDesignerApi({
-    getPassword: readPassword,
-    getAlias: readAlias,
-    getZoneKey: () => ZONE_KEY,
-  });
-
-  state.designerStore = createDesignerStore({
-    getDesignerState: () => state.api.getDesignerState(),
-    putDesignerState: (expectedRevision, zoneState) => state.api.putDesignerState(expectedRevision, zoneState),
-  });
-
   try {
+    if (useExistingSession) {
+      await state.api.getAdminSession();
+    } else {
+      await state.api.unlockAdminSession(password);
+      passInput.value = '';
+    }
+
+    const designerStore = ensureDesignerStore();
     const [mapConfig, designerSnapshot] = await Promise.all([
       state.api.getMapConfig(),
-      state.designerStore.load(),
+      designerStore.load(),
     ]);
 
     let loadedMap = mapConfig;
@@ -2191,8 +2230,11 @@ async function unlockAndLoad(password) {
   } catch (err) {
     const error = /** @type {Error & { status?: number }} */ (err);
     if (error.status === 401) {
-      setStatus('Status: invalid password', 'error');
-      setControlsEnabled(false);
+      if (!useExistingSession) {
+        setStatus('Status: invalid password', 'error');
+      } else {
+        setLockedState('Status: locked');
+      }
       return;
     }
 
@@ -2510,7 +2552,11 @@ reloadBtn.addEventListener('click', async () => {
     setSaveStatus('Reloaded map and designer state.', 'ok');
     renderAll();
   } catch (err) {
-    const error = /** @type {Error & { details?: string[] }} */ (err);
+    const error = /** @type {Error & { status?: number, details?: string[] }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setSaveStatus('Reload failed.', 'error');
     setErrors(error.details ?? [error.message]);
   }
@@ -2546,8 +2592,7 @@ saveBtn.addEventListener('click', async () => {
   } catch (err) {
     const error = /** @type {Error & { status?: number, details?: string[] }} */ (err);
     if (error.status === 401) {
-      setStatus('Status: invalid password', 'error');
-      setControlsEnabled(false);
+      setLockedState('Status: session expired. Unlock again.');
       return;
     }
 
@@ -2567,7 +2612,11 @@ playtestLaunchBtn.addEventListener('click', async () => {
     await refreshPlaytestTelemetry();
     setSaveStatus('Playtest preview launched.', 'ok');
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setSaveStatus(error.message, 'error');
   }
 });
@@ -2577,7 +2626,11 @@ playtestRefreshBtn.addEventListener('click', async () => {
     await refreshPlaytestTelemetry();
     setSaveStatus('Playtest telemetry refreshed.', 'ok');
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
+      setLockedState('Status: session expired. Unlock again.');
+      return;
+    }
     setSaveStatus(error.message, 'error');
   }
 });
@@ -2586,7 +2639,7 @@ form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const password = passInput.value.trim();
   if (!password) return;
-  await unlockAndLoad(password);
+  await unlockAndLoad({ password });
 });
 
 aliasBtn.addEventListener('click', () => {
@@ -2595,6 +2648,15 @@ aliasBtn.addEventListener('click', () => {
   state.adminAlias = alias;
   renderAdminAlias(aliasLabel, `Alias: ${alias}`);
   renderLayerList();
+});
+
+lockBtn.addEventListener('click', async () => {
+  try {
+    await state.api.logoutAdminSession();
+  } catch {
+    // ignore and force local lock state
+  }
+  setLockedState('Status: locked');
 });
 
 window.addEventListener('resize', resizeCanvas);
@@ -2682,9 +2744,11 @@ window.__MAP_EDITOR_V2__ = {
   }),
 };
 
-renderAdminAlias(aliasLabel, 'Alias: --');
+state.adminAlias = getStoredAdminAlias();
+renderAdminAlias(aliasLabel, state.adminAlias ? `Alias: ${state.adminAlias}` : 'Alias: --');
 setControlsEnabled(false);
-setStatus('Status: locked', 'warning');
+setStatus('Status: checking session...', 'neutral');
 setModeNotice('Unlock with admin password to start editing.');
 renderAll();
 resizeCanvas();
+unlockAndLoad({ useExistingSession: true }).catch(() => {});

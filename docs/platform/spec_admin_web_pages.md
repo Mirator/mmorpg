@@ -58,16 +58,19 @@ Theme tokens live in `admin/style.css`, and all admin module pages plus canvas o
 
 ### 2.1 Password auth
 
-All admin APIs require `x-admin-pass`. The password source is unchanged:
+Admin password source is unchanged:
 
 - localhost (`127.0.0.1`/`localhost`): default `1234` if `ADMIN_PASSWORD` is unset
 - non-localhost: `ADMIN_PASSWORD` is required at startup
 
 ### 2.2 Browser unlock behavior
 
-- Password is entered by form and kept in memory only.
-- Password is sent on each admin API request as `x-admin-pass`.
-- Reload requires unlock again.
+- Password is entered once via `POST /admin/auth/unlock`.
+- Server issues an HttpOnly admin session cookie (`/admin` path scope).
+- Session is shared across admin pages/tabs in the same browser session.
+- Session has 30-minute sliding inactivity timeout.
+- A `Lock` button on admin pages calls `POST /admin/auth/logout` to invalidate the session immediately.
+- Legacy scripted access via `x-admin-pass` remains supported.
 
 ### 2.3 Alias behavior
 
@@ -192,7 +195,16 @@ Concurrency semantics:
 
 ## 7. HTTP Endpoint Contracts
 
-All endpoints below require `x-admin-pass`.
+All endpoints below require either:
+
+- valid admin session cookie, or
+- valid `x-admin-pass` header (legacy compatibility)
+
+### 7.0 Admin session auth endpoints
+
+- `POST /admin/auth/unlock` body `{ password }` -> `{ ok: true }` + admin session cookie
+- `GET /admin/auth/session` -> `{ ok: true }` when authorized
+- `POST /admin/auth/logout` -> `{ ok: true }` and clears admin session cookie
 
 ### 7.1 Existing APIs (unchanged)
 
@@ -261,13 +273,13 @@ Rules:
 
 ## 8. Route Multiplexing Note
 
-`GET /admin/patches` serves HTML for normal browser navigation. The same path serves patch API JSON when `x-admin-pass` is present, allowing page route and API route coexistence without path migration.
+`GET /admin/patches` serves HTML for browser navigation. The same path serves patch API JSON when `x-admin-api: 1` is present (or legacy `x-admin-pass`), allowing page/API coexistence without path migration.
 
 ## 9. Error Model
 
 Common responses:
 
-- `401` unauthorized (`x-admin-pass` missing/invalid)
+- `401` unauthorized (admin session missing/expired and `x-admin-pass` missing/invalid)
 - `400` validation, bad transitions, malformed payloads
 - `404` missing prefab/patch/comment
 - `409` designer revision conflict

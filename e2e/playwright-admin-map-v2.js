@@ -59,6 +59,12 @@ async function unlockPage(page) {
   await page.waitForSelector('#status.ok', { timeout: 15_000 });
 }
 
+async function waitForRestoredSession(page) {
+  await page.waitForSelector('#status.ok', { timeout: 15_000 });
+  const passwordValue = await page.locator('#admin-pass').inputValue();
+  ensure(passwordValue === '', 'Admin password field should stay empty after session restore.');
+}
+
 async function setAlias(page, alias) {
   await page.evaluate((nextAlias) => {
     localStorage.setItem('ra.admin.alias', nextAlias);
@@ -125,8 +131,7 @@ async function run() {
 
     stage = 'assets-prefab-crud';
     await page.goto(`${BASE_URL}/admin/assets`, { waitUntil: 'domcontentloaded' });
-    await setAlias(page, 'e2e-admin');
-    await unlockPage(page);
+    await waitForRestoredSession(page);
 
     await page.fill('#create-name', 'E2E Market Prefab');
     await page.fill('#create-type', 'structures');
@@ -150,8 +155,7 @@ async function run() {
 
     stage = 'map-basic-flow';
     await page.goto(`${BASE_URL}/admin/map`, { waitUntil: 'domcontentloaded' });
-    await setAlias(page, 'e2e-admin');
-    await unlockPage(page);
+    await waitForRestoredSession(page);
     await page.waitForFunction(() => Boolean(window.__MAP_EDITOR_V2__?.getState()?.mapConfig));
 
     const before = await page.evaluate(() => window.__MAP_EDITOR_V2__.getState());
@@ -245,9 +249,9 @@ async function run() {
       return Boolean(state?.zoneState?.locks?.layers?.navmesh);
     });
 
-    await page.goto(`${BASE_URL}/admin/nav`, { waitUntil: 'domcontentloaded' });
     await setAlias(page, 'other-admin');
-    await unlockPage(page);
+    await page.goto(`${BASE_URL}/admin/nav`, { waitUntil: 'domcontentloaded' });
+    await waitForRestoredSession(page);
 
     const navCountBefore = Number(await page.locator('#nav-count').innerText());
     const navCanvasBox = await page.locator('#nav-canvas').boundingBox();
@@ -259,17 +263,20 @@ async function run() {
     ensure(navCountAfter === navCountBefore, 'Layer lock conflict did not block nav edit for other alias.');
 
     stage = 'patch-lifecycle';
-    await page.goto(`${BASE_URL}/admin/patches`, { waitUntil: 'domcontentloaded' });
     await setAlias(page, 'e2e-admin');
-    await unlockPage(page);
+    await page.goto(`${BASE_URL}/admin/patches`, { waitUntil: 'domcontentloaded' });
+    await waitForRestoredSession(page);
 
     const patchTitle = `E2E Patch ${Date.now()}`;
     await page.fill('#create-title', patchTitle);
     await page.fill('#create-description', 'Phase2 lifecycle test');
     await page.click('#create-patch-form button[type="submit"]');
     await page.waitForSelector('#status.ok');
-
-    await page.click('#patch-list .list-item');
+    await page.click(`#patch-list .list-item:has-text("${patchTitle}")`);
+    await page.waitForFunction(
+      (title) => document.querySelector('#detail-title')?.textContent?.includes(title),
+      patchTitle
+    );
     await page.click('#request-approval-btn');
     await page.waitForFunction(() => document.querySelector('#detail-status')?.textContent?.includes('Review Requested'));
 
@@ -285,8 +292,7 @@ async function run() {
 
     stage = 'collab-comments-audit';
     await page.goto(`${BASE_URL}/admin/collab`, { waitUntil: 'domcontentloaded' });
-    await setAlias(page, 'e2e-admin');
-    await unlockPage(page);
+    await waitForRestoredSession(page);
 
     await page.fill('#comment-x', '12');
     await page.fill('#comment-y', '0');
@@ -306,8 +312,7 @@ async function run() {
 
     stage = 'playtest-preview';
     await page.goto(`${BASE_URL}/admin/playtest`, { waitUntil: 'domcontentloaded' });
-    await setAlias(page, 'e2e-admin');
-    await unlockPage(page);
+    await waitForRestoredSession(page);
 
     await page.click('#launch-preview-btn');
     await page.waitForSelector('#status.ok');
@@ -321,6 +326,18 @@ async function run() {
       return players.length > 0 && mobs.length > 0;
     });
     ensure(telemetryRendered, 'Playtest telemetry panel did not render values.');
+
+    stage = 'lock-session';
+    await page.click('#lock-btn');
+    await page.waitForFunction(() => {
+      const text = document.querySelector('#status')?.textContent || '';
+      return text.toLowerCase().includes('locked');
+    });
+
+    await page.goto(`${BASE_URL}/admin/assets`, { waitUntil: 'domcontentloaded' });
+    await sleep(250);
+    const lockedText = await page.locator('#status').innerText();
+    ensure(lockedText.toLowerCase().includes('locked'), 'Admin lock button did not invalidate session.');
 
     stage = 'complete';
     await context.close();

@@ -3,474 +3,132 @@
   "mapSize": 400,
   "base": {
     "x": 0,
+    "y": 0,
     "z": 0,
     "radius": 9
   },
   "spawnPoints": [
     {
       "x": 6.3,
+      "y": 0,
       "z": 0
     },
     {
       "x": 3.15,
+      "y": 0,
       "z": 5.46
     },
     {
       "x": -3.15,
+      "y": 0,
       "z": 5.46
     },
     {
       "x": -6.3,
+      "y": 0,
       "z": 0
     },
     {
       "x": -3.15,
+      "y": 0,
       "z": -5.46
     },
     {
       "x": 3.15,
+      "y": 0,
       "z": -5.46
     }
   ],
   "obstacles": [
     {
       "x": 32,
+      "y": 0,
       "z": 28,
       "radius": 4
     },
     {
       "x": -30,
+      "y": 0,
       "z": 35,
       "radius": 3.5
     },
     {
       "x": 38,
+      "y": 0,
       "z": -25,
       "radius": 4
     },
     {
       "x": -35,
+      "y": 0,
       "z": -30,
       "radius": 3
     },
     {
       "x": 52,
+      "y": 0,
       "z": 25,
       "radius": 5
     },
     {
       "x": -48,
+      "y": 0,
       "z": 38,
       "radius": 4.5
     },
     {
       "x": 55,
+      "y": 0,
       "z": -20,
       "radius": 4
     },
     {
       "x": -50,
+      "y": 0,
       "z": -45,
       "radius": 5
     },
     {
       "x": 65,
+      "y": 0,
       "z": 5,
       "radius": 6
     },
     {
       "x": -120,
+      "y": 0,
       "z": 100,
       "radius": 8
     },
     {
       "x": 90,
+      "y": 0,
       "z": -110,
       "radius": 7
     },
     {
       "x": -90,
+      "y": 0,
       "z": -100,
       "radius": 8
     },
     {
       "x": 150,
+      "y": 0,
       "z": 80,
       "radius": 9
     },
     {
       "x": -140,
+      "y": 0,
       "z": -120,
       "radius": 7
     },
     {
       "x": 100,
+      "y": 0,
       "z": 130,
       "radius": 6
-    }
-  ],
-  "resourceNodes": [
-    {
-      "id": "r1",
-      "x": 6,
-      "z": 0,
-      "type": "flower",
-      "respawnMs": 5000
-    },
-    {
-      "id": "r2",
-      "x": 0,
-      "z": 6,
-      "type": "flower",
-      "respawnMs": 5000
-    },
-    {
-      "id": "r3",
-      "x": -6,
-      "z": 0,
-      "type": "flower",
-      "respawnMs": 5000
-    },
-    {
-      "id": "r4",
-      "x": 15,
-      "z": 5,
-      "type": "flower"
-    },
-    {
-      "id": "r5",
-      "x": -12,
-      "z": 14,
-      "type": "herb"
-    },
-    {
-      "id": "r6",
-      "x": 10,
-      "z": -18,
-      "type": "flower"
-    },
-    {
-      "id": "r7",
-      "x": -18,
-      "z": -10,
-      "type": "herb"
-    },
-    {
-      "id": "r8",
-      "x": 20,
-      "z": 12,
-      "type": "herb"
-    },
-    {
-      "id": "r9",
-      "x": 35,
-      "z": 8,
-      "type": "crystal"
-    },
-    {
-      "id": "r10",
-      "x": -30,
-      "z": 25,
-      "type": "ore"
-    },
-    {
-      "id": "r11",
-      "x": 28,
-      "z": -22,
-      "type": "herb"
-    },
-    {
-      "id": "r12",
-      "x": -25,
-      "z": -28,
-      "type": "tree"
-    },
-    {
-      "id": "r13",
-      "x": 50,
-      "z": 15,
-      "type": "ore"
-    },
-    {
-      "id": "r14",
-      "x": -45,
-      "z": 30,
-      "type": "crystal"
-    },
-    {
-      "id": "r15",
-      "x": 48,
-      "z": -25,
-      "type": "herb"
-    },
-    {
-      "id": "r16",
-      "x": 62,
-      "z": 10,
-      "type": "crystal"
-    },
-    {
-      "id": "r17",
-      "x": -60,
-      "z": 20,
-      "type": "ore"
-    },
-    {
-      "id": "r18",
-      "x": 80,
-      "z": 50,
-      "type": "crystal"
-    },
-    {
-      "id": "r19",
-      "x": -85,
-      "z": -60,
-      "type": "ore"
-    },
-    {
-      "id": "r20",
-      "x": 100,
-      "z": -40,
-      "type": "herb"
-    },
-    {
-      "id": "r21",
-      "x": -70,
-      "z": 90,
-      "type": "flower"
-    },
-    {
-      "id": "r22",
-      "x": 120,
-      "z": 70,
-      "type": "tree"
-    },
-    {
-      "id": "r23",
-      "x": -110,
-      "z": -80,
-      "type": "crystal"
-    },
-    {
-      "id": "r24",
-      "x": 90,
-      "z": -120,
-      "type": "ore"
-    },
-    {
-      "id": "r25",
-      "x": -95,
-      "z": 100,
-      "type": "herb"
-    },
-    {
-      "id": "r26",
-      "x": 150,
-      "z": -50,
-      "type": "flower"
-    },
-    {
-      "id": "r27",
-      "x": -130,
-      "z": 60,
-      "type": "tree"
-    },
-    {
-      "id": "r28",
-      "x": 140,
-      "z": 90,
-      "type": "crystal"
-    },
-    {
-      "id": "r29",
-      "x": -150,
-      "z": -90,
-      "type": "ore"
-    },
-    {
-      "id": "r30",
-      "x": 170,
-      "z": -30,
-      "type": "herb"
-    }
-  ],
-  "vendors": [
-    {
-      "id": "vendor-1",
-      "name": "General Vendor",
-      "x": 4,
-      "z": 0
-    },
-    {
-      "id": "vendor-2",
-      "name": "Weapons Vendor",
-      "x": 0,
-      "z": 4
-    },
-    {
-      "id": "vendor-3",
-      "name": "Supplies Vendor",
-      "x": -4,
-      "z": 0
-    }
-  ],
-  "mobSpawns": [
-    {
-      "id": "d1",
-      "x": 5,
-      "z": 2,
-      "mobType": "dummy"
-    },
-    {
-      "id": "d2",
-      "x": -2,
-      "z": 5,
-      "mobType": "dummy"
-    },
-    {
-      "id": "d3",
-      "x": -5,
-      "z": -2,
-      "mobType": "dummy"
-    },
-    {
-      "id": "m1",
-      "x": 30,
-      "z": 0,
-      "mobType": "fox",
-      "aggressive": false
-    },
-    {
-      "id": "m2",
-      "x": 0,
-      "z": 36,
-      "mobType": "fox",
-      "aggressive": false
-    },
-    {
-      "id": "m3",
-      "x": 28,
-      "z": 28,
-      "mobType": "stag",
-      "aggressive": false
-    },
-    {
-      "id": "m4",
-      "x": -32,
-      "z": 20,
-      "mobType": "stag",
-      "aggressive": false
-    },
-    {
-      "id": "m5",
-      "x": 70,
-      "z": 0,
-      "mobType": "tribal",
-      "level": 2,
-      "levelVariance": 1
-    },
-    {
-      "id": "m6",
-      "x": 0,
-      "z": 76,
-      "mobType": "tribal",
-      "level": 2,
-      "levelVariance": 1
-    },
-    {
-      "id": "m7",
-      "x": 55,
-      "z": 55,
-      "mobType": "wolf",
-      "level": 2
-    },
-    {
-      "id": "m8",
-      "x": -60,
-      "z": 50,
-      "mobType": "wolf",
-      "level": 2,
-      "levelVariance": 1
-    },
-    {
-      "id": "m9",
-      "x": 98,
-      "z": 4,
-      "mobType": "wolf",
-      "level": 3
-    },
-    {
-      "id": "m10",
-      "x": 102,
-      "z": -8,
-      "mobType": "wolf",
-      "level": 3
-    },
-    {
-      "id": "m11",
-      "x": 96,
-      "z": -25,
-      "mobType": "wolf",
-      "level": 3,
-      "levelVariance": 1
-    },
-    {
-      "id": "m12",
-      "x": 110,
-      "z": 0,
-      "mobType": "orc",
-      "level": 3,
-      "levelVariance": 1
-    },
-    {
-      "id": "m13",
-      "x": 0,
-      "z": 110,
-      "mobType": "orc",
-      "level": 4
-    },
-    {
-      "id": "m14",
-      "x": 130,
-      "z": 0,
-      "mobType": "orc",
-      "level": 4,
-      "levelVariance": 1
-    },
-    {
-      "id": "m15",
-      "x": 0,
-      "z": 130,
-      "mobType": "orc",
-      "level": 5
-    },
-    {
-      "id": "m16",
-      "x": 120,
-      "z": -25,
-      "mobType": "bull",
-      "level": 5
-    },
-    {
-      "id": "m17",
-      "x": 180,
-      "z": -140,
-      "mobType": "orc",
-      "level": 8
-    },
-    {
-      "id": "m18",
-      "x": -160,
-      "z": 180,
-      "mobType": "wolf",
-      "level": 7
-    },
-    {
-      "id": "m19",
-      "x": 190,
-      "z": 80,
-      "mobType": "demon",
-      "level": 10
     }
   ],
   "structures": [
@@ -623,6 +281,486 @@
       "rotation": 0,
       "colliderRadius": 1.8,
       "collides": true
+    }
+  ],
+  "resourceNodes": [
+    {
+      "id": "r1",
+      "x": 6,
+      "y": 0,
+      "z": 0,
+      "type": "flower",
+      "respawnMs": 5000
+    },
+    {
+      "id": "r2",
+      "x": 0,
+      "y": 0,
+      "z": 6,
+      "type": "flower",
+      "respawnMs": 5000
+    },
+    {
+      "id": "r3",
+      "x": -6,
+      "y": 0,
+      "z": 0,
+      "type": "flower",
+      "respawnMs": 5000
+    },
+    {
+      "id": "r4",
+      "x": 15,
+      "y": 0,
+      "z": 5,
+      "type": "flower"
+    },
+    {
+      "id": "r5",
+      "x": -12,
+      "y": 0,
+      "z": 14,
+      "type": "herb"
+    },
+    {
+      "id": "r6",
+      "x": 10,
+      "y": 0,
+      "z": -18,
+      "type": "flower"
+    },
+    {
+      "id": "r7",
+      "x": -18,
+      "y": 0,
+      "z": -10,
+      "type": "herb"
+    },
+    {
+      "id": "r8",
+      "x": 20,
+      "y": 0,
+      "z": 12,
+      "type": "herb"
+    },
+    {
+      "id": "r9",
+      "x": 35,
+      "y": 0,
+      "z": 8,
+      "type": "crystal"
+    },
+    {
+      "id": "r10",
+      "x": -30,
+      "y": 0,
+      "z": 25,
+      "type": "ore"
+    },
+    {
+      "id": "r11",
+      "x": 28,
+      "y": 0,
+      "z": -22,
+      "type": "herb"
+    },
+    {
+      "id": "r12",
+      "x": -25,
+      "y": 0,
+      "z": -28,
+      "type": "tree"
+    },
+    {
+      "id": "r13",
+      "x": 50,
+      "y": 0,
+      "z": 15,
+      "type": "ore"
+    },
+    {
+      "id": "r14",
+      "x": -45,
+      "y": 0,
+      "z": 30,
+      "type": "crystal"
+    },
+    {
+      "id": "r15",
+      "x": 48,
+      "y": 0,
+      "z": -25,
+      "type": "herb"
+    },
+    {
+      "id": "r16",
+      "x": 62,
+      "y": 0,
+      "z": 10,
+      "type": "crystal"
+    },
+    {
+      "id": "r17",
+      "x": -60,
+      "y": 0,
+      "z": 20,
+      "type": "ore"
+    },
+    {
+      "id": "r18",
+      "x": 80,
+      "y": 0,
+      "z": 50,
+      "type": "crystal"
+    },
+    {
+      "id": "r19",
+      "x": -85,
+      "y": 0,
+      "z": -60,
+      "type": "ore"
+    },
+    {
+      "id": "r20",
+      "x": 100,
+      "y": 0,
+      "z": -40,
+      "type": "herb"
+    },
+    {
+      "id": "r21",
+      "x": -70,
+      "y": 0,
+      "z": 90,
+      "type": "flower"
+    },
+    {
+      "id": "r22",
+      "x": 120,
+      "y": 0,
+      "z": 70,
+      "type": "tree"
+    },
+    {
+      "id": "r23",
+      "x": -110,
+      "y": 0,
+      "z": -80,
+      "type": "crystal"
+    },
+    {
+      "id": "r24",
+      "x": 90,
+      "y": 0,
+      "z": -120,
+      "type": "ore"
+    },
+    {
+      "id": "r25",
+      "x": -95,
+      "y": 0,
+      "z": 100,
+      "type": "herb"
+    },
+    {
+      "id": "r26",
+      "x": 150,
+      "y": 0,
+      "z": -50,
+      "type": "flower"
+    },
+    {
+      "id": "r27",
+      "x": -130,
+      "y": 0,
+      "z": 60,
+      "type": "tree"
+    },
+    {
+      "id": "r28",
+      "x": 140,
+      "y": 0,
+      "z": 90,
+      "type": "crystal"
+    },
+    {
+      "id": "r29",
+      "x": -150,
+      "y": 0,
+      "z": -90,
+      "type": "ore"
+    },
+    {
+      "id": "r30",
+      "x": 170,
+      "y": 0,
+      "z": -30,
+      "type": "herb"
+    }
+  ],
+  "vendors": [
+    {
+      "id": "vendor-1",
+      "name": "General Vendor",
+      "x": 4,
+      "y": 0,
+      "z": 0
+    },
+    {
+      "id": "vendor-2",
+      "name": "Weapons Vendor",
+      "x": 0,
+      "y": 0,
+      "z": 4
+    },
+    {
+      "id": "vendor-3",
+      "name": "Supplies Vendor",
+      "x": -4,
+      "y": 0,
+      "z": 0
+    }
+  ],
+  "mobSpawns": [
+    {
+      "id": "d1",
+      "x": 5,
+      "y": 0,
+      "z": 2,
+      "mobType": "dummy",
+      "aggressive": true,
+      "levelVariance": 0
+    },
+    {
+      "id": "d2",
+      "x": -2,
+      "y": 0,
+      "z": 5,
+      "mobType": "dummy",
+      "aggressive": true,
+      "levelVariance": 0
+    },
+    {
+      "id": "m1",
+      "x": 30,
+      "y": 0,
+      "z": 0,
+      "mobType": "fox",
+      "aggressive": false,
+      "levelVariance": 0
+    },
+    {
+      "id": "m2",
+      "x": 0,
+      "y": 0,
+      "z": 36,
+      "mobType": "fox",
+      "aggressive": false,
+      "levelVariance": 0
+    },
+    {
+      "id": "m3",
+      "x": 28,
+      "y": 0,
+      "z": 28,
+      "mobType": "stag",
+      "aggressive": false,
+      "levelVariance": 0
+    },
+    {
+      "id": "m4",
+      "x": -32,
+      "y": 0,
+      "z": 20,
+      "mobType": "stag",
+      "aggressive": false,
+      "levelVariance": 0
+    },
+    {
+      "id": "m5",
+      "x": 70,
+      "y": 0,
+      "z": 0,
+      "mobType": "tribal",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 1
+    },
+    {
+      "id": "m6",
+      "x": 0,
+      "y": 0,
+      "z": 76,
+      "mobType": "tribal",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 1
+    },
+    {
+      "id": "m7",
+      "x": 55,
+      "y": 0,
+      "z": 55,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 0
+    },
+    {
+      "id": "m8",
+      "x": -60,
+      "y": 0,
+      "z": 50,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 1
+    },
+    {
+      "id": "m9",
+      "x": 98,
+      "y": 0,
+      "z": 4,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m10",
+      "x": 102,
+      "y": 0,
+      "z": -8,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m11",
+      "x": 96,
+      "y": 0,
+      "z": -25,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 1
+    },
+    {
+      "id": "m12",
+      "x": 110,
+      "y": 0,
+      "z": 0,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 1
+    },
+    {
+      "id": "m13",
+      "x": 0,
+      "y": 0,
+      "z": 110,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 4,
+      "levelVariance": 0
+    },
+    {
+      "id": "m14",
+      "x": 130,
+      "y": 0,
+      "z": 0,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 4,
+      "levelVariance": 1
+    },
+    {
+      "id": "m15",
+      "x": 0,
+      "y": 0,
+      "z": 130,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 5,
+      "levelVariance": 0
+    },
+    {
+      "id": "m16",
+      "x": 120,
+      "y": 0,
+      "z": -25,
+      "mobType": "bull",
+      "aggressive": true,
+      "level": 5,
+      "levelVariance": 0
+    },
+    {
+      "id": "m17",
+      "x": 180,
+      "y": 0,
+      "z": -140,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 8,
+      "levelVariance": 0
+    },
+    {
+      "id": "m18",
+      "x": -160,
+      "y": 0,
+      "z": 180,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 7,
+      "levelVariance": 0
+    },
+    {
+      "id": "m19",
+      "x": 190,
+      "y": 0,
+      "z": 80,
+      "mobType": "demon",
+      "aggressive": true,
+      "level": 10,
+      "levelVariance": 0
+    },
+    {
+      "id": "m24",
+      "x": -23,
+      "y": 0,
+      "z": -2,
+      "mobType": "fox",
+      "aggressive": true,
+      "levelVariance": 0
+    },
+    {
+      "id": "m43",
+      "x": -16,
+      "y": 0,
+      "z": -7,
+      "mobType": "fox",
+      "aggressive": true,
+      "levelVariance": 0
+    },
+    {
+      "id": "m44",
+      "x": -18,
+      "y": 0,
+      "z": -11,
+      "mobType": "fox",
+      "aggressive": true,
+      "levelVariance": 0
+    },
+    {
+      "id": "m20",
+      "x": -3,
+      "y": 0,
+      "z": -3,
+      "mobType": "dummy",
+      "aggressive": true,
+      "levelVariance": 0
     }
   ]
 }

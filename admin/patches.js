@@ -1,7 +1,7 @@
 // @ts-check
 // @ts-nocheck
 
-import { ensureAdminAlias, renderAdminAlias } from './admin-alias.js';
+import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
 
 const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
@@ -9,6 +9,7 @@ const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admi
 const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
 const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
 const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
 
 const patchListEl = /** @type {HTMLElement} */ (document.getElementById('patch-list'));
 const patchCountEl = /** @type {HTMLElement} */ (document.getElementById('patch-count'));
@@ -39,14 +40,13 @@ const visualCtx = /** @type {CanvasRenderingContext2D} */ (visualCanvas.getConte
 const commentListEl = /** @type {HTMLElement} */ (document.getElementById('comment-list'));
 
 const state = {
-  password: '',
   alias: '',
   patches: /** @type {any[]} */ ([]),
   comments: /** @type {any[]} */ ([]),
   mapConfig: /** @type {any | null} */ (null),
   designerState: /** @type {any | null} */ (null),
   selectedPatchId: /** @type {string | null} */ (null),
-  api: /** @type {ReturnType<typeof createDesignerApi> | null} */ (null),
+  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
 };
 
 function setStatus(message, tone = 'neutral') {
@@ -54,12 +54,32 @@ function setStatus(message, tone = 'neutral') {
   statusEl.className = `status ${tone}`;
 }
 
-function getPassword() {
-  return state.password;
-}
-
 function getAlias() {
   return state.alias;
+}
+
+function setLockedState(message = 'Status: locked') {
+  state.patches = [];
+  state.comments = [];
+  state.mapConfig = null;
+  state.designerState = null;
+  state.selectedPatchId = null;
+  restartNote.hidden = true;
+  renderPatchList();
+  renderDetails();
+  renderComments();
+  setStatus(message, 'warning');
+}
+
+/**
+ * @param {unknown} err
+ * @returns {boolean}
+ */
+function handleUnauthorized(err) {
+  const error = /** @type {Error & { status?: number }} */ (err);
+  if (error.status !== 401) return false;
+  setLockedState('Status: session expired. Unlock again.');
+  return true;
 }
 
 function statusClass(status) {
@@ -330,7 +350,6 @@ function renderDetails() {
 }
 
 async function reloadData() {
-  if (!state.api) return;
   const [patchesPayload, mapConfig, designerPayload, commentsPayload] = await Promise.all([
     state.api.getPatches(),
     state.api.getMapConfig(),
@@ -353,7 +372,6 @@ async function reloadData() {
 }
 
 async function runPatchAction(action) {
-  if (!state.api) return;
   const patch = selectedPatch();
   if (!patch) return;
 
@@ -385,6 +403,7 @@ async function runPatchAction(action) {
 
     await reloadData();
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setStatus(`Status: ${error.message}`, 'error');
   }
@@ -400,17 +419,13 @@ async function unlock() {
     return;
   }
 
-  state.password = password;
   state.alias = alias;
   renderAdminAlias(aliasLabel, `Alias: ${alias}`);
 
-  state.api = createDesignerApi({
-    getPassword,
-    getAlias,
-  });
-
-  setStatus('Status: loading patch manager...', 'neutral');
+  setStatus('Status: unlocking...', 'neutral');
   try {
+    await state.api.unlockAdminSession(password);
+    passInput.value = '';
     await reloadData();
     setStatus('Status: patch manager ready', 'ok');
   } catch (err) {
@@ -420,6 +435,16 @@ async function unlock() {
       return;
     }
     setStatus(`Status: ${error.message}`, 'error');
+  }
+}
+
+async function restoreSession() {
+  try {
+    await state.api.getAdminSession();
+    await reloadData();
+    setStatus('Status: patch manager ready', 'ok');
+  } catch {
+    setLockedState('Status: locked');
   }
 }
 
@@ -446,7 +471,6 @@ diffModeSelect.addEventListener('change', () => {
 
 createForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  if (!state.api) return;
 
   try {
     await state.api.createPatch({
@@ -462,6 +486,7 @@ createForm.addEventListener('submit', async (event) => {
     await reloadData();
     setStatus('Status: patch draft created.', 'ok');
   } catch (err) {
+    if (handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
     setStatus(`Status: ${error.message}`, 'error');
   }
@@ -483,8 +508,19 @@ rollbackBtn.addEventListener('click', async () => {
   await runPatchAction('rollback');
 });
 
-renderAdminAlias(aliasLabel, 'Alias: --');
-setStatus('Status: locked', 'warning');
+lockBtn.addEventListener('click', async () => {
+  try {
+    await state.api.logoutAdminSession();
+  } catch {
+    // ignore and force local lock state
+  }
+  setLockedState('Status: locked');
+});
+
+state.alias = getStoredAdminAlias();
+renderAdminAlias(aliasLabel, state.alias ? `Alias: ${state.alias}` : 'Alias: --');
+setStatus('Status: checking session...', 'neutral');
 renderJsonDiff();
 renderVisualDiff();
 renderComments();
+restoreSession().catch(() => {});

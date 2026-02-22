@@ -32,6 +32,7 @@ import { serializePlayerState } from './db/playerState.js';
 import { isValidClassId } from '../shared/classes.js';
 import { createTicket } from './wsTicket.js';
 import { getCookieValue, normalizeId } from './authParsing.js';
+import { createAdminSessionStore } from './adminSession.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = path.resolve(__dirname, '../client');
@@ -114,6 +115,33 @@ function clearSessionCookie(res, config) {
 }
 
 /**
+ * @param {HttpResponseLike} res
+ * @param {string} token
+ * @param {HttpConfig} config
+ */
+function setAdminSessionCookie(res, token, config) {
+  res.cookie(config.adminSessionCookieName, token, {
+    httpOnly: true,
+    sameSite: config.adminSessionCookieSameSite,
+    secure: config.adminSessionCookieSecure,
+    path: '/admin',
+  });
+}
+
+/**
+ * @param {HttpResponseLike} res
+ * @param {HttpConfig} config
+ */
+function clearAdminSessionCookie(res, config) {
+  res.clearCookie(config.adminSessionCookieName, {
+    httpOnly: true,
+    sameSite: config.adminSessionCookieSameSite,
+    secure: config.adminSessionCookieSecure,
+    path: '/admin',
+  });
+}
+
+/**
  * @param {{
  *   config: HttpConfig,
  *   world: unknown,
@@ -172,6 +200,13 @@ export function createHttpApp({
       legacyHeaders: false,
     })
   );
+  const adminJsonLimit = Math.max(config.maxPayloadBytes, config.adminMaxPayloadBytes);
+  app.use(
+    '/admin',
+    express.json({
+      limit: adminJsonLimit,
+    })
+  );
   app.use(
     express.json({
       limit: config.maxPayloadBytes,
@@ -196,6 +231,48 @@ export function createHttpApp({
       return `${ip}:${username || 'unknown'}`;
     },
   });
+  const adminUnlockLimiter = rateLimit({
+    windowMs: 5 * 60_000,
+    max: config.isLocalhost ? 20 : 8,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many admin unlock attempts, try again soon.' },
+    keyGenerator: (req) => {
+      const request = /** @type {HttpRequestLike} */ (/** @type {unknown} */ (req));
+      return request.ip ?? request.socket?.remoteAddress ?? 'unknown';
+    },
+  });
+
+  const adminSessions = createAdminSessionStore({
+    password: config.adminPassword,
+    cookieName: config.adminSessionCookieName,
+    idleTimeoutMs: config.adminSessionIdleTimeoutMs,
+  });
+
+  /**
+   * @param {HttpRequestLike} req
+   */
+  function hasValidAdminPasswordHeader(req) {
+    const provided = typeof req.get === 'function' ? req.get('x-admin-pass') || '' : '';
+    return provided === config.adminPassword;
+  }
+
+  /**
+   * @param {HttpRequestLike} req
+   */
+  function isAdminAuthorizedRequest(req) {
+    if (adminSessions.hasValidSession(req)) return true;
+    return hasValidAdminPasswordHeader(req);
+  }
+
+  /**
+   * @param {HttpRequestLike} req
+   */
+  function wantsAdminPatchesApi(req) {
+    if (typeof req.get !== 'function') return false;
+    if (req.get('x-admin-api') === '1') return true;
+    return Boolean(req.get('x-admin-pass'));
+  }
 
   app.get('/favicon.ico', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     res.redirect(302, '/favicon.svg');
@@ -210,7 +287,7 @@ export function createHttpApp({
   app.get(
     '/admin/patches',
     (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res, /** @type {NextFunctionLike} */ next) => {
-      if (typeof req.get === 'function' && req.get('x-admin-pass')) {
+      if (wantsAdminPatchesApi(req)) {
         next();
         return;
       }
@@ -236,10 +313,41 @@ export function createHttpApp({
   app.use('/shared', express.static(SHARED_DIR));
   app.use(express.static(CLIENT_DIR));
 
+  app.post(
+    '/admin/auth/unlock',
+    adminUnlockLimiter,
+    (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+      const password = typeof req.body?.password === 'string' ? req.body.password : '';
+      const token = adminSessions.issueSessionFromPassword(password);
+      if (!token) {
+        sendError(res, 401, 'Unauthorized');
+        return;
+      }
+      setAdminSessionCookie(res, token, config);
+      res.json({ ok: true });
+    }
+  );
+
+  app.get('/admin/auth/session', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    if (!isAdminAuthorizedRequest(req)) {
+      clearAdminSessionCookie(res, config);
+      sendError(res, 401, 'Unauthorized');
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  app.post('/admin/auth/logout', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    adminSessions.revokeSessionFromRequest(req);
+    clearAdminSessionCookie(res, config);
+    res.json({ ok: true });
+  });
+
   app.get(
     '/admin/state',
     createAdminStateHandler({
       password: config.adminPassword,
+      isAuthorized: isAdminAuthorizedRequest,
       world,
       players,
       resources,
@@ -250,12 +358,14 @@ export function createHttpApp({
   const mapHandlers = createMapConfigHandlers({
     password: config.adminPassword,
     mapConfigPath,
+    isAuthorized: isAdminAuthorizedRequest,
   });
   app.get('/admin/map-config', mapHandlers.getHandler);
   app.put('/admin/map-config', mapHandlers.putHandler);
 
   const designerHandlers = createMapDesignerHandlers({
     password: config.adminPassword,
+    isAuthorized: isAdminAuthorizedRequest,
     mapConfigPath,
     designerStatePath,
   });
@@ -661,6 +771,15 @@ export function createHttpApp({
   });
 
   app.use((/** @type {unknown} */ err, /** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res, /** @type {NextFunctionLike} */ next) => {
+    if (
+      typeof err === 'object' &&
+      err !== null &&
+      'type' in err &&
+      /** @type {{ type?: unknown }} */ (err).type === 'entity.too.large'
+    ) {
+      res.status(413).json({ error: 'Payload too large' });
+      return;
+    }
     console.error('Unhandled error:', err);
     if (res.headersSent) {
       next(err);

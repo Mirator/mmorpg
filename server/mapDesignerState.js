@@ -1040,11 +1040,12 @@ export function createMapDesignerStateStore({ designerStatePath, mapConfigPath }
 /**
  * @param {{
  *   password: string | null,
+ *   isAuthorized?: (req: any) => boolean,
  *   mapConfigPath: string,
  *   designerStatePath: string
  * }} params
  */
-export function createMapDesignerHandlers({ password, mapConfigPath, designerStatePath }) {
+export function createMapDesignerHandlers({ password, isAuthorized, mapConfigPath, designerStatePath }) {
   const store = createMapDesignerStateStore({
     mapConfigPath,
     designerStatePath,
@@ -1077,8 +1078,10 @@ export function createMapDesignerHandlers({ password, mapConfigPath, designerSta
    * @returns {boolean}
    */
   function guard(req, res) {
-    const provided = getProvidedAdminPassword(req);
-    if (provided !== password) {
+    const authorized = typeof isAuthorized === 'function'
+      ? isAuthorized(req)
+      : getProvidedAdminPassword(req) === password;
+    if (!authorized) {
       res.status(401).json({ error: 'Unauthorized' });
       return false;
     }

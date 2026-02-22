@@ -364,12 +364,17 @@ export type NextFunctionLike = (err?: unknown) => void;
 export interface HttpConfig {
   trustProxy?: boolean;
   maxPayloadBytes: number;
+  adminMaxPayloadBytes: number;
   isLocalhost?: boolean;
   adminPassword: string | null;
   exposeAuthToken?: boolean;
   sessionCookieName: string;
   sessionCookieSameSite: string;
   sessionCookieSecure: boolean;
+  adminSessionCookieName: string;
+  adminSessionIdleTimeoutMs: number;
+  adminSessionCookieSameSite: string;
+  adminSessionCookieSecure: boolean;
   [key: string]: unknown;
 }
 
