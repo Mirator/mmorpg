@@ -21,7 +21,7 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
   const config = getServerConfig(env);
   const isE2eTest = env.E2E_TEST === 'true';
   const useSimulatedWorld =
-    isE2eTest && env.E2E_SIMULATED_WORLD !== 'false';
+    isE2eTest && env.E2E_SIMULATED_WORLD === 'true';
   const mapConfigPath = resolveMapConfigPath(env);
   const mapConfig = useSimulatedWorld ? null : loadMapConfigSync(mapConfigPath);
   const world = useSimulatedWorld
@@ -40,8 +40,8 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
   if (isE2eTest) {
     const /** @type {any} */ testResource = {
       id: 'r-test',
-      x: world.base.x + world.base.radius + 6,
-      z: world.base.z,
+      x: world.base.x + world.base.radius + 11,
+      z: world.base.z + 8,
     };
     resources.unshift({
       id: testResource.id,
@@ -50,13 +50,13 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
       available: true,
       respawnAt: 0,
     });
-    const testMobLevel = 4;
+    const testMobLevel = 2;
     const testMobMaxHp = getMobMaxHp(testMobLevel, 'orc');
     const /** @type {any} */ mTestPos = {
       // Keep the dedicated combat test mob outside r-test harvest aggro range.
       x: world.base.x + world.base.radius + 20,
       y: 0,
-      z: world.base.z,
+      z: world.base.z + 12,
     };
     mobs.unshift({
       id: 'm-test',

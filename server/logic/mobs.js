@@ -75,7 +75,8 @@ export function createMobs(/** @type {any} */ count, /** @type {any} */ world, /
     const level = getMobLevelForPosition({ x, z }, world);
     const mobType = MOB_TYPES[Math.floor(rand() * MOB_TYPES.length)];
     const maxHp = getMobMaxHp(level, mobType);
-    const /** @type {any} */ pos = { x, y: 0, z };
+    const stats = getMobStats(mobType);
+    const /** @type {any} */ pos = applyCollisions({ x, y: 0, z }, world, stats.radius ?? 0);
     mobs.push({
       id: `m${mobs.length + 1}`,
       pos: { ...pos },
@@ -126,8 +127,13 @@ export function createMobsFromSpawns(/** @type {any} */ spawns, /** @type {any} 
     const /** @type {any} */ pos = { x, y: spawn.y ?? 0, z };
     const level = resolveMobLevel(spawn, pos, world, rand);
     const mobType = spawn.mobType ?? 'orc';
+    const stats = getMobStats(mobType);
     const maxHp = getMobMaxHp(level, mobType);
-    const /** @type {any} */ spawnPos = { x, y: pos.y, z };
+    const /** @type {any} */ spawnPos = applyCollisions(
+      { x, y: pos.y, z },
+      world,
+      stats.radius ?? 0
+    );
     return {
       id: spawn.id ?? `m${index + 1}`,
       pos: { ...spawnPos },
@@ -169,6 +175,7 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
     if (isDummy) {
       if (mob.dead) {
         const stats = getMobStats('dummy');
+        const dummyRadius = config.mobRadius ?? stats.radius ?? 0;
         const respawnMs = config.respawnMs ?? stats.respawnMs;
         if (!mob.respawnAt) mob.respawnAt = now + respawnMs;
         if (now >= mob.respawnAt) {
@@ -178,7 +185,9 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
           mob.respawnAt = 0;
           mob.state = 'idle';
           mob.targetId = null;
-          if (mob.spawnPos) mob.pos = getRespawnPos(mob.spawnPos, rand);
+          if (mob.spawnPos) {
+            mob.pos = applyCollisions(getRespawnPos(mob.spawnPos, rand), world, dummyRadius);
+          }
         }
       }
       continue;
@@ -213,7 +222,9 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
           mob.damageBy = {};
           mob.supportBy = {};
           mob.tauntedUntil = 0;
-          if (mob.spawnPos) mob.pos = getRespawnPos(mob.spawnPos, rand);
+          if (mob.spawnPos) {
+            mob.pos = applyCollisions(getRespawnPos(mob.spawnPos, rand), world, mobRadius);
+          }
         }
       }
       continue;
@@ -238,7 +249,9 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
         mob.damageBy = {};
         mob.supportBy = {};
         mob.tauntedUntil = 0;
-        if (mob.spawnPos) mob.pos = getRespawnPos(mob.spawnPos, rand);
+        if (mob.spawnPos) {
+          mob.pos = applyCollisions(getRespawnPos(mob.spawnPos, rand), world, mobRadius);
+        }
       }
       continue;
     }

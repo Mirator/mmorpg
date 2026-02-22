@@ -44,7 +44,7 @@ describe('environmentScale', () => {
     expect(result.scale.y).toBeCloseTo(result.scale.x, 6);
   });
 
-  it('reduces village center vertical height via y-scale override', () => {
+  it('shrinks village center uniformly and keeps vertical override', () => {
     const base = computeEnvironmentScale({
       key: 'villageCenterBase',
       category: 'villageCenter',
@@ -61,8 +61,10 @@ describe('environmentScale', () => {
     });
 
     expect(CHARACTER_HEIGHT).toBe(2.0);
-    expect(withOverride.uniformScale).toBeCloseTo(base.uniformScale, 6);
+    expect(withOverride.targetHeight).toBeCloseTo(base.targetHeight * 0.5, 6);
+    expect(withOverride.uniformScale).toBeCloseTo(base.uniformScale * 0.5, 6);
     expect(withOverride.yScaleMultiplier).toBeCloseTo(0.82, 6);
     expect(withOverride.effectiveHeight).toBeLessThan(base.effectiveHeight);
+    expect(withOverride.effectiveHeight).toBeCloseTo(base.effectiveHeight * 0.5 * 0.82, 6);
   });
 });

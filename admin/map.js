@@ -1,5 +1,6 @@
 // @ts-check
 import { MOB_TYPES, RESOURCE_TYPE_LIST } from '/shared/entityTypes.js';
+import { STRUCTURE_KIND_LIST } from '/shared/mapConfig.js';
 
 const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
 const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
@@ -16,6 +17,7 @@ const baseFieldsEl = /** @type {HTMLElement} */ (document.getElementById('base-f
 const listEls = {
   spawnPoints: /** @type {HTMLElement} */ (document.getElementById('list-spawnPoints')),
   obstacles: /** @type {HTMLElement} */ (document.getElementById('list-obstacles')),
+  structures: /** @type {HTMLElement} */ (document.getElementById('list-structures')),
   resourceNodes: /** @type {HTMLElement} */ (document.getElementById('list-resourceNodes')),
   vendors: /** @type {HTMLElement} */ (document.getElementById('list-vendors')),
   mobSpawns: /** @type {HTMLElement} */ (document.getElementById('list-mobSpawns')),
@@ -43,6 +45,16 @@ const /** @type {any} */ FIELD_DEFS = {
     { key: 'y', label: 'Y', type: 'number', step: '0.1' },
     { key: 'z', label: 'Z', type: 'number', step: '0.1' },
     { key: 'radius', label: 'R', type: 'number', step: '0.1' },
+  ],
+  structures: [
+    { key: 'id', label: 'ID', type: 'text' },
+    { key: 'kind', label: 'Kind', type: 'select', options: STRUCTURE_KIND_LIST },
+    { key: 'x', label: 'X', type: 'number', step: '0.1' },
+    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
+    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
+    { key: 'rotation', label: 'Rotation', type: 'number', step: '0.01' },
+    { key: 'colliderRadius', label: 'Collider R', type: 'number', step: '0.1' },
+    { key: 'collides', label: 'Collides', type: 'select', options: [true, false] },
   ],
   resourceNodes: [
     { key: 'id', label: 'ID', type: 'text' },
@@ -76,6 +88,7 @@ const /** @type {any} */ COLORS = {
   base: '#5fb8ff',
   spawn: '#d8b880',
   obstacle: '#3a3f44',
+  structure: '#7b5f3e',
   resource: '#5ef2c2',
   vendor: '#ffd54f',
   mob: '#ff6b6b',
@@ -274,6 +287,28 @@ function renderCanvas() {
       ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, obs.radius * scale + 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  });
+
+  (mapConfig.structures ?? []).forEach((/** @type {any} */ structure, /** @type {any} */ index) => {
+    const pos = worldToCanvas(structure);
+    const radius = Math.max(0, structure.colliderRadius ?? 0);
+    const radiusPx = radius * scale;
+    ctx.strokeStyle = COLORS.structure;
+    ctx.lineWidth = 2;
+    if (radiusPx > 0) {
+      ctx.globalAlpha = structure.collides === false ? 0.25 : 0.5;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, radiusPx, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (selected?.type === 'structures' && selected.index === index) {
+      ctx.strokeStyle = COLORS.selected;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, Math.max(4, radiusPx + 2), 0, Math.PI * 2);
       ctx.stroke();
     }
   });
@@ -505,6 +540,17 @@ function addItem(/** @type {any} */ type) {
     item = { x: base.x + offset, y: base.y ?? 0, z: base.z };
   } else if (type === 'obstacles') {
     item = { x: base.x + offset + 6, y: base.y ?? 0, z: base.z, radius: 6 };
+  } else if (type === 'structures') {
+    item = {
+      id: getNextId(list, 'structure-'),
+      kind: STRUCTURE_KIND_LIST[0] ?? 'market',
+      x: base.x + offset + 6,
+      y: base.y ?? 0,
+      z: base.z + 6,
+      rotation: 0,
+      colliderRadius: 3,
+      collides: true,
+    };
   } else if (type === 'resourceNodes') {
     item = {
       id: getNextId(list, 'r'),
@@ -532,8 +578,13 @@ function addItem(/** @type {any} */ type) {
   }
   if (!item) return;
 
-  if (item.radius) {
-    const pos = clampToBounds(item, item.radius);
+  const clampRadius = Number.isFinite(item.radius)
+    ? item.radius
+    : Number.isFinite(item.colliderRadius) && item.collides !== false
+      ? item.colliderRadius
+      : 0;
+  if (clampRadius > 0) {
+    const pos = clampToBounds(item, clampRadius);
     item.x = pos.x;
     item.y = pos.y ?? 0;
     item.z = pos.z;
@@ -604,6 +655,16 @@ function findHit(/** @type {any} */ pos) {
     }
   });
 
+  (mapConfig.structures ?? []).forEach((/** @type {any} */ structure, /** @type {any} */ index) => {
+    const c = worldToCanvas(structure);
+    const dist = Math.hypot(pos.x - c.x, pos.y - c.y);
+    const radius = Math.max(0, Number(structure.colliderRadius) || 0);
+    const radiusPx = radius * getMetrics().scale + 6;
+    if (dist <= radiusPx) {
+      pushHit('structures', index, dist);
+    }
+  });
+
   const pointHit = (/** @type {any} */ type, /** @type {any} */ list, /** @type {any} */ radius) => {
     list.forEach((/** @type {any} */ item, /** @type {any} */ index) => {
       const c = worldToCanvas(item);
@@ -638,7 +699,11 @@ function updateSelectedPosition(/** @type {any} */ worldPos) {
   if (!Array.isArray(list)) return;
   const item = list[selected.index];
   if (!item) return;
-  const radius = selected.type === 'obstacles' ? item.radius : 0;
+  const radius = selected.type === 'obstacles'
+    ? item.radius
+    : selected.type === 'structures' && item.collides !== false
+      ? item.colliderRadius
+      : 0;
   const clamped = clampToBounds(worldPos, radius);
   item.x = clamped.x;
   item.y = clamped.y ?? 0;
@@ -704,7 +769,7 @@ function handleFieldChange(/** @type {any} */ event) {
   if (isNumber) {
     const parsed = Number.parseFloat(target.value);
     value = Number.isFinite(parsed) ? parsed : undefined;
-  } else if (isSelect && field === 'aggressive') {
+  } else if (isSelect && (field === 'aggressive' || field === 'collides')) {
     value = target.value === 'true';
   } else {
     value = target.value;

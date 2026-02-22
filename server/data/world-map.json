@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "mapSize": 400,
   "base": {
     "x": 0,
@@ -471,6 +471,158 @@
       "z": 80,
       "mobType": "demon",
       "level": 10
+    }
+  ],
+  "structures": [
+    {
+      "id": "s-market",
+      "kind": "market",
+      "x": 15,
+      "y": 0,
+      "z": 0,
+      "rotation": 1.5708,
+      "colliderRadius": 3.6,
+      "collides": true
+    },
+    {
+      "id": "s-barracks",
+      "kind": "barracks",
+      "x": -15,
+      "y": 0,
+      "z": 0,
+      "rotation": -1.5708,
+      "colliderRadius": 3.4,
+      "collides": true
+    },
+    {
+      "id": "s-storage",
+      "kind": "storage",
+      "x": 0,
+      "y": 0,
+      "z": 15,
+      "rotation": 3.1416,
+      "colliderRadius": 3.8,
+      "collides": true
+    },
+    {
+      "id": "s-house-a",
+      "kind": "houseA",
+      "x": 0,
+      "y": 0,
+      "z": -15,
+      "rotation": 0,
+      "colliderRadius": 3.1,
+      "collides": true
+    },
+    {
+      "id": "s-house-b",
+      "kind": "houseB",
+      "x": 10.5,
+      "y": 0,
+      "z": 10.5,
+      "rotation": 0.7854,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s-bell-tower",
+      "kind": "bellTower",
+      "x": 0,
+      "y": 0,
+      "z": 65,
+      "rotation": 0,
+      "colliderRadius": 2.2,
+      "collides": true
+    },
+    {
+      "id": "s-village-center",
+      "kind": "villageCenter",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "rotation": 0,
+      "colliderRadius": 2.8,
+      "collides": true
+    },
+    {
+      "id": "s-fence-1",
+      "kind": "fence",
+      "x": 7.3,
+      "y": 0,
+      "z": 4.2,
+      "rotation": 0,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s-fence-2",
+      "kind": "fence",
+      "x": 4.2,
+      "y": 0,
+      "z": 7.3,
+      "rotation": 0,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s-fence-3",
+      "kind": "fence",
+      "x": -4.2,
+      "y": 0,
+      "z": 7.3,
+      "rotation": 0,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s-fence-4",
+      "kind": "fence",
+      "x": -7.3,
+      "y": 0,
+      "z": 4.2,
+      "rotation": 0,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s-fence-5",
+      "kind": "fence",
+      "x": -7.3,
+      "y": 0,
+      "z": -4.2,
+      "rotation": 0,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s-fence-6",
+      "kind": "fence",
+      "x": -4.2,
+      "y": 0,
+      "z": -7.3,
+      "rotation": 0,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s-fence-7",
+      "kind": "fence",
+      "x": 4.2,
+      "y": 0,
+      "z": -7.3,
+      "rotation": 0,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s-fence-8",
+      "kind": "fence",
+      "x": 7.3,
+      "y": 0,
+      "z": -4.2,
+      "rotation": 0,
+      "colliderRadius": 1.8,
+      "collides": true
     }
   ]
 }

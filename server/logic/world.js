@@ -117,6 +117,7 @@ function generateSpawnPoints() {
 export function createSimulatedWorld() {
   const rng = mulberry32(WORLD_SEED);
   const obstacles = generateObstacles(rng);
+  const collisionObstacles = obstacles.map((/** @type {any} */ obs) => ({ ...obs }));
   const resourceNodes = generateResourceNodes(rng, obstacles);
   const spawnPoints = generateSpawnPoints();
   const /** @type {any} */ base = { x: 0, y: 0, z: 0, radius: BASE_RADIUS };
@@ -135,6 +136,8 @@ export function createSimulatedWorld() {
     mapSize: MAP_SIZE,
     base,
     obstacles,
+    collisionObstacles,
+    structures: [],
     resourceNodes,
     spawnPoints,
     mobSpawns: [],
@@ -170,6 +173,31 @@ export function createWorldFromConfig(/** @type {any} */ mapConfig) {
     z: obs.z,
     r: obs.radius ?? obs.r,
   }));
+  const structures = mapConfig.structures.map((/** @type {any} */ structure) => ({
+    id: structure.id,
+    kind: structure.kind,
+    x: structure.x,
+    y: structure.y ?? 0,
+    z: structure.z,
+    rotation: structure.rotation ?? 0,
+    colliderRadius: structure.colliderRadius,
+    collides: structure.collides !== false,
+  }));
+  const collisionObstacles = [
+    ...obstacles,
+    ...structures
+      .filter((/** @type {any} */ structure) =>
+        structure.collides !== false &&
+        Number.isFinite(structure.colliderRadius) &&
+        structure.colliderRadius > 0
+      )
+      .map((/** @type {any} */ structure) => ({
+        x: structure.x,
+        y: structure.y ?? 0,
+        z: structure.z,
+        r: structure.colliderRadius,
+      })),
+  ];
   const resourceNodes = mapConfig.resourceNodes.map((/** @type {any} */ node) => ({
     id: node.id,
     x: node.x,
@@ -211,6 +239,8 @@ export function createWorldFromConfig(/** @type {any} */ mapConfig) {
     mapYMax: mapConfig.mapYMax,
     base,
     obstacles,
+    collisionObstacles,
+    structures,
     resourceNodes,
     spawnPoints,
     mobSpawns,
@@ -239,6 +269,8 @@ export function worldSnapshot(/** @type {any} */ world) {
     mapYMax: world.mapYMax,
     base: world.base,
     obstacles: world.obstacles,
+    collisionObstacles: world.collisionObstacles ?? world.obstacles,
+    structures: world.structures ?? [],
     harvestRadius: world.harvestRadius,
     playerSpeed: world.playerSpeed,
     playerInvSlots: world.playerInvSlots,

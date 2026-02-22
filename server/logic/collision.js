@@ -23,8 +23,9 @@ export function clampToBounds(pos, mapSize, radius = 0, world = null) {
 }
 
 export function resolveObstacles(/** @type {any} */ pos, /** @type {any} */ obstacles, /** @type {any} */ radius = 0) {
+  const list = Array.isArray(obstacles) ? obstacles : [];
   let /** @type {any} */ out = { ...pos };
-  for (const obs of obstacles) {
+  for (const obs of list) {
     const dx = out.x - obs.x;
     const dz = out.z - obs.z;
     const dist = Math.hypot(dx, dz);
@@ -48,7 +49,10 @@ export function resolveObstacles(/** @type {any} */ pos, /** @type {any} */ obst
 }
 
 export function applyCollisions(/** @type {any} */ pos, /** @type {any} */ world, /** @type {any} */ radius = 0) {
+  const obstacles = Array.isArray(world?.collisionObstacles)
+    ? world.collisionObstacles
+    : world?.obstacles;
   const bounded = clampToBounds(pos, world.mapSize, radius, world);
-  const resolved = resolveObstacles(bounded, world.obstacles, radius);
+  const resolved = resolveObstacles(bounded, obstacles, radius);
   return clampToBounds(resolved, world.mapSize, radius, world);
 }

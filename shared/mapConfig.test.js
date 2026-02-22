@@ -8,6 +8,9 @@ function buildConfig(overrides = {}) {
     base: { x: 0, z: 0, radius: 8 },
     spawnPoints: [{ x: 2, z: 2 }],
     obstacles: [{ x: -10, z: 5, radius: 4 }],
+    structures: [
+      { id: 's1', kind: 'market', x: 15, z: 0, rotation: 1.57, colliderRadius: 3.6, collides: true },
+    ],
     resourceNodes: [{ id: 'r1', x: 8, z: -6 }],
     vendors: [{ id: 'vendor-1', name: 'Vendor', x: 6, z: -2 }],
     mobSpawns: [{ id: 'm1', x: 20, z: 10 }],
@@ -48,6 +51,7 @@ describe('map config validation', () => {
     });
     expect(normalized.spawnPoints).toEqual([]);
     expect(normalized.obstacles).toEqual([]);
+    expect(normalized.structures).toEqual([]);
     expect(normalized.resourceNodes).toEqual([]);
     expect(normalized.vendors).toEqual([]);
     expect(normalized.mobSpawns).toEqual([]);
@@ -74,5 +78,48 @@ describe('map config validation', () => {
     });
     const errors = validateMapConfig(config);
     expect(errors.some((e) => e.includes('y must be within'))).toBe(true);
+  });
+
+  it('rejects invalid structure kind', () => {
+    const config = buildConfig({
+      structures: [{ id: 's1', kind: 'castle', x: 0, z: 0, colliderRadius: 4 }],
+    });
+    const errors = validateMapConfig(config);
+    expect(errors.some((e) => e.includes('structures[0] kind'))).toBe(true);
+  });
+
+  it('requires collider radius for collidable structures', () => {
+    const config = buildConfig({
+      structures: [{ id: 's1', kind: 'market', x: 0, z: 0, collides: true }],
+    });
+    const errors = validateMapConfig(config);
+    expect(errors.some((e) => e.includes('colliderRadius'))).toBe(true);
+  });
+
+  it('requires unique structure ids', () => {
+    const config = buildConfig({
+      structures: [
+        { id: 's1', kind: 'market', x: 10, z: 0, colliderRadius: 3 },
+        { id: 's1', kind: 'houseA', x: -10, z: 0, colliderRadius: 3 },
+      ],
+    });
+    const errors = validateMapConfig(config);
+    expect(errors.some((e) => e.includes('structures[1] id'))).toBe(true);
+  });
+
+  it('accepts fence structure kind', () => {
+    const config = buildConfig({
+      structures: [{ id: 'fence-1', kind: 'fence', x: 7, z: 4, colliderRadius: 1.8 }],
+    });
+    expect(validateMapConfig(config)).toEqual([]);
+  });
+
+  it('rejects out-of-bounds structure collider', () => {
+    const config = buildConfig({
+      mapSize: 40,
+      structures: [{ id: 's1', kind: 'market', x: 19, z: 0, colliderRadius: 3 }],
+    });
+    const errors = validateMapConfig(config);
+    expect(errors.some((e) => e.includes('collider must be within map bounds'))).toBe(true);
   });
 });

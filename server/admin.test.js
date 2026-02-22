@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createWorldFromConfig } from './logic/world.js';
 import { xpToNext } from '../shared/progression.js';
+import { MAP_CONFIG_VERSION } from '../shared/mapConfig.js';
 import {
   buildAdminState,
   createAdminStateHandler,
@@ -233,11 +234,12 @@ describe('admin state serialization', () => {
 
   it('builds admin state with world snapshot', () => {
     const world = createWorldFromConfig({
-      version: 1,
+      version: MAP_CONFIG_VERSION,
       mapSize: 40,
       base: { x: 0, z: 0, radius: 4 },
       spawnPoints: [{ x: 0, z: 0 }],
       obstacles: [],
+      structures: [],
       resourceNodes: [],
       vendors: [],
       mobSpawns: [],
@@ -257,11 +259,12 @@ describe('admin state serialization', () => {
 
 describe('admin endpoint handler', () => {
   const world = createWorldFromConfig({
-    version: 1,
+    version: MAP_CONFIG_VERSION,
     mapSize: 40,
     base: { x: 0, z: 0, radius: 4 },
     spawnPoints: [{ x: 0, z: 0 }],
     obstacles: [],
+    structures: [],
     resourceNodes: [],
     vendors: [],
     mobSpawns: [],

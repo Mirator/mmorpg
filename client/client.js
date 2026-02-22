@@ -840,6 +840,8 @@ function buildTextState() {
   const worldConfig = gameState.getWorldConfig();
   const base = worldConfig?.base ?? null;
   const obstacles = worldConfig?.obstacles ?? [];
+  const collisionObstacles = worldConfig?.collisionObstacles ?? obstacles;
+  const structures = worldConfig?.structures ?? [];
   const mapSize = worldConfig?.mapSize ?? 0;
   const harvestRadius = worldConfig?.harvestRadius ?? 2;
   const inventorySlots = Array.isArray(me?.inventory) ? me.inventory : [];
@@ -882,7 +884,21 @@ function buildTextState() {
       harvestRadius,
       vendors: worldConfig?.vendors ?? [],
       vendorInteractRadius: worldConfig?.vendorInteractRadius ?? 2.5,
-      obstacles: obstacles.map((/** @type {any} */ o) => ({ x: o.x, z: o.z, r: o.r })),
+      obstacles: obstacles.map((/** @type {any} */ o) => ({ x: o.x, z: o.z, r: o.r ?? o.radius })),
+      collisionObstacles: collisionObstacles.map((/** @type {any} */ o) => ({
+        x: o.x,
+        z: o.z,
+        r: o.r ?? o.radius,
+      })),
+      structures: structures.map((/** @type {any} */ structure) => ({
+        id: structure.id,
+        kind: structure.kind,
+        x: structure.x,
+        z: structure.z,
+        rotation: structure.rotation ?? 0,
+        colliderRadius: structure.colliderRadius,
+        collides: structure.collides !== false,
+      })),
     },
     serverTime: gameState.getServerNow(),
     player: me

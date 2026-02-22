@@ -297,7 +297,11 @@ function buildVillage(/** @type {any} */ base) {
   return village;
 }
 
-async function hydrateVillageCenter(/** @type {any} */ worldState, /** @type {any} */ village) {
+async function hydrateVillageCenter(
+  /** @type {any} */ worldState,
+  /** @type {any} */ village,
+  /** @type {any} */ placement = null
+) {
   if (!worldState?.isActive) return;
   if (worldState.baseMesh !== village) return;
   const modelUrl = ASSET_PATHS.villageCenterModel;
@@ -316,16 +320,29 @@ async function hydrateVillageCenter(/** @type {any} */ worldState, /** @type {an
     profile: ENV_SCALE_PROFILE,
   });
   centerModelOnGroundXZ(model);
+  const targetPlacement = placement ?? {
+    x: village.position?.x ?? 0,
+    y: village.position?.y ?? 0,
+    z: village.position?.z ?? 0,
+    rotation: 0,
+  };
+  const offsetX = (targetPlacement.x ?? 0) - (village.position?.x ?? 0);
+  const offsetY = (targetPlacement.y ?? 0) - (village.position?.y ?? 0);
+  const offsetZ = (targetPlacement.z ?? 0) - (village.position?.z ?? 0);
+  model.position.x += offsetX;
+  model.position.y += offsetY;
+  model.position.z += offsetZ;
+  model.rotation.y = targetPlacement.rotation ?? 0;
   recordEnvironmentScale(worldState, 'villageCenterModel', {
     ...scaleInfo,
     id: 'villageCenterModel',
     key: 'villageCenterModel',
     category: 'villageCenter',
     placement: {
-      x: village.position?.x ?? 0,
-      y: village.position?.y ?? 0,
-      z: village.position?.z ?? 0,
-      rotation: village.rotation?.y ?? 0,
+      x: targetPlacement.x ?? 0,
+      y: targetPlacement.y ?? 0,
+      z: targetPlacement.z ?? 0,
+      rotation: targetPlacement.rotation ?? 0,
     },
   });
 
@@ -606,6 +623,7 @@ export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
     mapSize,
     base,
     obstacles: world?.obstacles ?? [],
+    structures: world?.structures ?? [],
     group,
     envGroup,
     envReady: false,
@@ -635,11 +653,16 @@ export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
   group.add(ground, baseMesh, envGroup, ...obstacleMeshes);
   scene.add(group);
 
-  hydrateVillageCenter(worldState, baseMesh).catch((/** @type {any} */ err) => {
-    console.warn('[world] Failed to load village center model:', err);
-  });
+  const villageCenterPlacement =
+    worldState.structures.find((/** @type {any} */ structure) => structure?.kind === 'villageCenter') ??
+    null;
+  if (villageCenterPlacement) {
+    hydrateVillageCenter(worldState, baseMesh, villageCenterPlacement).catch((/** @type {any} */ err) => {
+      console.warn('[world] Failed to load village center model:', err);
+    });
+  }
 
-  loadEnvironmentModels(worldState, envGroup, base).catch(
+  loadEnvironmentModels(worldState, envGroup).catch(
     (/** @type {any} */ err) => {
       console.warn('[world] Failed to load environment models:', err);
     }
@@ -806,9 +829,9 @@ async function addEnvironmentModel(/** @type {any} */ worldState, /** @type {any
     profile: ENV_SCALE_PROFILE,
   });
   centerModelOnGroundXZ(model);
-  recordEnvironmentScale(worldState, key, {
+  recordEnvironmentScale(worldState, placement.id ?? key, {
     ...scaleInfo,
-    id: key,
+    id: placement.id ?? key,
     key,
     category: placement.category ?? 'house',
     placement: {
@@ -822,6 +845,14 @@ async function addEnvironmentModel(/** @type {any} */ worldState, /** @type {any
   lod.position.set(placement.x, placement.y ?? 0, placement.z);
   lod.rotation.y = placement.rotation ?? 0;
   envGroup.add(lod);
+}
+
+function getStructureCategory(/** @type {any} */ kind) {
+  if (kind === 'market' || kind === 'barracks') return 'civic';
+  if (kind === 'storage') return 'mill';
+  if (kind === 'houseA' || kind === 'houseB') return 'house';
+  if (kind === 'bellTower') return 'tower';
+  return 'house';
 }
 
 async function loadObstacleRocks(/** @type {any} */ worldState) {
@@ -851,19 +882,25 @@ async function loadObstacleRocks(/** @type {any} */ worldState) {
   }
 }
 
-async function loadEnvironmentModels(/** @type {any} */ worldState, /** @type {any} */ envGroup, /** @type {any} */ base) {
+async function loadEnvironmentModels(/** @type {any} */ worldState, /** @type {any} */ envGroup) {
   if (!worldState?.isActive) return;
-  const ring = (base?.radius ?? 8) + 6;
-  const diag = ring * 0.7;
-  const towerRadius = 65;
-  const /** @type {any} */ placements = [
-    { key: 'market', category: 'civic', x: base.x + ring, z: base.z, rotation: Math.PI / 2 },
-    { key: 'barracks', category: 'civic', x: base.x - ring, z: base.z, rotation: -Math.PI / 2 },
-    { key: 'storage', category: 'mill', x: base.x, z: base.z + ring, rotation: Math.PI },
-    { key: 'houseA', category: 'house', x: base.x, z: base.z - ring, rotation: 0 },
-    { key: 'houseB', category: 'house', x: base.x + diag, z: base.z + diag, rotation: Math.PI / 4 },
-    { key: 'bellTower', category: 'tower', x: base.x, z: base.z + towerRadius, rotation: 0 },
-  ];
+  const structures = Array.isArray(worldState.structures) ? worldState.structures : [];
+  const environmentPaths = /** @type {Record<string, string>} */ (ASSET_PATHS.environment ?? {});
+  const placements = structures
+    .filter((/** @type {any} */ structure) =>
+      structure?.kind &&
+      structure.kind !== 'villageCenter' &&
+      typeof environmentPaths[structure.kind] === 'string'
+    )
+    .map((/** @type {any} */ structure) => ({
+      id: structure.id ?? structure.kind,
+      key: structure.kind,
+      category: getStructureCategory(structure.kind),
+      x: structure.x ?? 0,
+      y: structure.y ?? 0,
+      z: structure.z ?? 0,
+      rotation: structure.rotation ?? 0,
+    }));
 
   await Promise.all([
     ...placements.map((/** @type {any} */ placement) =>

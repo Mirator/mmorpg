@@ -44,6 +44,34 @@ describe('mobs', () => {
     expect(mob.targetId).toBe('p1');
   });
 
+  it('does not move through collisionObstacles while wandering', () => {
+    const mob = {
+      id: 'm1',
+      pos: { x: 0, y: 0, z: 0 },
+      state: 'wander',
+      targetId: null,
+      nextDecisionAt: 5000,
+      dir: { x: 1, z: 0 },
+      attackCooldownUntil: 0,
+      level: 1,
+      hp: 20,
+      maxHp: 20,
+      dead: false,
+      mobType: 'orc',
+    };
+
+    stepMobs(
+      [mob],
+      [],
+      { mapSize: 100, obstacles: [], collisionObstacles: [{ x: 2, z: 0, r: 1 }] },
+      1,
+      1000,
+      { random: () => 0.5 }
+    );
+
+    expect(Math.hypot(mob.pos.x - 2, mob.pos.z)).toBeGreaterThanOrEqual(1.8);
+  });
+
   it('damages players on contact with cooldown', () => {
     const mob = {
       id: 'm1',

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getServerConfig } from './config.js';
 import { createHttpApp } from './http.js';
 import { createWorldFromConfig } from './logic/world.js';
+import { MAP_CONFIG_VERSION } from '../shared/mapConfig.js';
 
 const store = vi.hoisted(() => ({
   accountsById: new Map(),
@@ -150,11 +151,12 @@ describe('HTTP auth lifecycle integration', () => {
   it('supports signup/login/logout and character CRUD + ws ticket', async () => {
     const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
     const world = createWorldFromConfig({
-      version: 1,
+      version: MAP_CONFIG_VERSION,
       mapSize: 40,
       base: { x: 0, z: 0, radius: 4 },
       spawnPoints: [{ x: 0, z: 0 }],
       obstacles: [],
+      structures: [],
       resourceNodes: [],
       vendors: [{ id: 'vendor-1', name: 'Vendor', x: 6, z: 0 }],
       mobSpawns: [],

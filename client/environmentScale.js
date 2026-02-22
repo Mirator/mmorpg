@@ -17,7 +17,8 @@ export const ENV_SCALE_TARGETS = {
 /** @type {Record<string, { uniformMultiplier?: number, yScale?: number }>} */
 export const ENV_SCALE_OVERRIDES = {
   storage: { uniformMultiplier: 1.2 },
-  villageCenterModel: { yScale: 0.82 },
+  // Keep village-center fences/building footprint and height ~50% smaller than current baseline.
+  villageCenterModel: { uniformMultiplier: 0.5, yScale: 0.82 },
 };
 
 /** @type {Record<string, string>} */

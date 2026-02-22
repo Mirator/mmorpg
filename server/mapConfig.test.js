@@ -12,6 +12,7 @@ function buildConfig(overrides = {}) {
     base: { x: 0, z: 0, radius: 6 },
     spawnPoints: [{ x: 3, z: 3 }],
     obstacles: [],
+    structures: [{ id: 's1', kind: 'market', x: 10, z: 0, colliderRadius: 3 }],
     resourceNodes: [{ id: 'r1', x: 6, z: 6 }],
     vendors: [{ id: 'vendor-1', name: 'Vendor', x: 5, z: -2 }],
     mobSpawns: [{ id: 'm1', x: -8, z: 6 }],

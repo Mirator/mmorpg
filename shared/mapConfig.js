@@ -5,7 +5,21 @@ import { VENDOR_BUY_ITEMS } from './economy.js';
 
 const VALID_VENDOR_BUY_KINDS = new Set(VENDOR_BUY_ITEMS.map((/** @type {any} */ e) => e.kind));
 
-export const MAP_CONFIG_VERSION = 1;
+export const MAP_CONFIG_VERSION = 2;
+export const STRUCTURE_KIND_LIST = [
+  'fence',
+  'market',
+  'barracks',
+  'storage',
+  'houseA',
+  'houseB',
+  'bellTower',
+  'villageCenter',
+];
+export const VALID_STRUCTURE_KINDS = new Set(STRUCTURE_KIND_LIST.map((/** @type {any} */ kind) => kind.toLowerCase()));
+const STRUCTURE_KIND_LOOKUP = new Map(
+  STRUCTURE_KIND_LIST.map((/** @type {any} */ kind) => [kind.toLowerCase(), kind])
+);
 
 function isObject(/** @type {any} */ value) {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -35,6 +49,28 @@ function normalizeList(/** @type {any} */ raw, /** @type {any} */ mapFn) {
   return raw.map((/** @type {any} */ item) => mapFn(item));
 }
 
+function normalizeStructure(/** @type {any} */ raw) {
+  const structure = isObject(raw) ? raw : {};
+  const kindRaw = typeof structure.kind === 'string'
+    ? structure.kind.trim().toLowerCase()
+    : '';
+  const kind = STRUCTURE_KIND_LOOKUP.get(kindRaw) ?? kindRaw;
+  const collides = structure.collides !== false;
+  const colliderRadius = Number.isFinite(structure.colliderRadius)
+    ? structure.colliderRadius
+    : undefined;
+  return {
+    id: structure.id ?? '',
+    kind,
+    x: structure.x ?? 0,
+    y: structure.y ?? 0,
+    z: structure.z ?? 0,
+    rotation: Number.isFinite(structure.rotation) ? structure.rotation : 0,
+    colliderRadius,
+    collides,
+  };
+}
+
 export function normalizeMapConfig(/** @type {any} */ raw) {
   const config = isObject(raw) ? raw : {};
   return {
@@ -45,6 +81,7 @@ export function normalizeMapConfig(/** @type {any} */ raw) {
     base: normalizeCircle(config.base),
     spawnPoints: normalizeList(config.spawnPoints, normalizePoint),
     obstacles: normalizeList(config.obstacles, (/** @type {any} */ item) => normalizeCircle(item)),
+    structures: normalizeList(config.structures, normalizeStructure),
     resourceNodes: normalizeList(config.resourceNodes, (/** @type {any} */ item) => {
       const type = isObject(item) && typeof item.type === 'string' ? item.type.trim().toLowerCase() : 'crystal';
       const respawnMs = isObject(item) && Number.isFinite(item.respawnMs) ? item.respawnMs : undefined;
@@ -197,6 +234,55 @@ export function validateMapConfig(/** @type {any} */ config) {
   } else {
     config.obstacles.forEach((/** @type {any} */ obs, /** @type {any} */ index) => {
       validateCircle(errors, `obstacles[${index}]`, obs, half, yMin, yMax);
+    });
+  }
+
+  if (!Array.isArray(config.structures)) {
+    addError(errors, 'structures must be an array.');
+  } else {
+    const seen = new Set();
+    config.structures.forEach((/** @type {any} */ structure, /** @type {any} */ index) => {
+      validateId(errors, `structures[${index}]`, structure?.id, seen);
+      validatePoint(errors, `structures[${index}]`, structure ?? {}, half, yMin, yMax);
+
+      const kind = typeof structure?.kind === 'string'
+        ? structure.kind.trim().toLowerCase()
+        : '';
+      if (!VALID_STRUCTURE_KINDS.has(kind)) {
+        addError(
+          errors,
+          `structures[${index}] kind must be one of: ${STRUCTURE_KIND_LIST.join(', ')}.`
+        );
+      }
+
+      if (!isFiniteNumber(structure?.rotation ?? 0)) {
+        addError(errors, `structures[${index}] rotation must be numeric.`);
+      }
+
+      const collides = structure?.collides !== false;
+      const colliderRadius = structure?.colliderRadius;
+      if (collides) {
+        if (!isFiniteNumber(colliderRadius) || colliderRadius <= 0) {
+          addError(errors, `structures[${index}] colliderRadius must be > 0 when collides is true.`);
+        } else if (
+          isFiniteNumber(structure?.x) &&
+          isFiniteNumber(structure?.z) &&
+          (
+            structure.x < -half + colliderRadius ||
+            structure.x > half - colliderRadius ||
+            structure.z < -half + colliderRadius ||
+            structure.z > half - colliderRadius
+          )
+        ) {
+          addError(errors, `structures[${index}] collider must be within map bounds.`);
+        }
+      } else if (
+        colliderRadius !== undefined &&
+        colliderRadius !== null &&
+        (!isFiniteNumber(colliderRadius) || colliderRadius <= 0)
+      ) {
+        addError(errors, `structures[${index}] colliderRadius must be > 0 when provided.`);
+      }
     });
   }
 

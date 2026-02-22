@@ -366,6 +366,65 @@ async function run() {
     );
     await page.evaluate(() => window.__game?.clearInput());
 
+    const collidableStructures = (state.world?.structures ?? []).filter(
+      (/** @type {any} */ structure) =>
+        structure?.collides !== false && Number.isFinite(structure?.colliderRadius) && structure.colliderRadius > 0
+    );
+    const blockingStructure =
+      collidableStructures.find((/** @type {any} */ structure) => structure.kind === 'market') ??
+      collidableStructures[0] ??
+      null;
+    if (blockingStructure) {
+      await page.evaluate(
+        (/** @type {any} */ { x, z }) => window.__game?.moveTo(x, z),
+        { x: blockingStructure.x, z: blockingStructure.z }
+      );
+      state = await waitForCondition(
+        page,
+        (/** @type {any} */ s) =>
+          s.player && distance(s.player, blockingStructure) <= (blockingStructure.colliderRadius ?? 0) + 1.6,
+        TEST_TIMEOUT_MS,
+        'approach collidable structure'
+      );
+      await advance(page, 1000);
+      await sleep(100);
+      state = await getState(page);
+      const minDistance = (blockingStructure.colliderRadius ?? 0) + 0.45;
+      const actualDistance = distance(state.player, blockingStructure);
+      if (actualDistance < minDistance) {
+        throw new Error(
+          `Player crossed structure collision boundary (${actualDistance.toFixed(2)} < ${minDistance.toFixed(2)}).`
+        );
+      }
+    }
+
+    const fenceStructure =
+      collidableStructures.find((/** @type {any} */ structure) => structure.kind === 'fence') ??
+      null;
+    if (fenceStructure) {
+      await page.evaluate(
+        (/** @type {any} */ { x, z }) => window.__game?.moveTo(x, z),
+        { x: fenceStructure.x, z: fenceStructure.z }
+      );
+      state = await waitForCondition(
+        page,
+        (/** @type {any} */ s) =>
+          s.player && distance(s.player, fenceStructure) <= (fenceStructure.colliderRadius ?? 0) + 1.6,
+        TEST_TIMEOUT_MS,
+        'approach collidable fence'
+      );
+      await advance(page, 900);
+      await sleep(100);
+      state = await getState(page);
+      const minDistance = (fenceStructure.colliderRadius ?? 0) + 0.4;
+      const actualDistance = distance(state.player, fenceStructure);
+      if (actualDistance < minDistance) {
+        throw new Error(
+          `Player crossed fence collision boundary (${actualDistance.toFixed(2)} < ${minDistance.toFixed(2)}).`
+        );
+      }
+    }
+
     const harvestRadius = state.world?.harvestRadius ?? 2;
     let /** @type {any} */ resource = null;
     const testResource = state.resources.find((/** @type {any} */ r) => r.id === 'r-test');
@@ -392,7 +451,7 @@ async function run() {
     if (availableResources.length === 0) {
       throw new Error('No available resource found');
     }
-    const obstacles = state.world?.obstacles ?? [];
+    const obstacles = state.world?.collisionObstacles ?? state.world?.obstacles ?? [];
     const visibleResources = availableResources.filter((/** @type {any} */ r) =>
       hasLineOfSight(state.player, r, obstacles)
     );
@@ -816,9 +875,15 @@ async function run() {
     }
 
     const liveMobs = state.mobs.filter((/** @type {any} */ m) => !m.dead);
-    const obstaclesForMobs = state.world?.obstacles ?? [];
-    const losMobs = liveMobs.filter((/** @type {any} */ m) => hasLineOfSight(state.player, m, obstaclesForMobs));
-    const damagePool = (losMobs.length ? losMobs : liveMobs).filter(
+    const knownPassiveMobIds = new Set(['m1', 'm2', 'm3', 'm4']);
+    const combatMobs = liveMobs.filter(
+      (/** @type {any} */ m) =>
+        String(m.id ?? '').startsWith('m') &&
+        !knownPassiveMobIds.has(String(m.id ?? ''))
+    );
+    const obstaclesForMobs = state.world?.collisionObstacles ?? state.world?.obstacles ?? [];
+    const losMobs = combatMobs.filter((/** @type {any} */ m) => hasLineOfSight(state.player, m, obstaclesForMobs));
+    const damagePool = (losMobs.length ? losMobs : combatMobs).filter(
       (/** @type {any} */ m) => m.id !== attackTarget.id
     );
     const mobDamageTarget =
