@@ -53,7 +53,8 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
     const testMobLevel = 4;
     const testMobMaxHp = getMobMaxHp(testMobLevel, 'orc');
     const /** @type {any} */ mTestPos = {
-      x: world.base.x + world.base.radius + 12,
+      // Keep the dedicated combat test mob outside r-test harvest aggro range.
+      x: world.base.x + world.base.radius + 20,
       y: 0,
       z: world.base.z,
     };
