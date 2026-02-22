@@ -101,6 +101,7 @@ export function createPriestHandlers(d) {
       const origin = placementCenter ?? player.pos;
       const playerArr = players instanceof Map ? Array.from(players.values()) : players;
       let totalHealed = 0;
+      const /** @type {any} */ impacts = [];
       for (const p of playerArr ?? []) {
         if (!p || p.dead) continue;
         const dist = Math.hypot((p.pos?.x ?? 0) - (origin?.x ?? 0), (p.pos?.z ?? 0) - (origin?.z ?? 0));
@@ -109,8 +110,20 @@ export function createPriestHandlers(d) {
         const heal = d.applyPvpHealMultiplier(rawHeal, ability, isPvP);
         p.hp = Math.min((p.hp ?? 0) + heal, p.maxHp ?? 100);
         totalHealed += heal;
+        if (heal > 0 && Number.isFinite(p?.pos?.x) && Number.isFinite(p?.pos?.z)) {
+          impacts.push({
+            kind: 'heal',
+            amount: heal,
+            targetId: p.id ? String(p.id) : undefined,
+            targetKind: 'player',
+            x: p.pos.x,
+            y: Number.isFinite(p.pos.y) ? p.pos.y : 0,
+            z: p.pos.z,
+          });
+        }
       }
       return {
+        impacts,
         combatLog: totalHealed > 0 ? { healAmount: totalHealed, healTarget: 'party' } : null,
       };
     },

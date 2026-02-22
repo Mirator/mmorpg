@@ -736,8 +736,14 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     renderFrame,
     spawnSlash: (/** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ durationMs, /** @type {any} */ now) =>
       effectsSystem.spawnSlash({ to, durationMs, now }),
-    spawnProjectile: (/** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ durationMs, /** @type {any} */ now) =>
-      effectsSystem.spawnProjectile({ from, to, durationMs, now }),
+    spawnProjectile: (/** @type {any} */ from, /** @type {any} */ to, /** @type {any} */ durationMs, /** @type {any} */ now, /** @type {any} */ options = {}) =>
+      effectsSystem.spawnProjectile({
+        from,
+        to,
+        durationMs,
+        now,
+        spawnImpactOnEnd: options.spawnImpactOnEnd !== false,
+      }),
     spawnNova: (/** @type {any} */ center, /** @type {any} */ radius, /** @type {any} */ color, /** @type {any} */ durationMs, /** @type {any} */ now) =>
       effectsSystem.spawnNova({ center, radius, color, durationMs, now }),
     spawnCone: (/** @type {any} */ from, /** @type {any} */ direction, /** @type {any} */ coneDegrees, /** @type {any} */ range, /** @type {any} */ color, /** @type {any} */ durationMs, /** @type {any} */ now) =>
@@ -748,6 +754,10 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       effectsSystem.spawnDashTrail({ from, to, durationMs, now }),
     spawnHealRing: (/** @type {any} */ center, /** @type {any} */ radius, /** @type {any} */ color, /** @type {any} */ durationMs, /** @type {any} */ now) =>
       effectsSystem.spawnHealRing({ center, radius, color, durationMs, now }),
+    spawnCombatText: (/** @type {any} */ pos, /** @type {any} */ payload, /** @type {any} */ now) =>
+      effectsSystem.spawnCombatText({ pos, payload, now }),
+    spawnHitConfirm: (/** @type {any} */ pos, /** @type {any} */ payload, /** @type {any} */ now) =>
+      effectsSystem.spawnHitConfirm({ pos, payload, now }),
     setPlacementIndicator,
     updatePlacementIndicator,
   };

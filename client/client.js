@@ -982,6 +982,18 @@ function buildTextState() {
           to: event.to ?? null,
           hit: !!event.hit,
           durationMs: event.durationMs ?? 0,
+          impacts: Array.isArray(event.impacts)
+            ? event.impacts.map((/** @type {any} */ impact) => ({
+                kind: impact.kind ?? null,
+                amount: Number.isFinite(impact.amount) ? impact.amount : 0,
+                isCrit: !!impact.isCrit,
+                targetId: impact.targetId ?? null,
+                targetKind: impact.targetKind ?? null,
+                x: Number.isFinite(impact.x) ? impact.x : null,
+                y: Number.isFinite(impact.y) ? impact.y : null,
+                z: Number.isFinite(impact.z) ? impact.z : null,
+              }))
+            : [],
           t: event.t ?? null,
         })),
     },

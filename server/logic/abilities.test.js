@@ -197,6 +197,32 @@ describe('class abilities', () => {
     expect(fighter.lastMoveDir?.z).toBeCloseTo(Math.SQRT1_2, 5);
   });
 
+  it('adds crit impact metadata for targeted damage abilities', () => {
+    const fighter = makePlayer({ classId: 'fighter', level: 2, resource: 100 });
+    const mob = makeMob('m1', 1.5, 0);
+    fighter.targetId = mob.id;
+    fighter.targetKind = 'mob';
+
+    const result = tryUseAbility({
+      player: fighter,
+      slot: 2,
+      mobs: [mob],
+      players: new Map(),
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.event?.impacts?.[0]).toMatchObject({
+      kind: 'damage',
+      targetId: mob.id,
+      targetKind: 'mob',
+      isCrit: true,
+    });
+    expect(result.event?.impacts?.[0]?.amount).toBeGreaterThan(0);
+  });
+
   it('sets facing toward placement when using placement abilities', () => {
     const ranger = makePlayer({ classId: 'ranger', level: 15, resource: 100 });
     const result = tryUseAbility({
@@ -318,6 +344,29 @@ describe('class abilities', () => {
     expect(mobBehind.hp).toBe(mobBehind.maxHp);
   });
 
+  it('adds per-target impacts for aoe abilities', () => {
+    const fighter = makePlayer({ classId: 'fighter', level: 3, resource: 100 });
+    const mobFront = makeMob('m1', 2, 0);
+    const mobSide = makeMob('m2', 2, 1);
+    const mobBehind = makeMob('m3', -2, 0);
+    fighter.targetId = mobFront.id;
+    fighter.targetKind = 'mob';
+
+    const result = tryUseAbility({
+      player: fighter,
+      slot: 3,
+      mobs: [mobFront, mobSide, mobBehind],
+      players: new Map(),
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.event?.impacts ?? []).toHaveLength(2);
+    expect(result.event?.impacts?.every((/** @type {any} */ impact) => impact.kind === 'damage')).toBe(true);
+  });
+
   it('heal targets ally when selected and self when not', () => {
     const priest = makePlayer({ classId: 'priest', level: 2, resource: 120, hp: 80, maxHp: 100 });
     const ally = makePlayer({ id: 'p2', classId: 'fighter', level: 2, hp: 50, maxHp: 100 });
@@ -354,6 +403,32 @@ describe('class abilities', () => {
     });
     expect(healSelf.success).toBe(true);
     expect(priest.hp).toBeGreaterThanOrEqual(70);
+  });
+
+  it('adds heal impact metadata for direct heals', () => {
+    const priest = makePlayer({ classId: 'priest', level: 2, resource: 120 });
+    const ally = makePlayer({ id: 'p2', classId: 'fighter', level: 2, hp: 40, maxHp: 100 });
+    const players = new Map([[priest.id, priest], [ally.id, ally]]);
+    priest.targetId = ally.id;
+    priest.targetKind = 'player';
+
+    const result = tryUseAbility({
+      player: priest,
+      slot: 2,
+      mobs: [],
+      players,
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.event?.impacts?.[0]).toMatchObject({
+      kind: 'heal',
+      targetId: ally.id,
+      targetKind: 'player',
+    });
+    expect(result.event?.impacts?.[0]?.amount).toBeGreaterThan(0);
   });
 
   it('smite applies weakened and reduces mob damage', () => {

@@ -144,6 +144,40 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
         t: now,
       },
     ]);
+    const from = mob?.pos
+      ? { x: mob.pos.x, y: mob.pos.y ?? 0, z: mob.pos.z }
+      : Number.isFinite(mob?.x) && Number.isFinite(mob?.z)
+        ? { x: mob.x, y: Number.isFinite(mob?.y) ? mob.y : 0, z: mob.z }
+        : null;
+    const to = player?.pos
+      ? { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z }
+      : null;
+    const /** @type {any} */ impacts = [];
+    if (Number.isFinite(damage) && damage > 0 && to) {
+      impacts.push({
+        kind: 'damage',
+        amount: Math.floor(damage),
+        targetId: String(player.id),
+        targetKind: 'player',
+        x: to.x,
+        y: to.y ?? 0,
+        z: to.z,
+      });
+    }
+    ws.broadcastCombatEvent(
+      {
+        kind: 'basic_attack',
+        attackType: 'melee',
+        attackerId: mob?.id ?? null,
+        targetId: player?.id ?? null,
+        from: from ?? to,
+        to,
+        hit: Number.isFinite(damage) && damage > 0,
+        durationMs: 180,
+        ...(impacts.length ? { impacts } : {}),
+      },
+      now
+    );
   };
 
   const onCombatLog = (/** @type {any} */ playerId, /** @type {any} */ entries) => {

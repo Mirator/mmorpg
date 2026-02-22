@@ -60,6 +60,7 @@ export function createRangerHandlers(d) {
         xpGain: result.xpGain,
         leveledUp: result.leveledUp,
         hit: result.hit,
+        impacts: result.impacts ?? [],
         combatLog:
           result.hit && (result.xpGain > 0 || result.leveledUp)
             ? {

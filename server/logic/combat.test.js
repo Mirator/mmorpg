@@ -114,4 +114,44 @@ describe('combat', () => {
     expect(player.xp).toBe(result.xpGain);
     vi.restoreAllMocks();
   });
+
+  it('emits impact metadata for hit and omits it for miss', () => {
+    const hitPlayer = makePlayer('weapon_training_sword');
+    const hitMob = makeMob(1.2, 'fox');
+    hitPlayer.targetId = hitMob.id;
+
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const hitResult = tryBasicAttack({
+      player: hitPlayer,
+      mobs: [hitMob],
+      now: 0,
+      respawnMs: 1000,
+      players: new Map(),
+    });
+    expect(hitResult.success).toBe(true);
+    expect(hitResult.event?.impacts?.[0]).toMatchObject({
+      kind: 'damage',
+      targetId: hitMob.id,
+      targetKind: 'mob',
+      isCrit: true,
+    });
+    expect(hitResult.event?.impacts?.[0]?.amount).toBeGreaterThan(0);
+    vi.restoreAllMocks();
+
+    const missPlayer = makePlayer('weapon_training_sword');
+    const missMob = makeMob(1.2, 'fox');
+    missPlayer.targetId = missMob.id;
+    vi.spyOn(Math, 'random').mockReturnValue(0.9999);
+    const missResult = tryBasicAttack({
+      player: missPlayer,
+      mobs: [missMob],
+      now: 0,
+      respawnMs: 1000,
+      players: new Map(),
+    });
+    expect(missResult.success).toBe(true);
+    expect(missResult.event?.hit).toBe(false);
+    expect(missResult.event?.impacts ?? []).toHaveLength(0);
+    vi.restoreAllMocks();
+  });
 });

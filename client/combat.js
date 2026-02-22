@@ -175,15 +175,81 @@ export function createCombat(/** @type {any} */ {
     eagle_eye: 0xffdd66,
   };
 
+  function sameEntityId(/** @type {any} */ a, /** @type {any} */ b) {
+    if (a == null || b == null) return false;
+    return String(a) === String(b);
+  }
+
+  function resolveImpactAnchor(/** @type {any} */ impact, /** @type {any} */ event) {
+    if (impact && Number.isFinite(impact.x) && Number.isFinite(impact.z)) {
+      return { x: impact.x, y: Number.isFinite(impact.y) ? impact.y : 0, z: impact.z };
+    }
+    const fallback = event?.to ?? event?.center ?? event?.from;
+    if (!fallback || !Number.isFinite(fallback.x) || !Number.isFinite(fallback.z)) return null;
+    return {
+      x: fallback.x,
+      y: Number.isFinite(fallback.y) ? fallback.y : 0,
+      z: fallback.z,
+    };
+  }
+
+  function getRelevantImpacts(/** @type {any} */ event) {
+    const impacts = Array.isArray(event?.impacts) ? event.impacts : [];
+    if (!impacts.length) return [];
+    const localId = ctx.playerId;
+    const outgoing = sameEntityId(event?.attackerId, localId);
+    const /** @type {any} */ relevant = [];
+    for (const impact of impacts) {
+      if (!impact || !Number.isFinite(impact.amount) || impact.amount <= 0) continue;
+      const incoming =
+        impact.targetKind === 'player' && sameEntityId(impact.targetId, localId);
+      if (!outgoing && !incoming) continue;
+      relevant.push(impact);
+    }
+    return relevant;
+  }
+
+  function hasImpactPayload(/** @type {any} */ event) {
+    if (!Array.isArray(event?.impacts)) return false;
+    return event.impacts.some(
+      (/** @type {any} */ impact) => impact && Number.isFinite(impact.amount) && impact.amount > 0
+    );
+  }
+
   function handleCombatEvent(/** @type {any} */ event, /** @type {any} */ now, /** @type {any} */ serverTime) {
     if (!event) return;
     const timestamp = Number.isFinite(serverTime) ? serverTime : gameState.getServerNow();
     recordCombatEvent(event, timestamp);
+    const relevantImpacts = getRelevantImpacts(event);
+    for (const impact of relevantImpacts) {
+      const anchor = resolveImpactAnchor(impact, event);
+      if (!anchor) continue;
+      renderSystem?.spawnCombatText?.(
+        anchor,
+        {
+          kind: impact.kind === 'heal' ? 'heal' : 'damage',
+          amount: Math.floor(impact.amount),
+          isCrit: !!impact.isCrit,
+        },
+        now
+      );
+      renderSystem?.spawnHitConfirm?.(
+        anchor,
+        {
+          kind: impact.kind === 'heal' ? 'heal' : 'damage',
+          isCrit: !!impact.isCrit,
+        },
+        now
+      );
+    }
+    const shouldSpawnProjectileImpact = hasImpactPayload(event) || event.hit !== false;
 
     if (event.kind === 'basic_attack') {
       renderSystem?.triggerAttack?.(event.attackerId, now, event.durationMs);
       if (event.attackType === 'ranged') {
-        renderSystem.spawnProjectile(event.from, event.to, event.durationMs, now);
+        renderSystem.spawnProjectile(event.from, event.to, event.durationMs, now, {
+          spawnImpactOnEnd: shouldSpawnProjectileImpact,
+        });
       } else {
         renderSystem.spawnSlash(event.from, event.to, event.durationMs, now);
       }
@@ -198,7 +264,11 @@ export function createCombat(/** @type {any} */ {
           if (event.to) renderSystem.spawnSlash(event.from, event.to, dur, now);
           break;
         case 'projectile':
-          if (event.from && event.to) renderSystem.spawnProjectile(event.from, event.to, dur, now);
+          if (event.from && event.to) {
+            renderSystem.spawnProjectile(event.from, event.to, dur, now, {
+              spawnImpactOnEnd: shouldSpawnProjectileImpact,
+            });
+          }
           break;
         case 'cone':
           if (event.from && event.direction) {
@@ -230,7 +300,11 @@ export function createCombat(/** @type {any} */ {
           if (event.from && event.to) renderSystem.spawnDashTrail(event.from, event.to, dur, now);
           break;
         default:
-          if (event.from && event.to) renderSystem.spawnProjectile(event.from, event.to, dur, now);
+          if (event.from && event.to) {
+            renderSystem.spawnProjectile(event.from, event.to, dur, now, {
+              spawnImpactOnEnd: shouldSpawnProjectileImpact,
+            });
+          }
       }
       renderSystem?.triggerAttack?.(event.attackerId, now, dur);
     }

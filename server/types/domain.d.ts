@@ -294,10 +294,22 @@ export interface CombatPoint {
   y?: number;
 }
 
+export interface CombatImpact {
+  kind: 'damage' | 'heal';
+  amount: number;
+  isCrit?: boolean;
+  targetId?: string;
+  targetKind?: 'mob' | 'player';
+  x: number;
+  y?: number;
+  z: number;
+}
+
 export interface CombatEvent {
   from?: CombatPoint | null;
   to?: CombatPoint | null;
   center?: CombatPoint | null;
+  impacts?: CombatImpact[];
   [key: string]: unknown;
 }
 

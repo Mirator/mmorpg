@@ -133,6 +133,69 @@ function distance2(/** @type {any} */ a, /** @type {any} */ b) {
   return dx * dx + dz * dz;
 }
 
+function toCombatPoint(/** @type {any} */ pos) {
+  if (!pos) return null;
+  const x = Number(pos.x);
+  const z = Number(pos.z);
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
+  const y = Number(pos.y);
+  return Number.isFinite(y) ? { x, y, z } : { x, z };
+}
+
+function buildImpact(/** @type {any} */ { kind, amount, isCrit, targetId, targetKind, pos }) {
+  if ((kind !== 'damage' && kind !== 'heal') || !Number.isFinite(amount) || amount <= 0) {
+    return null;
+  }
+  const point = toCombatPoint(pos);
+  if (!point) return null;
+  return {
+    kind,
+    amount: Math.max(0, Math.floor(amount)),
+    ...(kind === 'damage' && isCrit ? { isCrit: true } : {}),
+    ...(targetId ? { targetId: String(targetId) } : {}),
+    ...(targetKind === 'mob' || targetKind === 'player' ? { targetKind } : {}),
+    ...point,
+  };
+}
+
+function normalizeImpacts(/** @type {any} */ impacts) {
+  if (!Array.isArray(impacts)) return [];
+  const /** @type {any} */ normalized = [];
+  for (const impact of impacts) {
+    const safe = buildImpact({
+      kind: impact?.kind,
+      amount: impact?.amount,
+      isCrit: impact?.isCrit,
+      targetId: impact?.targetId,
+      targetKind: impact?.targetKind,
+      pos: impact,
+    });
+    if (safe) normalized.push(safe);
+  }
+  return normalized;
+}
+
+function makeDamageImpactForTarget(/** @type {any} */ target, /** @type {any} */ amount, /** @type {any} */ isCrit, /** @type {any} */ targetId, /** @type {any} */ targetKind) {
+  return buildImpact({
+    kind: 'damage',
+    amount,
+    isCrit,
+    targetId,
+    targetKind,
+    pos: target?.pos ?? target,
+  });
+}
+
+function makeHealImpactForTarget(/** @type {any} */ target, /** @type {any} */ amount, /** @type {any} */ targetId, /** @type {any} */ targetKind) {
+  return buildImpact({
+    kind: 'heal',
+    amount,
+    targetId,
+    targetKind,
+    pos: target?.pos ?? target,
+  });
+}
+
 const COMBAT_TAG_MS = 5000;
 
 function getMobDisplayName(/** @type {any} */ mob) {
@@ -519,6 +582,11 @@ export function tryBasicAttack(/** @type {any} */ { player, mobs, now, respawnMs
   const /** @type {any} */ from = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
   const /** @type {any} */ to = { x: target.pos.x, y: target.pos.y ?? 0, z: target.pos.z };
   const durationMs = config.attackType === 'ranged' ? 200 : 180;
+  const /** @type {any} */ impacts = [];
+  if (hit) {
+    const impact = makeDamageImpactForTarget(target, damage, isCrit, target.id, 'mob');
+    if (impact) impacts.push(impact);
+  }
 
   const basicAttackAbility = getAbilityForSlot(player, 1);
   const abilityName = basicAttackAbility?.name ?? 'Basic Attack';
@@ -547,6 +615,7 @@ export function tryBasicAttack(/** @type {any} */ { player, mobs, now, respawnMs
       to,
       hit,
       durationMs,
+      ...(impacts.length > 0 ? { impacts } : {}),
     },
   };
 }
@@ -593,15 +662,16 @@ function withinRange(/** @type {any} */ origin, /** @type {any} */ target, /** @
 }
 
 function applyCleave(/** @type {any} */ { player, mobs, range, coneDegrees, ability, now, respawnMs, direction, players }) {
-  if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false };
+  if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false, impacts: [] };
   const dir = direction ?? getAbilityDirection(player, mobs);
-  if (!dir) return { xpGain: 0, leveledUp: false, hit: false, noDirection: true };
+  if (!dir) return { xpGain: 0, leveledUp: false, hit: false, noDirection: true, impacts: [] };
   const halfAngle = (coneDegrees ?? 120) / 2;
   const cosThreshold = Math.cos((halfAngle * Math.PI) / 180);
   let xpGain = 0;
   let leveledUp = false;
   let hit = false;
   const xpByPlayer = new Map();
+  const /** @type {any} */ impacts = [];
   for (const mob of mobs) {
     if (!mob || mob.dead || mob.hp <= 0) continue;
     const dx = mob.pos.x - player.pos.x;
@@ -610,10 +680,12 @@ function applyCleave(/** @type {any} */ { player, mobs, range, coneDegrees, abil
     if (dist <= 0.0001 || dist > range) continue;
     const dot = (dx / dist) * dir.x + (dz / dist) * dir.z;
     if (dot < cosThreshold) continue;
-    const { damage: rawDmg, derived } = computeAbilityDamage(player, ability, now, false);
+    const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, false);
     const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
     if (!rollHit(derived.accuracy, 0)) continue;
     const result = applyDamageToMob({ mob, damage, attacker: player, now, respawnMs, players });
+    const impact = makeDamageImpactForTarget(mob, damage, isCrit, mob.id, 'mob');
+    if (impact) impacts.push(impact);
     if (result.xpGain) xpGain += result.xpGain;
     if (result.leveledUp) leveledUp = true;
     for (const p of result.xpGainByPlayer ?? []) {
@@ -635,10 +707,12 @@ function applyCleave(/** @type {any} */ { player, mobs, range, coneDegrees, abil
       if (dist <= 0.0001 || dist > range) return;
       const dot = (dx / dist) * dir.x + (dz / dist) * dir.z;
       if (dot < cosThreshold) return;
-      const { damage: rawDmg, derived } = computeAbilityDamage(player, ability, now, true);
+      const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, true);
       const damage = applyPvpDamageMultiplier(rawDmg, ability, true);
       if (!rollHit(derived.accuracy, 0)) return;
       applyDamageToPlayer({ targetPlayer, damage, attacker: player, now });
+      const impact = makeDamageImpactForTarget(targetPlayer, damage, isCrit, targetPlayer.id, 'player');
+      if (impact) impacts.push(impact);
       hit = true;
     });
   }
@@ -647,18 +721,19 @@ function applyCleave(/** @type {any} */ { player, mobs, range, coneDegrees, abil
     xpGain: v.xpGain,
     leveledUp: v.leveledUp,
   }));
-  return { xpGain, leveledUp, hit, xpGainByPlayer: xpGainByPlayerArr };
+  return { xpGain, leveledUp, hit, xpGainByPlayer: xpGainByPlayerArr, impacts };
 }
 
 function applyNova(/** @type {any} */ { player, mobs, radius, ability, slowPct, slowDurationMs, rootDurationMs, now, respawnMs, players, center }) {
-  if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false, killed: 0 };
+  if (!player || !Array.isArray(mobs)) return { xpGain: 0, leveledUp: false, hit: false, killed: 0, impacts: [] };
   const origin = center ?? player.pos;
   let xpGain = 0;
   let leveledUp = false;
   let hit = false;
   let killed = 0;
   const xpByPlayer = new Map();
-  const { damage: rawDmg, derived } = computeAbilityDamage(player, ability, now, false);
+  const /** @type {any} */ impacts = [];
+  const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now, false);
   const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
   for (const mob of mobs) {
     if (!mob || mob.dead || mob.hp <= 0) continue;
@@ -666,6 +741,8 @@ function applyNova(/** @type {any} */ { player, mobs, radius, ability, slowPct, 
     if (dist > radius) continue;
     if (!rollHit(derived.accuracy, 0)) continue;
     const result = applyDamageToMob({ mob, damage, attacker: player, now, respawnMs, players });
+    const impact = makeDamageImpactForTarget(mob, damage, isCrit, mob.id, 'mob');
+    if (impact) impacts.push(impact);
     if (rootDurationMs) {
       const effectiveRootDuration = applyCCWithDR(mob, 'root', rootDurationMs, ability, false, now);
       if (effectiveRootDuration > 0) {
@@ -692,7 +769,7 @@ function applyNova(/** @type {any} */ { player, mobs, radius, ability, slowPct, 
     hit = true;
   }
   if (players?.forEach) {
-    const { damage: pvpDmg, derived: pvpDerived } = computeAbilityDamage(player, ability, now, true);
+    const { damage: pvpDmg, derived: pvpDerived, isCrit: pvpCrit } = computeAbilityDamage(player, ability, now, true);
     const pvpDamage = applyPvpDamageMultiplier(pvpDmg, ability, true);
     players.forEach((/** @type {any} */ targetPlayer) => {
       if (!targetPlayer || targetPlayer.dead || targetPlayer.id === player.id) return;
@@ -704,6 +781,8 @@ function applyNova(/** @type {any} */ { player, mobs, radius, ability, slowPct, 
       if (dist > radius) return;
       if (!rollHit(pvpDerived.accuracy, 0)) return;
       applyDamageToPlayer({ targetPlayer, damage: pvpDamage, attacker: player, now });
+      const impact = makeDamageImpactForTarget(targetPlayer, pvpDamage, pvpCrit, targetPlayer.id, 'player');
+      if (impact) impacts.push(impact);
       if (rootDurationMs) {
         const effectiveRootDuration = applyCCWithDR(targetPlayer, 'root', rootDurationMs, ability, true, now);
         if (effectiveRootDuration > 0) {
@@ -725,7 +804,7 @@ function applyNova(/** @type {any} */ { player, mobs, radius, ability, slowPct, 
     xpGain: v.xpGain,
     leveledUp: v.leveledUp,
   }));
-  return { xpGain, leveledUp, hit, killed, xpGainByPlayer };
+  return { xpGain, leveledUp, hit, killed, xpGainByPlayer, impacts };
 }
 
 export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, world, now, respawnMs, placementX, placementZ }) {
@@ -862,6 +941,7 @@ export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, 
   let leveledUp = false;
   let hit = false;
   let /** @type {any} */ combatLog = null;
+  let /** @type {any} */ impacts = [];
 
   const handler = ABILITY_HANDLERS[ability.id];
   if (handler) {
@@ -883,6 +963,38 @@ export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, 
     leveledUp = result.leveledUp ?? false;
     hit = result.hit ?? false;
     if (result.combatLog) combatLog = result.combatLog;
+    impacts = normalizeImpacts(result.impacts);
+    if (
+      impacts.length === 0 &&
+      hit &&
+      Number.isFinite(result?.combatLog?.damageDealt) &&
+      (targetMob || targetPlayer)
+    ) {
+      const fallbackTarget = targetPlayer ?? targetMob;
+      const targetKind = targetPlayer ? 'player' : 'mob';
+      const impact = makeDamageImpactForTarget(
+        fallbackTarget,
+        result.combatLog.damageDealt,
+        result.combatLog.isCrit,
+        fallbackTarget?.id,
+        targetKind
+      );
+      if (impact) impacts.push(impact);
+    }
+    if (
+      impacts.length === 0 &&
+      Number.isFinite(result?.combatLog?.healAmount) &&
+      (ability.id === 'heal' || ability.id === 'salvation')
+    ) {
+      const healTarget = targetPlayer ?? player;
+      const impact = makeHealImpactForTarget(
+        healTarget,
+        result.combatLog.healAmount,
+        healTarget?.id,
+        'player'
+      );
+      if (impact) impacts.push(impact);
+    }
     syncDerivedStatsOnLevelUp(player, leveledUp);
   }
 
@@ -898,6 +1010,12 @@ export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, 
     abilityDir,
     placementCenter,
   });
+  if (event) {
+    event.hit = !!hit;
+    if (impacts.length > 0) {
+      event.impacts = impacts;
+    }
+  }
   return { success: true, xpGain, leveledUp, combatLog, event };
 }
 
@@ -1099,17 +1217,21 @@ export function stepPlayerResources(/** @type {any} */ player, /** @type {any} *
 }
 
 function fireChannelTick(/** @type {any} */ player, /** @type {any} */ ability, /** @type {any} */ target, /** @type {any} */ mobs, /** @type {any} */ now, /** @type {any} */ respawnMs, /** @type {any} */ players) {
-  if (!target || target.dead || target.hp <= 0) return { xpGain: 0, leveledUp: false, combatLog: null };
-  if (!withinRange(player.pos, target.pos, ability.range ?? 0)) return { xpGain: 0, leveledUp: false, combatLog: null };
+  if (!target || target.dead || target.hp <= 0) return { xpGain: 0, leveledUp: false, combatLog: null, impacts: [] };
+  if (!withinRange(player.pos, target.pos, ability.range ?? 0)) return { xpGain: 0, leveledUp: false, combatLog: null, impacts: [] };
   const { damage: rawDmg, derived, isCrit } = computeAbilityDamage(player, ability, now);
   const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
-  if (!rollHit(derived.accuracy, 0)) return { xpGain: 0, leveledUp: false, combatLog: null };
+  if (!rollHit(derived.accuracy, 0)) return { xpGain: 0, leveledUp: false, combatLog: null, impacts: [] };
   const result = applyDamageToMob({ mob: target, damage, attacker: player, now, respawnMs, players });
   syncDerivedStatsOnLevelUp(player, result.leveledUp);
   tagCombat(player, now);
+  const /** @type {any} */ impacts = [];
+  const impact = makeDamageImpactForTarget(target, damage, isCrit, target.id, 'mob');
+  if (impact) impacts.push(impact);
   return {
     xpGain: result.xpGain,
     leveledUp: result.leveledUp,
+    impacts,
     combatLog: {
       damageDealt: damage,
       targetName: getMobDisplayName(target),
@@ -1150,6 +1272,7 @@ export function stepPlayerCast(/** @type {any} */ player, /** @type {any} */ mob
     let xpGain = 0;
     let leveledUp = false;
     let /** @type {any} */ combatLog = null;
+    const /** @type {any} */ impacts = [];
     const target = Array.isArray(mobs) ? mobs.find((/** @type {any} */ m) => m.id === cast.targetId) : null;
     let newFired = firedTicks;
     while (newFired < (ability.channelTicks ?? 3) && now >= startedAt + (newFired + 1) * tickInterval) {
@@ -1157,6 +1280,9 @@ export function stepPlayerCast(/** @type {any} */ player, /** @type {any} */ mob
       xpGain += tickResult.xpGain ?? 0;
       if (tickResult.leveledUp) leveledUp = true;
       if (tickResult.combatLog) combatLog = tickResult.combatLog;
+      for (const impact of tickResult.impacts ?? []) {
+        impacts.push(impact);
+      }
       newFired++;
     }
     cast.firedTicks = newFired;
@@ -1175,6 +1301,12 @@ export function stepPlayerCast(/** @type {any} */ player, /** @type {any} */ mob
         abilityDir: null,
         placementCenter: null,
       });
+      if (event) {
+        event.hit = impacts.length > 0;
+        if (impacts.length > 0) {
+          event.impacts = impacts;
+        }
+      }
       return { xpGain, leveledUp, combatLog, event };
     }
     return { xpGain, leveledUp, combatLog };
@@ -1202,6 +1334,7 @@ export function stepPlayerCast(/** @type {any} */ player, /** @type {any} */ mob
   let xpGain = 0;
   let leveledUp = false;
   let /** @type {any} */ combatLog = null;
+  const /** @type {any} */ impacts = [];
   const target = Array.isArray(mobs) ? mobs.find((/** @type {any} */ mob) => mob.id === cast.targetId) : null;
   if (target && !target.dead && target.hp > 0) {
     if (withinRange(player.pos, target.pos, ability.range ?? 0)) {
@@ -1209,6 +1342,8 @@ export function stepPlayerCast(/** @type {any} */ player, /** @type {any} */ mob
       const damage = applyPvpDamageMultiplier(rawDmg, ability, false);
       if (rollHit(derived.accuracy, 0)) {
         const result = applyDamageToMob({ mob: target, damage, attacker: player, now, respawnMs, players });
+        const impact = makeDamageImpactForTarget(target, damage, isCrit, target.id, 'mob');
+        if (impact) impacts.push(impact);
         xpGain = result.xpGain;
         leveledUp = result.leveledUp;
         combatLog = {
@@ -1235,6 +1370,12 @@ export function stepPlayerCast(/** @type {any} */ player, /** @type {any} */ mob
     abilityDir: null,
     placementCenter: null,
   });
+  if (event) {
+    event.hit = impacts.length > 0;
+    if (impacts.length > 0) {
+      event.impacts = impacts;
+    }
+  }
   return { xpGain, leveledUp, combatLog, event };
 }
 
