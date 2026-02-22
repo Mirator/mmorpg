@@ -262,6 +262,33 @@ async function run() {
     if (!hpOverlayValue.includes('/')) {
       throw new Error(`Overlay HP value not populated: "${hpOverlayValue}"`);
     }
+    const portraitMetrics = await page.evaluate(() => {
+      const el = document.querySelector('#overlay-portrait');
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      const pseudo = getComputedStyle(el, '::before');
+      return {
+        width: rect.width,
+        height: rect.height,
+        pseudoBackgroundImage: pseudo.backgroundImage,
+      };
+    });
+    if (!portraitMetrics) {
+      throw new Error('Overlay portrait missing');
+    }
+    if (Number(portraitMetrics.width ?? 0) < 20 || Number(portraitMetrics.height ?? 0) < 20) {
+      throw new Error(
+        `Overlay portrait not rendered at expected size: ${portraitMetrics.width}x${portraitMetrics.height}`
+      );
+    }
+    if (
+      !portraitMetrics.pseudoBackgroundImage ||
+      !portraitMetrics.pseudoBackgroundImage.includes('player-head-static.svg')
+    ) {
+      throw new Error(
+        `Overlay portrait static head image missing: "${portraitMetrics.pseudoBackgroundImage ?? ''}"`
+      );
+    }
 
     const controlsMetrics = await page.evaluate(() => {
       const el = document.querySelector('.overlay-controls');
