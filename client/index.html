@@ -9,8 +9,14 @@
   </head>
   <body>
     <div id="app"></div>
-    <div id="menu" class="menu open" data-step="auth" data-tab="signin">
+    <div id="menu" class="menu open" data-step="auth" data-tab="signin" data-progress="account" aria-busy="false">
       <div class="menu-hero">Rising Ages</div>
+      <div class="menu-progress" role="presentation">
+        <div class="menu-progress-step active" data-progress-step="account">Account</div>
+        <div class="menu-progress-step" data-progress-step="character">Character</div>
+        <div class="menu-progress-step" data-progress-step="enter">Enter World</div>
+      </div>
+      <div id="menu-status" class="menu-status tone-neutral" aria-live="polite"></div>
       <div class="menu-card menu-auth">
         <div class="menu-brand">Rising Ages</div>
         <div class="menu-subtitle">Sign in to continue your journey.</div>
@@ -21,6 +27,7 @@
         <form id="signin-form" class="menu-form">
           <label class="menu-label" for="signin-username">Username</label>
           <input id="signin-username" name="username" type="text" autocomplete="username" required />
+          <div id="signin-username-error" class="menu-field-error"></div>
           <label class="menu-label" for="signin-password">Password</label>
           <input
             id="signin-password"
@@ -29,11 +36,13 @@
             autocomplete="current-password"
             required
           />
+          <div id="signin-password-error" class="menu-field-error"></div>
           <button type="submit" class="menu-primary">Sign In</button>
         </form>
         <form id="signup-form" class="menu-form hidden">
           <label class="menu-label" for="signup-username">Username</label>
           <input id="signup-username" name="username" type="text" autocomplete="username" required />
+          <div id="signup-username-error" class="menu-field-error"></div>
           <label class="menu-label" for="signup-password">Password</label>
           <input
             id="signup-password"
@@ -42,6 +51,7 @@
             autocomplete="new-password"
             required
           />
+          <div id="signup-password-error" class="menu-field-error"></div>
           <button type="submit" class="menu-primary">Create Account</button>
         </form>
         <div id="menu-auth-error" class="menu-error"></div>
@@ -51,6 +61,14 @@
         <div id="menu-account" class="menu-subtitle">Account: --</div>
         <div id="menu-last-character" class="menu-subtitle">Last played: --</div>
         <div class="menu-title">Choose Character</div>
+        <div id="menu-continue-panel" class="menu-continue hidden">
+          <div class="menu-continue-copy">
+            <div class="menu-continue-title">Continue Adventure</div>
+            <div id="menu-continue-name" class="menu-continue-name">--</div>
+            <div id="menu-continue-meta" class="menu-continue-meta">Choose a character from the list below.</div>
+          </div>
+          <button id="menu-continue-btn" class="menu-primary" type="button">Continue</button>
+        </div>
         <div id="character-list" class="character-list"></div>
         <div class="menu-actions">
           <button id="character-create-open" class="menu-secondary">Create Character</button>
@@ -63,6 +81,7 @@
         <form id="character-create-form" class="menu-form">
           <label class="menu-label" for="character-name">Name</label>
           <input id="character-name" name="name" type="text" required />
+          <div id="character-name-error" class="menu-field-error"></div>
           <label class="menu-label" for="character-class">Class</label>
           <select id="character-class" name="classId" required>
             <option value="guardian">Guardian (Tank)</option>
@@ -71,6 +90,14 @@
             <option value="priest">Priest (Healer)</option>
             <option value="mage">Mage (Magic DPS)</option>
           </select>
+          <div id="character-class-error" class="menu-field-error"></div>
+          <div id="character-class-preview" class="character-class-preview">
+            <div id="character-class-preview-name" class="class-preview-name">Fighter</div>
+            <div id="character-class-preview-role" class="class-preview-role">Melee DPS</div>
+            <div id="character-class-preview-blurb" class="class-preview-blurb">
+              Balanced frontline damage.
+            </div>
+          </div>
           <div class="menu-actions">
             <button type="button" id="character-create-cancel" class="menu-ghost">Back</button>
             <button type="submit" class="menu-primary">Create</button>
@@ -92,8 +119,14 @@
         <div class="loading-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
           <div id="loading-progress-fill" class="loading-progress-fill"></div>
         </div>
+        <div id="loading-stage" class="loading-stage">Preparing session</div>
         <div id="loading-text" class="loading-text">Loading...</div>
+        <div id="loading-tip" class="loading-tip">Tip: Press K to open skills while in game.</div>
       </div>
+    </div>
+    <div id="entry-banner" class="entry-banner" aria-live="polite">
+      <div id="entry-banner-title" class="entry-banner-title">Entering World</div>
+      <div id="entry-banner-subtitle" class="entry-banner-subtitle"></div>
     </div>
     <div id="overlay" class="player-unit-frame">
       <div class="player-frame-main">

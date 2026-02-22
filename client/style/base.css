@@ -1,12 +1,37 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #0b0f14;
+  --bg: #090f16;
+  --surface-1: rgba(10, 17, 28, 0.9);
+  --surface-2: rgba(16, 25, 39, 0.94);
+  --surface-3: rgba(23, 35, 53, 0.98);
   --panel: rgba(6, 12, 18, 0.72);
   --text: #e6edf3;
   --muted: #9fb0c2;
   --accent: #4da3ff;
-  --danger: #ff4d4d;
+  --accent-2: #5ef2c2;
+  --danger: #ff6767;
+  --warning: #ffd17f;
+  --success: #6de2a7;
+  --focus-ring: 0 0 0 3px rgba(94, 242, 194, 0.22);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+
+  --type-xs: 11px;
+  --type-sm: 13px;
+  --type-md: 15px;
+  --type-lg: 18px;
+  --type-xl: 24px;
+
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 360ms;
+  --easing-standard: cubic-bezier(0.22, 0.61, 0.36, 1);
+
   --frame-gold: #e8c547;
   --frame-gold-dim: #b8962e;
   --frame-health: #2ecc71;
@@ -30,13 +55,41 @@ body,
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background: var(--bg);
+  background: radial-gradient(circle at 25% 10%, #122235 0%, var(--bg) 50%, #060a10 100%);
   font-family: 'Space Grotesk', sans-serif;
   color: var(--text);
 }
 
 canvas {
   display: block;
+}
+
+h1,
+h2,
+h3,
+.menu-brand,
+.menu-hero,
+.character-sheet-title,
+.pause-menu-title {
+  font-family: 'Cinzel', serif;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.ui-card {
+  border: 1px solid rgba(77, 163, 255, 0.28);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--surface-3), var(--surface-1));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.45);
+}
+
+.ui-pill {
+  border-radius: 999px;
+  border: 1px solid rgba(77, 163, 255, 0.3);
+  background: rgba(10, 17, 28, 0.82);
 }
 
 body.menu-open #chat-panel,
@@ -69,4 +122,15 @@ body.pause-menu-open #xp-bar,
 body.pause-menu-open #cast-bar-wrap {
   opacity: 0;
   pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }

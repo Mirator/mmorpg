@@ -8,11 +8,12 @@ import { showErrorOverlay, hideErrorOverlay, updateErrorOverlayMessage } from '.
  * @typedef {{
  *   manualStepping?: boolean;
  *   virtualNow?: number;
+ *   onStageChange?: ((stage: string) => void) | null;
  *   minDelayMs?: number;
  *   maxDelayMs?: number;
  *   maxAttempts?: number;
  * }} ReconnectOptions
- * @typedef {{ manualStepping?: boolean, virtualNow?: number }} StartOptions
+ * @typedef {{ manualStepping?: boolean, virtualNow?: number, onStageChange?: ((stage: string) => void) | null }} StartOptions
  * @typedef {{ character?: CharacterRef | null, guest?: boolean }} StartParams
  */
 
@@ -76,6 +77,7 @@ export function createConnection(/** @type {any} */ {
   clearSessionState,
   menu,
   getReconnectParams,
+  onStageChange: onStageChangeGlobal,
 }) {
   let /** @type {any} */ pingIntervalId = null;
 
@@ -162,7 +164,7 @@ export function createConnection(/** @type {any} */ {
 
   async function reconnectWithBackoff(
     /** @type {any} */ params,
-    /** @type {ReconnectOptions} */ { manualStepping, virtualNow, minDelayMs = 1000, maxDelayMs = 30_000, maxAttempts = 10 } = {}
+    /** @type {ReconnectOptions} */ { manualStepping, virtualNow, onStageChange, minDelayMs = 1000, maxDelayMs = 30_000, maxAttempts = 10 } = {}
   ) {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       const delayMs = attempt === 1 ? 0 : Math.min(maxDelayMs, minDelayMs * Math.pow(2, attempt - 2));
@@ -173,7 +175,7 @@ export function createConnection(/** @type {any} */ {
         await new Promise((/** @type {any} */ r) => setTimeout(r, delayMs));
       }
       try {
-        await start(params, { manualStepping, virtualNow });
+        await start(params, { manualStepping, virtualNow, onStageChange });
         hideErrorOverlay();
         return;
       } catch {
@@ -186,9 +188,18 @@ export function createConnection(/** @type {any} */ {
    * @param {StartParams} params
    * @param {StartOptions} [options]
    */
-  async function start({ character, guest = false }, { manualStepping, virtualNow } = {}) {
+  async function start({ character, guest = false }, { manualStepping, virtualNow, onStageChange } = {}) {
     disconnect();
     ctx.seq = 0;
+    const emitStage = (/** @type {string} */ stage) => {
+      if (typeof onStageChange === 'function') {
+        onStageChange(stage);
+        return;
+      }
+      if (typeof onStageChangeGlobal === 'function') {
+        onStageChangeGlobal(stage);
+      }
+    };
 
     let url;
     if (guest) {
@@ -214,16 +225,16 @@ export function createConnection(/** @type {any} */ {
         hideErrorOverlay();
         showErrorOverlay({
           title: 'Connection lost',
-          message: 'Check your network and try again.',
+          message: 'Your realm link was interrupted. Reconnect to continue.',
           actions: [
             {
               label: 'Reconnect',
               onClick: () => {
                 const params = getReconnectParams?.() ?? { guest };
-                reconnectWithBackoff(params, { manualStepping, virtualNow }).catch(() => {
+                reconnectWithBackoff(params, { manualStepping, virtualNow, onStageChange }).catch(() => {
                   showErrorOverlay({
                     title: 'Reconnect failed',
-                    message: 'Check your network and try again.',
+                    message: 'Unable to restore connection. Please retry or return to menu.',
                     actions: [
                       { label: 'Retry', onClick: () => window.location.reload() },
                       { label: 'Back to menu', onClick: () => window.location.reload() },
@@ -259,8 +270,10 @@ export function createConnection(/** @type {any} */ {
       const localNet = createNet({
         url,
         onOpen: () => {
+          emitStage('socket_open');
           ui.setStatus('connected');
           localNet.send({ type: 'hello' });
+          emitStage('awaiting_welcome');
         },
         onClose: () => {
           ui.setStatus('disconnected');
@@ -297,6 +310,7 @@ export function createConnection(/** @type {any} */ {
             if (msg.snapshot) {
               handleStateMessage(msg.snapshot, now);
             }
+            emitStage('world_ready');
             if (!resolved) {
               resolved = true;
               resolve(undefined);

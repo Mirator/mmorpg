@@ -52,10 +52,16 @@ export async function getMenuStatus(/** @type {any} */ page) {
 export async function getLoadingScreenState(/** @type {any} */ page) {
   return page.evaluate(() => {
     const el = document.querySelector('#loading-screen');
-    if (!el) return { visible: false, text: null };
+    const bar = document.querySelector('.loading-progress-bar');
+    if (!el) {
+      return { visible: false, text: null, stage: null, progress: null, indeterminate: false };
+    }
     return {
       visible: el.classList.contains('visible'),
+      stage: document.querySelector('#loading-stage')?.textContent?.trim() ?? null,
       text: document.querySelector('#loading-text')?.textContent?.trim() ?? null,
+      progress: bar?.getAttribute('aria-valuenow') ?? null,
+      indeterminate: bar?.classList.contains('indeterminate') ?? false,
     };
   });
 }

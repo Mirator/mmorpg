@@ -34,7 +34,32 @@ The server is composed in `server/createServer.js`:
 - `client/client.js`: composition root (menu/auth, connection, rendering, UI, input).
 - `client/connection.js`: WebSocket lifecycle, reconnect, and inbound message routing.
 - `client/ui-state.js`: inventory/character/vendor/death UI state and interactions.
+- `client/menu.js`: auth/character menu state machine (step, tab, progress, validation, smart-continue).
+- `client/ui.js`: HUD rendering helpers plus transient presentation layers (entry banner, toasts, prompts).
 - `client/style/*.css`: domain-scoped styling (`chat.css` for chat/party/duel/trade, `vendor.css` for vendor UI).
+
+## UI Flow Lifecycle (Auth to In-Game)
+
+The menu/loading handoff is intentionally staged:
+
+1. `data-progress=\"account\"`
+   - Sign in or sign up, with local field validation and API error mapping.
+2. `data-progress=\"character\"`
+   - Character list/create flow with smart continue targeting (last-played fallback to first character).
+3. `data-progress=\"enter\"`
+   - Character connect starts loading overlay and websocket handshake.
+4. Loading stage lifecycle (`client/client.js` + `client/connection.js`):
+   - `Preparing session`
+   - `Loading world assets` (determinate)
+   - `Connecting realm` (indeterminate)
+   - `Syncing world state` (indeterminate/finalize)
+   - stage callback events: `socket_open`, `awaiting_welcome`, `world_ready`
+5. Enter-world reveal:
+   - menu closes
+   - loading overlay hides
+   - entry banner appears briefly
+
+These steps are client-only presentation orchestration; backend auth/WS protocols remain unchanged.
 
 ### Shared
 

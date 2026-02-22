@@ -9,6 +9,8 @@
   - Runs Vitest unit/integration coverage for shared protocol, gameplay logic, auth/routes, and client-side helpers.
   - Includes targeted regressions for:
     - `abilityFailed` callback wiring (`client/connection.test.js`)
+    - connection stage callback ordering (`client/connection.test.js`)
+    - menu validation/class metadata (`client/menu.test.js`)
     - Chat/vendor style scope integrity (`client/styleIntegrity.test.js`)
     - Auth + character lifecycle endpoints (`server/http.integration.test.js`)
 
@@ -25,6 +27,11 @@
 - `npm run test:e2e`
   - Runs Playwright end-to-end scenario in `e2e/playwright-e2e.js`.
   - Covers account flow, world interactions, inventory/equipment, vendor trade, targeting/combat, XP, and death/respawn HUD behavior. Player-to-player trade and PvP duels are implemented but not yet covered by E2E scenarios.
+  - UI flow coverage includes:
+    - menu progress states (`account -> character -> enter`)
+    - smart continue CTA on return-to-character-screen flow
+    - staged loading semantics (determinate + indeterminate)
+    - keyboard-driven auth/create submit path
   - Verifies vendor interactions on both:
     - deterministic desktop viewport (`1280x720`)
     - small viewport fallback (`560x840`)

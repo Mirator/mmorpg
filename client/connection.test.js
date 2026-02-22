@@ -115,4 +115,50 @@ describe('connection messaging', () => {
 
     expect(onAbilityFailed).toHaveBeenCalledWith('cooldown', 2);
   });
+
+  it('emits connection stage callbacks in lifecycle order', async () => {
+    const onStageChange = vi.fn();
+    const ctx = { seq: 0, net: null, closingNet: null, currentMe: null, playerId: null };
+
+    const connection = createConnection({
+      gameState: createGameStateStub(),
+      renderSystem: createRenderSystemStub(),
+      ui: {
+        updateLocalUi: () => {},
+        setStatus: () => {},
+        setMenuOpen: () => {},
+      },
+      ctx,
+      onCombatEvents: () => {},
+      onAbilityFailed: () => {},
+      onChatMessage: () => {},
+      onCombatLog: () => {},
+      onConnected: () => {},
+      onPartyInvite: () => {},
+      updateLocalUi: () => {},
+      setWorld: () => {},
+      loadCharacters: async () => {},
+      clearSessionState: () => {},
+      menu: {
+        setOpen: () => {},
+        setAccount: () => {},
+        setStep: () => {},
+        setTab: () => {},
+      },
+      getReconnectParams: () => ({ guest: true }),
+      onStageChange,
+    });
+
+    const startPromise = connection.start({ guest: true }, {});
+    netController.handlers.onOpen();
+    netController.handlers.onMessage({ type: 'welcome', id: 'p1', snapshot: {} });
+    await startPromise;
+
+    expect(onStageChange).toHaveBeenCalledTimes(3);
+    expect(onStageChange.mock.calls.map((call) => call[0])).toEqual([
+      'socket_open',
+      'awaiting_welcome',
+      'world_ready',
+    ]);
+  });
 });

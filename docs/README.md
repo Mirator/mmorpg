@@ -12,6 +12,7 @@
 - [Economy and Crafting](./economy/spec_economy.md)
 - [World Entities](./world/spec_world_entities.md)
 - [UI Log](./ui/spec_log.md)
+- [Auth/Character UI Flow](./ui/spec_auth_character_flow.md)
 - [Assets / 3D Models](./assets/spec_models.md)
 - [Network Protocol](./network/spec_protocol.md)
 - [Party and Chat](./social/spec_party_and_chat.md) — also duel and trade (adjacent social features)

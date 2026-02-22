@@ -12,6 +12,7 @@ import {
   TEST_TIMEOUT_MS,
   advance,
   distance,
+  getLoadingScreenState,
   getState,
   hasLineOfSight,
   resetE2eDatabase,
@@ -211,28 +212,58 @@ async function run() {
     const characterName = `Hero ${Date.now().toString(36)}`;
 
     await page.waitForSelector('#menu.open');
-    await page.click('.menu-tab[data-tab=\"signin\"]');
+    await page.waitForSelector('#menu[data-progress=\"account\"]');
     await page.waitForFunction(
       () => !document.querySelector('#signin-form')?.classList.contains('hidden')
     );
-    await page.fill('#signin-username', username);
-    await page.fill('#signin-password', password);
-    await page.click('#signin-form button[type=\"submit\"]');
+    await page.focus('#signin-username');
+    await page.keyboard.type(username);
+    await page.keyboard.press('Tab');
+    await page.keyboard.type(password);
+    await page.keyboard.press('Enter');
 
     const signInResult = await waitForMenuStepOrError(page, 'characters', TEST_TIMEOUT_MS);
     if (!signInResult.ok) {
       throw new Error(`Sign-in failed: ${signInResult.errorText ?? 'unknown error'}`);
     }
-    await page.click('#character-create-open');
+    await page.waitForSelector('#menu[data-progress=\"character\"]');
+    await page.waitForSelector('#menu-status');
+    await page.focus('#character-create-open');
+    await page.keyboard.press('Enter');
     await page.waitForSelector('#menu[data-step=\"create\"]');
-    await page.fill('#character-name', characterName);
+    await page.focus('#character-name');
+    await page.keyboard.type(characterName);
     await page.selectOption('#character-class', 'fighter');
-    await page.click('#character-create-form button[type=\"submit\"]');
+    const classPreview = await page.locator('#character-class-preview-blurb').innerText();
+    if (!classPreview.toLowerCase().includes('frontline')) {
+      throw new Error('Class preview did not update with class metadata blurb.');
+    }
+    await page.focus('#character-create-form button[type=\"submit\"]');
+    await page.keyboard.press('Enter');
 
     await page.waitForFunction(
       () => document.querySelector('#loading-screen')?.classList.contains('visible') === true,
       { timeout: 5000 }
     );
+    const seenStages = new Set();
+    let sawProgressSignal = false;
+    const stageCaptureStart = Date.now();
+    while (Date.now() - stageCaptureStart < 6000) {
+      const loadingState = await getLoadingScreenState(page);
+      if (loadingState.stage) seenStages.add(loadingState.stage);
+      if (loadingState.indeterminate || loadingState.progress != null) sawProgressSignal = true;
+      if (!loadingState.visible) break;
+      await page.waitForTimeout(120);
+    }
+    if (!seenStages.has('Loading world assets')) {
+      throw new Error(`Loading flow missing \"Loading world assets\" stage. Seen: ${Array.from(seenStages).join(', ')}`);
+    }
+    if (!seenStages.has('Connecting realm') && !seenStages.has('Syncing world state')) {
+      throw new Error(`Loading flow missing connection/sync stage. Seen: ${Array.from(seenStages).join(', ')}`);
+    }
+    if (!sawProgressSignal) {
+      throw new Error('Loading flow did not expose a visible progress signal.');
+    }
     await waitForLoadingScreenToDisappear(page);
 
     await page.waitForFunction(
@@ -343,6 +374,27 @@ async function run() {
     await page.waitForFunction(
       () => !document.querySelector('#character-sheet-panel')?.classList.contains('open')
     );
+
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('#pause-menu.open');
+    await page.click('#pause-character-btn');
+    await page.waitForSelector('#menu.open');
+    await page.waitForSelector('#menu[data-step=\"characters\"]');
+    await page.waitForSelector('#menu[data-progress=\"character\"]');
+    const continueName = (await page.locator('#menu-continue-name').innerText()).trim();
+    if (!continueName || continueName === '--') {
+      throw new Error('Smart continue did not render a valid character name.');
+    }
+    await page.click('#menu-continue-btn');
+    await page.waitForFunction(
+      () => document.querySelector('#loading-screen')?.classList.contains('visible') === true,
+      { timeout: 5000 }
+    );
+    await waitForLoadingScreenToDisappear(page);
+    await page.waitForFunction(
+      () => !document.querySelector('#menu')?.classList.contains('open')
+    );
+    await page.waitForFunction(() => !document.body.classList.contains('menu-open'));
 
     let state = await waitForCondition(
       page,

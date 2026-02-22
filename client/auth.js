@@ -12,11 +12,32 @@ const LAST_CHARACTER_PREFIX = 'mmorpg_last_character_';
  * }} ApiFetchOptions
  */
 
+/**
+ * @param {unknown} err
+ * @param {string} fallback
+ */
+function mapErrorMessage(err, fallback) {
+  const raw = err instanceof Error ? err.message : '';
+  const msg = String(raw || fallback);
+  const lower = msg.toLowerCase();
+
+  if (lower.includes('invalid username or password')) return 'Incorrect username or password.';
+  if (lower.includes('username already taken')) return 'That username is already taken.';
+  if (lower.includes('character name already taken')) return 'That character name is already taken.';
+  if (lower.includes('too many attempts')) return 'Too many attempts. Please wait and try again.';
+  if (lower.includes('unauthorized')) return 'Your session expired. Please sign in again.';
+  if (lower.includes('network') || lower.includes('failed to fetch')) {
+    return 'Network issue detected. Check connection and retry.';
+  }
+  return msg;
+}
+
 export function createAuth(/** @type {any} */ {
   menu,
   ui,
   accountNameEl,
   characterNameEl,
+  uiAudio,
 }) {
   let /** @type {any} */ onConnectCharacter = null;
   let /** @type {any} */ onDisconnect = null;
@@ -31,15 +52,6 @@ export function createAuth(/** @type {any} */ {
   let /** @type {any} */ currentAccount = null;
   let /** @type {any} */ currentCharacter = null;
   let /** @type {any} */ lastCharacterId = null;
-
-  /**
-   * @param {unknown} err
-   * @param {string} fallback
-   * @returns {string}
-   */
-  function getErrorMessage(err, fallback) {
-    return err instanceof Error ? err.message : fallback;
-  }
 
   function saveAuthToken(/** @type {any} */ token) {
     authToken = token ?? null;
@@ -111,6 +123,7 @@ export function createAuth(/** @type {any} */ {
     clearStoredAccount();
     currentAccount = null;
     currentCharacter = null;
+    menu.setPrimaryCharacter?.(null);
     updateOverlayLabels();
   }
 
@@ -147,10 +160,20 @@ export function createAuth(/** @type {any} */ {
 
   async function loadCharacters() {
     const data = await apiFetch('/api/characters');
-    menu.setCharacters(data.characters ?? []);
+    const characters = data.characters ?? [];
+    menu.setCharacters(characters);
     lastCharacterId = loadLastCharacterId();
+    const preferred = characters.find((/** @type {any} */ c) => c.id === lastCharacterId) ?? characters[0] ?? null;
     menu.setSelectedCharacterId(lastCharacterId);
+    menu.setPrimaryCharacter(preferred);
     menu.setStep('characters');
+    menu.setProgressStep('character');
+    menu.setStatusMessage(
+      characters.length > 0
+        ? 'Choose a character or continue from your last adventure.'
+        : 'No characters yet. Create one to enter the world.',
+      'neutral'
+    );
     menu.setOpen(true);
     ui.setMenuOpen(true);
     updateOverlayLabels();
@@ -159,6 +182,9 @@ export function createAuth(/** @type {any} */ {
   async function signIn(/** @type {any} */ { username, password }) {
     menu.setLoading(true);
     menu.setError('auth', '');
+    menu.setProgressStep('account');
+    menu.setStatusMessage('Signing in...', 'neutral');
+    uiAudio?.play?.('confirm');
     try {
       const data = await apiFetch('/api/auth/login', {
         method: 'POST',
@@ -168,9 +194,14 @@ export function createAuth(/** @type {any} */ {
       currentAccount = data.account ?? null;
       saveStoredAccount(currentAccount);
       menu.setAccount(currentAccount);
+      menu.setStatusMessage('Signed in successfully.', 'success');
+      uiAudio?.play?.('success');
       await loadCharacters();
     } catch (err) {
-      menu.setError('auth', getErrorMessage(err, 'Unable to sign in.'));
+      const msg = mapErrorMessage(err, 'Unable to sign in.');
+      menu.setError('auth', msg);
+      menu.setStatusMessage(msg, 'error');
+      uiAudio?.play?.('error');
     } finally {
       menu.setLoading(false);
     }
@@ -179,6 +210,9 @@ export function createAuth(/** @type {any} */ {
   async function signUp(/** @type {any} */ { username, password }) {
     menu.setLoading(true);
     menu.setError('auth', '');
+    menu.setProgressStep('account');
+    menu.setStatusMessage('Creating account...', 'neutral');
+    uiAudio?.play?.('confirm');
     try {
       const data = await apiFetch('/api/auth/signup', {
         method: 'POST',
@@ -188,9 +222,14 @@ export function createAuth(/** @type {any} */ {
       currentAccount = data.account ?? null;
       saveStoredAccount(currentAccount);
       menu.setAccount(currentAccount);
+      menu.setStatusMessage('Account created successfully.', 'success');
+      uiAudio?.play?.('success');
       await loadCharacters();
     } catch (err) {
-      menu.setError('auth', getErrorMessage(err, 'Unable to create account.'));
+      const msg = mapErrorMessage(err, 'Unable to create account.');
+      menu.setError('auth', msg);
+      menu.setStatusMessage(msg, 'error');
+      uiAudio?.play?.('error');
     } finally {
       menu.setLoading(false);
     }
@@ -199,6 +238,9 @@ export function createAuth(/** @type {any} */ {
   async function createCharacter(/** @type {any} */ { name, classId }) {
     menu.setLoading(true);
     menu.setError('create', '');
+    menu.setProgressStep('character');
+    menu.setStatusMessage('Forging your character...', 'neutral');
+    uiAudio?.play?.('confirm');
     try {
       const data = await apiFetch('/api/characters', {
         method: 'POST',
@@ -206,13 +248,19 @@ export function createAuth(/** @type {any} */ {
       });
       const character = data.character;
       if (character) {
+        menu.setStatusMessage('Character created. Entering world...', 'success');
         await loadCharacters();
         await connectCharacter(character);
         return;
       }
       menu.setError('create', 'Unable to create character.');
+      menu.setStatusMessage('Unable to create character.', 'error');
+      uiAudio?.play?.('error');
     } catch (err) {
-      menu.setError('create', getErrorMessage(err, 'Unable to create character.'));
+      const msg = mapErrorMessage(err, 'Unable to create character.');
+      menu.setError('create', msg);
+      menu.setStatusMessage(msg, 'error');
+      uiAudio?.play?.('error');
     } finally {
       menu.setLoading(false);
     }
@@ -222,13 +270,17 @@ export function createAuth(/** @type {any} */ {
     onDisconnect?.();
     currentCharacter = null;
     ui.setStatus?.('menu');
+    menu.setProgressStep('character');
+    menu.setStatusMessage('Choose your character.', 'neutral');
     try {
       await loadCharacters();
-    } catch (err) {
+    } catch {
       clearSessionState();
       menu.setAccount(null);
       menu.setStep('auth');
       menu.setTab('signin');
+      menu.setProgressStep('account');
+      menu.setStatusMessage('Sign in to continue.', 'neutral');
       menu.setOpen(true);
       ui.setMenuOpen(true);
       ui.setStatus?.('menu');
@@ -237,6 +289,7 @@ export function createAuth(/** @type {any} */ {
 
   async function signOut() {
     menu.setLoading(true);
+    menu.setStatusMessage('Signing out...', 'neutral');
     try {
       await apiFetch('/api/auth/logout', { method: 'POST' });
     } catch {
@@ -251,6 +304,8 @@ export function createAuth(/** @type {any} */ {
     menu.setCharacters([]);
     menu.setStep('auth');
     menu.setTab('signin');
+    menu.setProgressStep('account');
+    menu.setStatusMessage('Signed out.', 'neutral');
     menu.setOpen(true);
     ui.setMenuOpen(true);
     ui.setStatus('menu');
@@ -263,6 +318,7 @@ export function createAuth(/** @type {any} */ {
     if (!confirmDelete) return;
     menu.setLoading(true);
     menu.setError('characters', '');
+    menu.setStatusMessage('Deleting character...', 'neutral');
     try {
       await apiFetch(`/api/characters/${character.id}`, { method: 'DELETE' });
       if (lastCharacterId === character.id) {
@@ -271,8 +327,12 @@ export function createAuth(/** @type {any} */ {
         menu.setSelectedCharacterId(null);
       }
       await loadCharacters();
+      menu.setStatusMessage('Character deleted.', 'success');
     } catch (err) {
-      menu.setError('characters', getErrorMessage(err, 'Unable to delete character.'));
+      const msg = mapErrorMessage(err, 'Unable to delete character.');
+      menu.setError('characters', msg);
+      menu.setStatusMessage(msg, 'error');
+      uiAudio?.play?.('error');
     } finally {
       menu.setLoading(false);
     }
@@ -282,18 +342,27 @@ export function createAuth(/** @type {any} */ {
     if (!character?.id) return;
     menu.setLoading(true);
     menu.setError('characters', '');
+    menu.setProgressStep('enter');
+    menu.setStatusMessage(`Entering world as ${character.name ?? 'character'}...`, 'neutral');
+    uiAudio?.play?.('confirm');
     try {
       currentCharacter = character;
       saveLastCharacterId(character.id);
       lastCharacterId = character.id;
       menu.setSelectedCharacterId(character.id);
+      menu.setPrimaryCharacter(character);
       updateOverlayLabels();
       await onConnectCharacter?.(character);
       menu.setOpen(false);
       ui.setMenuOpen(false);
+      uiAudio?.play?.('enter_world');
     } catch (err) {
-      menu.setError('characters', getErrorMessage(err, 'Unable to connect.'));
+      const msg = mapErrorMessage(err, 'Unable to connect.');
+      menu.setError('characters', msg);
+      menu.setProgressStep('character');
+      menu.setStatusMessage(msg, 'error');
       ui.setMenuOpen(true);
+      uiAudio?.play?.('error');
     } finally {
       menu.setLoading(false);
     }
@@ -302,6 +371,7 @@ export function createAuth(/** @type {any} */ {
   function initFromStorage() {
     currentAccount = loadStoredAccount();
     menu.setAccount(currentAccount);
+    menu.setPrimaryCharacter(null);
     lastCharacterId = currentAccount ? loadLastCharacterId() : null;
     return currentAccount;
   }

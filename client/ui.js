@@ -28,8 +28,12 @@ const targetMetaEl = document.getElementById('target-meta');
 const targetHpEl = document.getElementById('target-hp');
 const targetHpFillEl = document.getElementById('target-hp-fill');
 const targetHpValueEl = document.getElementById('target-hp-value');
+const entryBannerEl = document.getElementById('entry-banner');
+const entryBannerTitleEl = document.getElementById('entry-banner-title');
+const entryBannerSubtitleEl = document.getElementById('entry-banner-subtitle');
 
 let /** @type {any} */ eventTimeout = null;
+let /** @type {any} */ entryBannerTimeout = null;
 const toastContainer = document.createElement('div');
 toastContainer.id = 'toast-container';
 toastContainer.className = 'toast-container';
@@ -227,4 +231,23 @@ export function flashDamage() {
   damageFlashEl.classList.remove('flash');
   void damageFlashEl.offsetHeight;
   damageFlashEl.classList.add('flash');
+}
+
+/**
+ * @param {{ title?: string, subtitle?: string, durationMs?: number }} [options]
+ */
+export function showEntryBanner({ title = 'Entering World', subtitle = '', durationMs = 4000 } = {}) {
+  if (!entryBannerEl) return;
+  if (entryBannerTitleEl) entryBannerTitleEl.textContent = title;
+  if (entryBannerSubtitleEl) entryBannerSubtitleEl.textContent = subtitle;
+  entryBannerEl.classList.add('visible');
+  if (entryBannerTimeout) clearTimeout(entryBannerTimeout);
+  entryBannerTimeout = setTimeout(() => {
+    hideEntryBanner();
+  }, durationMs);
+}
+
+export function hideEntryBanner() {
+  if (!entryBannerEl) return;
+  entryBannerEl.classList.remove('visible');
 }

@@ -10,7 +10,7 @@ import { createConnection } from './connection.js';
 import { createCombat } from './combat.js';
 import { preloadAllAssets } from './assets.js';
 import { resolveTarget } from './targeting.js';
-import { getAbilitiesForClass } from '/shared/classes.js';
+import { getAbilitiesForClass, getClassById } from '/shared/classes.js';
 import { splitCurrency, getResourceConfig } from '/shared/economy.js';
 import { xpToNext } from '/shared/progression.js';
 import { PLAYER_CONFIG } from '/shared/config.js';
@@ -18,6 +18,8 @@ import { getEquippedWeapon } from '/shared/equipment.js';
 import { createMinimap } from './minimap.js';
 import { createChat } from './chat.js';
 import { createPauseMenu } from './pause-menu.js';
+import { showEntryBanner, hideEntryBanner } from './ui.js';
+import { createUiAudio } from './ui-audio.js';
 
 // Ownership boundary: this file composes subsystems; domain logic should stay in focused modules
 // (connection/auth/ui-state/combat/input) rather than growing orchestration complexity here.
@@ -30,24 +32,80 @@ const accountNameEl = document.getElementById('account-name');
 const characterNameEl = document.getElementById('overlay-character-name');
 const overlayEl = document.getElementById('overlay');
 const loadingScreenEl = document.getElementById('loading-screen');
+const loadingStageEl = document.getElementById('loading-stage');
 const loadingTextEl = document.getElementById('loading-text');
+const loadingTipEl = document.getElementById('loading-tip');
 const loadingProgressBarEl = /** @type {HTMLElement | null} */ (document.querySelector('.loading-progress-bar'));
+const loadingProgressFillEl = /** @type {HTMLElement | null} */ (document.getElementById('loading-progress-fill'));
 
-function showLoadingScreen(text = 'Loading...', /** @type {any} */ progress = undefined) {
-  if (loadingTextEl) loadingTextEl.textContent = text;
+const LOADING_TIPS = [
+  'Tip: Press K to open skills while in game.',
+  'Tip: Drag items onto equipment slots to equip them.',
+  'Tip: Press ESC to open the in-game pause menu.',
+  'Tip: Use TAB to cycle nearby targets quickly.',
+];
+let /** @type {ReturnType<typeof setInterval> | null} */ loadingTipInterval = null;
+let loadingTipIndex = 0;
+
+function startLoadingTips() {
+  if (!loadingTipEl) return;
+  loadingTipEl.textContent = LOADING_TIPS[loadingTipIndex % LOADING_TIPS.length];
+  if (loadingTipInterval) return;
+  loadingTipInterval = setInterval(() => {
+    loadingTipIndex = (loadingTipIndex + 1) % LOADING_TIPS.length;
+    if (loadingTipEl) loadingTipEl.textContent = LOADING_TIPS[loadingTipIndex];
+  }, 3500);
+}
+
+function stopLoadingTips() {
+  if (loadingTipInterval) {
+    clearInterval(loadingTipInterval);
+    loadingTipInterval = null;
+  }
+}
+
+/**
+ * @typedef {{
+ *   stage?: string;
+ *   message?: string;
+ *   progress?: number;
+ *   indeterminate?: boolean;
+ * }} LoadingState
+ */
+
+function showLoadingScreen(/** @type {LoadingState | string} */ options = {}) {
+  const normalized = typeof options === 'string' ? { message: options } : options;
+  const {
+    stage = 'Preparing session',
+    message = 'Loading...',
+    progress = undefined,
+    indeterminate = false,
+  } = normalized;
+  if (loadingStageEl) loadingStageEl.textContent = stage;
+  if (loadingTextEl) loadingTextEl.textContent = message;
   loadingScreenEl?.classList.add('visible');
+  startLoadingTips();
   if (loadingProgressBarEl) {
+    const showBar = indeterminate || typeof progress === 'number';
+    loadingProgressBarEl.classList.toggle('hidden', !showBar);
+    loadingProgressBarEl.classList.toggle('indeterminate', !!indeterminate);
     if (typeof progress === 'number') {
-      loadingProgressBarEl.style.setProperty('--progress', String(progress));
+      const clamped = Math.max(0, Math.min(100, progress));
+      loadingProgressBarEl.style.setProperty('--progress', String(clamped));
       loadingProgressBarEl.classList.remove('hidden');
-    } else {
-      loadingProgressBarEl.classList.add('hidden');
+      loadingProgressBarEl.setAttribute('aria-valuenow', String(Math.round(clamped)));
+    } else if (showBar) {
+      loadingProgressBarEl.removeAttribute('aria-valuenow');
     }
+  }
+  if (loadingProgressFillEl) {
+    loadingProgressFillEl.classList.toggle('hidden', !!indeterminate);
   }
 }
 
 function hideLoadingScreen() {
   loadingScreenEl?.classList.remove('visible');
+  stopLoadingTips();
 }
 
 const INTERP_DELAY_MS = 100;
@@ -135,6 +193,15 @@ const authRef = { current: null };
 const connectionRef = { current: null };
 /** @type {{ current: any | null }} */
 const combatRef = { current: null };
+const uiAudio = createUiAudio();
+const pauseVolumeEl = /** @type {HTMLInputElement | null} */ (document.getElementById('pause-volume'));
+if (pauseVolumeEl) {
+  pauseVolumeEl.value = uiAudio.isEnabled() ? '100' : '0';
+  pauseVolumeEl.addEventListener('input', () => {
+    const value = Number.parseInt(pauseVolumeEl.value ?? '0', 10);
+    uiAudio.setEnabled(Number.isFinite(value) && value > 0);
+  });
+}
 
 const chat = createChat({
   onSend: (/** @type {any} */ channel, /** @type {any} */ text) => {
@@ -191,6 +258,7 @@ const auth = createAuth({
   ui,
   accountNameEl,
   characterNameEl,
+  uiAudio,
 });
 authRef.current = auth;
 
@@ -210,6 +278,32 @@ let pendingDuelRequest = null;
 /** @type {{ traderId: string | number, traderName: string } | null} */
 let pendingTradeRequest = null;
 
+function updateLoadingFromNetworkStage(/** @type {any} */ stage) {
+  if (stage === 'socket_open') {
+    showLoadingScreen({
+      stage: 'Connecting realm',
+      message: 'Realm link established. Handshaking...',
+      indeterminate: true,
+    });
+    return;
+  }
+  if (stage === 'awaiting_welcome') {
+    showLoadingScreen({
+      stage: 'Syncing world state',
+      message: 'Syncing character and world snapshot...',
+      indeterminate: true,
+    });
+    return;
+  }
+  if (stage === 'world_ready') {
+    showLoadingScreen({
+      stage: 'Syncing world state',
+      message: 'Finalizing entry...',
+      progress: 100,
+    });
+  }
+}
+
 const connection = createConnection({
   gameState,
   renderSystem,
@@ -223,7 +317,10 @@ const connection = createConnection({
     chat.addMessage(channel, data);
   },
   onCombatLog: (/** @type {any} */ entries) => chat.addCombatLogEntries(entries),
-  onConnected: () => chat.addSystemMessage('Connected to game'),
+  onConnected: () => {
+    chat.addSystemMessage('Connected to game');
+    uiAudio.play('success');
+  },
   onPartyInvite: (/** @type {any} */ invite) => {
     pendingPartyInvite = invite;
     const panel = document.getElementById('party-panel');
@@ -307,6 +404,7 @@ const connection = createConnection({
   menu,
   getReconnectParams: () =>
     isGuestSession ? { guest: true } : { character: auth.getCharacter() },
+  onStageChange: updateLoadingFromNetworkStage,
 });
 connectionRef.current = connection;
 
@@ -501,13 +599,36 @@ function initTradeButtons() {
 initTradeButtons();
 
 auth.setOnConnectCharacter(async (/** @type {any} */ character) => {
-  showLoadingScreen('Loading assets...', 0);
+  showLoadingScreen({
+    stage: 'Preparing session',
+    message: 'Preparing character session...',
+    indeterminate: true,
+  });
   try {
     await preloadAllAssets((/** @type {any} */ loaded, /** @type {any} */ total) => {
-      showLoadingScreen('Loading assets...', Math.round((loaded / total) * 100));
+      showLoadingScreen({
+        stage: 'Loading world assets',
+        message: `Loading world assets... ${loaded}/${total}`,
+        progress: Math.round((loaded / total) * 100),
+      });
     });
-    showLoadingScreen('Connecting...');
-    await connection.start({ character }, { manualStepping, virtualNow });
+    showLoadingScreen({
+      stage: 'Connecting realm',
+      message: 'Opening realm link...',
+      indeterminate: true,
+    });
+    await connection.start({ character }, { manualStepping, virtualNow, onStageChange: updateLoadingFromNetworkStage });
+    showLoadingScreen({
+      stage: 'Syncing world state',
+      message: 'Spawning your character...',
+      progress: 100,
+    });
+    const klass = getClassById(character?.classId);
+    showEntryBanner({
+      title: character?.name ?? 'Adventurer',
+      subtitle: `${klass?.name ?? character?.classId ?? 'Class'} · Ready for battle`,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 180));
   } finally {
     hideLoadingScreen();
   }
@@ -584,7 +705,12 @@ inputHandler = createInputHandler({
   onInteract: handleInteract,
   onAbility: (/** @type {any} */ slot) => combat.useAbility(slot),
   onMoveTarget: (/** @type {any} */ pos, /** @type {any} */ opts) => connection.sendMoveTarget(pos, opts),
-  onInputChange: connection.sendInput,
+  onInputChange: (/** @type {any} */ keys) => {
+    connection.sendInput(keys);
+    if (keys?.w || keys?.a || keys?.s || keys?.d) {
+      hideEntryBanner();
+    }
+  },
   onTargetSelect: combat.selectTarget,
   onCycleTarget: combat.cycleTarget,
   pickTarget: (/** @type {any} */ ndc) => renderSystem.pickTarget(ndc),
@@ -1097,14 +1223,31 @@ if (isGuestSession) {
   menu.setOpen(false);
   auth.setGuestAccount();
   (async () => {
-    showLoadingScreen('Loading assets...', 0);
+    showLoadingScreen({
+      stage: 'Preparing session',
+      message: 'Preparing guest session...',
+      indeterminate: true,
+    });
     try {
       await preloadAllAssets((/** @type {any} */ loaded, /** @type {any} */ total) => {
-        showLoadingScreen('Loading assets...', Math.round((loaded / total) * 100));
+        showLoadingScreen({
+          stage: 'Loading world assets',
+          message: `Loading world assets... ${loaded}/${total}`,
+          progress: Math.round((loaded / total) * 100),
+        });
       });
-      showLoadingScreen('Connecting...');
-      await connection.start({ guest: true }, { manualStepping, virtualNow });
+      showLoadingScreen({
+        stage: 'Connecting realm',
+        message: 'Opening realm link...',
+        indeterminate: true,
+      });
+      await connection.start({ guest: true }, { manualStepping, virtualNow, onStageChange: updateLoadingFromNetworkStage });
+      showEntryBanner({
+        title: 'Guest Adventurer',
+        subtitle: 'Fighter · Ready for battle',
+      });
     } catch {
+      uiAudio.play('error');
       hideErrorOverlay();
       showErrorOverlay({
         title: 'Could not connect',
@@ -1135,6 +1278,8 @@ if (isGuestSession) {
   menu.setAccount(auth.getAccount());
   ui.setMenuOpen(true);
   menu.setOpen(true);
+  menu.setProgressStep('account');
+  menu.setStatusMessage('Sign in to continue your journey.', 'neutral');
   auth.updateOverlayLabels();
   if (auth.getAccount()) {
     auth.loadCharacters().catch(() => {
@@ -1142,11 +1287,15 @@ if (isGuestSession) {
       menu.setAccount(null);
       menu.setStep('auth');
       menu.setTab('signin');
+      menu.setProgressStep('account');
+      menu.setStatusMessage('Session expired. Sign in again.', 'error');
       ui.setStatus('menu');
     });
   } else {
     menu.setStep('auth');
     menu.setTab('signin');
+    menu.setProgressStep('account');
+    menu.setStatusMessage('Sign in to continue your journey.', 'neutral');
     ui.setStatus('menu');
   }
 }
