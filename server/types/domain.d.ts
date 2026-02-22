@@ -366,8 +366,9 @@ export interface HttpConfig {
   maxPayloadBytes: number;
   adminMaxPayloadBytes: number;
   isLocalhost?: boolean;
-  adminPassword: string | null;
+  adminPassword: string;
   exposeAuthToken?: boolean;
+  allowedOrigins: Set<string>;
   sessionCookieName: string;
   sessionCookieSameSite: string;
   sessionCookieSecure: boolean;

@@ -21,7 +21,12 @@ export function getCookieValue(/** @type {any} */ req, /** @type {any} */ name) 
     const key = trimmed.slice(0, eq).trim();
     if (key !== name) continue;
     const value = trimmed.slice(eq + 1).trim();
-    return value ? decodeURIComponent(value) : '';
+    if (!value) return '';
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return null;
+    }
   }
   return null;
 }

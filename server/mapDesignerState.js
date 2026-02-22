@@ -146,14 +146,6 @@ export function loadDesignerStateSync(filePath) {
 /**
  * @param {any} req
  */
-function getProvidedAdminPassword(req) {
-  if (typeof req.get !== 'function') return '';
-  return req.get('x-admin-pass') || '';
-}
-
-/**
- * @param {any} req
- */
 function getProvidedAdminAlias(req) {
   if (typeof req.get !== 'function') return 'admin';
   const raw = req.get('x-admin-alias');
@@ -1039,13 +1031,12 @@ export function createMapDesignerStateStore({ designerStatePath, mapConfigPath }
 
 /**
  * @param {{
- *   password: string | null,
- *   isAuthorized?: (req: any) => boolean,
+ *   isAuthorized: (req: any) => boolean,
  *   mapConfigPath: string,
  *   designerStatePath: string
  * }} params
  */
-export function createMapDesignerHandlers({ password, isAuthorized, mapConfigPath, designerStatePath }) {
+export function createMapDesignerHandlers({ isAuthorized, mapConfigPath, designerStatePath }) {
   const store = createMapDesignerStateStore({
     mapConfigPath,
     designerStatePath,
@@ -1078,10 +1069,7 @@ export function createMapDesignerHandlers({ password, isAuthorized, mapConfigPat
    * @returns {boolean}
    */
   function guard(req, res) {
-    const authorized = typeof isAuthorized === 'function'
-      ? isAuthorized(req)
-      : getProvidedAdminPassword(req) === password;
-    if (!authorized) {
+    if (!isAuthorized(req)) {
       res.status(401).json({ error: 'Unauthorized' });
       return false;
     }

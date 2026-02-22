@@ -19,7 +19,7 @@ Primary sources:
 - `Account`:
   - `id`, `username`, `usernameLower` (unique), password hash+salt, timestamps.
 - `Session`:
-  - `id` (token), `accountId`, `expiresAt`, `lastSeenAt`.
+  - `id` (SHA-256 hash of session token), `accountId`, `expiresAt`, `lastSeenAt`.
 - `Player` (character):
   - `id`, optional `accountId`, `name`, `nameLower` (unique), `state` JSON, `stateVersion`, `lastSeenAt`.
 
@@ -44,6 +44,7 @@ Not persisted as durable character state (runtime-only): active WS connection da
 - `POST /api/auth/signup` validates username/password, creates account + session, sets session cookie.
 - `POST /api/auth/login` validates credentials, creates new session, sets session cookie.
 - `POST /api/auth/logout` requires auth, deletes session, clears session cookie.
+- Cookie-authenticated mutating routes enforce CSRF checks (`Origin`/`Referer` allowlist + Fetch Metadata).
 
 ## 2.2 Session transport
 
@@ -51,9 +52,11 @@ Not persisted as durable character state (runtime-only): active WS connection da
 - Optional: `Authorization: Bearer <token>` for API auth.
 - `requireAuth` checks bearer first, then cookie.
 - Session TTL: `SESSION_TTL_MS = 30 days`.
+- Session tokens are hashed before DB persistence/lookup; DB rows are not bearer-equivalent secrets.
 - Valid sessions are touched (`lastSeenAt`) on authenticated API usage.
 
 `EXPOSE_AUTH_TOKEN=true` optionally includes token in signup/login JSON for dev/testing.
+Session-token hashing invalidates previously persisted plaintext sessions; users must sign in again after rollout.
 
 ## 3. WS Ticket and WebSocket Auth
 

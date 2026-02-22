@@ -8,6 +8,9 @@ import { createHttpApp } from './http.js';
 import { createWorldFromConfig } from './logic/world.js';
 import { MAP_CONFIG_VERSION } from '../shared/mapConfig.js';
 
+const TEST_ADMIN_PASSWORD = 'test-admin-password';
+const TEST_CSRF_ORIGIN = 'http://127.0.0.1:3000';
+
 const store = vi.hoisted(() => ({
   accountsById: new Map(),
   accountsByLower: new Map(),
@@ -128,6 +131,13 @@ async function startServer(app) {
 
 async function requestJson(baseUrl, route, { method = 'GET', body, cookie, headers: extraHeaders } = {}) {
   const headers = { ...(extraHeaders ?? {}) };
+  const methodName = String(method).toUpperCase();
+  const hasOriginHeader = Object.keys(headers).some((key) => key.toLowerCase() === 'origin');
+  const hasFetchSiteHeader = Object.keys(headers).some((key) => key.toLowerCase() === 'sec-fetch-site');
+  if (methodName !== 'GET' && methodName !== 'HEAD') {
+    if (!hasOriginHeader) headers.origin = TEST_CSRF_ORIGIN;
+    if (!hasFetchSiteHeader) headers['sec-fetch-site'] = 'same-origin';
+  }
   if (body) headers['Content-Type'] = 'application/json';
   if (cookie) headers.cookie = cookie;
 
@@ -187,6 +197,24 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
+function createTestConfig(overrides = {}) {
+  return getServerConfig({
+    HOST: '127.0.0.1',
+    PORT: '3000',
+    ADMIN_PASSWORD: TEST_ADMIN_PASSWORD,
+    ...overrides,
+  });
+}
+
+async function unlockAdmin(baseUrl, password = TEST_ADMIN_PASSWORD) {
+  const unlock = await requestJson(baseUrl, '/admin/auth/unlock', {
+    method: 'POST',
+    body: { password },
+  });
+  const cookie = unlock.res.headers.get('set-cookie')?.split(';')[0] ?? '';
+  return { unlock, cookie };
+}
+
 describe('HTTP auth lifecycle integration', () => {
   beforeEach(() => {
     resetStore();
@@ -194,7 +222,7 @@ describe('HTTP auth lifecycle integration', () => {
 
   it('supports signup/login/logout and character CRUD + ws ticket', async () => {
     const files = createTempAdminFiles();
-    const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
+    const config = createTestConfig();
     const world = createWorldFromConfig({
       ...buildMapConfig(),
       vendors: [{ id: 'vendor-1', name: 'Vendor', x: 6, z: 0 }],
@@ -219,8 +247,14 @@ describe('HTTP auth lifecycle integration', () => {
       });
       expect(signup.res.status).toBe(200);
       expect(signup.payload?.account?.username).toBe('alpha_user');
+      const signupSetCookie = signup.res.headers.get('set-cookie') ?? '';
       const signupCookie = signup.res.headers.get('set-cookie')?.split(';')[0];
       expect(signupCookie).toContain(`${config.sessionCookieName}=`);
+      expect(signupSetCookie).toContain('HttpOnly');
+      expect(signupSetCookie).toContain('SameSite=Lax');
+      expect(signupSetCookie).toContain('Path=/');
+      const signupToken = signupCookie?.split('=')[1];
+      expect(typeof signupToken).toBe('string');
 
       const listBeforeCreate = await requestJson(baseUrl, '/api/characters', {
         cookie: signupCookie,
@@ -252,6 +286,37 @@ describe('HTTP auth lifecycle integration', () => {
       expect(ticket.res.status).toBe(200);
       expect(ticket.payload?.ticket).toContain(`-${characterId}`);
 
+      const csrfBlocked = await requestJson(baseUrl, '/api/ws-ticket', {
+        method: 'POST',
+        cookie: signupCookie,
+        headers: {
+          origin: '',
+        },
+        body: { characterId },
+      });
+      expect(csrfBlocked.res.status).toBe(403);
+
+      const crossSiteBlocked = await requestJson(baseUrl, '/api/ws-ticket', {
+        method: 'POST',
+        cookie: signupCookie,
+        headers: {
+          origin: TEST_CSRF_ORIGIN,
+          'sec-fetch-site': 'cross-site',
+        },
+        body: { characterId },
+      });
+      expect(crossSiteBlocked.res.status).toBe(403);
+
+      const bearerBypass = await requestJson(baseUrl, '/api/ws-ticket', {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${signupToken}`,
+          origin: '',
+        },
+        body: { characterId },
+      });
+      expect(bearerBypass.res.status).toBe(200);
+
       const del = await requestJson(baseUrl, `/api/characters/${characterId}`, {
         method: 'DELETE',
         cookie: signupCookie,
@@ -282,8 +347,11 @@ describe('HTTP auth lifecycle integration', () => {
         body: { username: 'alpha_user', password: 'password123' },
       });
       expect(login.res.status).toBe(200);
+      const loginSetCookie = login.res.headers.get('set-cookie') ?? '';
       const loginCookie = login.res.headers.get('set-cookie')?.split(';')[0];
       expect(loginCookie).toContain(`${config.sessionCookieName}=`);
+      expect(loginSetCookie).toContain('HttpOnly');
+      expect(loginSetCookie).toContain('SameSite=Lax');
 
       const listAfterLogin = await requestJson(baseUrl, '/api/characters', {
         cookie: loginCookie,
@@ -302,7 +370,7 @@ describe('HTTP auth lifecycle integration', () => {
 describe('admin page routes', () => {
   it('serves redesigned admin pages and module screens', async () => {
     const files = createTempAdminFiles();
-    const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
+    const config = createTestConfig();
     const world = createWorldFromConfig(buildMapConfig());
 
     const app = createHttpApp({
@@ -350,9 +418,9 @@ describe('admin page routes', () => {
 });
 
 describe('admin designer APIs', () => {
-  it('guards new routes with admin password', async () => {
+  it('guards new routes with admin session auth', async () => {
     const files = createTempAdminFiles();
-    const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
+    const config = createTestConfig();
     const world = createWorldFromConfig(buildMapConfig());
 
     const app = createHttpApp({
@@ -377,15 +445,14 @@ describe('admin designer APIs', () => {
       ];
 
       for (const route of routes) {
-        const unauthorized = await requestJson(baseUrl, route, {
-          headers: { 'x-admin-pass': 'bad' },
-        });
+        const unauthorized = await requestJson(baseUrl, route);
         expect(unauthorized.res.status).toBe(401);
       }
 
-      const ok = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
-        headers: { 'x-admin-pass': '1234' },
-      });
+      const { unlock, cookie } = await unlockAdmin(baseUrl);
+      expect(unlock.res.status).toBe(200);
+
+      const ok = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { cookie });
       expect(ok.res.status).toBe(200);
       expect(ok.payload?.zoneKey).toBe('world-map');
     } finally {
@@ -398,9 +465,7 @@ describe('admin designer APIs', () => {
 
   it('supports admin cookie unlock/session/logout and patches html/json split', async () => {
     const files = createTempAdminFiles();
-    const config = getServerConfig({
-      HOST: '127.0.0.1',
-      PORT: '3000',
+    const config = createTestConfig({
       ADMIN_SESSION_IDLE_TIMEOUT_MS: '5000',
     });
     const world = createWorldFromConfig(buildMapConfig());
@@ -418,6 +483,23 @@ describe('admin designer APIs', () => {
 
     const { server, baseUrl } = await startServer(app);
     try {
+      const unlockNoOrigin = await requestJson(baseUrl, '/admin/auth/unlock', {
+        method: 'POST',
+        headers: { origin: '' },
+        body: { password: TEST_ADMIN_PASSWORD },
+      });
+      expect(unlockNoOrigin.res.status).toBe(403);
+
+      const unlockCrossSite = await requestJson(baseUrl, '/admin/auth/unlock', {
+        method: 'POST',
+        headers: {
+          origin: TEST_CSRF_ORIGIN,
+          'sec-fetch-site': 'cross-site',
+        },
+        body: { password: TEST_ADMIN_PASSWORD },
+      });
+      expect(unlockCrossSite.res.status).toBe(403);
+
       const unlockFail = await requestJson(baseUrl, '/admin/auth/unlock', {
         method: 'POST',
         body: { password: 'bad' },
@@ -426,13 +508,19 @@ describe('admin designer APIs', () => {
 
       const unlock = await requestJson(baseUrl, '/admin/auth/unlock', {
         method: 'POST',
-        body: { password: '1234' },
+        body: { password: TEST_ADMIN_PASSWORD },
       });
       expect(unlock.res.status).toBe(200);
       expect(unlock.payload).toEqual({ ok: true });
 
+      const adminSetCookie = unlock.res.headers.get('set-cookie') ?? '';
       const cookie = unlock.res.headers.get('set-cookie')?.split(';')[0] ?? '';
       expect(cookie).toContain(`${config.adminSessionCookieName}=`);
+      expect(adminSetCookie).toContain('HttpOnly');
+      expect(adminSetCookie).toContain('SameSite=Strict');
+      expect(adminSetCookie).toContain('Path=/admin');
+      const adminSessionToken = cookie.split('=')[1] ?? '';
+      expect(adminSessionToken.length).toBeGreaterThan(0);
 
       const sessionOk = await requestJson(baseUrl, '/admin/auth/session', {
         cookie,
@@ -463,12 +551,31 @@ describe('admin designer APIs', () => {
       expect(patchesJson.res.status).toBe(200);
       expect(Array.isArray(patchesJson.payload?.patches)).toBe(true);
 
+      const mutatingViaSessionHeader = await requestJson(baseUrl, '/admin/locks/zone?zone=world-map', {
+        method: 'POST',
+        headers: {
+          origin: '',
+          'x-admin-session': adminSessionToken,
+          'x-admin-api': '1',
+          'x-admin-alias': 'alice',
+        },
+        body: { action: 'acquire', reason: 'test' },
+      });
+      expect(mutatingViaSessionHeader.res.status).toBe(200);
+
       const logout = await requestJson(baseUrl, '/admin/auth/logout', {
         method: 'POST',
         cookie,
       });
       expect(logout.res.status).toBe(200);
       expect(logout.payload).toEqual({ ok: true });
+
+      const logoutCsrfBlocked = await requestJson(baseUrl, '/admin/auth/logout', {
+        method: 'POST',
+        cookie,
+        headers: { origin: '' },
+      });
+      expect(logoutCsrfBlocked.res.status).toBe(403);
 
       const stateAfterLogout = await requestJson(baseUrl, '/admin/state', {
         cookie,
@@ -484,9 +591,7 @@ describe('admin designer APIs', () => {
 
   it('expires admin cookie session after idle timeout', async () => {
     const files = createTempAdminFiles();
-    const config = getServerConfig({
-      HOST: '127.0.0.1',
-      PORT: '3000',
+    const config = createTestConfig({
       ADMIN_SESSION_IDLE_TIMEOUT_MS: '20',
     });
     const world = createWorldFromConfig(buildMapConfig());
@@ -506,7 +611,7 @@ describe('admin designer APIs', () => {
     try {
       const unlock = await requestJson(baseUrl, '/admin/auth/unlock', {
         method: 'POST',
-        body: { password: '1234' },
+        body: { password: TEST_ADMIN_PASSWORD },
       });
       expect(unlock.res.status).toBe(200);
 
@@ -530,7 +635,7 @@ describe('admin designer APIs', () => {
 
   it('returns revision and lock conflicts', async () => {
     const files = createTempAdminFiles();
-    const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
+    const config = createTestConfig();
     const world = createWorldFromConfig(buildMapConfig());
 
     const app = createHttpApp({
@@ -546,12 +651,14 @@ describe('admin designer APIs', () => {
 
     const { server, baseUrl } = await startServer(app);
     try {
-      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice', 'x-admin-api': '1' };
-      const initial = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      const { cookie } = await unlockAdmin(baseUrl);
+      const headers = { 'x-admin-alias': 'alice', 'x-admin-api': '1' };
+      const initial = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { cookie, headers });
       expect(initial.res.status).toBe(200);
 
       const firstSave = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
         method: 'PUT',
+        cookie,
         headers,
         body: {
           expectedRevision: initial.payload.revision,
@@ -580,6 +687,7 @@ describe('admin designer APIs', () => {
 
       const staleSave = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
         method: 'PUT',
+        cookie,
         headers,
         body: {
           expectedRevision: initial.payload.revision,
@@ -591,6 +699,7 @@ describe('admin designer APIs', () => {
 
       const acquireLock = await requestJson(baseUrl, '/admin/locks/layer/props?zone=world-map', {
         method: 'POST',
+        cookie,
         headers,
         body: { action: 'acquire', reason: 'editing prefabs' },
       });
@@ -598,7 +707,8 @@ describe('admin designer APIs', () => {
 
       const blockedCreate = await requestJson(baseUrl, '/admin/prefabs?zone=world-map', {
         method: 'POST',
-        headers: { 'x-admin-pass': '1234', 'x-admin-alias': 'bob', 'x-admin-api': '1' },
+        cookie,
+        headers: { 'x-admin-alias': 'bob', 'x-admin-api': '1' },
         body: {
           name: 'Locked',
           entityType: 'structures',
@@ -618,9 +728,7 @@ describe('admin designer APIs', () => {
 
   it('allows larger admin JSON payloads than global payload limit', async () => {
     const files = createTempAdminFiles();
-    const config = getServerConfig({
-      HOST: '127.0.0.1',
-      PORT: '3000',
+    const config = createTestConfig({
       MAX_PAYLOAD_BYTES: '1024',
       ADMIN_MAX_PAYLOAD_BYTES: '65536',
     });
@@ -639,13 +747,15 @@ describe('admin designer APIs', () => {
 
     const { server, baseUrl } = await startServer(app);
     try {
-      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice', 'x-admin-api': '1' };
-      const initial = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      const { cookie } = await unlockAdmin(baseUrl);
+      const headers = { 'x-admin-alias': 'alice', 'x-admin-api': '1' };
+      const initial = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { cookie, headers });
       expect(initial.res.status).toBe(200);
 
       const longComment = 'x'.repeat(8_000);
       const save = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
         method: 'PUT',
+        cookie,
         headers,
         body: {
           expectedRevision: initial.payload.revision,
@@ -677,7 +787,7 @@ describe('admin designer APIs', () => {
 
   it('publishes and rolls back patch snapshots', async () => {
     const files = createTempAdminFiles();
-    const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
+    const config = createTestConfig();
     const world = createWorldFromConfig(buildMapConfig());
 
     const app = createHttpApp({
@@ -693,12 +803,14 @@ describe('admin designer APIs', () => {
 
     const { server, baseUrl } = await startServer(app);
     try {
-      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice', 'x-admin-api': '1' };
-      const state = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      const { cookie } = await unlockAdmin(baseUrl);
+      const headers = { 'x-admin-alias': 'alice', 'x-admin-api': '1' };
+      const state = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { cookie, headers });
       expect(state.res.status).toBe(200);
 
       const createPatch = await requestJson(baseUrl, '/admin/patches?zone=world-map', {
         method: 'POST',
+        cookie,
         headers,
         body: {
           title: 'Integration publish',
@@ -735,18 +847,20 @@ describe('admin designer APIs', () => {
       const requestApproval = await requestJson(
         baseUrl,
         `/admin/patches/${patchId}/request-approval?zone=world-map`,
-        { method: 'POST', headers }
+        { method: 'POST', cookie, headers }
       );
       expect(requestApproval.res.status).toBe(200);
 
       const approve = await requestJson(baseUrl, `/admin/patches/${patchId}/approve?zone=world-map`, {
         method: 'POST',
+        cookie,
         headers,
       });
       expect(approve.res.status).toBe(200);
 
       const publish = await requestJson(baseUrl, `/admin/patches/${patchId}/publish?zone=world-map`, {
         method: 'POST',
+        cookie,
         headers,
       });
       expect(publish.res.status).toBe(200);
@@ -755,11 +869,12 @@ describe('admin designer APIs', () => {
       const publishedMap = readJson(files.mapPath);
       expect(publishedMap.mapSize).toBe(120);
 
-      const afterPublish = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      const afterPublish = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { cookie, headers });
       expect(afterPublish.payload?.zoneState?.navAreas?.some((entry) => entry.id === 'lane-main')).toBe(true);
 
       const rollback = await requestJson(baseUrl, `/admin/patches/${patchId}/rollback?zone=world-map`, {
         method: 'POST',
+        cookie,
         headers,
       });
       expect(rollback.res.status).toBe(200);
@@ -768,7 +883,7 @@ describe('admin designer APIs', () => {
       const rolledBackMap = readJson(files.mapPath);
       expect(rolledBackMap.mapSize).toBe(40);
 
-      const afterRollback = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      const afterRollback = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { cookie, headers });
       expect(afterRollback.payload?.zoneState?.navAreas?.some((entry) => entry.id === 'lane-main')).toBe(false);
     } finally {
       await new Promise((resolve, reject) => {

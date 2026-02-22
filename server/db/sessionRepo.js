@@ -1,11 +1,13 @@
 // @ts-check
 import { getPrismaClient } from './client.js';
+import { hashSessionToken } from '../sessionToken.js';
 
 export async function createSession(/** @type {any} */ { id, accountId, expiresAt, lastSeenAt }) {
   const prisma = getPrismaClient();
+  const hashedId = hashSessionToken(id);
   return prisma.session.create({
     data: {
-      id,
+      id: hashedId,
       accountId,
       expiresAt,
       lastSeenAt,
@@ -15,21 +17,24 @@ export async function createSession(/** @type {any} */ { id, accountId, expiresA
 
 export async function getSessionWithAccount(/** @type {any} */ id) {
   const prisma = getPrismaClient();
+  const hashedId = hashSessionToken(id);
   return prisma.session.findUnique({
-    where: { id },
+    where: { id: hashedId },
     include: { account: true },
   });
 }
 
 export async function touchSession(/** @type {any} */ id, /** @type {any} */ lastSeenAt = new Date()) {
   const prisma = getPrismaClient();
+  const hashedId = hashSessionToken(id);
   return prisma.session.update({
-    where: { id },
+    where: { id: hashedId },
     data: { lastSeenAt },
   });
 }
 
 export async function deleteSession(/** @type {any} */ id) {
   const prisma = getPrismaClient();
-  return prisma.session.delete({ where: { id } });
+  const hashedId = hashSessionToken(id);
+  return prisma.session.delete({ where: { id: hashedId } });
 }

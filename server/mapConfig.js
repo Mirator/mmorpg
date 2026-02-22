@@ -61,21 +61,11 @@ export async function saveMapConfig(/** @type {any} */ filePath, /** @type {any}
   return normalized;
 }
 
-function getAdminPassword(/** @type {any} */ req) {
-  if (typeof req.get === 'function') {
-    return req.get('x-admin-pass') || '';
-  }
-  return '';
-}
-
-export function createMapConfigHandlers(/** @type {any} */ { password, mapConfigPath, isAuthorized }) {
+export function createMapConfigHandlers(/** @type {any} */ { mapConfigPath, isAuthorized }) {
   const mapPath = mapConfigPath;
 
   const guard = (/** @type {any} */ req, /** @type {any} */ res) => {
-    const authorized = typeof isAuthorized === 'function'
-      ? isAuthorized(req)
-      : getAdminPassword(req) === password;
-    if (!authorized) {
+    if (!isAuthorized(req)) {
       res.status(401).json({ error: 'Unauthorized' });
       return false;
     }

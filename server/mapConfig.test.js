@@ -35,13 +35,13 @@ function createResponse() {
   };
 }
 
-function createRequest({ headerPass, body } = {}) {
+function createRequest({ adminSessionHeader, body } = {}) {
   return {
     body,
     query: {},
     get(name) {
-      if (name.toLowerCase() !== 'x-admin-pass') return undefined;
-      return headerPass;
+      if (name.toLowerCase() !== 'x-admin-session') return undefined;
+      return adminSessionHeader;
     },
   };
 }
@@ -52,16 +52,16 @@ describe('map config handlers', () => {
     const filePath = path.join(tmpDir, 'world-map.json');
     fs.writeFileSync(filePath, JSON.stringify(buildConfig()), 'utf8');
     const handlers = createMapConfigHandlers({
-      password: 'secret',
       mapConfigPath: filePath,
+      isAuthorized: (req) => req.get?.('x-admin-session') === 'session-ok',
     });
 
     const res = createResponse();
-    handlers.getHandler(createRequest({ headerPass: 'nope' }), res);
+    handlers.getHandler(createRequest({ adminSessionHeader: 'nope' }), res);
     expect(res.statusCode).toBe(401);
 
     const res2 = createResponse();
-    await handlers.putHandler(createRequest({ headerPass: '', body: {} }), res2);
+    await handlers.putHandler(createRequest({ adminSessionHeader: '', body: {} }), res2);
     expect(res2.statusCode).toBe(401);
   });
 
@@ -71,12 +71,12 @@ describe('map config handlers', () => {
     const config = buildConfig();
     fs.writeFileSync(filePath, JSON.stringify(config), 'utf8');
     const handlers = createMapConfigHandlers({
-      password: 'secret',
       mapConfigPath: filePath,
+      isAuthorized: (req) => req.get?.('x-admin-session') === 'session-ok',
     });
 
     const res = createResponse();
-    handlers.getHandler(createRequest({ headerPass: 'secret' }), res);
+    handlers.getHandler(createRequest({ adminSessionHeader: 'session-ok' }), res);
     expect(res.statusCode).toBe(200);
     expect(res.body.mapSize).toBe(config.mapSize);
   });
@@ -87,12 +87,11 @@ describe('map config handlers', () => {
     const config = buildConfig();
     fs.writeFileSync(filePath, JSON.stringify(config), 'utf8');
     const handlers = createMapConfigHandlers({
-      password: 'secret',
       mapConfigPath: filePath,
       isAuthorized: (req) => req.query?.allow === '1',
     });
 
-    const req = createRequest({ headerPass: 'bad' });
+    const req = createRequest({ adminSessionHeader: 'bad' });
     req.query = { allow: '1' };
     const res = createResponse();
     handlers.getHandler(req, res);
@@ -106,8 +105,8 @@ describe('map config handlers', () => {
     fs.writeFileSync(filePath, JSON.stringify(buildConfig()), 'utf8');
 
     const handlers = createMapConfigHandlers({
-      password: 'secret',
       mapConfigPath: filePath,
+      isAuthorized: (req) => req.get?.('x-admin-session') === 'session-ok',
     });
 
     const invalid = buildConfig({
@@ -118,7 +117,7 @@ describe('map config handlers', () => {
     });
     const resInvalid = createResponse();
     await handlers.putHandler(
-      createRequest({ headerPass: 'secret', body: invalid }),
+      createRequest({ adminSessionHeader: 'session-ok', body: invalid }),
       resInvalid
     );
     expect(resInvalid.statusCode).toBe(400);
@@ -130,7 +129,7 @@ describe('map config handlers', () => {
     });
     const resValid = createResponse();
     await handlers.putHandler(
-      createRequest({ headerPass: 'secret', body: next }),
+      createRequest({ adminSessionHeader: 'session-ok', body: next }),
       resValid
     );
     expect(resValid.statusCode).toBe(200);

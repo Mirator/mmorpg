@@ -26,12 +26,11 @@ async function parsePayload(res) {
 
 /**
  * @param {{
- *   getPassword?: () => string,
  *   getAlias?: () => string,
  *   getZoneKey?: () => string
  * }} deps
  */
-export function createDesignerApi({ getPassword, getAlias, getZoneKey }) {
+export function createDesignerApi({ getAlias, getZoneKey }) {
   const resolveAlias = () => {
     const alias = typeof getAlias === 'function' ? getAlias() : '';
     return typeof alias === 'string' && alias.trim() ? alias.trim() : 'admin';
@@ -47,9 +46,6 @@ export function createDesignerApi({ getPassword, getAlias, getZoneKey }) {
    * @param {{ method?: string, body?: unknown, mutating?: boolean, zoneScoped?: boolean }} [options]
    */
   async function request(url, options = {}) {
-    const rawPassword = typeof getPassword === 'function' ? getPassword() : '';
-    const password = typeof rawPassword === 'string' ? rawPassword.trim() : '';
-
     const method = options.method ?? 'GET';
     const zoneScoped = options.zoneScoped !== false;
     const path = zoneScoped ? withZone(url, resolveZoneKey()) : url;
@@ -58,7 +54,6 @@ export function createDesignerApi({ getPassword, getAlias, getZoneKey }) {
     const headers = {
       'x-admin-api': '1',
     };
-    if (password) headers['x-admin-pass'] = password;
 
     if (options.mutating) {
       headers['x-admin-alias'] = resolveAlias();

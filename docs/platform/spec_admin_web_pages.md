@@ -58,10 +58,7 @@ Theme tokens live in `admin/style.css`, and all admin module pages plus canvas o
 
 ### 2.1 Password auth
 
-Admin password source is unchanged:
-
-- localhost (`127.0.0.1`/`localhost`): default `1234` if `ADMIN_PASSWORD` is unset
-- non-localhost: `ADMIN_PASSWORD` is required at startup
+`ADMIN_PASSWORD` is required at startup in all environments (including localhost).
 
 ### 2.2 Browser unlock behavior
 
@@ -70,7 +67,6 @@ Admin password source is unchanged:
 - Session is shared across admin pages/tabs in the same browser session.
 - Session has 30-minute sliding inactivity timeout.
 - A `Lock` button on admin pages calls `POST /admin/auth/logout` to invalidate the session immediately.
-- Legacy scripted access via `x-admin-pass` remains supported.
 
 ### 2.3 Alias behavior
 
@@ -195,10 +191,11 @@ Concurrency semantics:
 
 ## 7. HTTP Endpoint Contracts
 
-All endpoints below require either:
+All endpoints below require a valid admin session:
 
-- valid admin session cookie, or
-- valid `x-admin-pass` header (legacy compatibility)
+- browser cookie (`mmorpg_admin_session` by default), or
+- `x-admin-session` header carrying the active admin session token
+- For cookie-authenticated mutating requests, CSRF checks are enforced (`Origin`/`Referer` + Fetch Metadata).
 
 ### 7.0 Admin session auth endpoints
 
@@ -273,13 +270,13 @@ Rules:
 
 ## 8. Route Multiplexing Note
 
-`GET /admin/patches` serves HTML for browser navigation. The same path serves patch API JSON when `x-admin-api: 1` is present (or legacy `x-admin-pass`), allowing page/API coexistence without path migration.
+`GET /admin/patches` serves HTML for browser navigation. The same path serves patch API JSON when `x-admin-api: 1` is present, allowing page/API coexistence without path migration.
 
 ## 9. Error Model
 
 Common responses:
 
-- `401` unauthorized (admin session missing/expired and `x-admin-pass` missing/invalid)
+- `401` unauthorized (admin session missing/expired)
 - `400` validation, bad transitions, malformed payloads
 - `404` missing prefab/patch/comment
 - `409` designer revision conflict

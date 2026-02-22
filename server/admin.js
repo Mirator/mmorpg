@@ -219,18 +219,8 @@ export function buildAdminState({ world, players, resources, mobs, now = Date.no
 }
 
 /**
- * @param {HttpRequestLike} req
- * @returns {string}
- */
-export function getProvidedAdminPassword(req) {
-  const headerPass = typeof req.get === 'function' ? req.get('x-admin-pass') : '';
-  return headerPass || '';
-}
-
-/**
  * @param {{
- *   password: string | null,
- *   isAuthorized?: (req: HttpRequestLike) => boolean,
+ *   isAuthorized: (req: HttpRequestLike) => boolean,
  *   world: unknown,
  *   players: PlayerMap,
  *   resources: ResourceNode[],
@@ -238,12 +228,9 @@ export function getProvidedAdminPassword(req) {
  * }} params
  * @returns {(req: HttpRequestLike, res: HttpResponseLike) => void}
  */
-export function createAdminStateHandler({ password, isAuthorized, world, players, resources, mobs }) {
+export function createAdminStateHandler({ isAuthorized, world, players, resources, mobs }) {
   return (req, res) => {
-    const authorized = typeof isAuthorized === 'function'
-      ? isAuthorized(req)
-      : getProvidedAdminPassword(req) === password;
-    if (!authorized) {
+    if (!isAuthorized(req)) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }

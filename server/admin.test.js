@@ -27,11 +27,11 @@ function createResponse() {
   };
 }
 
-function createRequest({ headerPass } = {}) {
+function createRequest({ adminSessionHeader } = {}) {
   return {
     get(name) {
-      if (name.toLowerCase() !== 'x-admin-pass') return undefined;
-      return headerPass;
+      if (name.toLowerCase() !== 'x-admin-session') return undefined;
+      return adminSessionHeader;
     },
     query: {},
   };
@@ -273,7 +273,7 @@ describe('admin endpoint handler', () => {
   const resources = [];
   const mobs = [];
   const handler = createAdminStateHandler({
-    password: 'secret',
+    isAuthorized: (req) => req.get?.('x-admin-session') === 'session-ok',
     world,
     players,
     resources,
@@ -289,38 +289,29 @@ describe('admin endpoint handler', () => {
   });
 
   it('rejects wrong password', () => {
-    const req = createRequest({ headerPass: 'nope' });
+    const req = createRequest({ adminSessionHeader: 'nope' });
     const res = createResponse();
     handler(req, res);
     expect(res.statusCode).toBe(401);
   });
 
-  it('accepts header password', () => {
-    const req = createRequest({ headerPass: 'secret' });
+  it('accepts session-backed authorization', () => {
+    const req = createRequest({ adminSessionHeader: 'session-ok' });
     const res = createResponse();
     handler(req, res);
     expect(res.statusCode).toBe(200);
     expect(res.body.world.mapSize).toBe(world.mapSize);
   });
 
-  it('does not accept query password fallback', () => {
-    const req = createRequest({ headerPass: undefined });
-    req.query = { password: 'secret' };
-    const res = createResponse();
-    handler(req, res);
-    expect(res.statusCode).toBe(401);
-  });
-
   it('accepts custom authorization callback when provided', () => {
     const handlerWithCallback = createAdminStateHandler({
-      password: 'secret',
       isAuthorized: (req) => req.query?.allow === '1',
       world,
       players,
       resources,
       mobs,
     });
-    const req = createRequest({ headerPass: 'bad' });
+    const req = createRequest({ adminSessionHeader: 'bad' });
     req.query = { allow: '1' };
     const res = createResponse();
     handlerWithCallback(req, res);

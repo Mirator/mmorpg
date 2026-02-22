@@ -27,6 +27,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const E2E_ARTIFACT_DIR = path.resolve(__dirname, '../output/e2e');
 const /** @type {any} */ DESKTOP_VIEWPORT = { width: 1280, height: 720 };
 const /** @type {any} */ SMALL_VIEWPORT = { width: 560, height: 840 };
+const TEST_ADMIN_PASSWORD = '1234';
 
 function sanitizeToken(/** @type {any} */ value) {
   const normalized = String(value ?? '')
@@ -148,6 +149,7 @@ async function run() {
       ...process.env,
       PORT: String(PORT),
       HOST: '127.0.0.1',
+      ADMIN_PASSWORD: TEST_ADMIN_PASSWORD,
       E2E_TEST: 'true',
       DATABASE_URL: DATABASE_URL_E2E,
     },

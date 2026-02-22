@@ -25,10 +25,7 @@ Available admin screens:
 - `/admin/collab` (Collaboration locks/comments/audit)
 - `/admin/playtest` (Preview / playtest launcher)
 
-Admin APIs accept either:
-
-- a valid admin session cookie (`mmorpg_admin_session` by default), or
-- `x-admin-pass` (legacy/script compatibility)
+Admin APIs require a valid admin session (cookie by default; `x-admin-session` header is also accepted).
 
 Admin unlock/session endpoints:
 
@@ -62,8 +59,7 @@ Phase-2 designer APIs (`x-admin-alias` on mutating requests):
 
 For JSON API calls to `GET /admin/patches`, send `x-admin-api: 1` (otherwise the route serves HTML).
 
-On localhost, default admin password is `1234` (override with `ADMIN_PASSWORD`). When binding to a
-non-localhost host, `ADMIN_PASSWORD` is **required** and the server will fail to start if unset.
+`ADMIN_PASSWORD` is required in every environment, including localhost.
 For full admin behavior and API contracts, see
 [`docs/platform/spec_admin_web_pages.md`](docs/platform/spec_admin_web_pages.md).
 
@@ -90,7 +86,7 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 ## Environment Variables
 
 - `PORT`, `HOST` (default `3000`, `127.0.0.1`)
-- `ADMIN_PASSWORD` (default `1234` on localhost only; **required** when HOST is not 127.0.0.1 or localhost)
+- `ADMIN_PASSWORD` (**required** in all environments)
 - `ADMIN_SESSION_COOKIE_NAME` (default `mmorpg_admin_session`)
 - `ADMIN_SESSION_IDLE_TIMEOUT_MS` (default `1800000` = 30 minutes)
 - `ADMIN_SESSION_COOKIE_SAMESITE` (`lax`, `strict`, or `none`; default `strict`)
@@ -198,7 +194,8 @@ unique (case-insensitive). The client uses HTTP auth endpoints before opening a 
 
 Auth endpoints set an HttpOnly session cookie by default. Browsers send cookies on same-origin
 requests. Cookie-based auth is the default and preferred method; `EXPOSE_AUTH_TOKEN` is for
-dev/testing only and should not be enabled in production.
+dev/testing only and should not be enabled in production. Cookie-authenticated mutating API routes
+enforce CSRF checks (`Origin`/`Referer` allowlist + Fetch Metadata).
 
 ### WebSocket
 

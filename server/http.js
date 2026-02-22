@@ -8,6 +8,7 @@ import { createAdminStateHandler } from './admin.js';
 import { createMapConfigHandlers } from './mapConfig.js';
 import { createMapDesignerHandlers } from './mapDesignerState.js';
 import { sendDbError } from './httpErrors.js';
+import { createCsrfGuard } from './csrfGuard.js';
 import {
   generateId,
   generateSessionToken,
@@ -248,21 +249,15 @@ export function createHttpApp({
     cookieName: config.adminSessionCookieName,
     idleTimeoutMs: config.adminSessionIdleTimeoutMs,
   });
-
-  /**
-   * @param {HttpRequestLike} req
-   */
-  function hasValidAdminPasswordHeader(req) {
-    const provided = typeof req.get === 'function' ? req.get('x-admin-pass') || '' : '';
-    return provided === config.adminPassword;
-  }
+  const csrfGuard = createCsrfGuard({
+    allowedOrigins: config.allowedOrigins,
+  });
 
   /**
    * @param {HttpRequestLike} req
    */
   function isAdminAuthorizedRequest(req) {
-    if (adminSessions.hasValidSession(req)) return true;
-    return hasValidAdminPasswordHeader(req);
+    return adminSessions.hasValidSession(req);
   }
 
   /**
@@ -270,8 +265,7 @@ export function createHttpApp({
    */
   function wantsAdminPatchesApi(req) {
     if (typeof req.get !== 'function') return false;
-    if (req.get('x-admin-api') === '1') return true;
-    return Boolean(req.get('x-admin-pass'));
+    return req.get('x-admin-api') === '1';
   }
 
   app.get('/favicon.ico', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
@@ -315,6 +309,7 @@ export function createHttpApp({
 
   app.post(
     '/admin/auth/unlock',
+    csrfGuard,
     adminUnlockLimiter,
     (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
       const password = typeof req.body?.password === 'string' ? req.body.password : '';
@@ -337,7 +332,7 @@ export function createHttpApp({
     res.json({ ok: true });
   });
 
-  app.post('/admin/auth/logout', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+  app.post('/admin/auth/logout', csrfGuard, (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     adminSessions.revokeSessionFromRequest(req);
     clearAdminSessionCookie(res, config);
     res.json({ ok: true });
@@ -346,7 +341,6 @@ export function createHttpApp({
   app.get(
     '/admin/state',
     createAdminStateHandler({
-      password: config.adminPassword,
       isAuthorized: isAdminAuthorizedRequest,
       world,
       players,
@@ -356,44 +350,42 @@ export function createHttpApp({
   );
 
   const mapHandlers = createMapConfigHandlers({
-    password: config.adminPassword,
     mapConfigPath,
     isAuthorized: isAdminAuthorizedRequest,
   });
   app.get('/admin/map-config', mapHandlers.getHandler);
-  app.put('/admin/map-config', mapHandlers.putHandler);
+  app.put('/admin/map-config', csrfGuard, mapHandlers.putHandler);
 
   const designerHandlers = createMapDesignerHandlers({
-    password: config.adminPassword,
     isAuthorized: isAdminAuthorizedRequest,
     mapConfigPath,
     designerStatePath,
   });
   app.get('/admin/designer-state', designerHandlers.getDesignerState);
-  app.put('/admin/designer-state', designerHandlers.putDesignerState);
+  app.put('/admin/designer-state', csrfGuard, designerHandlers.putDesignerState);
 
   app.get('/admin/prefabs', designerHandlers.getPrefabs);
-  app.post('/admin/prefabs', designerHandlers.postPrefab);
-  app.put('/admin/prefabs/:id', designerHandlers.putPrefab);
-  app.delete('/admin/prefabs/:id', designerHandlers.deletePrefab);
+  app.post('/admin/prefabs', csrfGuard, designerHandlers.postPrefab);
+  app.put('/admin/prefabs/:id', csrfGuard, designerHandlers.putPrefab);
+  app.delete('/admin/prefabs/:id', csrfGuard, designerHandlers.deletePrefab);
 
   app.get('/admin/patches', designerHandlers.getPatches);
-  app.post('/admin/patches', designerHandlers.postPatch);
-  app.post('/admin/patches/:id/request-approval', designerHandlers.postPatchRequestApproval);
-  app.post('/admin/patches/:id/approve', designerHandlers.postPatchApprove);
-  app.post('/admin/patches/:id/publish', designerHandlers.postPatchPublish);
-  app.post('/admin/patches/:id/rollback', designerHandlers.postPatchRollback);
+  app.post('/admin/patches', csrfGuard, designerHandlers.postPatch);
+  app.post('/admin/patches/:id/request-approval', csrfGuard, designerHandlers.postPatchRequestApproval);
+  app.post('/admin/patches/:id/approve', csrfGuard, designerHandlers.postPatchApprove);
+  app.post('/admin/patches/:id/publish', csrfGuard, designerHandlers.postPatchPublish);
+  app.post('/admin/patches/:id/rollback', csrfGuard, designerHandlers.postPatchRollback);
 
   app.get('/admin/comments', designerHandlers.getComments);
-  app.post('/admin/comments', designerHandlers.postComment);
-  app.post('/admin/comments/:id/resolve', designerHandlers.postCommentResolve);
+  app.post('/admin/comments', csrfGuard, designerHandlers.postComment);
+  app.post('/admin/comments/:id/resolve', csrfGuard, designerHandlers.postCommentResolve);
 
   app.get('/admin/locks', designerHandlers.getLocks);
-  app.post('/admin/locks/zone', designerHandlers.postZoneLock);
-  app.post('/admin/locks/layer/:layerId', designerHandlers.postLayerLock);
+  app.post('/admin/locks/zone', csrfGuard, designerHandlers.postZoneLock);
+  app.post('/admin/locks/layer/:layerId', csrfGuard, designerHandlers.postLayerLock);
 
   app.get('/admin/audit', designerHandlers.getAudit);
-  app.post('/admin/playtest/session', designerHandlers.postPlaytestSession);
+  app.post('/admin/playtest/session', csrfGuard, designerHandlers.postPlaytestSession);
 
   app.post('/api/auth/signup', authLimiter, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     const normalized = normalizeUsername(req.body?.username);
@@ -573,7 +565,7 @@ export function createHttpApp({
     next();
   }
 
-  app.post('/api/auth/logout', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+  app.post('/api/auth/logout', requireAuth, csrfGuard, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     if (!req.authToken) {
       sendError(res, 401, 'Unauthorized');
       return;
@@ -587,7 +579,7 @@ export function createHttpApp({
     res.json({ ok: true });
   });
 
-  app.post('/api/ws-ticket', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+  app.post('/api/ws-ticket', requireAuth, csrfGuard, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     const account = req.account;
     if (!account) {
       sendError(res, 401, 'Unauthorized');
@@ -637,7 +629,7 @@ export function createHttpApp({
     }
   });
 
-  app.post('/api/characters', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+  app.post('/api/characters', requireAuth, csrfGuard, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     const account = req.account;
     if (!account) {
       sendError(res, 401, 'Unauthorized');
@@ -708,7 +700,7 @@ export function createHttpApp({
     });
   });
 
-  app.delete('/api/characters/:id', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+  app.delete('/api/characters/:id', requireAuth, csrfGuard, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     const account = req.account;
     if (!account) {
       sendError(res, 401, 'Unauthorized');

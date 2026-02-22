@@ -203,13 +203,13 @@ Canonical admin docs: [Admin Web Pages Specification](../platform/spec_admin_web
 
 Admin dashboard:
 - URL: `/admin`
-- Auth: `x-admin-pass` header
+- Auth: admin session (`/admin/auth/unlock` + cookie / `x-admin-session`)
 - Live polling every 1s
 - Paginated tables for players, resources, mobs
 
 Map editor:
 - URL: `/admin/map`
-- Auth: `x-admin-pass` header
+- Auth: admin session (`/admin/auth/unlock` + cookie / `x-admin-session`)
 - Edit map entities and save to config
 - Validation errors displayed in UI
 
@@ -269,7 +269,7 @@ Characters (requires auth):
 - `POST /api/characters` `{ name, classId }` → `{ character }`
 - `DELETE /api/characters/:id` → `{ ok: true }`
 
-Admin (requires `x-admin-pass`):
+Admin (requires admin session):
 - Canonical docs: [Admin Web Pages Specification](../platform/spec_admin_web_pages.md)
 - `GET /admin/state` → `{ world, players, resources, mobs }`
 - `GET /admin/map-config` → full map config JSON
