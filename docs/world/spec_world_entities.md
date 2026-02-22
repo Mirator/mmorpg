@@ -167,6 +167,7 @@ world-map.json
 ## 8. Admin Map Editor
 
 **URL:** `http://localhost:3000/admin/map`
+**Canonical admin docs:** [Admin Web Pages Specification](../platform/spec_admin_web_pages.md)
 
 The map editor supports:
 - Editing map size, base position/radius

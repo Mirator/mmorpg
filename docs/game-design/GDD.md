@@ -199,6 +199,8 @@ Characters:
 - Player state is persisted on interval and on disconnect.
 
 **Admin Tools**
+Canonical admin docs: [Admin Web Pages Specification](../platform/spec_admin_web_pages.md)
+
 Admin dashboard:
 - URL: `/admin`
 - Auth: `x-admin-pass` header
@@ -268,6 +270,7 @@ Characters (requires auth):
 - `DELETE /api/characters/:id` → `{ ok: true }`
 
 Admin (requires `x-admin-pass`):
+- Canonical docs: [Admin Web Pages Specification](../platform/spec_admin_web_pages.md)
 - `GET /admin/state` → `{ world, players, resources, mobs }`
 - `GET /admin/map-config` → full map config JSON
 - `PUT /admin/map-config` → `{ ok: true, config }` or validation errors

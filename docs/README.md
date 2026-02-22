@@ -16,6 +16,7 @@
 - [Network Protocol](./network/spec_protocol.md)
 - [Party and Chat](./social/spec_party_and_chat.md) — also duel and trade (adjacent social features)
 - [Auth and Persistence](./platform/spec_auth_persistence.md)
+- [Admin Web Pages](./platform/spec_admin_web_pages.md)
 - [Documentation Review (2026-02-16)](./documentation_review_2026-02-16.md)
 
 ## Operational and Historical Docs
@@ -52,3 +53,4 @@ These remain intentionally outside `docs/`:
 - Wire protocol and message contracts: `docs/network/spec_protocol.md`
 - Party/chat behavior and XP interactions: `docs/social/spec_party_and_chat.md`
 - Auth/session/player-state lifecycle and persistence: `docs/platform/spec_auth_persistence.md`
+- Admin dashboard/map editor behavior and admin endpoint contracts: `docs/platform/spec_admin_web_pages.md`

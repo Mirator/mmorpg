@@ -14,6 +14,8 @@ Open `http://localhost:3000` in your browser. Open multiple tabs to see multipla
 Visit `http://localhost:3000/admin` for the admin dashboard. Provide the admin password via header
 `x-admin-pass`. On localhost, default is `1234` (override with `ADMIN_PASSWORD`). When binding to a
 non-localhost host, `ADMIN_PASSWORD` is **required** and the server will fail to start if unset.
+For full admin dashboard + map editor behavior and API contracts, see
+[`docs/platform/spec_admin_web_pages.md`](docs/platform/spec_admin_web_pages.md).
 
 ## Database (Postgres + Prisma)
 
