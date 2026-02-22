@@ -3,21 +3,31 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Rising Ages Map Editor</title>
+    <title>Rising Ages Zone Canvas</title>
     <link rel="stylesheet" href="/admin/style.css" />
+    <link rel="stylesheet" href="/admin/module.css" />
     <link rel="stylesheet" href="/admin/map.css" />
   </head>
   <body>
-    <div id="app" class="map-app">
-      <header class="header">
+    <div id="app" class="map-v2-page">
+      <header class="header map-header">
         <div>
-          <div class="title">Rising Ages Map Editor</div>
-          <div class="subtitle">Edit placement for all world entities</div>
+          <div class="title">Zone Canvas</div>
+          <div class="subtitle">Edit and stage world-map placements</div>
         </div>
-        <a class="link" href="/admin">Back to Admin</a>
+        <nav class="admin-nav" aria-label="Admin navigation">
+          <a class="link" href="/admin">Dashboard</a>
+          <a class="link" href="/admin/map">Zone Canvas</a>
+          <a class="link" href="/admin/patches">Patch Manager</a>
+          <a class="link" href="/admin/assets">Asset Manager</a>
+          <a class="link" href="/admin/events">Event &amp; Trigger</a>
+          <a class="link" href="/admin/nav">Navmesh</a>
+          <a class="link" href="/admin/collab">Collaboration</a>
+          <a class="link" href="/admin/playtest">Playtest</a>
+        </nav>
       </header>
 
-      <section class="panel auth">
+      <section class="panel auth auth-shell">
         <form id="auth-form">
           <label for="admin-pass">Admin password</label>
           <div class="auth-row">
@@ -32,157 +42,132 @@
           </div>
           <div id="auth-hint">Stored in memory only (re-enter after refresh).</div>
         </form>
+
+        <div class="alias-row">
+          <strong id="alias-label">Alias: --</strong>
+          <button id="alias-btn" type="button">Change Alias</button>
+        </div>
+
         <div id="status" class="status neutral">Status: locked</div>
       </section>
 
-      <section class="panel">
-        <div class="panel-title">Map Actions</div>
-        <div class="actions">
-          <button id="reload-btn" type="button" disabled>Reload</button>
-          <button id="save-btn" type="button" disabled>Save</button>
-        </div>
-        <div id="save-status" class="status neutral compact">No changes saved yet.</div>
-        <div id="errors" class="errors"></div>
-      </section>
+      <section id="workspace-panel" class="panel workspace locked" aria-live="polite">
+        <div class="workspace-toolbar-row">
+          <div class="toolbar-group" id="tool-group" role="toolbar" aria-label="Tools">
+            <button type="button" data-tool="select">Select</button>
+            <button type="button" data-tool="move">Move</button>
+            <button type="button" data-tool="rotate">Rotate</button>
+            <button type="button" data-tool="scale">Scale</button>
+            <button type="button" data-tool="paint">Paint</button>
+            <button type="button" data-tool="erase">Erase</button>
+            <button type="button" data-tool="measure">Measure</button>
+            <button type="button" data-tool="grid" class="toggle">Grid</button>
+            <button type="button" data-tool="snap" class="toggle">Snap</button>
+          </div>
 
-      <section class="panel editor-panel">
-        <div class="editor-grid">
-          <div class="canvas-shell">
-            <canvas id="map-canvas"></canvas>
-            <div class="canvas-hint">
-              Click items to select. Drag to move. Use the sidebar for precise edits.
-            </div>
+          <div class="mode-group" id="mode-group" role="tablist" aria-label="Modes">
+            <button type="button" data-mode="Edit">Edit</button>
+            <button type="button" data-mode="Spawn">Spawn</button>
+            <button type="button" data-mode="Nav">Nav</button>
+            <button type="button" data-mode="Trigger">Trigger</button>
+            <button type="button" data-mode="Path">Path</button>
+            <button type="button" data-mode="Lighting">Lighting</button>
+            <button type="button" data-mode="Playtest">Playtest</button>
           </div>
-          <div id="sidebar" class="sidebar">
-            <div class="section collapsible" id="section-map">
-              <div class="section-title with-action">
-                <span>Map Settings</span>
-                <button type="button" class="ghost toggle" data-action="toggle">
-                  Collapse
-                </button>
-              </div>
-              <div class="section-body">
-                <div id="map-fields" class="row-fields"></div>
-              </div>
-            </div>
-            <div class="section collapsible" id="section-base">
-              <div class="section-title with-action">
-                <span>Base</span>
-                <button type="button" class="ghost toggle" data-action="toggle">
-                  Collapse
-                </button>
-              </div>
-              <div class="section-body">
-                <div id="base-fields" class="row-fields"></div>
-              </div>
-            </div>
-            <div class="section collapsible" id="section-spawn">
-              <div class="section-title with-action">
-                <span>Spawn Points</span>
-                <div class="section-actions">
-                  <button
-                    type="button"
-                    class="ghost"
-                    data-action="add"
-                    data-type="spawnPoints"
-                  >
-                    Add
-                  </button>
-                  <button type="button" class="ghost toggle" data-action="toggle">
-                    Collapse
-                  </button>
-                </div>
-              </div>
-              <div class="section-body">
-                <div id="list-spawnPoints" class="list"></div>
-              </div>
-            </div>
-            <div class="section collapsible" id="section-obstacles">
-              <div class="section-title with-action">
-                <span>Obstacles</span>
-                <div class="section-actions">
-                  <button type="button" class="ghost" data-action="add" data-type="obstacles">
-                    Add
-                  </button>
-                  <button type="button" class="ghost toggle" data-action="toggle">
-                    Collapse
-                  </button>
-                </div>
-              </div>
-              <div class="section-body">
-                <div id="list-obstacles" class="list"></div>
-              </div>
-            </div>
-            <div class="section collapsible" id="section-structures">
-              <div class="section-title with-action">
-                <span>Structures</span>
-                <div class="section-actions">
-                  <button type="button" class="ghost" data-action="add" data-type="structures">
-                    Add
-                  </button>
-                  <button type="button" class="ghost toggle" data-action="toggle">
-                    Collapse
-                  </button>
-                </div>
-              </div>
-              <div class="section-body">
-                <div id="list-structures" class="list"></div>
-              </div>
-            </div>
-            <div class="section collapsible" id="section-resources">
-              <div class="section-title with-action">
-                <span>Resource Nodes</span>
-                <div class="section-actions">
-                  <button
-                    type="button"
-                    class="ghost"
-                    data-action="add"
-                    data-type="resourceNodes"
-                  >
-                    Add
-                  </button>
-                  <button type="button" class="ghost toggle" data-action="toggle">
-                    Collapse
-                  </button>
-                </div>
-              </div>
-              <div class="section-body">
-                <div id="list-resourceNodes" class="list"></div>
-              </div>
-            </div>
-            <div class="section collapsible" id="section-vendors">
-              <div class="section-title with-action">
-                <span>Vendors</span>
-                <div class="section-actions">
-                  <button type="button" class="ghost" data-action="add" data-type="vendors">
-                    Add
-                  </button>
-                  <button type="button" class="ghost toggle" data-action="toggle">
-                    Collapse
-                  </button>
-                </div>
-              </div>
-              <div class="section-body">
-                <div id="list-vendors" class="list"></div>
-              </div>
-            </div>
-            <div class="section collapsible" id="section-mobs">
-              <div class="section-title with-action">
-                <span>Mob Spawns</span>
-                <div class="section-actions">
-                  <button type="button" class="ghost" data-action="add" data-type="mobSpawns">
-                    Add
-                  </button>
-                  <button type="button" class="ghost toggle" data-action="toggle">
-                    Collapse
-                  </button>
-                </div>
-              </div>
-              <div class="section-body">
-                <div id="list-mobSpawns" class="list"></div>
-              </div>
-            </div>
+
+          <div class="workspace-actions">
+            <button id="undo-btn" type="button" disabled>Undo</button>
+            <button id="redo-btn" type="button" disabled>Redo</button>
+            <button id="save-draft-btn" type="button" disabled>Save Draft</button>
+            <button id="reload-btn" type="button" disabled>Reload</button>
+            <button id="save-btn" type="button" disabled>Save</button>
+            <a class="action-link" href="/admin/patches" id="create-patch-btn">Create Patch</a>
           </div>
+        </div>
+
+        <div id="mode-notice" class="mode-notice hidden"></div>
+        <div id="save-status" class="status compact neutral">No map loaded.</div>
+        <div id="errors" class="errors"></div>
+
+        <div class="workspace-grid">
+          <aside class="asset-browser">
+            <div class="panel-title">Asset Browser</div>
+            <input id="asset-search" type="search" placeholder="Search templates, tags..." />
+            <div id="asset-list" class="asset-list"></div>
+          </aside>
+
+          <section class="canvas-column">
+            <div class="canvas-meta">
+              <span>Zone: <strong>world-map</strong></span>
+              <span id="zoom-readout">Zoom 100%</span>
+              <span id="coord-readout">X: -- Z: --</span>
+              <span id="measure-readout">Measure: --</span>
+            </div>
+            <div class="canvas-shell" id="canvas-shell">
+              <canvas id="map-canvas"></canvas>
+              <div id="selection-box" class="selection-box hidden"></div>
+              <div class="canvas-hint">
+                Mousewheel zoom. Hold <kbd>Space</kbd> + drag to pan. Shift-click to multi-select.
+              </div>
+              <div id="workspace-lock" class="workspace-lock">
+                Unlock with the admin password to edit this zone.
+              </div>
+            </div>
+            <div class="mini-panel">
+              <div class="mini-title">Mini-map</div>
+              <canvas id="mini-map" width="220" height="220"></canvas>
+            </div>
+
+            <div id="playtest-panel" class="playtest-panel hidden">
+              <div class="playtest-top">
+                <strong>Playtest Preview</strong>
+                <div class="toolbar">
+                  <button id="playtest-launch-btn" type="button">Launch</button>
+                  <button id="playtest-refresh-btn" type="button">Refresh Telemetry</button>
+                </div>
+              </div>
+              <div id="playtest-note" class="note"></div>
+              <iframe id="playtest-frame" class="preview-frame" src="about:blank" loading="lazy"></iframe>
+              <div class="playtest-telemetry">
+                <span>Players: <strong id="playtest-players">0</strong></span>
+                <span>Spawns: <strong id="playtest-spawns">0</strong></span>
+                <span>Mobs: <strong id="playtest-mobs">0</strong></span>
+                <span>Resources: <strong id="playtest-resources">0</strong></span>
+              </div>
+            </div>
+          </section>
+
+          <aside class="inspector">
+            <div class="inspector-block">
+              <div class="panel-title">Inspector</div>
+              <div id="selection-summary" class="muted">No selection.</div>
+              <div id="inspector-fields" class="row-fields"></div>
+            </div>
+
+            <div class="inspector-block">
+              <div class="panel-title">Bulk Edit</div>
+              <div id="bulk-fields" class="row-fields"></div>
+            </div>
+
+            <div class="inspector-block">
+              <div class="panel-title">Layer Stack</div>
+              <div id="layer-list" class="layer-list"></div>
+            </div>
+
+            <div class="inspector-block">
+              <div class="panel-title">Map Settings</div>
+              <div class="row-fields">
+                <label>
+                  <span>Map Size</span>
+                  <input id="map-size-input" type="number" step="1" min="1" disabled />
+                </label>
+                <label>
+                  <span>Grid Size</span>
+                  <input id="grid-size-input" type="number" step="0.5" min="0.5" value="1" />
+                </label>
+              </div>
+            </div>
+          </aside>
         </div>
       </section>
     </div>

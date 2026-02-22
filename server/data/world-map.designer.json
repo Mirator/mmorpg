@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "revision": 0,
+  "zones": {
+    "world-map": {
+      "prefabs": [],
+      "navAreas": [],
+      "triggers": [],
+      "paths": [],
+      "lightingRegions": [],
+      "comments": [],
+      "locks": {
+        "zone": null,
+        "layers": {
+          "terrain": null,
+          "props": null,
+          "spawns": null,
+          "navmesh": null,
+          "triggers": null,
+          "lighting": null,
+          "debug": null
+        }
+      },
+      "patches": [],
+      "audit": [],
+      "lastPublishedPatchId": ""
+    }
+  }
+}

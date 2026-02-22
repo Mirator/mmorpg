@@ -11,10 +11,47 @@ Open `http://localhost:3000` in your browser. Open multiple tabs to see multipla
 
 ## Admin
 
-Visit `http://localhost:3000/admin` for the admin dashboard. Provide the admin password via header
-`x-admin-pass`. On localhost, default is `1234` (override with `ADMIN_PASSWORD`). When binding to a
+Visit `http://localhost:3000/admin` for the redesigned admin dashboard and `http://localhost:3000/admin/map`
+for the Zone Canvas editor.
+
+Available admin screens:
+
+- `/admin` (Dashboard)
+- `/admin/map` (Zone Canvas editor)
+- `/admin/patches` (Patch Manager)
+- `/admin/assets` (Asset Manager / prefab registry)
+- `/admin/events` (Event & Trigger editor)
+- `/admin/nav` (Navmesh editor)
+- `/admin/collab` (Collaboration locks/comments/audit)
+- `/admin/playtest` (Preview / playtest launcher)
+
+Core admin APIs use `x-admin-pass`:
+
+- `GET /admin/state`
+- `GET /admin/map-config`
+- `PUT /admin/map-config`
+
+Phase-2 designer APIs (`x-admin-pass` + `x-admin-alias` on mutating requests):
+
+- `GET|PUT /admin/designer-state?zone=world-map`
+- `GET|POST /admin/prefabs?zone=world-map`
+- `PUT|DELETE /admin/prefabs/:id?zone=world-map`
+- `GET|POST /admin/patches?zone=world-map`
+- `POST /admin/patches/:id/request-approval?zone=world-map`
+- `POST /admin/patches/:id/approve?zone=world-map`
+- `POST /admin/patches/:id/publish?zone=world-map`
+- `POST /admin/patches/:id/rollback?zone=world-map`
+- `GET|POST /admin/comments?zone=world-map`
+- `POST /admin/comments/:id/resolve?zone=world-map` (`{ action: 'resolve' | 'reopen' }`)
+- `GET /admin/locks?zone=world-map`
+- `POST /admin/locks/zone?zone=world-map`
+- `POST /admin/locks/layer/:layerId?zone=world-map`
+- `GET /admin/audit?zone=world-map&limit=200`
+- `POST /admin/playtest/session?zone=world-map`
+
+On localhost, default admin password is `1234` (override with `ADMIN_PASSWORD`). When binding to a
 non-localhost host, `ADMIN_PASSWORD` is **required** and the server will fail to start if unset.
-For full admin dashboard + map editor behavior and API contracts, see
+For full admin behavior and API contracts, see
 [`docs/platform/spec_admin_web_pages.md`](docs/platform/spec_admin_web_pages.md).
 
 ## Database (Postgres + Prisma)
@@ -41,6 +78,8 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 
 - `PORT`, `HOST` (default `3000`, `127.0.0.1`)
 - `ADMIN_PASSWORD` (default `1234` on localhost only; **required** when HOST is not 127.0.0.1 or localhost)
+- `MAP_CONFIG_PATH` (override map config file; default `server/data/world-map.json`)
+- `MAP_DESIGNER_STATE_PATH` (override designer-state file; default `server/data/world-map.designer.json`)
 - `AUTO_MIGRATE_DEV` (`true` to auto-run `prisma migrate dev` on localhost; default `true`)
 - `DEV_ACCOUNT_USER` (default `test`, only when HOST is `127.0.0.1` or `localhost`)
 - `DEV_ACCOUNT_PASSWORD` (default `test1234`, only when HOST is `127.0.0.1` or `localhost`)

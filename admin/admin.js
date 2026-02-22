@@ -1,289 +1,228 @@
 // @ts-check
+// @ts-nocheck
+
+import { ensureAdminAlias, renderAdminAlias } from './admin-alias.js';
+import { createDesignerApi } from './designer-api.js';
+
 const POLL_INTERVAL_MS = 1000;
-const PAGE_SIZE = 20;
+const MAP_REFRESH_EVERY_POLLS = 10;
+const ERROR_WINDOW_MS = 60 * 60 * 1000;
 
 const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
 const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
 const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
-const lastUpdateEl = /** @type {HTMLElement} */ (document.getElementById('last-update'));
-const playersCountEl = /** @type {HTMLElement} */ (document.getElementById('count-players'));
-const resourcesCountEl = /** @type {HTMLElement} */ (document.getElementById('count-resources'));
-const mobsCountEl = /** @type {HTMLElement} */ (document.getElementById('count-mobs'));
-const worldMapEl = /** @type {HTMLElement} */ (document.getElementById('world-map'));
-const worldHarvestEl = /** @type {HTMLElement} */ (document.getElementById('world-harvest'));
-const worldBaseEl = /** @type {HTMLElement} */ (document.getElementById('world-base'));
-const worldObstaclesEl = /** @type {HTMLElement} */ (document.getElementById('world-obstacles'));
-const playersBody = /** @type {HTMLElement} */ (document.getElementById('players-body'));
-const resourcesBody = /** @type {HTMLElement} */ (document.getElementById('resources-body'));
-const mobsBody = /** @type {HTMLElement} */ (document.getElementById('mobs-body'));
-const playersPrev = /** @type {HTMLButtonElement} */ (document.getElementById('players-prev'));
-const playersNext = /** @type {HTMLButtonElement} */ (document.getElementById('players-next'));
-const playersPageInfo = /** @type {HTMLElement} */ (document.getElementById('players-page-info'));
-const resourcesPrev = /** @type {HTMLButtonElement} */ (document.getElementById('resources-prev'));
-const resourcesNext = /** @type {HTMLButtonElement} */ (document.getElementById('resources-next'));
-const resourcesPageInfo = /** @type {HTMLElement} */ (document.getElementById('resources-page-info'));
-const mobsPrev = /** @type {HTMLButtonElement} */ (document.getElementById('mobs-prev'));
-const mobsNext = /** @type {HTMLButtonElement} */ (document.getElementById('mobs-next'));
-const mobsPageInfo = /** @type {HTMLElement} */ (document.getElementById('mobs-page-info'));
+const refreshBtn = /** @type {HTMLButtonElement} */ (document.getElementById('refresh-btn'));
+const zoneBody = /** @type {HTMLElement} */ (document.getElementById('zone-body'));
+const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
+const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
 
-/**
- * @typedef {Error & { code?: number }} CodedError
- */
+const playersEl = /** @type {HTMLElement} */ (document.getElementById('count-players'));
+const densityEl = /** @type {HTMLElement} */ (document.getElementById('density-value'));
+const lastActivityEl = /** @type {HTMLElement} */ (document.getElementById('last-activity'));
+const errorsEl = /** @type {HTMLElement} */ (document.getElementById('errors-value'));
+const lastDeployEl = /** @type {HTMLElement} */ (document.getElementById('last-deploy'));
 
-let /** @type {any} */ pollTimer = null;
-let /** @type {any} */ latestState = null;
-let adminPassword = '';
-const /** @type {any} */ paging = {
-  players: { page: 0, prev: playersPrev, next: playersNext, info: playersPageInfo },
-  resources: {
-    page: 0,
-    prev: resourcesPrev,
-    next: resourcesNext,
-    info: resourcesPageInfo,
-  },
-  mobs: { page: 0, prev: mobsPrev, next: mobsNext, info: mobsPageInfo },
+let pollTimer = /** @type {ReturnType<typeof setInterval> | null} */ (null);
+let pollCount = 0;
+
+const state = {
+  password: '',
+  alias: '',
+  api: /** @type {ReturnType<typeof createDesignerApi> | null} */ (null),
+  latestAdminState: /** @type {any | null} */ (null),
+  latestMapConfig: /** @type {any | null} */ (null),
+  latestAudit: /** @type {any[]} */ ([]),
+  latestPatches: /** @type {any[]} */ ([]),
 };
 
-function setStatus(/** @type {any} */ message, /** @type {any} */ tone = 'neutral') {
+function setStatus(message, tone = 'neutral') {
   statusEl.textContent = message;
   statusEl.className = `status ${tone}`;
 }
 
-function formatNumber(/** @type {any} */ value, /** @type {any} */ digits = 2) {
-  return Number.isFinite(value) ? value.toFixed(digits) : '--';
+function getPassword() {
+  return state.password;
 }
 
-function formatItemKind(/** @type {any} */ kind) {
-  if (!kind) return '--';
-  return kind
-    .replace(/^weapon_/, '')
-    .split('_')
-    .map((/** @type {any} */ part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
-
-function formatBase(/** @type {any} */ base) {
-  if (!base) return '--';
-  return `${formatNumber(base.x)}, ${formatNumber(base.z)} (r=${formatNumber(
-    base.radius,
-    1
-  )})`;
-}
-
-function formatRespawn(/** @type {any} */ respawnAt) {
-  if (!respawnAt) return '--';
-  const remainingMs = Math.max(0, respawnAt - Date.now());
-  const remainingSec = Math.ceil(remainingMs / 1000);
-  return `${remainingSec}s`;
-}
-
-function buildRow(/** @type {any} */ cells) {
-  const tr = document.createElement('tr');
-  for (const cell of cells) {
-    const td = document.createElement('td');
-    td.textContent = cell;
-    tr.appendChild(td);
-  }
-  return tr;
-}
-
-function replaceTableBody(/** @type {any} */ tbody, /** @type {any} */ rows) {
-  const frag = document.createDocumentFragment();
-  for (const row of rows) {
-    frag.appendChild(row);
-  }
-  tbody.textContent = '';
-  tbody.appendChild(frag);
-}
-
-function clampPage(/** @type {any} */ page, /** @type {any} */ total) {
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  return Math.min(Math.max(0, page), totalPages - 1);
-}
-
-function updatePager(/** @type {any} */ pager, /** @type {any} */ total) {
-  pager.page = clampPage(pager.page, total);
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const start = total === 0 ? 0 : pager.page * PAGE_SIZE + 1;
-  const end = Math.min(total, (pager.page + 1) * PAGE_SIZE);
-  pager.info.textContent = `${start}-${end} of ${total}`;
-  pager.prev.disabled = pager.page === 0;
-  pager.next.disabled = pager.page >= totalPages - 1;
-  return { startIndex: pager.page * PAGE_SIZE, endIndex: end };
-}
-
-function readPassword() {
-  return adminPassword;
-}
-
-function savePassword(/** @type {any} */ password) {
-  adminPassword = password;
+function getAlias() {
+  return state.alias;
 }
 
 function stopPolling() {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = null;
-  }
+  if (!pollTimer) return;
+  clearInterval(pollTimer);
+  pollTimer = null;
 }
 
-async function fetchAdminState(/** @type {any} */ password) {
-  const res = await fetch('/admin/state', {
-    headers: {
-      'x-admin-pass': password,
-    },
-  });
-
-  if (res.status === 401) {
-    const err = /** @type {CodedError} */ (new Error('Unauthorized'));
-    err.code = 401;
-    throw err;
-  }
-
-  if (!res.ok) {
-    throw new Error(`Request failed (${res.status})`);
-  }
-
-  return res.json();
+function setControlsEnabled(enabled) {
+  refreshBtn.disabled = !enabled;
 }
 
-function renderState(/** @type {any} */ state) {
-  latestState = state;
-  const players = state.players ?? {};
-  const resources = Array.isArray(state.resources) ? state.resources : [];
-  const mobs = Array.isArray(state.mobs) ? state.mobs : [];
-
-  playersCountEl.textContent = Object.keys(players).length.toString();
-  resourcesCountEl.textContent = resources.length.toString();
-  mobsCountEl.textContent = mobs.length.toString();
-  lastUpdateEl.textContent = new Date(state.t ?? Date.now()).toLocaleTimeString();
-
-  worldMapEl.textContent = state.world?.mapSize ?? '--';
-  worldHarvestEl.textContent = formatNumber(state.world?.harvestRadius ?? NaN, 2);
-  worldBaseEl.textContent = formatBase(state.world?.base);
-  worldObstaclesEl.textContent = state.world?.obstacles?.length ?? 0;
-
-  const playerEntries = Object.entries(players).sort((/** @type {any} */ [a], /** @type {any} */ [b]) =>
-    a.localeCompare(b)
-  );
-  const playerSlice = updatePager(paging.players, playerEntries.length);
-  const playerRows = playerEntries
-    .slice(playerSlice.startIndex, playerSlice.endIndex)
-    .map((/** @type {any} */ [id, player]) =>
-    buildRow([
-      id,
-      player.classId ?? '--',
-      formatItemKind(player.weaponKind),
-      player.level ?? '--',
-      player.xpToNext
-        ? `${player.xp ?? 0}/${player.xpToNext}`
-        : player.xp ?? '--',
-      player.hp ?? '--',
-      player.inv ?? '--',
-      player.currencyCopper ?? '--',
-      formatNumber(player.x),
-      formatNumber(player.z),
-      player.dead ? 'yes' : 'no',
-      player.dead ? formatRespawn(player.respawnAt) : '--',
-    ])
-    );
-  replaceTableBody(playersBody, playerRows);
-
-  const resourceEntries = resources
-    .slice()
-    .sort((/** @type {any} */ a, /** @type {any} */ b) => String(a.id).localeCompare(String(b.id)));
-  const resourceSlice = updatePager(paging.resources, resourceEntries.length);
-  const resourceRows = resourceEntries
-    .slice(resourceSlice.startIndex, resourceSlice.endIndex)
-    .map((/** @type {any} */ resource) =>
-    buildRow([
-      resource.id ?? '--',
-      formatNumber(resource.x),
-      formatNumber(resource.z),
-      resource.available ? 'yes' : 'no',
-      resource.available ? '--' : formatRespawn(resource.respawnAt),
-    ])
-    );
-  replaceTableBody(resourcesBody, resourceRows);
-
-  const mobEntries = mobs
-    .slice()
-    .sort((/** @type {any} */ a, /** @type {any} */ b) => String(a.id).localeCompare(String(b.id)));
-  const mobSlice = updatePager(paging.mobs, mobEntries.length);
-  const mobRows = mobEntries
-    .slice(mobSlice.startIndex, mobSlice.endIndex)
-    .map((/** @type {any} */ mob) =>
-    buildRow([
-      mob.id ?? '--',
-      mob.level ?? '--',
-      mob.maxHp
-        ? `${mob.hp ?? 0}/${mob.maxHp}`
-        : mob.hp ?? '--',
-      formatNumber(mob.x),
-      formatNumber(mob.z),
-      mob.state ?? '--',
-      mob.targetId ?? '--',
-      mob.dead ? 'yes' : 'no',
-      mob.dead ? formatRespawn(mob.respawnAt) : '--',
-    ])
-    );
-  replaceTableBody(mobsBody, mobRows);
+function formatNumber(value, digits = 2) {
+  return Number.isFinite(value) ? Number(value).toFixed(digits) : '--';
 }
 
-async function pollOnce() {
-  const password = readPassword();
-  if (!password) {
-    setStatus('Status: waiting for password', 'warning');
+function formatTime(value) {
+  if (!value) return '--';
+  const time = Number.isFinite(value)
+    ? Number(value)
+    : Date.parse(String(value));
+  if (!Number.isFinite(time)) return '--';
+  return new Date(time).toLocaleString();
+}
+
+function summarizeProps(config) {
+  if (!config) return '--';
+  const obstacles = Array.isArray(config.obstacles) ? config.obstacles.length : 0;
+  const structures = Array.isArray(config.structures) ? config.structures.length : 0;
+  const resources = Array.isArray(config.resourceNodes) ? config.resourceNodes.length : 0;
+  const vendors = Array.isArray(config.vendors) ? config.vendors.length : 0;
+  return String(obstacles + structures + resources + vendors);
+}
+
+function latestPublishedPatchDate() {
+  let latest = null;
+  for (const patch of state.latestPatches) {
+    if (patch.status !== 'Published') continue;
+    const t = Date.parse(String(patch.publishedAt || patch.updatedAt || patch.createdAt || ''));
+    if (!Number.isFinite(t)) continue;
+    if (latest === null || t > latest) {
+      latest = t;
+    }
+  }
+  return latest;
+}
+
+function errorCountRollingWindow() {
+  const now = Date.now();
+  return state.latestAudit.filter((entry) => {
+    if (entry.status !== 'error') return false;
+    const t = Date.parse(String(entry.t || ''));
+    if (!Number.isFinite(t)) return false;
+    return now - t <= ERROR_WINDOW_MS;
+  }).length;
+}
+
+function renderZoneList() {
+  const mapSize = state.latestMapConfig?.mapSize ?? state.latestAdminState?.world?.mapSize ?? '--';
+  const spawnCount = [
+    Array.isArray(state.latestMapConfig?.spawnPoints) ? state.latestMapConfig.spawnPoints.length : 0,
+    Array.isArray(state.latestMapConfig?.mobSpawns) ? state.latestMapConfig.mobSpawns.length : 0,
+  ].reduce((a, b) => a + b, 0);
+
+  const tr = document.createElement('tr');
+  tr.innerHTML = [
+    '<td>world-map</td>',
+    `<td>${mapSize}</td>`,
+    `<td>${spawnCount}</td>`,
+    `<td>${summarizeProps(state.latestMapConfig)}</td>`,
+    `<td>${formatTime(state.latestAdminState?.t ?? Date.now())}</td>`,
+    '<td><a class="zone-open-link" href="/admin/map" id="open-zone-btn">Open Zone</a></td>',
+  ].join('');
+
+  zoneBody.textContent = '';
+  zoneBody.appendChild(tr);
+}
+
+function renderMetrics() {
+  const players = state.latestAdminState?.players ? Object.keys(state.latestAdminState.players).length : 0;
+  const mapSize = Number(state.latestMapConfig?.mapSize ?? state.latestAdminState?.world?.mapSize ?? 0);
+  const mapArea = mapSize > 0 ? mapSize * mapSize : 0;
+  const density = mapArea > 0 ? (players / mapArea) * 10_000 : 0;
+
+  playersEl.textContent = String(players);
+  densityEl.textContent = `${formatNumber(density, 2)} / 10k`;
+  lastActivityEl.textContent = formatTime(state.latestAdminState?.t ?? Date.now());
+  errorsEl.textContent = `${errorCountRollingWindow()} (last 60m)`;
+
+  const latestDeploy = latestPublishedPatchDate();
+  lastDeployEl.textContent = latestDeploy ? formatTime(latestDeploy) : 'No publish yet';
+}
+
+async function pollOnce(forceRefresh = false) {
+  if (!state.api) {
+    setStatus('Status: waiting for unlock', 'warning');
     return;
   }
 
   try {
-    const state = await fetchAdminState(password);
-    renderState(state);
+    state.latestAdminState = await state.api.getAdminState();
+
+    if (!state.latestMapConfig || forceRefresh || pollCount % MAP_REFRESH_EVERY_POLLS === 0) {
+      state.latestMapConfig = await state.api.getMapConfig();
+    }
+
+    const [auditPayload, patchesPayload] = await Promise.all([
+      state.api.getAudit(200),
+      state.api.getPatches(),
+    ]);
+
+    state.latestAudit = Array.isArray(auditPayload?.audit) ? auditPayload.audit : [];
+    state.latestPatches = Array.isArray(patchesPayload?.patches) ? patchesPayload.patches : [];
+
+    pollCount += 1;
+    renderMetrics();
+    renderZoneList();
     setStatus('Status: connected', 'ok');
   } catch (err) {
-    const error = /** @type {CodedError} */ (err);
-    if (error.code === 401) {
+    const error = /** @type {Error & { status?: number }} */ (err);
+    if (error.status === 401) {
       setStatus('Status: invalid password', 'error');
+      setControlsEnabled(false);
       stopPolling();
       return;
     }
-    setStatus('Status: offline', 'error');
+    setStatus(`Status: ${error.message}`, 'error');
   }
 }
 
 function startPolling() {
   stopPolling();
-  pollOnce();
-  pollTimer = setInterval(pollOnce, POLL_INTERVAL_MS);
+  pollOnce(true);
+  pollTimer = setInterval(() => {
+    pollOnce(false).catch(() => {});
+  }, POLL_INTERVAL_MS);
 }
 
-form.addEventListener('submit', (/** @type {any} */ event) => {
-  event.preventDefault();
+async function unlock() {
   const password = passInput.value.trim();
   if (!password) return;
-  savePassword(password);
-  setStatus('Status: connecting...', 'neutral');
-  startPolling();
-});
 
-function wirePager(/** @type {any} */ pager, /** @type {any} */ direction) {
-  if (!pager?.prev || !pager?.next) return;
-  const delta = direction === 'next' ? 1 : -1;
-  const button = direction === 'next' ? pager.next : pager.prev;
-  button.addEventListener('click', () => {
-    pager.page = clampPage(pager.page + delta, Number.MAX_SAFE_INTEGER);
-    if (latestState) {
-      renderState(latestState);
-    }
+  const alias = ensureAdminAlias();
+  if (!alias) {
+    setStatus('Status: alias required.', 'warning');
+    return;
+  }
+
+  state.password = password;
+  state.alias = alias;
+  renderAdminAlias(aliasLabel, `Alias: ${alias}`);
+  state.api = createDesignerApi({
+    getPassword,
+    getAlias,
   });
+
+  setStatus('Status: connecting...', 'neutral');
+  setControlsEnabled(true);
+  startPolling();
 }
 
-wirePager(paging.players, 'prev');
-wirePager(paging.players, 'next');
-wirePager(paging.resources, 'prev');
-wirePager(paging.resources, 'next');
-wirePager(paging.mobs, 'prev');
-wirePager(paging.mobs, 'next');
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  await unlock();
+});
 
+refreshBtn.addEventListener('click', async () => {
+  await pollOnce(true);
+});
+
+aliasBtn.addEventListener('click', () => {
+  const alias = ensureAdminAlias({ forcePrompt: true });
+  if (!alias) return;
+  state.alias = alias;
+  renderAdminAlias(aliasLabel, `Alias: ${alias}`);
+});
+
+renderAdminAlias(aliasLabel, 'Alias: --');
 setStatus('Status: waiting for password', 'warning');
+setControlsEnabled(false);

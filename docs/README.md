@@ -17,7 +17,7 @@
 - [Network Protocol](./network/spec_protocol.md)
 - [Party and Chat](./social/spec_party_and_chat.md) — also duel and trade (adjacent social features)
 - [Auth and Persistence](./platform/spec_auth_persistence.md)
-- [Admin Web Pages](./platform/spec_admin_web_pages.md)
+- [Admin Web Pages](./platform/spec_admin_web_pages.md) (dashboard + zone canvas + functional phase-2 module workflows)
 - [Documentation Review (2026-02-16)](./documentation_review_2026-02-16.md)
 
 ## Operational and Historical Docs

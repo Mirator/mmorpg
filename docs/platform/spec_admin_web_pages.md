@@ -1,6 +1,6 @@
 # Admin Web Pages Specification
 
-This document defines the implemented admin web pages, their HTTP contracts, and operational behavior.
+This document defines the implemented phase-2 admin experience, page routes, and HTTP contracts.
 
 Primary sources:
 
@@ -8,210 +8,269 @@ Primary sources:
 - [admin/admin.js](../../admin/admin.js)
 - [admin/map.html](../../admin/map.html)
 - [admin/map.js](../../admin/map.js)
+- [admin/patches.html](../../admin/patches.html)
+- [admin/patches.js](../../admin/patches.js)
+- [admin/assets.html](../../admin/assets.html)
+- [admin/assets.js](../../admin/assets.js)
+- [admin/events.html](../../admin/events.html)
+- [admin/events.js](../../admin/events.js)
+- [admin/nav.html](../../admin/nav.html)
+- [admin/nav.js](../../admin/nav.js)
+- [admin/collab.html](../../admin/collab.html)
+- [admin/collab.js](../../admin/collab.js)
+- [admin/playtest.html](../../admin/playtest.html)
+- [admin/playtest.js](../../admin/playtest.js)
+- [admin/designer-api.js](../../admin/designer-api.js)
+- [admin/designer-store.js](../../admin/designer-store.js)
+- [admin/admin-alias.js](../../admin/admin-alias.js)
+- [shared/mapDesignerState.js](../../shared/mapDesignerState.js)
+- [server/mapDesignerState.js](../../server/mapDesignerState.js)
 - [server/http.js](../../server/http.js)
-- [server/admin.js](../../server/admin.js)
 - [server/mapConfig.js](../../server/mapConfig.js)
-- [server/config.js](../../server/config.js)
-- [server/createServer.js](../../server/createServer.js)
 
 ## 1. Scope and Entry Points
 
-Admin web pages:
+Implemented admin pages:
 
-- `GET /admin` serves the live world dashboard.
-- `GET /admin/map` serves the map editor.
+- `GET /admin` - Dashboard
+- `GET /admin/map` - Zone Canvas
+- `GET /admin/patches` - Patch Manager
+- `GET /admin/assets` - Asset Manager
+- `GET /admin/events` - Event and Trigger Editor
+- `GET /admin/nav` - Navmesh Editor
+- `GET /admin/collab` - Collaboration
+- `GET /admin/playtest` - Preview and Playtest
 
-Admin APIs used by those pages:
+All pages are in-place replacements on the existing `/admin*` route space.
+
+## 2. Access, Auth, and Alias
+
+### 2.1 Password auth
+
+All admin APIs require `x-admin-pass`. The password source is unchanged:
+
+- localhost (`127.0.0.1`/`localhost`): default `1234` if `ADMIN_PASSWORD` is unset
+- non-localhost: `ADMIN_PASSWORD` is required at startup
+
+### 2.2 Browser unlock behavior
+
+- Password is entered by form and kept in memory only.
+- Password is sent on each admin API request as `x-admin-pass`.
+- Reload requires unlock again.
+
+### 2.3 Alias behavior
+
+- Alias is prompted after unlock on admin pages.
+- Alias persists in localStorage for convenience.
+- All mutating phase-2 admin requests include `x-admin-alias`.
+- Server fallback alias is `"admin"` if the header is missing.
+
+## 3. Data and Persistence
+
+### 3.1 Existing map-config persistence (unchanged)
+
+- `GET /admin/map-config`
+- `PUT /admin/map-config`
+- File path from `MAP_CONFIG_PATH` (default `server/data/world-map.json`)
+- Atomic write (`.tmp` + rename)
+
+### 3.2 New designer-state persistence
+
+- File path from `MAP_DESIGNER_STATE_PATH` (default `server/data/world-map.designer.json`)
+- Bootstrap on missing file with default root state
+- Atomic write (`.tmp` + rename)
+- Root model:
+  - `{ version, revision, zones }`
+- Phase-2 zone key:
+  - `world-map`
+
+Zone state includes:
+
+- `prefabs`
+- `navAreas`
+- `triggers`
+- `paths`
+- `lightingRegions`
+- `comments`
+- `locks` (zone + per-layer)
+- `patches`
+- `audit`
+- `lastPublishedPatchId`
+
+## 4. Dashboard (`/admin`)
+
+Dashboard behavior:
+
+- polls admin state on 1s cadence after unlock
+- renders single-zone shell row (`world-map`)
+- quick actions to Zone Canvas and module screens
+- metrics:
+  - players, player density, last activity from `/admin/state` + map config
+  - errors from recent failed audit entries
+  - last deploy from most recent published patch timestamp
+
+## 5. Zone Canvas (`/admin/map`)
+
+Canvas includes:
+
+- top toolbar, left asset browser, center map viewport, right inspector, mini-map/readout
+- layer controls: visibility, lock, opacity
+- undo/redo and manual save controls
+
+Modes:
+
+- functional: `Edit`, `Spawn`, `Nav`, `Trigger`, `Path`, `Lighting`, `Playtest`
+
+Layers:
+
+- functional overlays: `terrain`, `props`, `spawns`, `navmesh`, `triggers`, `lighting`, `debug`
+
+Persistence and drafts:
+
+- map + designer edits track unsaved state
+- `Save Draft` stores local combined draft
+- `Save` persists `map-config` and revisioned `designer-state`
+
+Concurrency semantics:
+
+- client checks locks before mutation
+- server enforces locks and returns `423` on conflicts
+- revisioned designer saves require `expectedRevision` and return `409` on mismatch
+
+## 6. Functional Module Pages
+
+### 6.1 Patch Manager (`/admin/patches`)
+
+- patch list + detail pane
+- create patch with dependency list and snapshot source
+- transitions: request approval, approve, publish, rollback
+- dependency checks before publish
+- JSON diff and visual diff panel
+- publish/rollback response displays restart-required notice
+
+### 6.2 Asset Manager (`/admin/assets`)
+
+- prefab registry CRUD
+- `assetPath` validation (`/assets/` prefix)
+- edit bumps prefab version
+- prefabs integrate into Zone Canvas templates
+
+### 6.3 Event and Trigger (`/admin/events`)
+
+- trigger list and graph/list visualization
+- region editing and reference bindings
+- validation panel for malformed trigger data and missing refs
+
+### 6.4 Navmesh (`/admin/nav`)
+
+- nav area table + mini map editor
+- walk/run cost editing
+- deterministic client-side "bake preview" path overlay
+
+### 6.5 Collaboration (`/admin/collab`)
+
+- strict zone/layer lock controls
+- pinned comments create/resolve/reopen
+- audit timeline with alias/type/action filters
+
+### 6.6 Playtest (`/admin/playtest`)
+
+- preview launcher via iframe (client URL from API)
+- telemetry panel from admin state
+- explicit note: preview reflects saved state; runtime apply requires publish + restart
+
+## 7. HTTP Endpoint Contracts
+
+All endpoints below require `x-admin-pass`.
+
+### 7.1 Existing APIs (unchanged)
 
 - `GET /admin/state`
 - `GET /admin/map-config`
 - `PUT /admin/map-config`
 
-All admin API requests must include `x-admin-pass`.
+### 7.2 Designer-state APIs
 
-## 2. Access and Auth Model
+- `GET /admin/designer-state?zone=world-map`
+  - response: `{ zoneKey, revision, zoneState }`
+- `PUT /admin/designer-state?zone=world-map`
+  - body: `{ expectedRevision, zoneState }`
+  - `200`: `{ revision, zoneState }`
+  - `409`: `{ error: 'Revision conflict', revision }`
+  - lock conflicts return `423`
 
-## 2.1 Server password resolution
+### 7.3 Prefabs APIs
 
-`getServerConfig` resolves admin password from `ADMIN_PASSWORD`.
+- `GET /admin/prefabs?zone=world-map` -> `{ prefabs }`
+- `POST /admin/prefabs?zone=world-map` -> `{ prefab }` (`201`)
+- `PUT /admin/prefabs/:id?zone=world-map` -> `{ prefab }`
+- `DELETE /admin/prefabs/:id?zone=world-map` -> `{ ok: true }`
 
-- On localhost hosts (`127.0.0.1` or `localhost`), password defaults to `1234` if `ADMIN_PASSWORD` is unset.
-- On non-localhost hosts, `ADMIN_PASSWORD` is required; startup throws if missing.
+### 7.4 Patches APIs
 
-Admin handlers compare request header `x-admin-pass` against the resolved server password.
-Query-parameter fallback is not accepted.
+- `GET /admin/patches?zone=world-map` -> `{ patches }`
+- `POST /admin/patches?zone=world-map` -> `{ patch }` (`201`)
+- `POST /admin/patches/:id/request-approval?zone=world-map` -> `{ patch }`
+- `POST /admin/patches/:id/approve?zone=world-map` -> `{ patch }`
+- `POST /admin/patches/:id/publish?zone=world-map` -> `{ ok: true, restartRequired: true }`
+- `POST /admin/patches/:id/rollback?zone=world-map` -> `{ ok: true, restartRequired: true }`
 
-## 2.2 Browser-side password handling
+Patch transitions:
 
-Both admin pages:
+- `Draft -> Review Requested -> Approved -> Published`
+- `Published -> Rolled Back`
+- invalid transition returns `400`
 
-- Require entering password in a form before API usage.
-- Keep password in memory only (module variable in page script).
-- Do not persist password to local storage/cookies/session storage.
-- Require re-entry after page refresh.
+### 7.5 Comments APIs
 
-## 3. Admin Dashboard (`/admin`)
+- `GET /admin/comments?zone=world-map` -> `{ comments }`
+- `POST /admin/comments?zone=world-map` -> `{ comment }` (`201`)
+- `POST /admin/comments/:id/resolve?zone=world-map` -> `{ comment }`
+  - default action resolves
+  - body `{ action: 'reopen' }` (or `{ resolved: false }`) reopens
 
-## 3.1 Polling and connection behavior
+### 7.6 Locks APIs
 
-- Unlock form submit stores password and starts polling.
-- Poll interval is `1000ms`.
-- Each poll sends `GET /admin/state` with `x-admin-pass`.
-- On `401`, UI shows invalid-password status and polling stops.
-- On transient fetch failure/non-401 failure, UI shows offline status and continues polling.
+- `GET /admin/locks?zone=world-map` -> `{ locks }`
+- `POST /admin/locks/zone?zone=world-map` body `{ action: 'acquire'|'release', reason? }`
+- `POST /admin/locks/layer/:layerId?zone=world-map` body `{ action: 'acquire'|'release', reason? }`
 
-## 3.2 Display model
+Rules:
 
-The page shows:
+- lock ownership is strict
+- only lock owner can release
+- zone lock blocks all mutations
+- layer lock blocks matching layer mutations
+- conflicts return `423`
 
-- Summary cards: player count, resource count, mob count, last update.
-- World summary: map size, harvest radius, base summary, obstacle count.
-- Paginated tables for players, resources, and mobs (`PAGE_SIZE = 20`).
+### 7.7 Audit and playtest APIs
 
-Current player rows include identity/class/combat/lifecycle/position/inventory/currency fields from serialized admin state.
+- `GET /admin/audit?zone=world-map&limit=200` -> `{ audit }`
+- `POST /admin/playtest/session?zone=world-map` -> `{ clientUrl, note }`
 
-## 3.3 Status states
+## 8. Route Multiplexing Note
 
-Implemented status transitions include:
+`GET /admin/patches` serves HTML for normal browser navigation. The same path serves patch API JSON when `x-admin-pass` is present, allowing page route and API route coexistence without path migration.
 
-- `Status: waiting for password`
-- `Status: connecting...`
-- `Status: connected`
-- `Status: invalid password`
-- `Status: offline`
+## 9. Error Model
 
-## 4. Map Editor (`/admin/map`)
+Common responses:
 
-## 4.1 Unlock, load, reload, and save flow
+- `401` unauthorized (`x-admin-pass` missing/invalid)
+- `400` validation, bad transitions, malformed payloads
+- `404` missing prefab/patch/comment
+- `409` designer revision conflict
+- `423` lock conflict
+- `500` unexpected server/storage error
 
-- Unlock submits password and calls `GET /admin/map-config`.
-- On successful load, Reload and Save buttons are enabled.
-- Reload re-fetches map config from server and replaces in-memory editor state.
-- Save sends current in-memory config to `PUT /admin/map-config`.
+## 10. Runtime Apply Semantics
 
-Save status messages include:
+- `PUT /admin/map-config` saves map config to disk immediately.
+- patch publish/rollback saves both map-config and designer-state snapshots.
+- publish/rollback responses include `restartRequired: true`.
+- runtime world still requires restart for published patch effects to apply to live simulation.
 
-- `Loaded map config.`
-- `Unsaved changes`
-- `Reloaded map config.`
-- `Saved successfully. Restart server to apply.`
-- `Save failed.` / `Reload failed.`
-
-## 4.2 Editable sections and fields
-
-Editor sections cover:
-
-- Map settings (`mapSize`)
-- Base (`x`, `y`, `z`, `radius`)
-- Spawn points
-- Obstacles
-- Structures (`id`, `kind`, `x`, `y`, `z`, `rotation`, `colliderRadius`, `collides`)
-- Resource nodes (`id`, `type`, `x`, `y`, `z`, optional `respawnMs`)
-- Vendors (`id`, `name`, `x`, `y`, `z`)
-- Mob spawns (`id`, `mobType`, `x`, `y`, `z`, `aggressive`, optional `level`, optional `levelVariance`)
-
-Type dropdown options are sourced from shared definitions:
-
-- `MOB_TYPES`, `RESOURCE_TYPE_LIST` from `shared/entityTypes.js`
-- `STRUCTURE_KIND_LIST` from `shared/mapConfig.js`
-
-## 4.3 Canvas interaction model
-
-- Click entity on canvas to select it.
-- Drag selected entity to move it.
-- Sidebar supports precise field editing.
-- Add/Remove actions are available per list section.
-- Positions are clamped to map bounds; circles/colliders clamp by radius.
-- If `mapYMin`/`mapYMax` are present in config, drag updates clamp `y` into that range.
-
-## 4.4 Validation error behavior
-
-On save validation failure:
-
-- API returns `400` with `{ error: 'Validation failed', details: string[] }`.
-- UI renders `details` as an error list.
-
-On auth failure:
-
-- API returns `401`.
-- UI sets status to invalid password and disables map actions.
-
-## 5. HTTP Endpoint Contracts
-
-## 5.1 `GET /admin/state`
-
-Auth:
-
-- Requires header `x-admin-pass`.
-
-Success (`200`):
-
-- Returns `{ t, world, players, resources, mobs }`.
-- `world` is a world snapshot.
-- `players`, `resources`, `mobs` are serialized admin views from runtime state.
-
-Errors:
-
-- `401` `{ error: 'Unauthorized' }` on missing/wrong password.
-
-## 5.2 `GET /admin/map-config`
-
-Auth:
-
-- Requires header `x-admin-pass`.
-
-Success (`200`):
-
-- Returns normalized map config JSON from configured map file path.
-
-Errors:
-
-- `401` `{ error: 'Unauthorized' }` on missing/wrong password.
-- `500` `{ error }` on file read/parse/load failure.
-
-## 5.3 `PUT /admin/map-config`
-
-Auth:
-
-- Requires header `x-admin-pass`.
-
-Body:
-
-- Full map config object.
-
-Success (`200`):
-
-- Returns `{ ok: true, config }` with normalized/saved config.
-
-Errors:
-
-- `401` `{ error: 'Unauthorized' }` on missing/wrong password.
-- `400` `{ error: 'Validation failed', details: string[] }` on schema/constraint failures.
-- `500` `{ error }` on write/persistence failures.
-
-## 6. Persistence and Apply Semantics
-
-- Map config save is immediate to disk.
-- Save is atomic (`write tmp` then `rename`).
-- Config file path resolves from `MAP_CONFIG_PATH`; default is `server/data/world-map.json`.
-- Runtime world uses map config loaded at server startup.
-- Saved map changes do not hot-reload into the running world; restart server to apply.
-
-## 7. Troubleshooting
-
-- Invalid password in UI:
-  - Ensure `x-admin-pass` value matches current server admin password.
-  - On non-localhost host, ensure `ADMIN_PASSWORD` is set before server start.
-- `Status: offline`:
-  - Verify server is running and reachable on configured `HOST`/`PORT`.
-- Save failed with validation details:
-  - Fix listed constraints (duplicate IDs, out-of-bounds points, invalid `mobType`/`type`/`kind`, invalid radii).
-- Startup failure about admin password:
-  - For non-localhost `HOST`, set `ADMIN_PASSWORD` explicitly.
-- Map load/save server error:
-  - Verify `MAP_CONFIG_PATH` points to a valid writable location and JSON is parseable.
-
-## 8. Related Documentation
+## 11. Related Docs
 
 - [Auth and Persistence](./spec_auth_persistence.md)
 - [World Entities](../world/spec_world_entities.md)

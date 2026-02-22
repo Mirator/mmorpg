@@ -1,4 +1,7 @@
 import http from 'node:http';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getServerConfig } from './config.js';
 import { createHttpApp } from './http.js';
@@ -123,8 +126,8 @@ async function startServer(app) {
   };
 }
 
-async function requestJson(baseUrl, route, { method = 'GET', body, cookie } = {}) {
-  const headers = {};
+async function requestJson(baseUrl, route, { method = 'GET', body, cookie, headers: extraHeaders } = {}) {
+  const headers = { ...(extraHeaders ?? {}) };
   if (body) headers['Content-Type'] = 'application/json';
   if (cookie) headers.cookie = cookie;
 
@@ -143,23 +146,56 @@ async function requestJson(baseUrl, route, { method = 'GET', body, cookie } = {}
   return { res, payload };
 }
 
+async function requestText(baseUrl, route) {
+  const res = await fetch(`${baseUrl}${route}`);
+  const text = await res.text();
+  return { res, text };
+}
+
+function buildMapConfig(overrides = {}) {
+  return {
+    version: MAP_CONFIG_VERSION,
+    mapSize: 40,
+    base: { x: 0, z: 0, radius: 4 },
+    spawnPoints: [{ x: 0, z: 0 }],
+    obstacles: [],
+    structures: [],
+    resourceNodes: [],
+    vendors: [],
+    mobSpawns: [],
+    ...overrides,
+  };
+}
+
+function createTempAdminFiles() {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'http-admin-'));
+  const mapPath = path.join(tmpDir, 'world-map.json');
+  const designerStatePath = path.join(tmpDir, 'world-map.designer.json');
+  fs.writeFileSync(mapPath, JSON.stringify(buildMapConfig(), null, 2), 'utf8');
+  return {
+    mapPath,
+    designerStatePath,
+    cleanup() {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    },
+  };
+}
+
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
 describe('HTTP auth lifecycle integration', () => {
   beforeEach(() => {
     resetStore();
   });
 
   it('supports signup/login/logout and character CRUD + ws ticket', async () => {
+    const files = createTempAdminFiles();
     const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
     const world = createWorldFromConfig({
-      version: MAP_CONFIG_VERSION,
-      mapSize: 40,
-      base: { x: 0, z: 0, radius: 4 },
-      spawnPoints: [{ x: 0, z: 0 }],
-      obstacles: [],
-      structures: [],
-      resourceNodes: [],
+      ...buildMapConfig(),
       vendors: [{ id: 'vendor-1', name: 'Vendor', x: 6, z: 0 }],
-      mobSpawns: [],
     });
 
     const app = createHttpApp({
@@ -169,7 +205,8 @@ describe('HTTP auth lifecycle integration', () => {
       resources: [],
       mobs: [],
       spawner: { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
-      mapConfigPath: '/tmp/world-map.json',
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
     });
 
     const { server, baseUrl } = await startServer(app);
@@ -255,6 +292,296 @@ describe('HTTP auth lifecycle integration', () => {
       await new Promise((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()));
       });
+      files.cleanup();
+    }
+  });
+});
+
+describe('admin page routes', () => {
+  it('serves redesigned admin pages and module screens', async () => {
+    const files = createTempAdminFiles();
+    const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
+    const world = createWorldFromConfig(buildMapConfig());
+
+    const app = createHttpApp({
+      config,
+      world,
+      players: new Map(),
+      resources: [],
+      mobs: [],
+      spawner: { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+    });
+
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const dashboard = await requestText(baseUrl, '/admin');
+      expect(dashboard.res.status).toBe(200);
+      expect(dashboard.text).toContain('Zone List');
+
+      const map = await requestText(baseUrl, '/admin/map');
+      expect(map.res.status).toBe(200);
+      expect(map.text).toContain('Zone Canvas');
+
+      const placeholders = [
+        ['/admin/patches', 'Patch Manager'],
+        ['/admin/assets', 'Asset Manager'],
+        ['/admin/events', 'Event & Trigger'],
+        ['/admin/nav', 'Navmesh'],
+        ['/admin/collab', 'Collaboration'],
+        ['/admin/playtest', 'Playtest'],
+      ];
+
+      for (const [route, marker] of placeholders) {
+        const page = await requestText(baseUrl, route);
+        expect(page.res.status).toBe(200);
+        expect(page.text).toContain(marker);
+      }
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+      files.cleanup();
+    }
+  });
+});
+
+describe('admin designer APIs', () => {
+  it('guards new routes with admin password', async () => {
+    const files = createTempAdminFiles();
+    const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
+    const world = createWorldFromConfig(buildMapConfig());
+
+    const app = createHttpApp({
+      config,
+      world,
+      players: new Map(),
+      resources: [],
+      mobs: [],
+      spawner: { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+    });
+
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const routes = [
+        '/admin/designer-state?zone=world-map',
+        '/admin/prefabs?zone=world-map',
+        '/admin/comments?zone=world-map',
+        '/admin/locks?zone=world-map',
+        '/admin/audit?zone=world-map',
+      ];
+
+      for (const route of routes) {
+        const unauthorized = await requestJson(baseUrl, route, {
+          headers: { 'x-admin-pass': 'bad' },
+        });
+        expect(unauthorized.res.status).toBe(401);
+      }
+
+      const ok = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
+        headers: { 'x-admin-pass': '1234' },
+      });
+      expect(ok.res.status).toBe(200);
+      expect(ok.payload?.zoneKey).toBe('world-map');
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+      files.cleanup();
+    }
+  });
+
+  it('returns revision and lock conflicts', async () => {
+    const files = createTempAdminFiles();
+    const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
+    const world = createWorldFromConfig(buildMapConfig());
+
+    const app = createHttpApp({
+      config,
+      world,
+      players: new Map(),
+      resources: [],
+      mobs: [],
+      spawner: { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+    });
+
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice' };
+      const initial = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      expect(initial.res.status).toBe(200);
+
+      const firstSave = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
+        method: 'PUT',
+        headers,
+        body: {
+          expectedRevision: initial.payload.revision,
+          zoneState: {
+            ...initial.payload.zoneState,
+            navAreas: [
+              {
+                id: 'nav-1',
+                name: 'Lane',
+                shape: 'circle',
+                x: 3,
+                y: 0,
+                z: 4,
+                radius: 5,
+                width: 10,
+                height: 10,
+                walkCost: 1,
+                runCost: 0.8,
+                tags: ['lane'],
+              },
+            ],
+          },
+        },
+      });
+      expect(firstSave.res.status).toBe(200);
+
+      const staleSave = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
+        method: 'PUT',
+        headers,
+        body: {
+          expectedRevision: initial.payload.revision,
+          zoneState: initial.payload.zoneState,
+        },
+      });
+      expect(staleSave.res.status).toBe(409);
+      expect(staleSave.payload?.error).toBe('Revision conflict');
+
+      const acquireLock = await requestJson(baseUrl, '/admin/locks/layer/props?zone=world-map', {
+        method: 'POST',
+        headers,
+        body: { action: 'acquire', reason: 'editing prefabs' },
+      });
+      expect(acquireLock.res.status).toBe(200);
+
+      const blockedCreate = await requestJson(baseUrl, '/admin/prefabs?zone=world-map', {
+        method: 'POST',
+        headers: { 'x-admin-pass': '1234', 'x-admin-alias': 'bob' },
+        body: {
+          name: 'Locked',
+          entityType: 'structures',
+          assetPath: '/assets/test.glb',
+          tags: [],
+          defaults: {},
+        },
+      });
+      expect(blockedCreate.res.status).toBe(423);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+      files.cleanup();
+    }
+  });
+
+  it('publishes and rolls back patch snapshots', async () => {
+    const files = createTempAdminFiles();
+    const config = getServerConfig({ HOST: '127.0.0.1', PORT: '3000' });
+    const world = createWorldFromConfig(buildMapConfig());
+
+    const app = createHttpApp({
+      config,
+      world,
+      players: new Map(),
+      resources: [],
+      mobs: [],
+      spawner: { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+    });
+
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const headers = { 'x-admin-pass': '1234', 'x-admin-alias': 'alice' };
+      const state = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      expect(state.res.status).toBe(200);
+
+      const createPatch = await requestJson(baseUrl, '/admin/patches?zone=world-map', {
+        method: 'POST',
+        headers,
+        body: {
+          title: 'Integration publish',
+          description: 'test',
+          dependencyIds: [],
+          sourceSnapshot: {
+            mapConfig: buildMapConfig({ mapSize: 120 }),
+            zoneState: {
+              ...state.payload.zoneState,
+              navAreas: [
+                {
+                  id: 'lane-main',
+                  name: 'Main lane',
+                  shape: 'circle',
+                  x: 9,
+                  y: 0,
+                  z: 9,
+                  radius: 6,
+                  width: 10,
+                  height: 10,
+                  walkCost: 1,
+                  runCost: 0.7,
+                  tags: [],
+                },
+              ],
+            },
+          },
+        },
+      });
+      expect(createPatch.res.status).toBe(201);
+      const patchId = createPatch.payload?.patch?.id;
+      expect(typeof patchId).toBe('string');
+
+      const requestApproval = await requestJson(
+        baseUrl,
+        `/admin/patches/${patchId}/request-approval?zone=world-map`,
+        { method: 'POST', headers }
+      );
+      expect(requestApproval.res.status).toBe(200);
+
+      const approve = await requestJson(baseUrl, `/admin/patches/${patchId}/approve?zone=world-map`, {
+        method: 'POST',
+        headers,
+      });
+      expect(approve.res.status).toBe(200);
+
+      const publish = await requestJson(baseUrl, `/admin/patches/${patchId}/publish?zone=world-map`, {
+        method: 'POST',
+        headers,
+      });
+      expect(publish.res.status).toBe(200);
+      expect(publish.payload).toEqual({ ok: true, restartRequired: true });
+
+      const publishedMap = readJson(files.mapPath);
+      expect(publishedMap.mapSize).toBe(120);
+
+      const afterPublish = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      expect(afterPublish.payload?.zoneState?.navAreas?.some((entry) => entry.id === 'lane-main')).toBe(true);
+
+      const rollback = await requestJson(baseUrl, `/admin/patches/${patchId}/rollback?zone=world-map`, {
+        method: 'POST',
+        headers,
+      });
+      expect(rollback.res.status).toBe(200);
+      expect(rollback.payload).toEqual({ ok: true, restartRequired: true });
+
+      const rolledBackMap = readJson(files.mapPath);
+      expect(rolledBackMap.mapSize).toBe(40);
+
+      const afterRollback = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { headers });
+      expect(afterRollback.payload?.zoneState?.navAreas?.some((entry) => entry.id === 'lane-main')).toBe(false);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+      files.cleanup();
     }
   });
 });

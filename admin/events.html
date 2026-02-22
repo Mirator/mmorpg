@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Event & Trigger Editor</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+    <link rel="stylesheet" href="/admin/module.css" />
+  </head>
+  <body>
+    <div id="app" class="module-page">
+      <header class="header module-header">
+        <div>
+          <div class="title">Event &amp; Trigger Editor</div>
+          <div class="subtitle">Region trigger authoring with list/graph views and validation feedback</div>
+        </div>
+        <nav class="admin-nav" aria-label="Admin navigation">
+          <a class="link" href="/admin">Dashboard</a>
+          <a class="link" href="/admin/map">Zone Canvas</a>
+          <a class="link" href="/admin/patches">Patch Manager</a>
+          <a class="link" href="/admin/assets">Asset Manager</a>
+          <a class="link" href="/admin/events">Event &amp; Trigger</a>
+          <a class="link" href="/admin/nav">Navmesh</a>
+          <a class="link" href="/admin/collab">Collaboration</a>
+          <a class="link" href="/admin/playtest">Playtest</a>
+        </nav>
+      </header>
+
+      <section class="panel auth-shell">
+        <form id="auth-form" class="stack">
+          <label for="admin-pass">Admin password</label>
+          <div class="auth-row">
+            <input id="admin-pass" type="password" autocomplete="current-password" required />
+            <button type="submit">Unlock</button>
+          </div>
+          <div id="auth-hint">Stored in memory only for this tab.</div>
+        </form>
+        <div class="alias-row">
+          <strong id="alias-label">Alias: --</strong>
+          <button id="alias-btn" type="button">Change Alias</button>
+        </div>
+        <div id="status" class="status warning">Status: locked</div>
+      </section>
+
+      <section class="panel module-layout">
+        <article class="module-card stack">
+          <h3>Triggers (<span id="trigger-count">0</span>)</h3>
+          <div id="trigger-list" class="list"></div>
+        </article>
+
+        <article class="module-card stack">
+          <h3>Editor</h3>
+          <div class="toolbar">
+            <label>
+              <span class="note">View</span>
+              <select id="view-mode">
+                <option value="list">List View</option>
+                <option value="graph">Graph View</option>
+              </select>
+            </label>
+            <button id="delete-trigger-btn" type="button" disabled>Delete Selected</button>
+          </div>
+          <div id="selected-trigger-meta" class="note">No trigger selected.</div>
+
+          <canvas id="trigger-graph-canvas" class="canvas-preview" width="620" height="280" hidden></canvas>
+
+          <form id="trigger-form" class="stack">
+            <input id="trigger-name" placeholder="Trigger name" required />
+            <div class="toolbar">
+              <select id="trigger-shape">
+                <option value="circle">circle</option>
+                <option value="box">box</option>
+                <option value="polygon">polygon</option>
+              </select>
+              <input id="trigger-x" type="number" step="0.1" placeholder="x" />
+              <input id="trigger-y" type="number" step="0.1" placeholder="y" value="0" />
+              <input id="trigger-z" type="number" step="0.1" placeholder="z" />
+            </div>
+            <div class="toolbar">
+              <input id="trigger-radius" type="number" step="0.1" min="0.1" value="8" placeholder="radius" />
+              <input id="trigger-width" type="number" step="0.1" min="0.1" value="12" placeholder="width" />
+              <input id="trigger-height" type="number" step="0.1" min="0.1" value="12" placeholder="height" />
+            </div>
+            <input id="trigger-condition" placeholder="conditionRef (e.g. enter_region)" required />
+            <input id="trigger-actions" placeholder="actionRefs (comma separated)" required />
+            <input id="trigger-tags" placeholder="tags (comma separated)" />
+            <div class="toolbar">
+              <input id="trigger-delay" type="number" min="0" step="1" value="0" placeholder="delay ms" />
+              <label class="note"><input id="trigger-enabled" type="checkbox" checked /> Enabled</label>
+            </div>
+            <button class="primary" type="submit">Save Trigger</button>
+          </form>
+        </article>
+
+        <article class="module-card stack">
+          <h3>Validation</h3>
+          <div id="validation-list" class="note">No validation errors.</div>
+          <div class="note">Bindings are reference-only in phase 2: this editor does not modify runtime game logic.</div>
+        </article>
+      </section>
+    </div>
+
+    <script type="module" src="/admin/events.js"></script>
+  </body>
+</html>

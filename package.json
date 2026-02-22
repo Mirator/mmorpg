@@ -13,6 +13,7 @@
     "test:unit": "vitest run",
     "test": "npm run check:tscheck:coverage && npm run typecheck && npm run test:unit",
     "test:e2e": "node e2e/playwright-e2e.js",
+    "test:e2e:admin": "E2E_PORT=3907 node e2e/playwright-admin-map-v2.js",
     "db:migrate:dev": "prisma migrate dev",
     "db:reset:test": "node scripts/db-reset.js test",
     "db:reset:e2e": "node scripts/db-reset.js e2e"

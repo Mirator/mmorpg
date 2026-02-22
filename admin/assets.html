@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Asset Manager</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+    <link rel="stylesheet" href="/admin/module.css" />
+  </head>
+  <body>
+    <div id="app" class="module-page">
+      <header class="header module-header">
+        <div>
+          <div class="title">Asset Manager</div>
+          <div class="subtitle">Prefab registry and versioning for world-map templates</div>
+        </div>
+        <nav class="admin-nav" aria-label="Admin navigation">
+          <a class="link" href="/admin">Dashboard</a>
+          <a class="link" href="/admin/map">Zone Canvas</a>
+          <a class="link" href="/admin/patches">Patch Manager</a>
+          <a class="link" href="/admin/assets">Asset Manager</a>
+          <a class="link" href="/admin/events">Event &amp; Trigger</a>
+          <a class="link" href="/admin/nav">Navmesh</a>
+          <a class="link" href="/admin/collab">Collaboration</a>
+          <a class="link" href="/admin/playtest">Playtest</a>
+        </nav>
+      </header>
+
+      <section class="panel auth-shell">
+        <form id="auth-form" class="stack">
+          <label for="admin-pass">Admin password</label>
+          <div class="auth-row">
+            <input id="admin-pass" type="password" autocomplete="current-password" required />
+            <button type="submit">Unlock</button>
+          </div>
+          <div id="auth-hint">Stored in memory only for this tab.</div>
+        </form>
+        <div class="alias-row">
+          <strong id="alias-label">Alias: --</strong>
+          <button id="alias-btn" type="button">Change Alias</button>
+        </div>
+        <div id="status" class="status warning">Status: locked</div>
+      </section>
+
+      <section class="panel module-layout">
+        <article class="module-card">
+          <h3>Prefab Library (<span id="prefab-count">0</span>)</h3>
+          <div id="prefab-list" class="list"></div>
+        </article>
+
+        <article class="module-card stack">
+          <h3>Create Prefab</h3>
+          <form id="create-prefab-form" class="stack">
+            <input id="create-name" placeholder="Name" required />
+            <input id="create-type" placeholder="Entity type (e.g., structures)" required />
+            <input id="create-path" placeholder="/assets/..." required />
+            <input id="create-tags" placeholder="tags,comma,separated" />
+            <textarea id="create-defaults">{}</textarea>
+            <button class="primary" type="submit">Create Prefab</button>
+          </form>
+          <div class="note">Phase 2 uses path-based prefab registration only. Binary upload remains out of scope.</div>
+        </article>
+
+        <article class="module-card">
+          <h3>Prefab Detail</h3>
+          <div id="details-empty" class="note">Select a prefab to edit.</div>
+          <div id="details-panel" class="stack" hidden>
+            <div class="kv"><span class="k">ID</span><span class="mono" id="detail-id"></span></div>
+            <div class="kv"><span class="k">Version</span><span id="detail-version"></span></div>
+            <div class="kv"><span class="k">Created</span><span id="detail-created"></span></div>
+            <div class="kv"><span class="k">Updated</span><span id="detail-updated"></span></div>
+            <input id="edit-name" placeholder="Name" />
+            <input id="edit-type" placeholder="Entity type" />
+            <input id="edit-path" placeholder="/assets/..." />
+            <input id="edit-tags" placeholder="tags,comma,separated" />
+            <textarea id="edit-defaults"></textarea>
+            <div class="toolbar">
+              <button id="save-edit-btn" class="primary" type="button">Save Changes</button>
+              <button id="delete-prefab-btn" type="button">Delete Prefab</button>
+            </div>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <script type="module" src="/admin/assets.js"></script>
+  </body>
+</html>

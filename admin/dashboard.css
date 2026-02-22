@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&display=swap');
+
+.dashboard-page {
+  max-width: 1400px;
+}
+
+.admin-header {
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.admin-header .title {
+  font-family: 'Chakra Petch', 'Space Grotesk', system-ui, sans-serif;
+}
+
+.admin-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-nav .link {
+  border: 1px solid #2f3f4c;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #1b262e;
+  color: var(--text);
+  border: 1px solid #2a3944;
+  border-radius: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 10px 18px;
+  text-decoration: none;
+}
+
+.action-link:hover {
+  filter: brightness(1.08);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.metric-card {
+  background: linear-gradient(145deg, #111920, #0b1116);
+  border: 1px solid #283846;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric-value {
+  margin-top: 4px;
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.metric-value.muted {
+  font-size: 16px;
+  color: var(--muted);
+}
+
+.zone-list-panel td:last-child,
+.zone-list-panel th:last-child {
+  text-align: right;
+}
+
+.zone-open-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.zone-open-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1020px) {
+  .admin-header {
+    flex-direction: column;
+  }
+}

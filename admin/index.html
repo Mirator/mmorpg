@@ -3,20 +3,32 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Rising Ages Admin</title>
+    <title>Rising Ages Admin Dashboard</title>
     <link rel="stylesheet" href="/admin/style.css" />
+    <link rel="stylesheet" href="/admin/dashboard.css" />
+    <link rel="stylesheet" href="/admin/module.css" />
   </head>
   <body>
-    <div id="app">
-      <header class="header">
-        <div class="title">Rising Ages Admin</div>
-        <div class="subtitle">
-          Live world overview · <a class="link" href="/admin/map">Map Editor</a>
+    <div id="app" class="admin-v2 dashboard-page">
+      <header class="header admin-header">
+        <div>
+          <div class="title">Rising Ages Admin</div>
+          <div class="subtitle">Dashboard and zone workspace control center</div>
         </div>
+        <nav class="admin-nav" aria-label="Admin navigation">
+          <a class="link" href="/admin">Dashboard</a>
+          <a class="link" href="/admin/map">Zone Canvas</a>
+          <a class="link" href="/admin/patches">Patch Manager</a>
+          <a class="link" href="/admin/assets">Asset Manager</a>
+          <a class="link" href="/admin/events">Event &amp; Trigger</a>
+          <a class="link" href="/admin/nav">Navmesh</a>
+          <a class="link" href="/admin/collab">Collaboration</a>
+          <a class="link" href="/admin/playtest">Playtest</a>
+        </nav>
       </header>
 
-      <section class="panel auth">
-        <form id="auth-form">
+      <section class="panel auth auth-shell">
+        <form id="auth-form" class="stack">
           <label for="admin-pass">Admin password</label>
           <div class="auth-row">
             <input
@@ -30,123 +42,67 @@
           </div>
           <div id="auth-hint">Stored in memory only (re-enter after refresh).</div>
         </form>
-        <div id="status" class="status neutral">Status: idle</div>
+
+        <div class="alias-row">
+          <strong id="alias-label">Alias: --</strong>
+          <button id="alias-btn" type="button">Change Alias</button>
+        </div>
+
+        <div id="status" class="status neutral">Status: waiting for password</div>
       </section>
 
-      <section class="panel summary">
-        <div class="summary-grid">
-          <div class="summary-card">
-            <div class="label">Players</div>
-            <div id="count-players" class="value">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="label">Resources</div>
-            <div id="count-resources" class="value">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="label">Enemies</div>
-            <div id="count-mobs" class="value">0</div>
-          </div>
-          <div class="summary-card">
-            <div class="label">Last Update</div>
-            <div id="last-update" class="value">--</div>
-          </div>
-        </div>
-        <div class="world-summary">
-          <div>
-            Map size: <span id="world-map">--</span> · Harvest radius:
-            <span id="world-harvest">--</span>
-          </div>
-          <div>
-            Base: <span id="world-base">--</span> · Obstacles:
-            <span id="world-obstacles">--</span>
-          </div>
+      <section class="panel quick-actions">
+        <div class="panel-title">Quick Actions</div>
+        <div class="actions">
+          <a class="action-link" href="/admin/map" id="open-zone-btn">Open Zone</a>
+          <a class="action-link" href="/admin/patches">Create Patch</a>
+          <a class="action-link" href="/admin/patches">View Active Patches</a>
+          <button id="refresh-btn" type="button" disabled>Refresh Data</button>
         </div>
       </section>
 
-      <section class="panel">
-        <div class="panel-title">Players</div>
+      <section class="panel metrics">
+        <div class="panel-title">Health Metrics</div>
+        <div class="metric-grid">
+          <div class="metric-card">
+            <div class="metric-label">Players</div>
+            <div id="count-players" class="metric-value">0</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Player Density</div>
+            <div id="density-value" class="metric-value">0.00 / 10k</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Last Activity</div>
+            <div id="last-activity" class="metric-value">--</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Errors</div>
+            <div id="errors-value" class="metric-value muted">--</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Last Deploy</div>
+            <div id="last-deploy" class="metric-value muted">--</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel zone-list-panel">
+        <div class="panel-title">Zone List</div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Class</th>
-                <th>Weapon</th>
-                <th>Level</th>
-                <th>XP</th>
-                <th>HP</th>
-                <th>Inv</th>
-                <th>Coins</th>
-                <th>X</th>
-                <th>Z</th>
-                <th>Dead</th>
-                <th>Respawn</th>
+                <th>Zone</th>
+                <th>Map Size</th>
+                <th>Spawns</th>
+                <th>Props</th>
+                <th>Updated</th>
+                <th>Action</th>
               </tr>
             </thead>
-            <tbody id="players-body"></tbody>
+            <tbody id="zone-body"></tbody>
           </table>
-        </div>
-        <div class="table-controls">
-          <div class="pager">
-            <button id="players-prev" type="button">Prev</button>
-            <span id="players-page-info">0-0 of 0</span>
-            <button id="players-next" type="button">Next</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-title">Resources (Nodes)</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>X</th>
-                <th>Z</th>
-                <th>Available</th>
-                <th>Respawn</th>
-              </tr>
-            </thead>
-            <tbody id="resources-body"></tbody>
-          </table>
-        </div>
-        <div class="table-controls">
-          <div class="pager">
-            <button id="resources-prev" type="button">Prev</button>
-            <span id="resources-page-info">0-0 of 0</span>
-            <button id="resources-next" type="button">Next</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-title">Enemies (Mobs)</div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Level</th>
-                <th>HP</th>
-                <th>X</th>
-                <th>Z</th>
-                <th>State</th>
-                <th>Target</th>
-                <th>Dead</th>
-                <th>Respawn</th>
-              </tr>
-            </thead>
-            <tbody id="mobs-body"></tbody>
-          </table>
-        </div>
-        <div class="table-controls">
-          <div class="pager">
-            <button id="mobs-prev" type="button">Prev</button>
-            <span id="mobs-page-info">0-0 of 0</span>
-            <button id="mobs-next" type="button">Next</button>
-          </div>
         </div>
       </section>
     </div>

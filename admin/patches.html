@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Patch Manager</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+    <link rel="stylesheet" href="/admin/module.css" />
+  </head>
+  <body>
+    <div id="app" class="module-page">
+      <header class="header module-header">
+        <div>
+          <div class="title">Patch Manager</div>
+          <div class="subtitle">Draft, review, approve, publish, rollback with map and designer diffs</div>
+        </div>
+        <nav class="admin-nav" aria-label="Admin navigation">
+          <a class="link" href="/admin">Dashboard</a>
+          <a class="link" href="/admin/map">Zone Canvas</a>
+          <a class="link" href="/admin/patches">Patch Manager</a>
+          <a class="link" href="/admin/assets">Asset Manager</a>
+          <a class="link" href="/admin/events">Event &amp; Trigger</a>
+          <a class="link" href="/admin/nav">Navmesh</a>
+          <a class="link" href="/admin/collab">Collaboration</a>
+          <a class="link" href="/admin/playtest">Playtest</a>
+        </nav>
+      </header>
+
+      <section class="panel auth-shell">
+        <form id="auth-form" class="stack">
+          <label for="admin-pass">Admin password</label>
+          <div class="auth-row">
+            <input id="admin-pass" type="password" autocomplete="current-password" required />
+            <button type="submit">Unlock</button>
+          </div>
+          <div id="auth-hint">Stored in memory only for this tab.</div>
+        </form>
+        <div class="alias-row">
+          <strong id="alias-label">Alias: --</strong>
+          <button id="alias-btn" type="button">Change Alias</button>
+        </div>
+        <div id="status" class="status warning">Status: locked</div>
+      </section>
+
+      <section class="panel module-layout">
+        <article class="module-card stack">
+          <h3>Patches (<span id="patch-count">0</span>)</h3>
+          <div class="toolbar">
+            <label>
+              <span class="note">Filter</span>
+              <select id="patch-filter">
+                <option value="all">All</option>
+                <option value="Draft">Draft</option>
+                <option value="Review Requested">Review Requested</option>
+                <option value="Approved">Approved</option>
+                <option value="Published">Published</option>
+                <option value="Rolled Back">Rolled Back</option>
+              </select>
+            </label>
+          </div>
+          <div id="patch-list" class="list"></div>
+          <h3>Create Patch</h3>
+          <form id="create-patch-form" class="stack">
+            <input id="create-title" placeholder="Patch title" required />
+            <textarea id="create-description" placeholder="Description"></textarea>
+            <input id="create-dependencies" placeholder="dependency ids (comma separated)" />
+            <button class="primary" type="submit">Create Draft</button>
+          </form>
+        </article>
+
+        <article class="module-card stack">
+          <h3>Patch Detail</h3>
+          <div id="detail-empty" class="note">Select a patch to inspect details.</div>
+          <div id="detail-panel" class="stack" hidden>
+            <div class="toolbar">
+              <strong id="detail-title"></strong>
+              <span id="detail-status" class="pill"></span>
+            </div>
+            <div id="detail-meta" class="note"></div>
+            <div class="kv"><span class="k">Dependencies</span><span id="detail-dependencies"></span></div>
+            <div class="toolbar">
+              <button id="request-approval-btn" type="button">Request Approval</button>
+              <button id="approve-btn" type="button">Approve</button>
+              <button id="publish-btn" class="primary" type="button">Publish</button>
+              <button id="rollback-btn" type="button">Rollback</button>
+            </div>
+            <div id="restart-note" class="note" hidden></div>
+          </div>
+
+          <h3>Visual Diff</h3>
+          <canvas id="visual-diff-canvas" class="canvas-preview" width="620" height="340"></canvas>
+
+          <h3>JSON Diff</h3>
+          <div class="toolbar">
+            <label>
+              <span class="note">Compare</span>
+              <select id="diff-mode">
+                <option value="map">Map Snapshot</option>
+                <option value="designer">Designer Snapshot</option>
+              </select>
+            </label>
+          </div>
+          <pre id="json-diff" class="code-panel mono"></pre>
+        </article>
+
+        <article class="module-card stack">
+          <h3>Patch Comments Context</h3>
+          <div id="comment-list" class="list"></div>
+        </article>
+      </section>
+    </div>
+
+    <script type="module" src="/admin/patches.js"></script>
+  </body>
+</html>

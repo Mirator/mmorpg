@@ -16,6 +16,7 @@ import { getServerConfig } from './config.js';
 import { seedDevAccount } from './devSeed.js';
 import { autoMigrateDev } from './devMigrate.js';
 import { loadMapConfigSync, resolveMapConfigPath } from './mapConfig.js';
+import { resolveDesignerStatePath } from './mapDesignerState.js';
 
 export function createServer(/** @type {any} */ { env = process.env } = {}) {
   const config = getServerConfig(env);
@@ -23,6 +24,7 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
   const useSimulatedWorld =
     isE2eTest && env.E2E_SIMULATED_WORLD === 'true';
   const mapConfigPath = resolveMapConfigPath(env);
+  const designerStatePath = resolveDesignerStatePath(env);
   const mapConfig = useSimulatedWorld ? null : loadMapConfigSync(mapConfigPath);
   const world = useSimulatedWorld
     ? createSimulatedWorld()
@@ -110,6 +112,7 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
     mobs,
     spawner,
     mapConfigPath,
+    designerStatePath,
   });
   const server = http.createServer(app);
 

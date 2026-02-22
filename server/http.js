@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createAdminStateHandler } from './admin.js';
 import { createMapConfigHandlers } from './mapConfig.js';
+import { createMapDesignerHandlers } from './mapDesignerState.js';
 import { sendDbError } from './httpErrors.js';
 import {
   generateId,
@@ -120,7 +121,8 @@ function clearSessionCookie(res, config) {
  *   resources: ResourceNode[],
  *   mobs: MobEntity[],
  *   spawner: SpawnerLike,
- *   mapConfigPath: string
+ *   mapConfigPath: string,
+ *   designerStatePath: string
  * }} deps
  */
 export function createHttpApp({
@@ -131,6 +133,7 @@ export function createHttpApp({
   mobs,
   spawner,
   mapConfigPath,
+  designerStatePath,
 }) {
   const app = express();
   app.disable('x-powered-by');
@@ -204,6 +207,31 @@ export function createHttpApp({
   app.get('/admin/map', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     res.sendFile(path.join(ADMIN_DIR, 'map.html'));
   });
+  app.get(
+    '/admin/patches',
+    (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res, /** @type {NextFunctionLike} */ next) => {
+      if (typeof req.get === 'function' && req.get('x-admin-pass')) {
+        next();
+        return;
+      }
+      res.sendFile(path.join(ADMIN_DIR, 'patches.html'));
+    }
+  );
+  app.get('/admin/assets', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    res.sendFile(path.join(ADMIN_DIR, 'assets.html'));
+  });
+  app.get('/admin/events', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    res.sendFile(path.join(ADMIN_DIR, 'events.html'));
+  });
+  app.get('/admin/nav', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    res.sendFile(path.join(ADMIN_DIR, 'nav.html'));
+  });
+  app.get('/admin/collab', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    res.sendFile(path.join(ADMIN_DIR, 'collab.html'));
+  });
+  app.get('/admin/playtest', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    res.sendFile(path.join(ADMIN_DIR, 'playtest.html'));
+  });
   app.use('/admin', express.static(ADMIN_DIR));
   app.use('/shared', express.static(SHARED_DIR));
   app.use(express.static(CLIENT_DIR));
@@ -225,6 +253,37 @@ export function createHttpApp({
   });
   app.get('/admin/map-config', mapHandlers.getHandler);
   app.put('/admin/map-config', mapHandlers.putHandler);
+
+  const designerHandlers = createMapDesignerHandlers({
+    password: config.adminPassword,
+    mapConfigPath,
+    designerStatePath,
+  });
+  app.get('/admin/designer-state', designerHandlers.getDesignerState);
+  app.put('/admin/designer-state', designerHandlers.putDesignerState);
+
+  app.get('/admin/prefabs', designerHandlers.getPrefabs);
+  app.post('/admin/prefabs', designerHandlers.postPrefab);
+  app.put('/admin/prefabs/:id', designerHandlers.putPrefab);
+  app.delete('/admin/prefabs/:id', designerHandlers.deletePrefab);
+
+  app.get('/admin/patches', designerHandlers.getPatches);
+  app.post('/admin/patches', designerHandlers.postPatch);
+  app.post('/admin/patches/:id/request-approval', designerHandlers.postPatchRequestApproval);
+  app.post('/admin/patches/:id/approve', designerHandlers.postPatchApprove);
+  app.post('/admin/patches/:id/publish', designerHandlers.postPatchPublish);
+  app.post('/admin/patches/:id/rollback', designerHandlers.postPatchRollback);
+
+  app.get('/admin/comments', designerHandlers.getComments);
+  app.post('/admin/comments', designerHandlers.postComment);
+  app.post('/admin/comments/:id/resolve', designerHandlers.postCommentResolve);
+
+  app.get('/admin/locks', designerHandlers.getLocks);
+  app.post('/admin/locks/zone', designerHandlers.postZoneLock);
+  app.post('/admin/locks/layer/:layerId', designerHandlers.postLayerLock);
+
+  app.get('/admin/audit', designerHandlers.getAudit);
+  app.post('/admin/playtest/session', designerHandlers.postPlaytestSession);
 
   app.post('/api/auth/signup', authLimiter, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     const normalized = normalizeUsername(req.body?.username);

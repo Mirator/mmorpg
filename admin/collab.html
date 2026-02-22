@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Collaboration</title>
+    <link rel="stylesheet" href="/admin/style.css" />
+    <link rel="stylesheet" href="/admin/module.css" />
+  </head>
+  <body>
+    <div id="app" class="module-page">
+      <header class="header module-header">
+        <div>
+          <div class="title">Collaboration</div>
+          <div class="subtitle">Strict zone/layer locks, pinned comments, and audit timeline filters</div>
+        </div>
+        <nav class="admin-nav" aria-label="Admin navigation">
+          <a class="link" href="/admin">Dashboard</a>
+          <a class="link" href="/admin/map">Zone Canvas</a>
+          <a class="link" href="/admin/patches">Patch Manager</a>
+          <a class="link" href="/admin/assets">Asset Manager</a>
+          <a class="link" href="/admin/events">Event &amp; Trigger</a>
+          <a class="link" href="/admin/nav">Navmesh</a>
+          <a class="link" href="/admin/collab">Collaboration</a>
+          <a class="link" href="/admin/playtest">Playtest</a>
+        </nav>
+      </header>
+
+      <section class="panel auth-shell">
+        <form id="auth-form" class="stack">
+          <label for="admin-pass">Admin password</label>
+          <div class="auth-row">
+            <input id="admin-pass" type="password" autocomplete="current-password" required />
+            <button type="submit">Unlock</button>
+          </div>
+          <div id="auth-hint">Stored in memory only for this tab.</div>
+        </form>
+        <div class="alias-row">
+          <strong id="alias-label">Alias: --</strong>
+          <button id="alias-btn" type="button">Change Alias</button>
+        </div>
+        <div id="status" class="status warning">Status: locked</div>
+      </section>
+
+      <section class="panel module-layout">
+        <article class="module-card stack">
+          <h3>Locks</h3>
+          <div class="toolbar">
+            <button id="zone-lock-btn" data-action="acquire" type="button">Acquire Zone Lock</button>
+          </div>
+          <div id="zone-lock-meta" class="note">No active zone lock.</div>
+          <div id="layer-lock-list" class="list"></div>
+        </article>
+
+        <article class="module-card stack">
+          <h3>Pinned Comments (<span id="comment-count">0</span>)</h3>
+          <canvas id="comment-canvas" class="canvas-preview" width="620" height="260"></canvas>
+          <form id="comment-form" class="stack">
+            <div class="toolbar">
+              <input id="comment-x" type="number" step="0.1" placeholder="x" required />
+              <input id="comment-y" type="number" step="0.1" placeholder="y" value="0" />
+              <input id="comment-z" type="number" step="0.1" placeholder="z" required />
+            </div>
+            <div class="toolbar">
+              <select id="comment-layer">
+                <option value="">No layer</option>
+                <option value="terrain">terrain</option>
+                <option value="props">props</option>
+                <option value="spawns">spawns</option>
+                <option value="navmesh">navmesh</option>
+                <option value="triggers">triggers</option>
+                <option value="lighting">lighting</option>
+                <option value="debug">debug</option>
+              </select>
+              <input id="comment-entity-ref" placeholder="entityRef (optional)" />
+            </div>
+            <textarea id="comment-text" placeholder="Comment text" required></textarea>
+            <button class="primary" type="submit">Pin Comment</button>
+          </form>
+          <div id="comment-list" class="list"></div>
+        </article>
+
+        <article class="module-card stack">
+          <h3>Audit Timeline</h3>
+          <div class="toolbar">
+            <input id="audit-alias-filter" placeholder="Filter alias" />
+            <input id="audit-type-filter" placeholder="Filter type" />
+            <input id="audit-action-filter" placeholder="Filter action" />
+          </div>
+          <div id="audit-list" class="list"></div>
+        </article>
+      </section>
+    </div>
+
+    <script type="module" src="/admin/collab.js"></script>
+  </body>
+</html>
