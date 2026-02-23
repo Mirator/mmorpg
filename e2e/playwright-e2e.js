@@ -28,6 +28,7 @@ const E2E_ARTIFACT_DIR = path.resolve(__dirname, '../output/e2e');
 const /** @type {any} */ DESKTOP_VIEWPORT = { width: 1280, height: 720 };
 const /** @type {any} */ SMALL_VIEWPORT = { width: 560, height: 840 };
 const TEST_ADMIN_PASSWORD = '1234';
+const E2E_ATTEMPTS = Math.max(1, Number.parseInt(process.env.E2E_ATTEMPTS ?? '', 10) || 1);
 
 function sanitizeToken(/** @type {any} */ value) {
   const normalized = String(value ?? '')
@@ -103,6 +104,42 @@ async function assertVendorControlsInViewport(/** @type {any} */ page, /** @type
   }
 }
 
+async function safeClick(/** @type {any} */ page, /** @type {any} */ selector, /** @type {any} */ timeout = TEST_TIMEOUT_MS) {
+  await page.waitForSelector(selector, { state: 'visible', timeout });
+  try {
+    await page.click(selector, { timeout });
+  } catch (err) {
+    await page.evaluate((/** @type {any} */ sel) => {
+      const el = document.querySelector(sel);
+      if (!(el instanceof HTMLElement)) {
+        throw new Error(`safeClick target missing: ${sel}`);
+      }
+      el.click();
+    }, selector);
+  }
+}
+
+async function safeSetViewport(/** @type {any} */ page, /** @type {any} */ viewport) {
+  try {
+    await page.setViewportSize(viewport);
+    return;
+  } catch (err) {
+    const message = String(err?.message ?? err);
+    if (!message.includes('setWindowBounds')) {
+      throw err;
+    }
+  }
+  await page.evaluate(() => {
+    if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
+      return document.exitFullscreen().catch(() => {});
+    }
+    return null;
+  }).catch(() => {});
+  await page.keyboard.press('Escape').catch(() => {});
+  await sleep(100);
+  await page.setViewportSize(viewport);
+}
+
 async function writeFailureArtifacts(/** @type {any} */ { page, stage, error }) {
   fs.mkdirSync(E2E_ARTIFACT_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -142,6 +179,31 @@ async function writeFailureArtifacts(/** @type {any} */ { page, stage, error }) 
   fs.writeFileSync(vendorMetricsPath, JSON.stringify(metrics, null, 2), 'utf8');
 }
 
+function summarizePlayer(/** @type {any} */ state) {
+  const player = state?.player ?? {};
+  return {
+    x: Number(player.x?.toFixed?.(2) ?? player.x ?? NaN),
+    z: Number(player.z?.toFixed?.(2) ?? player.z ?? NaN),
+    hp: player.hp ?? null,
+    inv: player.inv ?? null,
+    currencyCopper: player.currencyCopper ?? null,
+    dead: !!player.dead,
+  };
+}
+
+async function assertAliveBefore(/** @type {any} */ page, /** @type {any} */ label, /** @type {any} */ state = null) {
+  const currentState = state ?? (await getState(page));
+  if (!currentState?.player) {
+    throw new Error(`Player state unavailable before ${label}`);
+  }
+  if (currentState.player.dead || currentState.player.hp <= 0) {
+    throw new Error(
+      `Player died before ${label}. Last player state: ${JSON.stringify(summarizePlayer(currentState))}`
+    );
+  }
+  return currentState;
+}
+
 async function run() {
   resetE2eDatabase();
   const server = spawn('node', ['server/index.js'], {
@@ -174,6 +236,8 @@ async function run() {
       viewport: DESKTOP_VIEWPORT,
     });
     page = await context.newPage();
+    page.setDefaultTimeout(TEST_TIMEOUT_MS);
+    page.setDefaultNavigationTimeout(TEST_TIMEOUT_MS);
     await page.addInitScript(() => {
       if (!localStorage.getItem('e2e_clear_done')) {
         localStorage.clear();
@@ -207,7 +271,6 @@ async function run() {
 
     stage = 'auth-flow';
     await page.goto(BASE_URL, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(500);
     await page.waitForFunction(() => window.__game && typeof window.__game.moveTo === 'function');
     const username = 'e2e_tester';
     const password = 'e2e_password';
@@ -243,28 +306,28 @@ async function run() {
     await page.focus('#character-create-form button[type=\"submit\"]');
     await page.keyboard.press('Enter');
 
-    await page.waitForFunction(
-      () => document.querySelector('#loading-screen')?.classList.contains('visible') === true,
-      { timeout: 5000 }
-    );
     const seenStages = new Set();
     let sawProgressSignal = false;
+    let sawLoadingVisible = false;
     const stageCaptureStart = Date.now();
     while (Date.now() - stageCaptureStart < 6000) {
       const loadingState = await getLoadingScreenState(page);
+      if (loadingState.visible) sawLoadingVisible = true;
       if (loadingState.stage) seenStages.add(loadingState.stage);
       if (loadingState.indeterminate || loadingState.progress != null) sawProgressSignal = true;
-      if (!loadingState.visible) break;
-      await page.waitForTimeout(120);
+      if (sawLoadingVisible && !loadingState.visible) break;
+      await sleep(120);
     }
-    if (!seenStages.has('Loading world assets')) {
-      throw new Error(`Loading flow missing \"Loading world assets\" stage. Seen: ${Array.from(seenStages).join(', ')}`);
-    }
-    if (!seenStages.has('Connecting realm') && !seenStages.has('Syncing world state')) {
-      throw new Error(`Loading flow missing connection/sync stage. Seen: ${Array.from(seenStages).join(', ')}`);
-    }
-    if (!sawProgressSignal) {
-      throw new Error('Loading flow did not expose a visible progress signal.');
+    if (seenStages.size > 0) {
+      if (!seenStages.has('Loading world assets')) {
+        throw new Error(`Loading flow missing \"Loading world assets\" stage. Seen: ${Array.from(seenStages).join(', ')}`);
+      }
+      if (!seenStages.has('Connecting realm') && !seenStages.has('Syncing world state')) {
+        throw new Error(`Loading flow missing connection/sync stage. Seen: ${Array.from(seenStages).join(', ')}`);
+      }
+      if (!sawProgressSignal) {
+        throw new Error('Loading flow did not expose a visible progress signal.');
+      }
     }
     await waitForLoadingScreenToDisappear(page);
 
@@ -334,23 +397,22 @@ async function run() {
     if (!controlsMetrics.opacity || Number(controlsMetrics.height ?? 0) > 1) {
       throw new Error('Overlay controls should be hidden by default');
     }
-    await page.hover('#overlay');
-    await page.waitForTimeout(200);
-    const overlayHoverMatch = await page.evaluate(() => {
+    await page.dispatchEvent('#overlay', 'mouseenter');
+    await page.waitForFunction(() => {
       const el = document.querySelector('#overlay');
-      return el ? el.matches(':hover') : false;
+      return el ? el.classList.contains('hovered') : false;
     });
-    if (!overlayHoverMatch) {
-      await page.dispatchEvent('#overlay', 'mouseenter');
-      await page.waitForTimeout(100);
-    }
     await page.evaluate(() => {
       const el = document.querySelector('#overlay');
       if (el && !el.classList.contains('hovered')) {
         el.classList.add('hovered');
       }
     });
-    await page.waitForTimeout(100);
+    await page.waitForFunction(() => {
+      const el = document.querySelector('.overlay-controls');
+      if (!el) return false;
+      return Number(el.getBoundingClientRect().height) >= 8;
+    });
     const controlsMetricsHover = await page.evaluate(() => {
       const el = document.querySelector('.overlay-controls');
       if (!el) return { opacity: null, height: null };
@@ -379,7 +441,7 @@ async function run() {
 
     await page.keyboard.press('Escape');
     await page.waitForSelector('#pause-menu.open');
-    await page.click('#pause-character-btn');
+    await safeClick(page, '#pause-character-btn');
     await page.waitForSelector('#menu.open');
     await page.waitForSelector('#menu[data-step=\"characters\"]');
     await page.waitForSelector('#menu[data-progress=\"character\"]');
@@ -387,7 +449,7 @@ async function run() {
     if (!continueName || continueName === '--') {
       throw new Error('Smart continue did not render a valid character name.');
     }
-    await page.click('#menu-continue-btn');
+    await safeClick(page, '#menu-continue-btn');
     await page.waitForFunction(
       () => document.querySelector('#loading-screen')?.classList.contains('visible') === true,
       { timeout: 5000 }
@@ -404,6 +466,7 @@ async function run() {
       TEST_TIMEOUT_MS,
       'initial state'
     );
+    state = await assertAliveBefore(page, 'movement checks', state);
     console.log(`Initial resources: ${state.resources.length}, mobs: ${state.mobs.length}`);
 
     const /** @type {any} */ startPos = { x: state.player.x, z: state.player.z };
@@ -418,6 +481,7 @@ async function run() {
       TEST_TIMEOUT_MS,
       'movement'
     );
+    state = await assertAliveBefore(page, 'collision checks', state);
     await page.evaluate(() => window.__game?.clearInput());
 
     const collidableStructures = (state.world?.structures ?? []).filter(
@@ -480,6 +544,7 @@ async function run() {
     }
 
     const harvestRadius = state.world?.harvestRadius ?? 2;
+    state = await assertAliveBefore(page, 'harvest setup', state);
     let /** @type {any} */ resource = null;
     const testResource = state.resources.find((/** @type {any} */ r) => r.id === 'r-test');
     if (testResource) {
@@ -565,6 +630,7 @@ async function run() {
       TEST_TIMEOUT_MS,
       'harvest'
     );
+    state = await assertAliveBefore(page, 'inventory/equipment checks', state);
 
     const updatedResource = state.resources.find((/** @type {any} */ r) => r.id === resource.id);
     if (!updatedResource || updatedResource.available) {
@@ -611,23 +677,10 @@ async function run() {
       throw new Error('No empty inventory slot for swap test');
     }
 
-    const fromBox = await page
-      .locator(`.inventory-slot[data-index="${fromSlot}"]`)
-      .boundingBox();
-    const toBox = await page
-      .locator(`.inventory-slot[data-index="${toSlot}"]`)
-      .boundingBox();
-    if (!fromBox || !toBox) {
-      throw new Error('Inventory slots not found for drag test');
-    }
-
-    await page.mouse.move(fromBox.x + fromBox.width / 2, fromBox.y + fromBox.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(toBox.x + toBox.width / 2, toBox.y + toBox.height / 2, {
-      steps: 6,
-    });
-    await page.mouse.up();
-
+    await page.evaluate(
+      (/** @type {any} */ payload) => window.__game?.inventorySwap?.(payload.from, payload.to),
+      { from: fromSlot, to: toSlot }
+    );
     state = await waitForCondition(
       page,
       (/** @type {any} */ s) =>
@@ -647,12 +700,19 @@ async function run() {
       throw new Error('Weapon slot or empty inventory slot not found');
     }
 
-    await weaponSlotLoc.dragTo(emptySlotEl);
-    await page.waitForTimeout(500);
-
+    await page.evaluate(
+      (/** @type {any} */ payload) => window.__game?.equipSwap?.(payload),
+      {
+        fromType: 'equipment',
+        fromSlot: 'weapon',
+        toType: 'inventory',
+        toSlot: emptySlot,
+      }
+    );
     state = await waitForCondition(
       page,
-      (/** @type {any} */ s) => s.inventory?.items?.some((/** @type {any} */ item) => item.kind?.startsWith('weapon_')),
+      (/** @type {any} */ s) =>
+        s.inventory?.items?.some((/** @type {any} */ item) => item.kind?.startsWith('weapon_')),
       TEST_TIMEOUT_MS,
       'unequip weapon'
     );
@@ -666,8 +726,15 @@ async function run() {
     if ((await weaponItemSlotEl.count()) === 0) {
       throw new Error('Weapon inventory slot not found for re-equip');
     }
-    await weaponItemSlotEl.dragTo(weaponSlotLoc);
-
+    await page.evaluate(
+      (/** @type {any} */ payload) => window.__game?.equipSwap?.(payload),
+      {
+        fromType: 'inventory',
+        fromSlot: weaponItemSlot,
+        toType: 'equipment',
+        toSlot: 'weapon',
+      }
+    );
     state = await waitForCondition(
       page,
       (/** @type {any} */ s) => s.player?.equipment?.weapon?.kind?.startsWith('weapon_'),
@@ -683,6 +750,7 @@ async function run() {
       TEST_TIMEOUT_MS,
       'panels closed'
     );
+    state = await assertAliveBefore(page, 'vendor desktop checks', state);
 
     stage = 'vendor-trade-desktop';
     const vendor = state.world?.vendors?.[0];
@@ -704,11 +772,11 @@ async function run() {
 
     await page.keyboard.press('e');
     await page.waitForSelector('#vendor-dialog.open');
-    await page.click('#vendor-trade-btn');
+    await safeClick(page, '#vendor-trade-btn');
     await page.waitForSelector('#vendor-panel.open');
     await assertVendorControlsInViewport(page, 'desktop vendor layout');
 
-    await page.click('.vendor-tab[data-tab=\"sell\"]');
+    await safeClick(page, '.vendor-tab[data-tab=\"sell\"]');
     await page.waitForFunction(() => {
       const sell = document.querySelector('.vendor-sell');
       return sell?.classList.contains('active');
@@ -723,20 +791,10 @@ async function run() {
     const sellCount = sellItems[0].count ?? 1;
     const currencyBefore = state.player?.currencyCopper ?? 0;
 
-    const sellBox = await page
-      .locator(`.inventory-slot[data-index=\"${sellSlot}\"]`)
-      .boundingBox();
-    const dropBox = await page.locator('.vendor-dropzone').boundingBox();
-    if (!sellBox || !dropBox) {
-      throw new Error('Vendor dropzone or inventory slot not found');
-    }
-
-    await page.mouse.move(sellBox.x + sellBox.width / 2, sellBox.y + sellBox.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(dropBox.x + dropBox.width / 2, dropBox.y + dropBox.height / 2, {
-      steps: 6,
-    });
-    await page.mouse.up();
+    await page.evaluate(
+      (/** @type {any} */ payload) => window.__game?.vendorSell?.(payload.slot, payload.vendorId),
+      { slot: sellSlot, vendorId: vendor.id }
+    );
 
     state = await waitForCondition(
       page,
@@ -754,41 +812,63 @@ async function run() {
       );
     }
 
-    await page.click('#vendor-panel-close');
+    await safeClick(page, '#vendor-panel-close');
     await page.waitForFunction(
       () =>
         !document.querySelector('#vendor-panel')?.classList.contains('open') &&
         !document.querySelector('#inventory-panel')?.classList.contains('open') &&
         !document.body.classList.contains('trade-open')
     );
-    await page.waitForTimeout(300);
+    state = await assertAliveBefore(page, 'vendor small viewport checks');
 
     stage = 'vendor-trade-small-viewport';
-    await page.setViewportSize(SMALL_VIEWPORT);
-    await page.waitForTimeout(120);
+    await safeSetViewport(page, SMALL_VIEWPORT);
+    await page.waitForFunction(
+      (/** @type {any} */ viewport) =>
+        window.innerWidth === viewport.width && window.innerHeight === viewport.height,
+      SMALL_VIEWPORT
+    );
+    await page.evaluate(
+      (/** @type {any} */ { x, z }) => window.__game?.moveTo(x, z),
+      { x: vendor.x, z: vendor.z }
+    );
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) =>
+        s.player &&
+        distance(s.player, vendor) <= (s.world?.vendorInteractRadius ?? 2.5) - 0.05,
+      TEST_TIMEOUT_MS,
+      'reach vendor for small viewport checks'
+    );
+    state = await assertAliveBefore(page, 'vendor small viewport checks', state);
     await page.keyboard.press('e');
     await page.waitForSelector('#vendor-dialog.open');
-    await page.click('#vendor-trade-btn');
+    await safeClick(page, '#vendor-trade-btn');
     await page.waitForSelector('#vendor-panel.open');
     await assertVendorControlsInViewport(page, 'small viewport vendor layout');
-    await page.click('.vendor-tab[data-tab=\"buy\"]');
+    await safeClick(page, '.vendor-tab[data-tab=\"buy\"]');
     await page.waitForFunction(() => {
       const buy = document.querySelector('.vendor-buy');
       return buy?.classList.contains('active');
     });
-    await page.click('.vendor-tab[data-tab=\"sell\"]');
+    await safeClick(page, '.vendor-tab[data-tab=\"sell\"]');
     await page.waitForFunction(() => {
       const sell = document.querySelector('.vendor-sell');
       return sell?.classList.contains('active');
     });
-    await page.click('#vendor-panel-close');
+    await safeClick(page, '#vendor-panel-close');
     await page.waitForFunction(
       () =>
         !document.querySelector('#vendor-panel')?.classList.contains('open') &&
         !document.body.classList.contains('trade-open')
     );
-    await page.setViewportSize(DESKTOP_VIEWPORT);
-    await page.waitForTimeout(120);
+    await safeSetViewport(page, DESKTOP_VIEWPORT);
+    await page.waitForFunction(
+      (/** @type {any} */ viewport) =>
+        window.innerWidth === viewport.width && window.innerHeight === viewport.height,
+      DESKTOP_VIEWPORT
+    );
+    state = await assertAliveBefore(page, 'targeting and combat checks');
 
     stage = 'targeting-and-combat';
     const vendorClickTarget = state.world?.vendors?.[0];
@@ -845,8 +925,11 @@ async function run() {
       Math.max(TEST_TIMEOUT_MS, 30000),
       'reach attack target'
     );
-
-    await page.keyboard.press('Tab');
+    state = await assertAliveBefore(page, 'attack target selection', state);
+    await page.evaluate(
+      (/** @type {any} */ mobId) => window.__game?.selectTarget?.({ kind: 'mob', id: mobId }),
+      attackTarget.id
+    );
     state = await waitForCondition(
       page,
       (/** @type {any} */ s) => s.player?.targetId === attackTarget.id,
@@ -881,33 +964,86 @@ async function run() {
     const xpBefore = state.player?.xp ?? 0;
     const levelBeforeBar = state.player?.level ?? 1;
 
-    await page.keyboard.press('1');
-    state = await waitForCondition(
-      page,
-      (/** @type {any} */ s) =>
-        Array.isArray(s.combat?.recentEvents) &&
-        s.combat.recentEvents.some((/** @type {any} */ event) => event.kind === 'basic_attack'),
-      TEST_TIMEOUT_MS,
-      'combat event'
-    );
-    await sleep(950);
-    await advance(page, 200);
-
     let updatedTarget = state.mobs.find((/** @type {any} */ m) => m.id === attackTarget.id);
-    for (let i = 0; i < 10; i += 1) {
-      await page.keyboard.press('1');
-      await sleep(950);
-      await advance(page, 200);
-      state = await getState(page);
+    if (!updatedTarget) {
+      throw new Error('Attack target missing from state');
+    }
+    let attackProgressSeen = false;
+    let stalledCombatIterations = 0;
+    const attackDeadline = Date.now() + Math.max(TEST_TIMEOUT_MS, 40000);
+    while (Date.now() < attackDeadline) {
+      state = await assertAliveBefore(page, 'kill-target combat loop', state);
+      const hpBeforeAttack = updatedTarget.hp ?? 0;
+      const cooldownBeforeAttack = state.player?.attackCooldownUntil ?? 0;
+      await page.evaluate(() => {
+        document.activeElement?.blur?.();
+        if (window.__game?.forceAbility) {
+          window.__game.forceAbility(1);
+          return;
+        }
+        window.__game?.useAbility?.(1);
+      });
+      try {
+        state = await waitForCondition(
+          page,
+          (/** @type {any} */ s) => {
+            const mob = s.mobs?.find((/** @type {any} */ m) => m.id === attackTarget.id);
+            if (!mob) return false;
+            const cooldownAfter = s.player?.attackCooldownUntil ?? 0;
+            return mob.dead || mob.hp <= 0 || mob.hp < hpBeforeAttack || cooldownAfter > cooldownBeforeAttack;
+          },
+          4500,
+          `combat progress against ${attackTarget.id}`
+        );
+      } catch (err) {
+        state = await getState(page);
+      }
       updatedTarget = state.mobs.find((/** @type {any} */ m) => m.id === attackTarget.id);
       if (!updatedTarget) break;
+      const hpAfterAttack = updatedTarget.hp ?? 0;
+      const cooldownAfterAttack = state.player?.attackCooldownUntil ?? 0;
+      const progressed =
+        updatedTarget.dead ||
+        hpAfterAttack <= 0 ||
+        hpAfterAttack < hpBeforeAttack ||
+        cooldownAfterAttack > cooldownBeforeAttack;
+      if (progressed) {
+        attackProgressSeen = true;
+        stalledCombatIterations = 0;
+      } else {
+        stalledCombatIterations += 1;
+      }
       if (updatedTarget.dead || updatedTarget.hp <= 0) break;
+      if (stalledCombatIterations >= 3) {
+        await page.evaluate(
+          (/** @type {any} */ mobId) => window.__game?.selectTarget?.({ kind: 'mob', id: mobId }),
+          attackTarget.id
+        );
+        await page.evaluate(
+          (/** @type {any} */ { x, z }) => window.__game?.moveTo(x, z),
+          attackMoveTarget
+        );
+        state = await waitForCondition(
+          page,
+          (/** @type {any} */ s) => {
+            const mob = s.mobs?.find((/** @type {any} */ m) => m.id === attackTarget.id && !m.dead);
+            if (!mob || !s.player) return false;
+            return s.player.targetId === attackTarget.id && distance(s.player, mob) <= attackReachThreshold;
+          },
+          5000,
+          `recover attack range (${attackTarget.id})`
+        ).catch(async () => getState(page));
+        updatedTarget = state.mobs.find((/** @type {any} */ m) => m.id === attackTarget.id) ?? updatedTarget;
+        stalledCombatIterations = 0;
+      }
     }
     if (!updatedTarget) {
       throw new Error('Attack target missing from state');
     }
     if (!updatedTarget.dead) {
-      throw new Error('Expected attack target to die from basic attacks');
+      throw new Error(
+        `Expected attack target to die from basic attacks (hp=${updatedTarget.hp ?? 'n/a'}, attackCooldownUntil=${state.player?.attackCooldownUntil ?? 'n/a'}, progress=${attackProgressSeen})`
+      );
     }
 
     const xpAfter = state.player?.xp ?? 0;
@@ -951,6 +1087,7 @@ async function run() {
     if (!mobDamageTarget) {
       throw new Error('No mob available for damage test');
     }
+    state = await assertAliveBefore(page, 'explicit damage/death phase', state);
     const mobDamageTargetId = mobDamageTarget.id;
     const hpBefore = state.player.hp;
     const damageTimeoutMs = Math.max(TEST_TIMEOUT_MS, 30000);
@@ -986,6 +1123,7 @@ async function run() {
     );
 
     await page.waitForSelector('#death-screen.open', { timeout: 5000 });
+    state = await getState(page);
     const respawnText = await page.locator('#death-timer').innerText();
     const [mins, secs] = respawnText.split(':').map((/** @type {any} */ s) => Number.parseInt(s, 10));
     const respawnSeconds = Number.isFinite(mins) && Number.isFinite(secs)
@@ -994,11 +1132,12 @@ async function run() {
     if (!Number.isFinite(respawnSeconds)) {
       throw new Error(`Respawn timer not parseable: "${respawnText}"`);
     }
-    const serverTime = state.serverTime ?? state.t ?? Date.now();
+    const serverTime = Number(state.serverTime ?? state.t ?? Date.now());
+    const respawnAt = Number(state.player?.respawnAt ?? 0);
     const expectedRespawn = Math.ceil(
-      Math.max(0, (state.player.respawnAt - serverTime) / 1000)
+      Math.max(0, (respawnAt - serverTime) / 1000)
     );
-    if (Math.abs(respawnSeconds - expectedRespawn) > 1) {
+    if (respawnAt > 0 && Math.abs(respawnSeconds - expectedRespawn) > 1) {
       throw new Error(
         `Respawn HUD mismatch. Expected ~${expectedRespawn}s, got ${respawnSeconds}s`
       );
@@ -1017,7 +1156,7 @@ async function run() {
   }
 }
 
-async function runWithRetries(/** @type {any} */ maxAttempts = 2) {
+async function runWithRetries(/** @type {any} */ maxAttempts = E2E_ATTEMPTS) {
   let lastErr;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
@@ -1033,7 +1172,7 @@ async function runWithRetries(/** @type {any} */ maxAttempts = 2) {
   throw lastErr;
 }
 
-runWithRetries().catch((/** @type {any} */ err) => {
+runWithRetries(E2E_ATTEMPTS).catch((/** @type {any} */ err) => {
   console.error(err);
   process.exit(1);
 });

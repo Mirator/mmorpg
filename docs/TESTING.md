@@ -36,6 +36,10 @@
     - deterministic desktop viewport (`1280x720`)
     - small viewport fallback (`560x840`)
 
+- `npm run test:e2e:admin`
+  - Runs admin Playwright scenario in `e2e/playwright-admin-map-v2.js`.
+  - Covers unlock/session restore, map editor CRUD, mode edits, save/reload, locks, patch lifecycle, collab, playtest, and lock/logout behavior.
+
 ## Prerequisites
 
 1. Postgres databases created (`mmorpg_dev`, `mmorpg_test`, `mmorpg_e2e`).
@@ -55,9 +59,40 @@ On E2E failure, `e2e/playwright-e2e.js` writes diagnostics to `output/e2e/`:
 - `*.vendor-metrics.json`: viewport + vendor panel/tab/close button bounds.
 - `*.error.txt`: stage label, message, and stack trace.
 
+On admin E2E failure, `e2e/playwright-admin-map-v2.js` writes diagnostics to `output/e2e-admin/`:
+
+- `*.screenshot.png`: full-page screenshot at failure point.
+- `*.meta.json`: lightweight page metadata (url/status/save status).
+- `*.error.txt`: stage label, message, and stack trace.
+
+## E2E Runtime Flags
+
+- `E2E_ATTEMPTS` (default `1`)
+  - Used by `e2e/playwright-e2e.js`.
+  - `1` means no retry masking; values `>1` enable retries for local debugging only.
+- `E2E_SERVER_START_TIMEOUT_MS` (default `20000`)
+  - Used by shared `e2e/helpers.js` server boot wait for both gameplay/admin E2E scripts.
+- `E2E_PORT`
+  - Overrides test port for either suite; use unique values for repeated-run stability gates.
+
 ## Local Workflow
 
 1. Implement small change.
 2. Run `npm test` (typecheck + unit tests).
 3. If UI/gameplay changed, run `npm run test:e2e`.
-4. If E2E fails, inspect latest files in `output/e2e/` and patch deterministic causes before retrying.
+4. If admin surfaces changed, run `npm run test:e2e:admin`.
+5. If E2E fails, inspect latest files in `output/e2e/` or `output/e2e-admin/` and patch deterministic causes before retrying.
+
+## Stability Gate (No-Flake)
+
+Run both suites 10 times in a row with unique ports and no gameplay retries:
+
+```bash
+for i in {1..10}; do
+  E2E_ATTEMPTS=1 E2E_PORT=$((4200 + i)) npm run -s test:e2e || exit 1
+done
+
+for i in {1..10}; do
+  E2E_PORT=$((4300 + i)) npm run -s test:e2e:admin || exit 1
+done
+```

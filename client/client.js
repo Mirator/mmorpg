@@ -1181,6 +1181,21 @@ window.__game = {
   interact: () => {
     connection.sendInteract();
   },
+  inventorySwap: (/** @type {any} */ from, /** @type {any} */ to) => {
+    sendWithSeq({ type: 'inventorySwap', from, to });
+  },
+  equipSwap: (/** @type {any} */ { fromType, fromSlot, toType, toSlot }) => {
+    sendWithSeq({ type: 'equipSwap', fromType, fromSlot, toType, toSlot });
+  },
+  vendorSell: (/** @type {any} */ slot, /** @type {any} */ vendorId) => {
+    sendWithSeq({ type: 'vendorSell', slot, vendorId });
+  },
+  forceAbility: (/** @type {any} */ slot) => {
+    sendWithSeq({ type: 'action', kind: 'ability', slot });
+  },
+  useAbility: (/** @type {any} */ slot) => {
+    combatRef.current?.useAbility(slot);
+  },
   projectToScreen: (/** @type {any} */ x, /** @type {any} */ z) => {
     return renderSystem.projectToScreen({ x, z });
   },

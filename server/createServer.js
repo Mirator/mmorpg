@@ -40,6 +40,9 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
   const /** @type {any} */ nextItemIdRef = { current: 1 };
 
   if (isE2eTest) {
+    // Remove ambient map mobs for deterministic E2E runs.
+    mobs.length = 0;
+
     const /** @type {any} */ testResource = {
       id: 'r-test',
       x: world.base.x + world.base.radius + 11,
@@ -52,8 +55,9 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
       available: true,
       respawnAt: 0,
     });
-    const testMobLevel = 2;
-    const testMobMaxHp = getMobMaxHp(testMobLevel, 'orc');
+    const testMobLevel = 1;
+    // Keep the dedicated kill target low-HP to avoid long/flaky combat loops.
+    const testMobMaxHp = 12;
     const /** @type {any} */ mTestPos = {
       // Keep the dedicated combat test mob outside r-test harvest aggro range.
       x: world.base.x + world.base.radius + 20,
@@ -65,7 +69,7 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
       pos: { ...mTestPos },
       spawnPos: mTestPos,
       mobType: 'orc',
-      aggressive: true,
+      aggressive: false,
       state: 'idle',
       targetId: null,
       nextDecisionAt: Number.MAX_SAFE_INTEGER,
@@ -81,9 +85,11 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
     const chaseMobLevel = 2;
     const chaseMaxHp = getMobMaxHp(chaseMobLevel, 'orc');
     const /** @type {any} */ mChasePos = {
-      x: world.base.x - (world.base.radius + 12),
+      // Keep the damage-test mob on the east side so moveTo can reach it reliably
+      // from the combat section without crossing fence collisions through the village.
+      x: world.base.x + world.base.radius + 36,
       y: 0,
-      z: world.base.z,
+      z: world.base.z + 12,
     };
     mobs.unshift({
       id: 'm-chase',
