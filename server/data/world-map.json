@@ -5,287 +5,780 @@
     "x": 0,
     "y": 0,
     "z": 0,
-    "radius": 9
+    "radius": 16
   },
   "spawnPoints": [
     {
-      "x": 6.3,
+      "x": 10,
       "y": 0,
       "z": 0
     },
     {
-      "x": 3.15,
+      "x": 5,
       "y": 0,
-      "z": 5.46
+      "z": 8.66
     },
     {
-      "x": -3.15,
+      "x": -5,
       "y": 0,
-      "z": 5.46
+      "z": 8.66
     },
     {
-      "x": -6.3,
+      "x": -10,
       "y": 0,
       "z": 0
     },
     {
-      "x": -3.15,
+      "x": -5,
       "y": 0,
-      "z": -5.46
+      "z": -8.66
     },
     {
-      "x": 3.15,
+      "x": 5,
       "y": 0,
-      "z": -5.46
+      "z": -8.66
     }
   ],
   "obstacles": [
     {
-      "x": 32,
+      "x": 30,
       "y": 0,
-      "z": 28,
-      "radius": 4
+      "z": 30,
+      "radius": 5
+    },
+    {
+      "x": -32,
+      "y": 0,
+      "z": 34,
+      "radius": 4.5
+    },
+    {
+      "x": -34,
+      "y": 0,
+      "z": -30,
+      "radius": 5.2
+    },
+    {
+      "x": 24,
+      "y": 0,
+      "z": 156,
+      "radius": 6
     },
     {
       "x": -30,
       "y": 0,
-      "z": 35,
-      "radius": 3.5
+      "z": 158,
+      "radius": 5.5
     },
     {
-      "x": 38,
+      "x": 34,
       "y": 0,
-      "z": -25,
-      "radius": 4
+      "z": 108,
+      "radius": 5.8
     },
     {
-      "x": -35,
+      "x": -30,
+      "y": 0,
+      "z": -156,
+      "radius": 6
+    },
+    {
+      "x": 26,
+      "y": 0,
+      "z": -160,
+      "radius": 5.5
+    },
+    {
+      "x": -34,
+      "y": 0,
+      "z": -108,
+      "radius": 5.2
+    },
+    {
+      "x": 32,
+      "y": 0,
+      "z": -112,
+      "radius": 5.6
+    },
+    {
+      "x": -160,
+      "y": 0,
+      "z": 30,
+      "radius": 6
+    },
+    {
+      "x": -156,
+      "y": 0,
+      "z": -28,
+      "radius": 5.5
+    },
+    {
+      "x": -108,
+      "y": 0,
+      "z": 34,
+      "radius": 5.4
+    },
+    {
+      "x": -112,
       "y": 0,
       "z": -30,
-      "radius": 3
+      "radius": 5.7
     },
     {
-      "x": 52,
+      "x": 160,
       "y": 0,
-      "z": 25,
-      "radius": 5
-    },
-    {
-      "x": -48,
-      "y": 0,
-      "z": 38,
-      "radius": 4.5
-    },
-    {
-      "x": 55,
-      "y": 0,
-      "z": -20,
-      "radius": 4
-    },
-    {
-      "x": -50,
-      "y": 0,
-      "z": -45,
-      "radius": 5
-    },
-    {
-      "x": 65,
-      "y": 0,
-      "z": 5,
+      "z": 30,
       "radius": 6
     },
     {
-      "x": -120,
+      "x": 156,
       "y": 0,
-      "z": 100,
-      "radius": 8
+      "z": -30,
+      "radius": 5.4
     },
     {
-      "x": 90,
+      "x": 108,
       "y": 0,
-      "z": -110,
+      "z": 34,
+      "radius": 5.6
+    },
+    {
+      "x": 112,
+      "y": 0,
+      "z": -28,
+      "radius": 5.2
+    },
+    {
+      "x": -170,
+      "y": 0,
+      "z": 170,
       "radius": 7
     },
     {
-      "x": -90,
+      "x": -152,
       "y": 0,
-      "z": -100,
-      "radius": 8
+      "z": 120,
+      "radius": 5.8
     },
     {
-      "x": 150,
+      "x": -118,
       "y": 0,
-      "z": 80,
-      "radius": 9
+      "z": 156,
+      "radius": 5.2
     },
     {
-      "x": -140,
+      "x": -180,
+      "y": 0,
+      "z": 110,
+      "radius": 6.5
+    },
+    {
+      "x": 170,
+      "y": 0,
+      "z": 170,
+      "radius": 7
+    },
+    {
+      "x": 152,
+      "y": 0,
+      "z": 120,
+      "radius": 5.8
+    },
+    {
+      "x": 118,
+      "y": 0,
+      "z": 156,
+      "radius": 5.2
+    },
+    {
+      "x": 180,
+      "y": 0,
+      "z": 110,
+      "radius": 6.5
+    },
+    {
+      "x": -170,
+      "y": 0,
+      "z": -170,
+      "radius": 7
+    },
+    {
+      "x": -152,
       "y": 0,
       "z": -120,
+      "radius": 5.8
+    },
+    {
+      "x": -118,
+      "y": 0,
+      "z": -156,
+      "radius": 5.2
+    },
+    {
+      "x": -180,
+      "y": 0,
+      "z": -110,
+      "radius": 6.5
+    },
+    {
+      "x": 170,
+      "y": 0,
+      "z": -170,
       "radius": 7
     },
     {
-      "x": 100,
+      "x": 152,
       "y": 0,
-      "z": 130,
-      "radius": 6
+      "z": -120,
+      "radius": 5.8
+    },
+    {
+      "x": 118,
+      "y": 0,
+      "z": -156,
+      "radius": 5.2
+    },
+    {
+      "x": 180,
+      "y": 0,
+      "z": -110,
+      "radius": 6.5
     }
   ],
   "structures": [
     {
-      "id": "s-market",
-      "kind": "market",
-      "x": 15,
-      "y": 0,
-      "z": 0,
-      "rotation": 1.5708,
-      "colliderRadius": 3.6,
-      "collides": true
-    },
-    {
-      "id": "s-barracks",
-      "kind": "barracks",
-      "x": -15,
-      "y": 0,
-      "z": 0,
-      "rotation": -1.5708,
-      "colliderRadius": 3.4,
-      "collides": true
-    },
-    {
-      "id": "s-storage",
-      "kind": "storage",
-      "x": 0,
-      "y": 0,
-      "z": 15,
-      "rotation": 3.1416,
-      "colliderRadius": 3.8,
-      "collides": true
-    },
-    {
-      "id": "s-house-a",
-      "kind": "houseA",
-      "x": 0,
-      "y": 0,
-      "z": -15,
-      "rotation": 0,
-      "colliderRadius": 3.1,
-      "collides": true
-    },
-    {
-      "id": "s-house-b",
-      "kind": "houseB",
-      "x": 10.5,
-      "y": 0,
-      "z": 10.5,
-      "rotation": 0.7854,
-      "colliderRadius": 3,
-      "collides": true
-    },
-    {
-      "id": "s-bell-tower",
-      "kind": "bellTower",
-      "x": 0,
-      "y": 0,
-      "z": 65,
-      "rotation": 0,
-      "colliderRadius": 2.2,
-      "collides": true
-    },
-    {
-      "id": "s-village-center",
+      "id": "s_c_01",
       "kind": "villageCenter",
       "x": 0,
       "y": 0,
       "z": 0,
       "rotation": 0,
-      "colliderRadius": 2.8,
+      "collides": false
+    },
+    {
+      "id": "s_c_02",
+      "kind": "market",
+      "x": 18,
+      "y": 0,
+      "z": 20,
+      "rotation": 0.7,
+      "colliderRadius": 3.8,
       "collides": true
     },
     {
-      "id": "s-fence-1",
-      "kind": "fence",
-      "x": 7.3,
+      "id": "s_c_03",
+      "kind": "barracks",
+      "x": -20,
       "y": 0,
-      "z": 4.2,
+      "z": 18,
+      "rotation": -0.6,
+      "colliderRadius": 3.6,
+      "collides": true
+    },
+    {
+      "id": "s_c_04",
+      "kind": "storage",
+      "x": 20,
+      "y": 0,
+      "z": -18,
+      "rotation": 1.2,
+      "colliderRadius": 3.9,
+      "collides": true
+    },
+    {
+      "id": "s_c_05",
+      "kind": "houseA",
+      "x": -18,
+      "y": 0,
+      "z": -20,
+      "rotation": -1.1,
+      "colliderRadius": 3.2,
+      "collides": true
+    },
+    {
+      "id": "s_c_06",
+      "kind": "houseB",
+      "x": 26,
+      "y": 0,
+      "z": 26,
+      "rotation": 0.8,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s_c_07",
+      "kind": "houseA",
+      "x": -26,
+      "y": 0,
+      "z": 24,
+      "rotation": -0.8,
+      "colliderRadius": 3.1,
+      "collides": true
+    },
+    {
+      "id": "s_c_08",
+      "kind": "houseB",
+      "x": 24,
+      "y": 0,
+      "z": -26,
+      "rotation": 2.4,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s_c_09",
+      "kind": "houseA",
+      "x": -24,
+      "y": 0,
+      "z": -26,
+      "rotation": -2.2,
+      "colliderRadius": 3.1,
+      "collides": true
+    },
+    {
+      "id": "s_c_10",
+      "kind": "fence",
+      "x": 14,
+      "y": 0,
+      "z": 14,
       "rotation": 0,
       "colliderRadius": 1.8,
       "collides": true
     },
     {
-      "id": "s-fence-2",
+      "id": "s_c_11",
       "kind": "fence",
-      "x": 4.2,
+      "x": 22,
       "y": 0,
-      "z": 7.3,
+      "z": 14,
+      "rotation": 0.2,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s_c_12",
+      "kind": "fence",
+      "x": 14,
+      "y": 0,
+      "z": 22,
+      "rotation": 1.3,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s_c_13",
+      "kind": "fence",
+      "x": -14,
+      "y": 0,
+      "z": 14,
+      "rotation": 0.1,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s_c_14",
+      "kind": "fence",
+      "x": -22,
+      "y": 0,
+      "z": 14,
+      "rotation": -0.2,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s_c_15",
+      "kind": "fence",
+      "x": 14,
+      "y": 0,
+      "z": -14,
+      "rotation": -0.1,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s_c_16",
+      "kind": "fence",
+      "x": -14,
+      "y": 0,
+      "z": -14,
+      "rotation": 0.1,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s_n_01",
+      "kind": "houseA",
+      "x": -28,
+      "y": 0,
+      "z": 140,
+      "rotation": 0.5,
+      "colliderRadius": 3.1,
+      "collides": true
+    },
+    {
+      "id": "s_n_02",
+      "kind": "houseB",
+      "x": 30,
+      "y": 0,
+      "z": 142,
+      "rotation": -0.6,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s_n_03",
+      "kind": "storage",
+      "x": -24,
+      "y": 0,
+      "z": 118,
+      "rotation": 1.1,
+      "colliderRadius": 3.8,
+      "collides": true
+    },
+    {
+      "id": "s_n_04",
+      "kind": "fence",
+      "x": 26,
+      "y": 0,
+      "z": 120,
       "rotation": 0,
       "colliderRadius": 1.8,
       "collides": true
     },
     {
-      "id": "s-fence-3",
+      "id": "s_n_05",
       "kind": "fence",
-      "x": -4.2,
+      "x": -30,
       "y": 0,
-      "z": 7.3,
-      "rotation": 0,
+      "z": 126,
+      "rotation": 0.1,
       "colliderRadius": 1.8,
       "collides": true
     },
     {
-      "id": "s-fence-4",
-      "kind": "fence",
-      "x": -7.3,
+      "id": "s_s_01",
+      "kind": "houseA",
+      "x": -30,
       "y": 0,
-      "z": 4.2,
-      "rotation": 0,
+      "z": -126,
+      "rotation": -0.4,
+      "colliderRadius": 3.2,
+      "collides": true
+    },
+    {
+      "id": "s_s_02",
+      "kind": "houseB",
+      "x": 28,
+      "y": 0,
+      "z": -142,
+      "rotation": 0.8,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s_s_03",
+      "kind": "barracks",
+      "x": -24,
+      "y": 0,
+      "z": -148,
+      "rotation": -1,
+      "colliderRadius": 3.6,
+      "collides": true
+    },
+    {
+      "id": "s_s_04",
+      "kind": "storage",
+      "x": 26,
+      "y": 0,
+      "z": -120,
+      "rotation": 1.2,
+      "colliderRadius": 3.8,
+      "collides": true
+    },
+    {
+      "id": "s_s_05",
+      "kind": "fence",
+      "x": 24,
+      "y": 0,
+      "z": -136,
+      "rotation": 0.1,
       "colliderRadius": 1.8,
       "collides": true
     },
     {
-      "id": "s-fence-5",
+      "id": "s_s_06",
       "kind": "fence",
-      "x": -7.3,
+      "x": -26,
       "y": 0,
-      "z": -4.2,
-      "rotation": 0,
+      "z": -136,
+      "rotation": -0.1,
       "colliderRadius": 1.8,
       "collides": true
     },
     {
-      "id": "s-fence-6",
-      "kind": "fence",
-      "x": -4.2,
+      "id": "s_w_01",
+      "kind": "houseA",
+      "x": -148,
       "y": 0,
-      "z": -7.3,
-      "rotation": 0,
+      "z": 24,
+      "rotation": 0.4,
+      "colliderRadius": 3.1,
+      "collides": true
+    },
+    {
+      "id": "s_w_02",
+      "kind": "houseB",
+      "x": -118,
+      "y": 0,
+      "z": -26,
+      "rotation": -0.7,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s_w_03",
+      "kind": "barracks",
+      "x": -150,
+      "y": 0,
+      "z": -24,
+      "rotation": -1.2,
+      "colliderRadius": 3.6,
+      "collides": true
+    },
+    {
+      "id": "s_w_04",
+      "kind": "storage",
+      "x": -116,
+      "y": 0,
+      "z": 28,
+      "rotation": 0.9,
+      "colliderRadius": 3.8,
+      "collides": true
+    },
+    {
+      "id": "s_w_05",
+      "kind": "fence",
+      "x": -134,
+      "y": 0,
+      "z": 26,
+      "rotation": 0.2,
       "colliderRadius": 1.8,
       "collides": true
     },
     {
-      "id": "s-fence-7",
-      "kind": "fence",
-      "x": 4.2,
+      "id": "s_e_01",
+      "kind": "bellTower",
+      "x": 156,
       "y": 0,
-      "z": -7.3,
+      "z": 24,
       "rotation": 0,
+      "colliderRadius": 2.4,
+      "collides": true
+    },
+    {
+      "id": "s_e_02",
+      "kind": "market",
+      "x": 118,
+      "y": 0,
+      "z": -26,
+      "rotation": 0.9,
+      "colliderRadius": 3.8,
+      "collides": true
+    },
+    {
+      "id": "s_e_03",
+      "kind": "houseA",
+      "x": 150,
+      "y": 0,
+      "z": -24,
+      "rotation": -0.8,
+      "colliderRadius": 3.2,
+      "collides": true
+    },
+    {
+      "id": "s_e_04",
+      "kind": "barracks",
+      "x": 116,
+      "y": 0,
+      "z": 28,
+      "rotation": 0.7,
+      "colliderRadius": 3.5,
+      "collides": true
+    },
+    {
+      "id": "s_e_05",
+      "kind": "houseB",
+      "x": 140,
+      "y": 0,
+      "z": 32,
+      "rotation": -0.4,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s_e_06",
+      "kind": "fence",
+      "x": 132,
+      "y": 0,
+      "z": -28,
+      "rotation": 0.1,
       "colliderRadius": 1.8,
       "collides": true
     },
     {
-      "id": "s-fence-8",
-      "kind": "fence",
-      "x": 7.3,
+      "id": "s_nw_01",
+      "kind": "houseA",
+      "x": -152,
       "y": 0,
-      "z": -4.2,
+      "z": 150,
+      "rotation": 0.3,
+      "colliderRadius": 3.1,
+      "collides": true
+    },
+    {
+      "id": "s_nw_02",
+      "kind": "fence",
+      "x": -120,
+      "y": 0,
+      "z": 146,
+      "rotation": 0.1,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s_nw_03",
+      "kind": "houseB",
+      "x": -144,
+      "y": 0,
+      "z": 116,
+      "rotation": -0.6,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s_ne_01",
+      "kind": "houseA",
+      "x": 118,
+      "y": 0,
+      "z": 150,
+      "rotation": -0.4,
+      "colliderRadius": 3.1,
+      "collides": true
+    },
+    {
+      "id": "s_ne_02",
+      "kind": "fence",
+      "x": 150,
+      "y": 0,
+      "z": 146,
+      "rotation": 0.2,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s_ne_03",
+      "kind": "houseB",
+      "x": 144,
+      "y": 0,
+      "z": 116,
+      "rotation": 0.7,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s_sw_01",
+      "kind": "market",
+      "x": -154,
+      "y": 0,
+      "z": -150,
+      "rotation": 0.5,
+      "colliderRadius": 3.8,
+      "collides": true
+    },
+    {
+      "id": "s_sw_02",
+      "kind": "houseA",
+      "x": -118,
+      "y": 0,
+      "z": -150,
+      "rotation": -0.6,
+      "colliderRadius": 3.1,
+      "collides": true
+    },
+    {
+      "id": "s_sw_03",
+      "kind": "storage",
+      "x": -146,
+      "y": 0,
+      "z": -118,
+      "rotation": 1.1,
+      "colliderRadius": 3.9,
+      "collides": true
+    },
+    {
+      "id": "s_sw_04",
+      "kind": "fence",
+      "x": -124,
+      "y": 0,
+      "z": -122,
+      "rotation": 0.1,
+      "colliderRadius": 1.8,
+      "collides": true
+    },
+    {
+      "id": "s_sw_05",
+      "kind": "houseB",
+      "x": -160,
+      "y": 0,
+      "z": -124,
+      "rotation": -1.2,
+      "colliderRadius": 3,
+      "collides": true
+    },
+    {
+      "id": "s_se_01",
+      "kind": "bellTower",
+      "x": 156,
+      "y": 0,
+      "z": -150,
       "rotation": 0,
+      "colliderRadius": 2.4,
+      "collides": true
+    },
+    {
+      "id": "s_se_02",
+      "kind": "houseA",
+      "x": 118,
+      "y": 0,
+      "z": -150,
+      "rotation": 0.4,
+      "colliderRadius": 3.1,
+      "collides": true
+    },
+    {
+      "id": "s_se_03",
+      "kind": "barracks",
+      "x": 146,
+      "y": 0,
+      "z": -118,
+      "rotation": -1.1,
+      "colliderRadius": 3.6,
+      "collides": true
+    },
+    {
+      "id": "s_se_04",
+      "kind": "fence",
+      "x": 132,
+      "y": 0,
+      "z": -122,
+      "rotation": 0.2,
       "colliderRadius": 1.8,
       "collides": true
     }
   ],
   "resourceNodes": [
     {
-      "id": "r1",
+      "id": "r_c_01",
       "x": 6,
       "y": 0,
       "z": 0,
@@ -293,7 +786,7 @@
       "respawnMs": 5000
     },
     {
-      "id": "r2",
+      "id": "r_c_02",
       "x": 0,
       "y": 0,
       "z": 6,
@@ -301,7 +794,7 @@
       "respawnMs": 5000
     },
     {
-      "id": "r3",
+      "id": "r_c_03",
       "x": -6,
       "y": 0,
       "z": 0,
@@ -309,457 +802,792 @@
       "respawnMs": 5000
     },
     {
-      "id": "r4",
-      "x": 15,
+      "id": "r_c_04",
+      "x": 0,
       "y": 0,
-      "z": 5,
-      "type": "flower"
-    },
-    {
-      "id": "r5",
-      "x": -12,
-      "y": 0,
-      "z": 14,
+      "z": -6,
       "type": "herb"
     },
     {
-      "id": "r6",
-      "x": 10,
+      "id": "r_c_05",
+      "x": 18,
       "y": 0,
-      "z": -18,
-      "type": "flower"
+      "z": 18,
+      "type": "herb"
     },
     {
-      "id": "r7",
+      "id": "r_c_06",
       "x": -18,
       "y": 0,
-      "z": -10,
-      "type": "herb"
+      "z": 16,
+      "type": "tree"
     },
     {
-      "id": "r8",
+      "id": "r_c_07",
       "x": 20,
       "y": 0,
+      "z": -18,
+      "type": "ore"
+    },
+    {
+      "id": "r_c_08",
+      "x": -20,
+      "y": 0,
+      "z": -16,
+      "type": "crystal"
+    },
+    {
+      "id": "r_n_01",
+      "x": -12,
+      "y": 0,
+      "z": 146,
+      "type": "flower"
+    },
+    {
+      "id": "r_n_02",
+      "x": 8,
+      "y": 0,
+      "z": 150,
+      "type": "herb"
+    },
+    {
+      "id": "r_n_03",
+      "x": 20,
+      "y": 0,
+      "z": 132,
+      "type": "tree"
+    },
+    {
+      "id": "r_n_04",
+      "x": -24,
+      "y": 0,
+      "z": 128,
+      "type": "ore"
+    },
+    {
+      "id": "r_n_05",
+      "x": 26,
+      "y": 0,
+      "z": 118,
+      "type": "crystal"
+    },
+    {
+      "id": "r_n_06",
+      "x": -18,
+      "y": 0,
+      "z": 112,
+      "type": "herb"
+    },
+    {
+      "id": "r_n_07",
+      "x": 4,
+      "y": 0,
+      "z": 120,
+      "type": "flower"
+    },
+    {
+      "id": "r_s_01",
+      "x": -10,
+      "y": 0,
+      "z": -146,
+      "type": "flower"
+    },
+    {
+      "id": "r_s_02",
+      "x": 12,
+      "y": 0,
+      "z": -150,
+      "type": "herb"
+    },
+    {
+      "id": "r_s_03",
+      "x": 24,
+      "y": 0,
+      "z": -132,
+      "type": "tree"
+    },
+    {
+      "id": "r_s_04",
+      "x": -22,
+      "y": 0,
+      "z": -128,
+      "type": "ore"
+    },
+    {
+      "id": "r_s_05",
+      "x": 18,
+      "y": 0,
+      "z": -118,
+      "type": "crystal"
+    },
+    {
+      "id": "r_s_06",
+      "x": -4,
+      "y": 0,
+      "z": -112,
+      "type": "herb"
+    },
+    {
+      "id": "r_w_01",
+      "x": -146,
+      "y": 0,
       "z": 12,
-      "type": "herb"
-    },
-    {
-      "id": "r9",
-      "x": 35,
-      "y": 0,
-      "z": 8,
-      "type": "crystal"
-    },
-    {
-      "id": "r10",
-      "x": -30,
-      "y": 0,
-      "z": 25,
-      "type": "ore"
-    },
-    {
-      "id": "r11",
-      "x": 28,
-      "y": 0,
-      "z": -22,
-      "type": "herb"
-    },
-    {
-      "id": "r12",
-      "x": -25,
-      "y": 0,
-      "z": -28,
-      "type": "tree"
-    },
-    {
-      "id": "r13",
-      "x": 50,
-      "y": 0,
-      "z": 15,
-      "type": "ore"
-    },
-    {
-      "id": "r14",
-      "x": -45,
-      "y": 0,
-      "z": 30,
-      "type": "crystal"
-    },
-    {
-      "id": "r15",
-      "x": 48,
-      "y": 0,
-      "z": -25,
-      "type": "herb"
-    },
-    {
-      "id": "r16",
-      "x": 62,
-      "y": 0,
-      "z": 10,
-      "type": "crystal"
-    },
-    {
-      "id": "r17",
-      "x": -60,
-      "y": 0,
-      "z": 20,
-      "type": "ore"
-    },
-    {
-      "id": "r18",
-      "x": 80,
-      "y": 0,
-      "z": 50,
-      "type": "crystal"
-    },
-    {
-      "id": "r19",
-      "x": -85,
-      "y": 0,
-      "z": -60,
-      "type": "ore"
-    },
-    {
-      "id": "r20",
-      "x": 100,
-      "y": 0,
-      "z": -40,
-      "type": "herb"
-    },
-    {
-      "id": "r21",
-      "x": -70,
-      "y": 0,
-      "z": 90,
       "type": "flower"
     },
     {
-      "id": "r22",
-      "x": 120,
-      "y": 0,
-      "z": 70,
-      "type": "tree"
-    },
-    {
-      "id": "r23",
-      "x": -110,
-      "y": 0,
-      "z": -80,
-      "type": "crystal"
-    },
-    {
-      "id": "r24",
-      "x": 90,
-      "y": 0,
-      "z": -120,
-      "type": "ore"
-    },
-    {
-      "id": "r25",
-      "x": -95,
-      "y": 0,
-      "z": 100,
-      "type": "herb"
-    },
-    {
-      "id": "r26",
-      "x": 150,
-      "y": 0,
-      "z": -50,
-      "type": "flower"
-    },
-    {
-      "id": "r27",
-      "x": -130,
-      "y": 0,
-      "z": 60,
-      "type": "tree"
-    },
-    {
-      "id": "r28",
-      "x": 140,
-      "y": 0,
-      "z": 90,
-      "type": "crystal"
-    },
-    {
-      "id": "r29",
+      "id": "r_w_02",
       "x": -150,
       "y": 0,
-      "z": -90,
+      "z": -8,
+      "type": "herb"
+    },
+    {
+      "id": "r_w_03",
+      "x": -132,
+      "y": 0,
+      "z": 24,
+      "type": "tree"
+    },
+    {
+      "id": "r_w_04",
+      "x": -128,
+      "y": 0,
+      "z": -24,
       "type": "ore"
     },
     {
-      "id": "r30",
-      "x": 170,
+      "id": "r_w_05",
+      "x": -118,
       "y": 0,
-      "z": -30,
+      "z": 18,
+      "type": "crystal"
+    },
+    {
+      "id": "r_w_06",
+      "x": -112,
+      "y": 0,
+      "z": -16,
       "type": "herb"
+    },
+    {
+      "id": "r_e_01",
+      "x": 146,
+      "y": 0,
+      "z": 10,
+      "type": "flower"
+    },
+    {
+      "id": "r_e_02",
+      "x": 150,
+      "y": 0,
+      "z": -12,
+      "type": "herb"
+    },
+    {
+      "id": "r_e_03",
+      "x": 132,
+      "y": 0,
+      "z": 24,
+      "type": "tree"
+    },
+    {
+      "id": "r_e_04",
+      "x": 118,
+      "y": 0,
+      "z": -20,
+      "type": "ore"
+    },
+    {
+      "id": "r_e_05",
+      "x": 112,
+      "y": 0,
+      "z": 18,
+      "type": "crystal"
+    },
+    {
+      "id": "r_nw_01",
+      "x": -146,
+      "y": 0,
+      "z": 146,
+      "type": "flower"
+    },
+    {
+      "id": "r_nw_02",
+      "x": -150,
+      "y": 0,
+      "z": 128,
+      "type": "herb"
+    },
+    {
+      "id": "r_nw_03",
+      "x": -132,
+      "y": 0,
+      "z": 154,
+      "type": "tree"
+    },
+    {
+      "id": "r_nw_04",
+      "x": -120,
+      "y": 0,
+      "z": 138,
+      "type": "ore"
+    },
+    {
+      "id": "r_nw_05",
+      "x": -118,
+      "y": 0,
+      "z": 120,
+      "type": "crystal"
+    },
+    {
+      "id": "r_nw_06",
+      "x": -158,
+      "y": 0,
+      "z": 112,
+      "type": "herb"
+    },
+    {
+      "id": "r_ne_01",
+      "x": 146,
+      "y": 0,
+      "z": 146,
+      "type": "flower"
+    },
+    {
+      "id": "r_ne_02",
+      "x": 150,
+      "y": 0,
+      "z": 128,
+      "type": "herb"
+    },
+    {
+      "id": "r_ne_03",
+      "x": 132,
+      "y": 0,
+      "z": 154,
+      "type": "tree"
+    },
+    {
+      "id": "r_ne_04",
+      "x": 120,
+      "y": 0,
+      "z": 138,
+      "type": "ore"
+    },
+    {
+      "id": "r_ne_05",
+      "x": 158,
+      "y": 0,
+      "z": 112,
+      "type": "crystal"
+    },
+    {
+      "id": "r_sw_01",
+      "x": -146,
+      "y": 0,
+      "z": -146,
+      "type": "flower"
+    },
+    {
+      "id": "r_sw_02",
+      "x": -150,
+      "y": 0,
+      "z": -128,
+      "type": "herb"
+    },
+    {
+      "id": "r_sw_03",
+      "x": -132,
+      "y": 0,
+      "z": -154,
+      "type": "tree"
+    },
+    {
+      "id": "r_sw_04",
+      "x": -120,
+      "y": 0,
+      "z": -138,
+      "type": "ore"
+    },
+    {
+      "id": "r_sw_05",
+      "x": -118,
+      "y": 0,
+      "z": -120,
+      "type": "crystal"
+    },
+    {
+      "id": "r_sw_06",
+      "x": -158,
+      "y": 0,
+      "z": -112,
+      "type": "herb"
+    },
+    {
+      "id": "r_se_01",
+      "x": 146,
+      "y": 0,
+      "z": -146,
+      "type": "flower"
+    },
+    {
+      "id": "r_se_02",
+      "x": 150,
+      "y": 0,
+      "z": -128,
+      "type": "herb"
+    },
+    {
+      "id": "r_se_03",
+      "x": 132,
+      "y": 0,
+      "z": -154,
+      "type": "tree"
+    },
+    {
+      "id": "r_se_04",
+      "x": 120,
+      "y": 0,
+      "z": -138,
+      "type": "ore"
+    },
+    {
+      "id": "r_se_05",
+      "x": 158,
+      "y": 0,
+      "z": -112,
+      "type": "crystal"
     }
   ],
   "vendors": [
     {
-      "id": "vendor-1",
-      "name": "General Vendor",
-      "x": 4,
+      "id": "vendor_c_01",
+      "name": "Hub General Vendor",
+      "x": 6,
       "y": 0,
       "z": 0
     },
     {
-      "id": "vendor-2",
-      "name": "Weapons Vendor",
-      "x": 0,
+      "id": "vendor_c_02",
+      "name": "Hub Weapons Vendor",
+      "x": -6,
       "y": 0,
       "z": 4
     },
     {
-      "id": "vendor-3",
-      "name": "Supplies Vendor",
-      "x": -4,
+      "id": "vendor_c_03",
+      "name": "Hub Supplies Vendor",
+      "x": 0,
       "y": 0,
-      "z": 0
+      "z": -6
+    },
+    {
+      "id": "vendor_sw_01",
+      "name": "Outpost Trader",
+      "x": -150,
+      "y": 0,
+      "z": -150
     }
   ],
   "mobSpawns": [
     {
-      "id": "d1",
-      "x": 5,
+      "id": "m_c_01",
+      "x": 8,
       "y": 0,
       "z": 2,
       "mobType": "dummy",
       "aggressive": true,
+      "level": 1,
       "levelVariance": 0
     },
     {
-      "id": "d2",
-      "x": -2,
+      "id": "m_c_02",
+      "x": -8,
       "y": 0,
-      "z": 5,
+      "z": -2,
       "mobType": "dummy",
       "aggressive": true,
+      "level": 1,
       "levelVariance": 0
     },
     {
-      "id": "m1",
-      "x": 30,
+      "id": "m_n_01",
+      "x": -8,
       "y": 0,
-      "z": 0,
+      "z": 150,
       "mobType": "fox",
       "aggressive": false,
+      "level": 1,
       "levelVariance": 0
     },
     {
-      "id": "m2",
-      "x": 0,
+      "id": "m_n_02",
+      "x": 14,
       "y": 0,
-      "z": 36,
-      "mobType": "fox",
+      "z": 146,
+      "mobType": "stag",
       "aggressive": false,
+      "level": 1,
       "levelVariance": 0
     },
     {
-      "id": "m3",
+      "id": "m_n_03",
+      "x": 26,
+      "y": 0,
+      "z": 122,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_n_04",
+      "x": -24,
+      "y": 0,
+      "z": 116,
+      "mobType": "tribal",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_s_01",
+      "x": -24,
+      "y": 0,
+      "z": -148,
+      "mobType": "tribal",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_s_02",
+      "x": 24,
+      "y": 0,
+      "z": -146,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_s_03",
+      "x": -18,
+      "y": 0,
+      "z": -126,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_s_04",
+      "x": 20,
+      "y": 0,
+      "z": -122,
+      "mobType": "tribal",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_s_05",
+      "x": -30,
+      "y": 0,
+      "z": -114,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_s_06",
       "x": 28,
       "y": 0,
+      "z": -110,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 4,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_w_01",
+      "x": -150,
+      "y": 0,
+      "z": 26,
+      "mobType": "tribal",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_w_02",
+      "x": -146,
+      "y": 0,
+      "z": -24,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_w_03",
+      "x": -124,
+      "y": 0,
+      "z": 24,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_w_04",
+      "x": -120,
+      "y": 0,
+      "z": -24,
+      "mobType": "tribal",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_w_05",
+      "x": -112,
+      "y": 0,
+      "z": 18,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_w_06",
+      "x": -108,
+      "y": 0,
+      "z": -20,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 4,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_e_01",
+      "x": 150,
+      "y": 0,
       "z": 28,
-      "mobType": "stag",
-      "aggressive": false,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 3,
       "levelVariance": 0
     },
     {
-      "id": "m4",
-      "x": -32,
+      "id": "m_e_02",
+      "x": 146,
       "y": 0,
-      "z": 20,
-      "mobType": "stag",
-      "aggressive": false,
+      "z": -24,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 3,
       "levelVariance": 0
     },
     {
-      "id": "m5",
-      "x": 70,
+      "id": "m_e_03",
+      "x": 118,
       "y": 0,
-      "z": 0,
+      "z": 26,
       "mobType": "tribal",
       "aggressive": true,
-      "level": 2,
-      "levelVariance": 1
-    },
-    {
-      "id": "m6",
-      "x": 0,
-      "y": 0,
-      "z": 76,
-      "mobType": "tribal",
-      "aggressive": true,
-      "level": 2,
-      "levelVariance": 1
-    },
-    {
-      "id": "m7",
-      "x": 55,
-      "y": 0,
-      "z": 55,
-      "mobType": "wolf",
-      "aggressive": true,
-      "level": 2,
-      "levelVariance": 0
-    },
-    {
-      "id": "m8",
-      "x": -60,
-      "y": 0,
-      "z": 50,
-      "mobType": "wolf",
-      "aggressive": true,
-      "level": 2,
-      "levelVariance": 1
-    },
-    {
-      "id": "m9",
-      "x": 98,
-      "y": 0,
-      "z": 4,
-      "mobType": "wolf",
-      "aggressive": true,
       "level": 3,
       "levelVariance": 0
     },
     {
-      "id": "m10",
-      "x": 102,
+      "id": "m_e_04",
+      "x": 120,
       "y": 0,
-      "z": -8,
-      "mobType": "wolf",
-      "aggressive": true,
-      "level": 3,
-      "levelVariance": 0
-    },
-    {
-      "id": "m11",
-      "x": 96,
-      "y": 0,
-      "z": -25,
-      "mobType": "wolf",
-      "aggressive": true,
-      "level": 3,
-      "levelVariance": 1
-    },
-    {
-      "id": "m12",
-      "x": 110,
-      "y": 0,
-      "z": 0,
-      "mobType": "orc",
-      "aggressive": true,
-      "level": 3,
-      "levelVariance": 1
-    },
-    {
-      "id": "m13",
-      "x": 0,
-      "y": 0,
-      "z": 110,
+      "z": -28,
       "mobType": "orc",
       "aggressive": true,
       "level": 4,
       "levelVariance": 0
     },
     {
-      "id": "m14",
-      "x": 130,
+      "id": "m_e_05",
+      "x": 160,
       "y": 0,
-      "z": 0,
-      "mobType": "orc",
-      "aggressive": true,
-      "level": 4,
-      "levelVariance": 1
-    },
-    {
-      "id": "m15",
-      "x": 0,
-      "y": 0,
-      "z": 130,
+      "z": 18,
       "mobType": "orc",
       "aggressive": true,
       "level": 5,
       "levelVariance": 0
     },
     {
-      "id": "m16",
-      "x": 120,
+      "id": "m_e_06",
+      "x": 168,
       "y": 0,
-      "z": -25,
+      "z": -18,
       "mobType": "bull",
       "aggressive": true,
       "level": 5,
       "levelVariance": 0
     },
     {
-      "id": "m17",
-      "x": 180,
+      "id": "m_nw_01",
+      "x": -150,
       "y": 0,
-      "z": -140,
-      "mobType": "orc",
-      "aggressive": true,
-      "level": 8,
+      "z": 150,
+      "mobType": "fox",
+      "aggressive": false,
+      "level": 1,
       "levelVariance": 0
     },
     {
-      "id": "m18",
-      "x": -160,
+      "id": "m_nw_02",
+      "x": -128,
       "y": 0,
-      "z": 180,
+      "z": 142,
+      "mobType": "stag",
+      "aggressive": false,
+      "level": 1,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_nw_03",
+      "x": -118,
+      "y": 0,
+      "z": 118,
       "mobType": "wolf",
       "aggressive": true,
-      "level": 7,
+      "level": 2,
       "levelVariance": 0
     },
     {
-      "id": "m19",
-      "x": 190,
+      "id": "m_nw_04",
+      "x": -160,
       "y": 0,
-      "z": 80,
-      "mobType": "demon",
+      "z": 116,
+      "mobType": "tribal",
       "aggressive": true,
-      "level": 10,
+      "level": 2,
       "levelVariance": 0
     },
     {
-      "id": "m24",
-      "x": -23,
+      "id": "m_ne_01",
+      "x": 124,
       "y": 0,
-      "z": -2,
+      "z": 150,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 2,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_ne_02",
+      "x": 150,
+      "y": 0,
+      "z": 124,
+      "mobType": "tribal",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_ne_03",
+      "x": 118,
+      "y": 0,
+      "z": 118,
+      "mobType": "wolf",
+      "aggressive": true,
+      "level": 3,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_ne_04",
+      "x": 160,
+      "y": 0,
+      "z": 112,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 4,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_sw_01",
+      "x": -150,
+      "y": 0,
+      "z": -150,
       "mobType": "fox",
-      "aggressive": true,
+      "aggressive": false,
+      "level": 1,
       "levelVariance": 0
     },
     {
-      "id": "m43",
-      "x": -16,
+      "id": "m_sw_02",
+      "x": -124,
       "y": 0,
-      "z": -7,
-      "mobType": "fox",
+      "z": -122,
+      "mobType": "wolf",
       "aggressive": true,
+      "level": 2,
       "levelVariance": 0
     },
     {
-      "id": "m44",
-      "x": -18,
+      "id": "m_se_01",
+      "x": 150,
       "y": 0,
-      "z": -11,
-      "mobType": "fox",
+      "z": -150,
+      "mobType": "wolf",
       "aggressive": true,
+      "level": 3,
       "levelVariance": 0
     },
     {
-      "id": "m20",
-      "x": -3,
+      "id": "m_se_02",
+      "x": 124,
       "y": 0,
-      "z": -3,
-      "mobType": "dummy",
+      "z": -142,
+      "mobType": "wolf",
       "aggressive": true,
+      "level": 4,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_se_03",
+      "x": 160,
+      "y": 0,
+      "z": -128,
+      "mobType": "tribal",
+      "aggressive": true,
+      "level": 4,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_se_04",
+      "x": 118,
+      "y": 0,
+      "z": -118,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 4,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_se_05",
+      "x": 146,
+      "y": 0,
+      "z": -112,
+      "mobType": "orc",
+      "aggressive": true,
+      "level": 5,
+      "levelVariance": 0
+    },
+    {
+      "id": "m_se_06",
+      "x": 170,
+      "y": 0,
+      "z": -140,
+      "mobType": "bull",
+      "aggressive": true,
+      "level": 5,
       "levelVariance": 0
     }
   ]

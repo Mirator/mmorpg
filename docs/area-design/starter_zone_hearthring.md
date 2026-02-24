@@ -1,136 +1,112 @@
-# Starter Zone — The Hearthring (Levels 1–5)
+# Starter Zone - The Hearthring (Levels 1-5)
 
-Design goal: teach core mechanics through world layout instead of quests.
+Design goal: teach core mechanics through world layout instead of quest text.
 
-The zone uses concentric gameplay layers around the central base. Difficulty increases with distance so players naturally learn systems step‑by‑step.
+The starter experience now spans the full map (`x/z in [-200, 200]`) using a 3x3 district layout. Progression is preserved by district composition and encounter pressure, not by adding new systems.
 
 ---
 
 ## Gameplay Teaching Order
 
-| Ring | Player learns |
-|----|----|
-| A | Movement + interact |
-| B | Harvest + economy |
-| C | Solo combat |
-| D | Danger awareness + kiting |
-| E | Ability usage + grouping |
-
----
-
-# Ring A — Sanctuary Plaza (0–9 radius)
-**Purpose:** Safe onboarding
-
-### Features
-- Vendors clustered together
-- Training dummies (1 HP, no damage)
-- 3 fast‑respawn resource nodes
-
-### Mechanics Taught
-- Movement
-- Interact key
-- Inventory UI
-- Selling items
-
-Design principle: players learn interaction before combat.
-
----
-
-# Ring B — Gatherer’s Garden (9–25 radius)
-**Purpose:** Introduce progression loop
-
-### Environment
-Soft terrain: flowers, shrubs, logs, open visibility.
-
-### Creatures (non‑aggressive)
-| Mob | Role |
+| Stage | Player learns |
 |---|---|
-| Fox | atmosphere |
-| Stag | living world |
-
-### Mechanics Learned
-- Harvesting radius
-- Inventory filling
-- Vendor economy loop
-- Regeneration pacing
-
-Primary lesson: harvest → sell → numbers increase.
+| 1 | Movement + interact |
+| 2 | Harvest + economy loop |
+| 3 | Solo combat rhythm |
+| 4 | Positioning + pull discipline |
+| 5 | Risk management + cooperation |
 
 ---
 
-# Ring C — Broken Fence (25–45 radius)
-**Purpose:** First controlled combat
+## World Layout (3x3 Districts)
 
-### Environment
-Abandoned farms, broken carts, scattered obstacles.
+Tile centers:
 
-### Mobs
-| Mob | Purpose |
-|---|---|
-| Tribal | practice humanoid |
-| Wolf | predictable melee |
+- NW `(-133, 133)` - Stream and Platforming
+- N `(0, 133)` - Meadow Gathering
+- NE `(133, 133)` - Light Thicket
+- W `(-133, 0)` - Shallow Ruins
+- C `(0, 0)` - Sanctuary Hub
+- E `(133, 0)` - Watchtower Hill
+- SW `(-133, -133)` - Trader Outpost
+- S `(0, -133)` - Abandoned Farms
+- SE `(133, -133)` - Forest Wall
 
-### Mechanics Learned
-- Basic attack rhythm
-- Kiting basics
-- First death recovery near base
-
-Goal: teach combat without heavy punishment.
+The hub remains at center for immediate onboarding and recovery.
 
 ---
 
-# Ring D — Thicket Edge (45–60 radius)
-**Purpose:** Real danger introduction
+## Connectivity (H-Corridor)
 
-### Environment
-Denser trees and partial line‑of‑sight blocking.
+Two clear traversal lanes connect major districts:
 
-### Mobs
-| Mob | Lesson |
-|---|---|
-| Wolf packs | pulling |
-| Orc | stronger single target |
+- Vertical lane: N <-> C <-> S
+- Horizontal lane: W <-> C <-> E
 
-### Mechanics Learned
-- Pulling enemies individually
-- Retreating safely
-- Healing between fights
-
-Players should now start using newly unlocked abilities.
+These lanes are kept visually and physically readable so players can always re-orient, recover, and branch into higher-risk districts without dead ends.
 
 ---
 
-# Ring E — Fallen Watchtower (60–70 radius)
-**Purpose:** Final beginner challenge (Level 4–5)
+## District Roles
 
-### Environment
-Visible landmark from spawn to create goal‑oriented exploration.
+### C - Sanctuary Hub
 
-### Mobs
-| Mob | Role |
-|---|---|
-| Orc | durable target |
-| Bull (rare) | mini‑boss moment |
+Purpose: safe onboarding and economy anchor.
 
-### Mechanics Learned
-- Ability timing
-- Natural player grouping
-- Risk assessment and retreating
+- Spawn, vendors, training dummies, fast loop resources.
+- Teaches movement, interact, inventory, and sell loop.
+
+### N, NW, SW - Low-Risk Expansion
+
+Purpose: repeat early lessons in broader space.
+
+- Harvest-heavy districts with passive life and sparse single threats.
+- Teaches route planning, harvesting under light pressure, and safe disengage habits.
+
+### S, W, NE - Mid-Risk Practice
+
+Purpose: transition into deliberate combat.
+
+- More dense packs, line-of-sight pressure, and tighter movement spaces.
+- Teaches target selection, pull control, and kiting discipline.
+
+### E, SE - High-Risk Starter Edge
+
+Purpose: capstone challenge for level 4-5 characters.
+
+- Mixed packs with stronger melee pressure and limited bull anchors.
+- Teaches ability timing, retreat decisions, and ad-hoc cooperation.
 
 ---
 
-# Core Design Principle
-The starter experience relies on a **danger gradient** instead of quests.
+## Density Targets (Current Implementation)
 
-Distance from base = player confidence level.
+- Resource nodes: `54`
+- Mob spawns: `40`
+- Structures: `53`
+- Obstacles: `34`
+- Vendors: `4` (hub + outpost)
 
-The world itself teaches:
-1. Interaction
-2. Economy loop
-3. Attack rhythm
-4. Positioning
-5. Ability timing
-6. Cooperation
+This fills the full map while keeping encounter readability and starter-scale performance.
 
-The zone should feel safe, then curious, then tense, then challenging — without text instructions.
+---
 
+## Starter Safety Rules
+
+- Mob levels remain starter-focused (`1..5`).
+- High-end outliers are excluded from starter composition (`demon`, `yeti`).
+- No aggressive non-dummy mobs are placed within radius `28` of the hub center.
+
+---
+
+## Core Principle
+
+The world teaches by repetition with pressure scaling:
+
+1. Interact in safety
+2. Harvest under low pressure
+3. Fight predictable threats
+4. Manage positioning in constrained spaces
+5. Handle mixed-threat pulls with better timing
+
+The intended feeling remains: safe -> curious -> tense -> challenging.
