@@ -162,6 +162,20 @@ function isClickableInViewport(/** @type {any} */ rect, /** @type {any} */ viewp
   return true;
 }
 
+function isWithinViewport(
+  /** @type {any} */ rect,
+  /** @type {any} */ viewport,
+  /** @type {any} */ tolerance = 0
+) {
+  if (!rect || !viewport) return false;
+  return (
+    rect.left >= -tolerance &&
+    rect.top >= -tolerance &&
+    rect.right <= viewport.width + tolerance &&
+    rect.bottom <= viewport.height + tolerance
+  );
+}
+
 async function assertVendorControlsInViewport(/** @type {any} */ page, /** @type {any} */ label) {
   const metrics = await readVendorMetrics(page);
   const buyTab = metrics.tabs.find((/** @type {any} */ tab) => tab.tab === 'buy') ?? null;
@@ -176,6 +190,105 @@ async function assertVendorControlsInViewport(/** @type {any} */ page, /** @type
     if (!isClickableInViewport(rect, metrics.viewport)) {
       throw new Error(`${label}: ${name} is not fully inside viewport`);
     }
+  }
+}
+
+async function readPanelRect(/** @type {any} */ page, /** @type {any} */ selector) {
+  return page.evaluate((/** @type {any} */ sel) => {
+    const el = document.querySelector(sel);
+    if (!(el instanceof HTMLElement)) return null;
+    const rect = el.getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height,
+    };
+  }, selector);
+}
+
+async function dragPanelBy(/** @type {any} */ page, /** @type {any} */ handleSelector, /** @type {any} */ dx, /** @type {any} */ dy) {
+  await page.waitForSelector(handleSelector, { state: 'visible' });
+  await page.evaluate(
+    (/** @type {any} */ payload) => {
+      const { selector, moveX, moveY } = payload;
+      const handle = document.querySelector(selector);
+      if (!(handle instanceof HTMLElement)) {
+        throw new Error(`Drag handle not visible: ${selector}`);
+      }
+      const rect = handle.getBoundingClientRect();
+      const startX = rect.left + Math.max(10, Math.min(24, rect.width - 10));
+      const startY = rect.top + Math.max(8, Math.min(14, rect.height - 8));
+      const pointerId = 1;
+      const steps = 12;
+      handle.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          cancelable: true,
+          pointerId,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          buttons: 1,
+          clientX: startX,
+          clientY: startY,
+        })
+      );
+      for (let i = 1; i <= steps; i += 1) {
+        const nextX = startX + (moveX * i) / steps;
+        const nextY = startY + (moveY * i) / steps;
+        window.dispatchEvent(
+          new PointerEvent('pointermove', {
+            bubbles: true,
+            cancelable: true,
+            pointerId,
+            pointerType: 'mouse',
+            isPrimary: true,
+            button: 0,
+            buttons: 1,
+            clientX: nextX,
+            clientY: nextY,
+          })
+        );
+      }
+      window.dispatchEvent(
+        new PointerEvent('pointerup', {
+          bubbles: true,
+          cancelable: true,
+          pointerId,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          buttons: 0,
+          clientX: startX + moveX,
+          clientY: startY + moveY,
+        })
+      );
+    },
+    { selector: handleSelector, moveX: dx, moveY: dy }
+  );
+  await sleep(80);
+}
+
+function assertRectNear(
+  /** @type {any} */ a,
+  /** @type {any} */ b,
+  /** @type {any} */ tolerancePx,
+  /** @type {any} */ label
+) {
+  if (!a || !b) {
+    throw new Error(`${label}: missing rectangle metrics`);
+  }
+  const leftDelta = Math.abs(a.left - b.left);
+  const topDelta = Math.abs(a.top - b.top);
+  const widthDelta = Math.abs(a.width - b.width);
+  const heightDelta = Math.abs(a.height - b.height);
+  if (leftDelta > tolerancePx || topDelta > tolerancePx || widthDelta > tolerancePx || heightDelta > tolerancePx) {
+    throw new Error(
+      `${label}: rect drift too high (left=${leftDelta.toFixed(1)} top=${topDelta.toFixed(1)} width=${widthDelta.toFixed(1)} height=${heightDelta.toFixed(1)})`
+    );
   }
 }
 
@@ -731,6 +844,7 @@ async function run() {
       throw new Error('Resource did not become unavailable after harvest');
     }
 
+    let inventoryCompactWidth = 0;
     await page.keyboard.press('i');
     state = await waitForCondition(
       page,
@@ -738,6 +852,15 @@ async function run() {
       TEST_TIMEOUT_MS,
       'inventory open'
     );
+    const inventorySoloRect = await readPanelRect(page, '#inventory-panel');
+    if (!inventorySoloRect) {
+      throw new Error('Inventory panel rect unavailable after opening inventory');
+    }
+    inventoryCompactWidth = inventorySoloRect.width;
+    if (inventoryCompactWidth < 280 || inventoryCompactWidth > 340) {
+      throw new Error(`Inventory compact width out of expected range: ${inventoryCompactWidth.toFixed(1)}px`);
+    }
+
     await page.keyboard.press('c');
     state = await waitForCondition(
       page,
@@ -746,6 +869,87 @@ async function run() {
       'character panel open'
     );
     await page.waitForSelector('#character-view.active');
+    const inventoryWithCharacterRect = await readPanelRect(page, '#inventory-panel');
+    assertRectNear(inventoryWithCharacterRect, inventorySoloRect, 2.5, 'inventory layout with character panel');
+
+    await dragPanelBy(page, '#inventory-panel .inventory-header', 120, 56);
+    const inventoryDraggedRect = await readPanelRect(page, '#inventory-panel');
+    if (!inventoryDraggedRect) {
+      throw new Error('Inventory panel rect unavailable after drag');
+    }
+    const inventoryMovedDx = Math.abs(inventoryDraggedRect.left - inventoryWithCharacterRect.left);
+    const inventoryMovedDy = Math.abs(inventoryDraggedRect.top - inventoryWithCharacterRect.top);
+    if (inventoryMovedDx < 20 && inventoryMovedDy < 20) {
+      throw new Error('Inventory panel did not move after drag');
+    }
+    if (!isClickableInViewport(inventoryDraggedRect, DESKTOP_VIEWPORT)) {
+      throw new Error('Inventory panel moved outside viewport bounds');
+    }
+
+    await page.keyboard.press('i');
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => !s.inventory?.open && s.skills?.open,
+      TEST_TIMEOUT_MS,
+      'inventory close while character open'
+    );
+    await page.keyboard.press('i');
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.inventory?.open && s.skills?.open,
+      TEST_TIMEOUT_MS,
+      'inventory reopen while character open'
+    );
+    await page.waitForFunction(() => document.getElementById('inventory-panel')?.classList.contains('window-dragged'));
+    const inventoryReopenedRect = await readPanelRect(page, '#inventory-panel');
+    assertRectNear(inventoryReopenedRect, inventoryDraggedRect, 2.5, 'inventory session position memory');
+
+    const characterBeforeDragRect = await readPanelRect(page, '#character-sheet-panel');
+    await dragPanelBy(page, '#character-sheet-panel .character-sheet-header', -84, 48);
+    const characterAfterDragRect = await readPanelRect(page, '#character-sheet-panel');
+    if (!characterBeforeDragRect || !characterAfterDragRect) {
+      throw new Error('Character panel rect unavailable for drag check');
+    }
+    const characterMovedDx = Math.abs(characterAfterDragRect.left - characterBeforeDragRect.left);
+    const characterMovedDy = Math.abs(characterAfterDragRect.top - characterBeforeDragRect.top);
+    if (characterMovedDx < 20 && characterMovedDy < 20) {
+      throw new Error('Character panel did not move after drag');
+    }
+    const characterCenterX = characterAfterDragRect.left + characterAfterDragRect.width / 2;
+    const characterCenterY = characterAfterDragRect.top + characterAfterDragRect.height / 2;
+    if (
+      characterCenterX < 0 ||
+      characterCenterX > DESKTOP_VIEWPORT.width ||
+      characterCenterY < 0 ||
+      characterCenterY > DESKTOP_VIEWPORT.height
+    ) {
+      throw new Error('Character panel center moved outside viewport bounds');
+    }
+
+    await page.evaluate(() => {
+      const panel = document.getElementById('trade-panel');
+      panel?.classList.remove('hidden');
+    });
+    await page.waitForSelector('#trade-panel:not(.hidden)');
+    const tradeBeforeDragRect = await readPanelRect(page, '#trade-panel');
+    await dragPanelBy(page, '#trade-panel .trade-header', 96, -36);
+    const tradeAfterDragRect = await readPanelRect(page, '#trade-panel');
+    if (!tradeBeforeDragRect || !tradeAfterDragRect) {
+      throw new Error('Trade panel rect unavailable for drag check');
+    }
+    const tradeMovedDx = Math.abs(tradeAfterDragRect.left - tradeBeforeDragRect.left);
+    const tradeMovedDy = Math.abs(tradeAfterDragRect.top - tradeBeforeDragRect.top);
+    if (tradeMovedDx < 20 && tradeMovedDy < 20) {
+      throw new Error('Trade panel did not move after drag');
+    }
+    if (!isWithinViewport(tradeAfterDragRect, DESKTOP_VIEWPORT, 12)) {
+      throw new Error('Trade panel moved outside viewport bounds');
+    }
+    await page.evaluate(() => {
+      const panel = document.getElementById('trade-panel');
+      panel?.classList.add('hidden');
+    });
+    await page.waitForFunction(() => document.getElementById('trade-panel')?.classList.contains('hidden'));
 
     const equipSlotCount = await page.locator('#equipment-grid .equipment-slot').count();
     if (equipSlotCount !== 6) {
@@ -868,7 +1072,53 @@ async function run() {
     await page.waitForSelector('#vendor-dialog.open');
     await safeClick(page, '#vendor-trade-btn');
     await page.waitForSelector('#vendor-panel.open');
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.inventory?.open,
+      TEST_TIMEOUT_MS,
+      'inventory open during vendor trade'
+    );
+    await page.waitForFunction(() => document.getElementById('inventory-panel')?.classList.contains('window-dragged'));
     await assertVendorControlsInViewport(page, 'desktop vendor layout');
+    const inventoryWithVendorRect = await readPanelRect(page, '#inventory-panel');
+    if (!inventoryWithVendorRect) {
+      throw new Error('Inventory rect unavailable while vendor panel is open');
+    }
+    if (Math.abs(inventoryWithVendorRect.width - inventoryCompactWidth) > 2.5) {
+      throw new Error(
+        `Inventory width changed while vendor panel opened (${inventoryWithVendorRect.width.toFixed(1)}px vs ${inventoryCompactWidth.toFixed(1)}px)`
+      );
+    }
+
+    const vendorBeforeDragMetrics = await readVendorMetrics(page);
+    await dragPanelBy(page, '#vendor-panel .vendor-header', 92, 58);
+    const vendorAfterDragMetrics = await readVendorMetrics(page);
+    if (!vendorBeforeDragMetrics.panel || !vendorAfterDragMetrics.panel) {
+      throw new Error('Vendor panel rect unavailable for drag check');
+    }
+    const vendorMovedDx = Math.abs(vendorAfterDragMetrics.panel.left - vendorBeforeDragMetrics.panel.left);
+    const vendorMovedDy = Math.abs(vendorAfterDragMetrics.panel.top - vendorBeforeDragMetrics.panel.top);
+    if (vendorMovedDx < 20 && vendorMovedDy < 20) {
+      throw new Error('Vendor panel did not move after drag');
+    }
+    if (!isClickableInViewport(vendorAfterDragMetrics.panel, vendorAfterDragMetrics.viewport)) {
+      throw new Error('Vendor panel moved outside viewport bounds');
+    }
+
+    await safeSetViewport(page, { width: 1120, height: 680 });
+    await page.waitForFunction(
+      (/** @type {any} */ viewport) =>
+        window.innerWidth === viewport.width && window.innerHeight === viewport.height,
+      { width: 1120, height: 680 }
+    );
+    await assertVendorControlsInViewport(page, 'desktop vendor layout after resize');
+    await safeSetViewport(page, DESKTOP_VIEWPORT);
+    await page.waitForFunction(
+      (/** @type {any} */ viewport) =>
+        window.innerWidth === viewport.width && window.innerHeight === viewport.height,
+      DESKTOP_VIEWPORT
+    );
+    await assertVendorControlsInViewport(page, 'desktop vendor layout after viewport restore');
 
     await safeClick(page, '.vendor-tab[data-tab=\"sell\"]');
     await page.waitForFunction(() => {
@@ -939,6 +1189,12 @@ async function run() {
     await page.waitForSelector('#vendor-dialog.open');
     await safeClick(page, '#vendor-trade-btn');
     await page.waitForSelector('#vendor-panel.open');
+    await page.waitForFunction(() => {
+      const panel = document.getElementById('vendor-panel');
+      if (!(panel instanceof HTMLElement)) return false;
+      const rect = panel.getBoundingClientRect();
+      return rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight;
+    });
     await assertVendorControlsInViewport(page, 'small viewport vendor layout');
     await safeClick(page, '.vendor-tab[data-tab=\"buy\"]');
     await page.waitForFunction(() => {

@@ -33,6 +33,7 @@ import { getRecipeById } from '/shared/recipes.js';
 import { createAbilityBar } from './ui-state/abilityBar.js';
 import { createSkillsPanelUpdater } from './ui-state/skillsPanel.js';
 import { createCharacterPreview } from './character-preview.js';
+import { createWindowDragController } from './window-drag.js';
 
 function formatItemName(/** @type {any} */ kind) {
   if (!kind) return 'Item';
@@ -124,6 +125,7 @@ export function createUiState(/** @type {any} */ {
   let /** @type {any} */ vendorUI = null;
   let /** @type {any} */ playerTradeUI = null;
   let /** @type {any} */ craftingUI = null;
+  let /** @type {any} */ windowDragController = null;
 
   let inventoryOpen = false;
   let inventoryTab = 'inventory';
@@ -448,6 +450,58 @@ export function createUiState(/** @type {any} */ {
     });
   }
 
+  const inventoryHeader = /** @type {HTMLElement | null} */ (
+    inventoryPanel?.querySelector?.('.inventory-header') ?? null
+  );
+  const characterHeader = /** @type {HTMLElement | null} */ (
+    characterSheetPanel?.querySelector?.('.character-sheet-header') ?? null
+  );
+  const vendorHeader = /** @type {HTMLElement | null} */ (
+    vendorPanel?.querySelector?.('.vendor-header') ?? null
+  );
+  const tradeHeader = /** @type {HTMLElement | null} */ (
+    tradePanel?.querySelector?.('.trade-header') ?? null
+  );
+  const /** @type {Array<any>} */ draggablePanels = [];
+  if (inventoryPanel instanceof HTMLElement && inventoryHeader instanceof HTMLElement) {
+    draggablePanels.push({
+      key: 'inventory-panel',
+      panelEl: inventoryPanel,
+      handleEl: inventoryHeader,
+      isOpen: () => inventoryPanel.classList.contains('open'),
+    });
+  }
+  if (characterSheetPanel instanceof HTMLElement && characterHeader instanceof HTMLElement) {
+    draggablePanels.push({
+      key: 'character-sheet-panel',
+      panelEl: characterSheetPanel,
+      handleEl: characterHeader,
+      isOpen: () => characterSheetPanel.classList.contains('open'),
+    });
+  }
+  if (vendorPanel instanceof HTMLElement && vendorHeader instanceof HTMLElement) {
+    draggablePanels.push({
+      key: 'vendor-panel',
+      panelEl: vendorPanel,
+      handleEl: vendorHeader,
+      isOpen: () => vendorPanel.classList.contains('open'),
+    });
+  }
+  if (tradePanel instanceof HTMLElement && tradeHeader instanceof HTMLElement) {
+    draggablePanels.push({
+      key: 'trade-panel',
+      panelEl: tradePanel,
+      handleEl: tradeHeader,
+      isOpen: () => !tradePanel.classList.contains('hidden'),
+    });
+  }
+  if (draggablePanels.length > 0) {
+    windowDragController = createWindowDragController({
+      panels: draggablePanels,
+      viewportMargin: 12,
+    });
+  }
+
   if (vendorDialog && vendorPanel) {
     vendorUI = createVendorUI({
       dialog: vendorDialog,
@@ -745,6 +799,9 @@ export function createUiState(/** @type {any} */ {
     vendorUI,
     playerTradeUI,
     showToast,
-    dispose: () => characterPreview?.dispose?.(),
+    dispose: () => {
+      windowDragController?.dispose?.();
+      characterPreview?.dispose?.();
+    },
   };
 }

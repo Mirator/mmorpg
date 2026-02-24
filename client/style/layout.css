@@ -1,20 +1,11 @@
-body.trade-open #inventory-panel {
-  left: 32%;
-}
-
-body.trade-open #vendor-panel {
-  left: 68%;
-}
-
-body.player-trade-open #inventory-panel {
-  left: 25%;
-}
-
 #inventory-panel {
+  --inventory-offset-x: -50%;
+  --inventory-offset-y: -50%;
+  --inventory-scale: 0.98;
   position: fixed;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) scale(0.98);
+  transform: translate(var(--inventory-offset-x), var(--inventory-offset-y)) scale(var(--inventory-scale));
   width: min(320px, 90vw);
   max-height: 85vh;
   display: flex;
@@ -38,19 +29,14 @@ body.player-trade-open #inventory-panel {
 }
 
 #inventory-panel.open {
+  --inventory-scale: 1;
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, -50%) scale(1);
 }
 
-body.inventory-open.character-open #character-sheet-panel {
-  left: 25%;
-  width: min(380px, 42vw);
-}
-
-body.inventory-open.character-open #inventory-panel {
-  left: 75%;
-  width: min(320px, 42vw);
+#inventory-panel.window-dragged {
+  --inventory-offset-x: 0px;
+  --inventory-offset-y: 0px;
 }
 
 @media (max-width: 640px) {
@@ -60,28 +46,6 @@ body.inventory-open.character-open #inventory-panel {
 
   #inventory-grid {
     gap: 8px;
-  }
-
-  body.inventory-open.character-open #character-sheet-panel {
-    left: 50%;
-    top: 25%;
-    width: min(380px, 90vw);
-  }
-
-  body.inventory-open.character-open #inventory-panel {
-    left: 50%;
-    top: 72%;
-    width: min(320px, 90vw);
-  }
-
-  body.trade-open #inventory-panel {
-    left: 50%;
-    top: 25%;
-  }
-
-  body.trade-open #vendor-panel {
-    left: 50%;
-    top: 75%;
   }
 }
 

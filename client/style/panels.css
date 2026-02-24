@@ -1,8 +1,11 @@
 #character-sheet-panel {
+  --character-offset-x: -50%;
+  --character-offset-y: -50%;
+  --character-scale: 0.98;
   position: fixed;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) scale(0.98);
+  transform: translate(var(--character-offset-x), var(--character-offset-y)) scale(var(--character-scale));
   width: min(620px, 92vw);
   max-height: 88vh;
   display: flex;
@@ -21,9 +24,14 @@
 }
 
 #character-sheet-panel.open {
+  --character-scale: 1;
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, -50%) scale(1);
+}
+
+#character-sheet-panel.window-dragged {
+  --character-offset-x: 0px;
+  --character-offset-y: 0px;
 }
 
 .character-sheet-header {
@@ -34,6 +42,9 @@
   border-bottom: 1px solid rgba(139, 119, 71, 0.4);
   background: rgba(0, 0, 0, 0.3);
   border-radius: 10px 10px 0 0;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
 .character-sheet-title {
@@ -454,6 +465,9 @@
   align-items: baseline;
   gap: 8px;
   margin-bottom: 12px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
 .inventory-tabs {

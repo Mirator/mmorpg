@@ -111,10 +111,12 @@
 }
 
 .trade-panel {
+  --trade-offset-x: -50%;
+  --trade-offset-y: -50%;
   position: fixed;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(var(--trade-offset-x), var(--trade-offset-y));
   width: 420px;
   max-width: 95vw;
   padding: 12px 16px;
@@ -131,10 +133,18 @@
   display: none;
 }
 
+.trade-panel.window-dragged {
+  --trade-offset-x: 0px;
+  --trade-offset-y: 0px;
+}
+
 .trade-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
 .trade-title {

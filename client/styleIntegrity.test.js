@@ -9,6 +9,7 @@ const MENU_CSS = path.resolve(process.cwd(), 'client/style/menu.css');
 const OVERLAY_CSS = path.resolve(process.cwd(), 'client/style/overlay.css');
 const PANELS_CSS = path.resolve(process.cwd(), 'client/style/panels.css');
 const TOAST_CSS = path.resolve(process.cwd(), 'client/style/toast.css');
+const LAYOUT_CSS = path.resolve(process.cwd(), 'client/style/layout.css');
 const ADMIN_STYLE_CSS = path.resolve(process.cwd(), 'admin/style.css');
 const ADMIN_DASHBOARD_CSS = path.resolve(process.cwd(), 'admin/dashboard.css');
 const ADMIN_MAP_CSS = path.resolve(process.cwd(), 'admin/map.css');
@@ -90,6 +91,15 @@ describe('style scope integrity', () => {
       /\.cast-bar-wrap\s*\{[\s\S]*position:\s*fixed;[\s\S]*left:\s*50%;[\s\S]*bottom:\s*\d+px;[\s\S]*transform:\s*translateX\(-50%\);[\s\S]*pointer-events:\s*none;/
     );
     expect(overlayCss).toMatch(/body\.cast-bar-active\s+#prompt\s*\{[\s\S]*bottom:\s*\d+px;/);
+  });
+
+  it('keeps modal layout independent of body state panel-shift classes', () => {
+    const layoutCss = read(LAYOUT_CSS);
+    expect(layoutCss).not.toMatch(/body\.trade-open\s+#inventory-panel/);
+    expect(layoutCss).not.toMatch(/body\.trade-open\s+#vendor-panel/);
+    expect(layoutCss).not.toMatch(/body\.player-trade-open\s+#inventory-panel/);
+    expect(layoutCss).not.toMatch(/body\.inventory-open\.character-open\s+#character-sheet-panel/);
+    expect(layoutCss).not.toMatch(/body\.inventory-open\.character-open\s+#inventory-panel/);
   });
 
   it('does not contain legacy sci-fi signature colors in primary style files', () => {

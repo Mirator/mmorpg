@@ -49,10 +49,13 @@
 }
 
 .vendor-panel {
+  --vendor-offset-x: -50%;
+  --vendor-offset-y: -50%;
+  --vendor-scale: 0.98;
   position: fixed;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) scale(0.98);
+  transform: translate(var(--vendor-offset-x), var(--vendor-offset-y)) scale(var(--vendor-scale));
   width: min(420px, 92vw);
   max-height: min(82vh, 620px);
   padding: 18px;
@@ -70,9 +73,14 @@
 }
 
 .vendor-panel.open {
+  --vendor-scale: 1;
   opacity: 1;
   pointer-events: auto;
-  transform: translate(-50%, -50%) scale(1);
+}
+
+.vendor-panel.window-dragged {
+  --vendor-offset-x: 0px;
+  --vendor-offset-y: 0px;
 }
 
 .vendor-header {
@@ -81,6 +89,9 @@
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
 .vendor-tabs {
