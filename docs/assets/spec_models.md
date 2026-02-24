@@ -43,7 +43,7 @@ Models are selected by `mobType` from spawn config. Used in `buildMobMesh` / `hy
 
 ### 3.1 Village Buildings
 
-Placed around the base in `loadEnvironmentModels`. Keys map to placement slots.
+Environment structures are loaded by `loadEnvironmentModels` from map `structures[]` entries (`kind` -> `ASSET_PATHS.environment[key]`).
 
 | Key | Path | Model | Placement |
 |-----|------|-------|-----------|
@@ -52,9 +52,9 @@ Placed around the base in `loadEnvironmentModels`. Keys map to placement slots.
 | houseB | `/assets/environment/House_2.glb` | House 2 | NE diagonal |
 | barracks | `/assets/environment/Blacksmith.glb` | Blacksmith | West |
 | storage | `/assets/environment/Mill.glb` | Mill | North |
-| trees | `/assets/quaternius/environment/Resource_Tree_Group_Cut.gltf` | Tree Group | Tree clusters |
+| bellTower | `/assets/environment/Bell_Tower.glb` | Bell Tower | Landmark / tower placements |
 
-**Source:** Medieval Village Pack (Buildings), Ultimate Fantasy RTS (trees)
+**Source:** Medieval Village Pack (Buildings)
 
 ### 3.2 Base Center + Corpse Marker
 
@@ -73,7 +73,7 @@ Placed around the base in `loadEnvironmentModels`. Keys map to placement slots.
 | `/assets/environment/House_4.glb` | House 4 |
 | `/assets/environment/Sawmill.glb` | Sawmill |
 | `/assets/environment/Stable.glb` | Stable |
-| `/assets/environment/Bell_Tower.glb` | Bell Tower |
+| `/assets/quaternius/environment/Resource_Tree_Group_Cut.gltf` | Tree Group (preloaded/reserved; not currently placed by map structures) |
 
 ### 3.4 Obstacles (Rocks)
 
@@ -179,7 +179,7 @@ Assets preloaded at game entry (see `getPreloadAssetList`):
 3. Village center model
 4. Corpse marker model
 5. Mob models (all 9, including dummy)
-6. Environment models (7, includes trees)
+6. Environment models (7 total; includes reserved `trees` prototype)
 7. Rocks (3)
 8. Resource node models (crystal + ore/tree/herb/flower)
 9. Ground texture

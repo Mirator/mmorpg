@@ -34,6 +34,7 @@ All client messages are JSON and validated by `parseClientMessage`.
 | Type | Payload | Validation / Notes |
 |---|---|---|
 | `hello` | `{ type: 'hello', seq? }` | Accepted by parser; currently a no-op on server handlers. |
+| `ping` | `{ type: 'ping', t?, seq? }` | `t` defaults to server `Date.now()` if absent/invalid; server replies with `pong`. |
 | `respawn` | `{ type: 'respawn', seq? }` | Only meaningful while dead. |
 | `input` | `{ type: 'input', keys: { w,a,s,d }, seq? }` | Keys are sanitized to booleans. |
 | `moveTarget` | `{ type: 'moveTarget', x, z, y?, seq? }` | `x/z` finite required, `y` defaults to `0`. |
@@ -66,6 +67,7 @@ All client messages are JSON and validated by `parseClientMessage`.
 | Type | Payload | Notes |
 |---|---|---|
 | `welcome` | `{ type: 'welcome', id, snapshot, config }` | First post-auth payload. `snapshot` includes `world` and initial public state. |
+| `pong` | `{ type: 'pong', t }` | Sent in response to `ping`; echoes normalized timestamp used by server. |
 | `state` | `{ type: 'state', t, full?, players?, resources?, mobs?, corpses?, removedPlayers?, removedResources?, removedMobs?, removedCorpses? }` | Full or delta world state payload. |
 | `me` | `{ type: 'me', t, id, data }` | Private player state (`inventory`, `currency`, `equipment`, `resource`, `cooldowns`, `attributes`, `derivedStats`, `duelOpponentId`, etc.). |
 | `combatEvent` | `{ type: 'combatEvent', t, events: [...] }` | AOI-filtered combat VFX event stream. |

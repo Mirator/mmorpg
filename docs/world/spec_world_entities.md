@@ -24,7 +24,7 @@ The game has a **single world/location** (no zones or multiple maps). All world 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| version | number | yes | Must be 1 |
+| version | number | yes | Must be 2 |
 | mapSize | number | yes | Half-extent; map bounds are ±mapSize/2 on x/z |
 | mapYMin | number | no | Optional Y clamp (min) |
 | mapYMax | number | no | Optional Y clamp (max) |
@@ -38,6 +38,13 @@ The game has a **single world/location** (no zones or multiple maps). All world 
 | obstacles | array | yes | Block movement and pathing |
 | obstacles[].x, .y?, .z | number | yes | Center position |
 | obstacles[].radius | number | yes | Obstacle radius (alias: r) |
+| structures | array | yes | Placed environment structures and optional colliders |
+| structures[].id | string | yes | Unique ID |
+| structures[].kind | string | yes | One of: fence, market, barracks, storage, houseA, houseB, bellTower, villageCenter |
+| structures[].x, .y?, .z | number | yes | Position |
+| structures[].rotation | number | no | Y-axis rotation (default: 0) |
+| structures[].collides | boolean | no | If false, structure does not contribute collision (default: true) |
+| structures[].colliderRadius | number | no | Required when `collides=true`; optional otherwise |
 | resourceNodes | array | yes | Harvestable nodes |
 | resourceNodes[].id | string | yes | Unique ID (e.g. r1, r2) |
 | resourceNodes[].x, .y?, .z | number | yes | Position |
@@ -102,7 +109,7 @@ Use `getMobStats(mobType)` to resolve stats. Dummy: 1 HP, no damage, no movement
 
 ## 4. Resource Types
 
-**Registry:** `RESOURCE_TYPES` in [shared/entityTypes.js](../../shared/entityTypes.js) (economy data from [shared/economy.js](../../shared/economy.js))
+**Registry:** Resource type keys are exposed as `RESOURCE_TYPE_LIST` in [shared/entityTypes.js](../../shared/entityTypes.js), derived from `RESOURCE_TYPES` in [shared/economy.js](../../shared/economy.js)
 
 | type | itemKind | itemName | Sell Price | Respawn (ms) | 3D Model |
 |------|----------|----------|------------|--------------|----------|
@@ -142,8 +149,8 @@ Corpse markers use `/assets/environment/graveyard/grave.glb` (`ASSET_PATHS.corps
 
 | Config | Source | Purpose |
 |--------|--------|---------|
-| Map layout | world-map.json | Base, spawns, obstacles, resource nodes, vendors, mob spawns |
-| Entity type lists | shared/entityTypes.js | MOB_TYPES, RESOURCE_TYPES — validation and UI |
+| Map layout | world-map.json | Base, spawns, obstacles, structures, resource nodes, vendors, mob spawns |
+| Entity type lists | shared/entityTypes.js | MOB_TYPES, RESOURCE_TYPE_LIST — validation and UI |
 | Economy (harvest output) | shared/economy.js | RESOURCE_TYPES (itemKind, itemName, sellPrice) |
 | Runtime defaults | shared/config.js | WORLD_CONFIG, MOB_CONFIG, RESOURCE_CONFIG, VENDOR_CONFIG |
 | 3D model paths | client/assetPaths.js | ASSET_PATHS.monsters, ASSET_PATHS.resourceNodes, ASSET_PATHS.villageCenterModel, ASSET_PATHS.corpseMarker |
@@ -155,12 +162,16 @@ Corpse markers use `/assets/environment/graveyard/grave.glb` (`ASSET_PATHS.corps
 ```
 world-map.json
     → loadMapConfigSync (server/mapConfig.js)
-    → validateMapConfig (shared/mapConfig.js) — uses MOB_TYPES, RESOURCE_TYPES from entityTypes
+    → validateMapConfig (shared/mapConfig.js) — uses VALID_MOB_TYPES and VALID_RESOURCE_TYPES from entityTypes
     → createWorldFromConfig (server/logic/world.js)
-    → world { base, obstacles, resourceNodes, mobSpawns, vendors }
+    → world { base, obstacles, structures, collisionObstacles, resourceNodes, mobSpawns, vendors }
     → createMobsFromSpawns(world.mobSpawns) — server/logic/mobs.js
     → createResources(world.resourceNodes) — server/logic/resources.js
 ```
+
+`createWorldFromConfig` composes `collisionObstacles` from:
+- all map `obstacles`
+- collidable `structures` (`collides !== false` and valid `colliderRadius`)
 
 ---
 
@@ -171,11 +182,13 @@ world-map.json
 
 The map editor supports:
 - Editing map size, base position/radius
-- Adding/removing spawn points, obstacles, resource nodes, vendors, mob spawns
+- Adding/removing spawn points, obstacles, structures, resource nodes, vendors, mob spawns
+- **structures:** id, kind, x, y, z, rotation, collides, colliderRadius
 - **resourceNodes:** id, x, y, z, **type** (dropdown: crystal, ore, herb, tree, flower)
 - **mobSpawns:** id, x, y, z, **mobType** (dropdown: orc, demon, yeti, tribal, wolf, fox, bull, stag, dummy)
 
 Options for type and mobType come from [shared/entityTypes.js](../../shared/entityTypes.js).
+Structure kind options come from `STRUCTURE_KIND_LIST` in [shared/mapConfig.js](../../shared/mapConfig.js).
 
 ---
 

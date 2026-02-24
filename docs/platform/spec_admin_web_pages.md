@@ -114,6 +114,11 @@ Dashboard behavior:
 - polls admin state on 1s cadence after unlock
 - renders single-zone shell row (`world-map`)
 - quick actions to Zone Canvas and module screens
+- accounts panel:
+  - reads `GET /admin/accounts-overview`
+  - shows summary cards (`Accounts`, `Characters`, `Online Characters`)
+  - paginated account table with character rows and online status pills
+  - refresh cadence: every 30s during normal polling (or immediately on manual refresh/page change)
 - metrics:
   - players, player density, last activity from `/admin/state` + map config
   - errors from recent failed audit entries
@@ -206,8 +211,22 @@ All endpoints below require a valid admin session:
 ### 7.1 Existing APIs (unchanged)
 
 - `GET /admin/state`
+- `GET /admin/accounts-overview`
 - `GET /admin/map-config`
 - `PUT /admin/map-config`
+
+### 7.1.1 Accounts overview contract
+
+- `GET /admin/accounts-overview?page=<n>&pageSize=<n>`
+- query normalization:
+  - `page` minimum is `1` (default `1`)
+  - `pageSize` is clamped to `10..100` (default `50`)
+- `200` response shape:
+  - `generatedAt: string` (ISO timestamp)
+  - `totals: { totalCharacters: number, onlineCharacters: number }`
+  - `pagination: { page, pageSize, totalAccounts, totalPages, hasPrev, hasNext }`
+  - `accounts: Array<{ id, username, createdAt, lastSignedInAt, lastSeenAt, isOnline, onlineCharacterCount, characterCount, characters }>`
+  - each `characters[]` entry includes `{ id, name, classId, level, lastSeenAt, isOnline }`
 
 ### 7.2 Designer-state APIs
 

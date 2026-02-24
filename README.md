@@ -36,6 +36,7 @@ Admin unlock/session endpoints:
 Core admin APIs:
 
 - `GET /admin/state`
+- `GET /admin/accounts-overview`
 - `GET /admin/map-config`
 - `PUT /admin/map-config`
 
@@ -109,6 +110,8 @@ On localhost, the server auto-runs `prisma migrate dev` at startup (set `AUTO_MI
 - `PERSIST_INTERVAL_MS` (default `5000`)
 - `PERSIST_FORCE_MS` (default `30000`)
 - `PERSIST_POS_EPS` (default `0.6`)
+- `RESPAWN_MS` (default `60000`)
+- `CORPSE_EXPIRY_MS` (default `600000`)
 - `E2E_TEST` (`true` to spawn stable test mob/resource)
 - `E2E_PORT` (default `3001` for e2e runner)
 - `SESSION_COOKIE_NAME` (default `mmorpg_session`)

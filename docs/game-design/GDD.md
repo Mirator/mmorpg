@@ -12,21 +12,24 @@ Multiplayer: all connected players share the same world state and see each other
 **World And Map**
 The world is a square map centered at (0, 0) with a village base at the center.
 Source of truth: the map config JSON file loaded at server startup. The server provides a world snapshot to clients on WebSocket welcome and during state updates.
-Default map values (from config):
+Default map values (from `server/data/world-map.json`):
 - Map size: 400
-- Base radius: 9
-- Obstacles: 12 static circular obstacles
-- Resource nodes: 80 static nodes
-- Mob spawns: determined by map config (8 random in simulated mode)
-- Vendors: list from map config
+- Base radius: 16
+- Spawn points: 6
+- Obstacles: 34 static circular obstacles
+- Structures: 53 placed structures
+- Resource nodes: 54 static nodes
+- Mob spawns: 40 configured spawn points
+- Vendors: 4
 Spawn points: a ring around the base.
 Obstacles: circular, block movement and mob pathing.
+Structures: placed map entities (buildings/fences/landmarks), with optional collision.
 Resource nodes: fixed points that can be harvested.
-Mob spawns: fixed points in configured maps or procedurally placed in simulated mode.
+Mob spawns: fixed points from map config.
 
 Map editor: `http://localhost:3000/admin/map`
 - Requires admin password.
-- Edits map config (base, spawn points, obstacles, resource nodes, vendors, mob spawns).
+- Edits map config (base, spawn points, obstacles, structures, resource nodes, vendors, mob spawns).
 - Validates on save and returns errors if invalid.
 - Saved changes require server restart to apply to the live world.
 
@@ -46,10 +49,11 @@ Movement:
 
 Death and respawn:
 - HP ≤ 0 triggers death.
-- Inventory is dropped at death location as a corpse; currency and equipment retained.
-- Respawn occurs after 1 minute at the next spawn point.
-- On respawn, HP is restored to max and attack cooldown is reset.
-- Return to corpse and press E to loot; corpses expire after 10 minutes.
+- PvE death drops inventory at death location as a corpse; currency and equipment are retained.
+- PvE respawn occurs after `RESPAWN_MS` (default 60 seconds) at the next spawn point.
+- Duel/PvP death does not create a corpse drop and uses a short respawn timer (5 seconds).
+- On respawn, HP is restored to max and target selection is cleared.
+- Return to corpse and press E to loot; corpses expire after `CORPSE_EXPIRY_MS` (default 10 minutes).
 
 **Interaction Systems**
 Harvesting:
@@ -128,11 +132,11 @@ Mobs:
 
 Mob levels:
 - Level scales with distance from base.
-- Max level: 30
+- Max level: 35
 - Max HP formula: 20 + 8 × level
 
 PvP duels:
-- Opt-in via duel request/accept. While duel active, both can damage each other. Ends on death, forfeit, or disconnect. No corpse loss on duel death.
+- Opt-in via duel request/accept. While duel active, both can damage each other. Ends on death, forfeit, or disconnect. Duel deaths do not create corpse drops.
 
 XP and leveling:
 - XP is awarded on mob kill.
@@ -205,7 +209,7 @@ Admin dashboard:
 - URL: `/admin`
 - Auth: admin session (`/admin/auth/unlock` + cookie / `x-admin-session`)
 - Live polling every 1s
-- Paginated tables for players, resources, mobs
+- Accounts/characters panel with pagination + zone list + live metrics
 
 Map editor:
 - URL: `/admin/map`

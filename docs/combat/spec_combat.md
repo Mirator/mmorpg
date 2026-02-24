@@ -246,13 +246,15 @@ Gear can provide: STR, DEX, INT, VIT, SPI, Armor, Magic Resist, Accuracy, Evasio
 
 # 10. Class Resources
 
+For mana classes (`priest`, `mage`), runtime `resourceMax` is derived from `derivedStats.maxMana`; class table max values are fallback definitions.
+
 | Class    | Type   | Max | Notes                          |
 |----------|--------|-----|--------------------------------|
 | Fighter  | Rage   | 100 | +8 on hit, +4 on damage, decay out of combat |
 | Guardian | Stamina| 100 | Regen out/in combat            |
 | Ranger   | Focus  | 100 | Regen moving/standing          |
-| Priest   | Mana   | 120 | Regen out/in combat            |
-| Mage     | Mana   | 100 | Regen (derived maxMana)         |
+| Priest   | Mana   | 120 | Regen out/in combat; runtime max uses derived maxMana |
+| Mage     | Mana   | 100 | Regen; runtime max uses derived maxMana |
 
 ---
 
@@ -276,7 +278,7 @@ PvP damage is only allowed during an **opt-in duel**. Outside duels, `isPvPAllow
 
 ## 12.2 Duel Penalties
 
-- No corpse/inventory loss on duel death (same as PvE death behavior).
+- No corpse/inventory loss on duel death; unlike PvE deaths, duel deaths do not create corpse drops.
 - Duel state is cleared on death; both players receive `duelEnded`.
 
 **Source:** [server/logic/pvp.js](../../server/logic/pvp.js), [server/logic/duel.js](../../server/logic/duel.js), [server/ws/handlers/duel.js](../../server/ws/handlers/duel.js)

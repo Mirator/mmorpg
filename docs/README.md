@@ -19,6 +19,7 @@
 - [Auth and Persistence](./platform/spec_auth_persistence.md)
 - [Admin Web Pages](./platform/spec_admin_web_pages.md) (dashboard + zone canvas + functional phase-2 module workflows)
 - [Documentation Review (2026-02-16)](./documentation_review_2026-02-16.md)
+- [Documentation Review (2026-02-24)](./documentation_review_2026-02-24.md)
 
 ## Operational and Historical Docs
 
