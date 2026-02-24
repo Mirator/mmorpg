@@ -79,6 +79,81 @@ async function readVendorMetrics(/** @type {any} */ page) {
   });
 }
 
+async function readHudProgressMetrics(/** @type {any} */ page) {
+  return page.evaluate(() => {
+    function readBounds(/** @type {any} */ selector) {
+      const el = document.querySelector(selector);
+      if (!(el instanceof HTMLElement)) return null;
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      const visible =
+        !el.classList.contains('hidden') &&
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        Number.parseFloat(style.opacity || '1') > 0 &&
+        rect.width > 1 &&
+        rect.height > 1;
+      return {
+        selector,
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        visible,
+      };
+    }
+
+    return {
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      castBarActive: document.body.classList.contains('cast-bar-active'),
+      castBar: readBounds('#cast-bar-wrap'),
+      abilityBar: readBounds('#ability-bar'),
+      prompt: readBounds('#prompt'),
+    };
+  });
+}
+
+function rectanglesOverlap(/** @type {any} */ a, /** @type {any} */ b) {
+  if (!a || !b) return false;
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+async function assertHarvestProgressHudPlacement(/** @type {any} */ page, /** @type {any} */ label) {
+  const metrics = await readHudProgressMetrics(page);
+  const castBar = metrics.castBar;
+  const abilityBar = metrics.abilityBar;
+  const prompt = metrics.prompt;
+  if (!metrics.castBarActive) {
+    throw new Error(`${label}: body is missing cast-bar-active class while harvest is active`);
+  }
+  if (!castBar?.visible) {
+    throw new Error(`${label}: cast bar is not visible while harvest is active`);
+  }
+  if (!abilityBar?.visible) {
+    throw new Error(`${label}: ability bar is not visible during HUD layout assertion`);
+  }
+
+  const viewportCenterX = metrics.viewport.width / 2;
+  const castCenterX = castBar.left + castBar.width / 2;
+  const centerOffset = Math.abs(castCenterX - viewportCenterX);
+  if (centerOffset > 24) {
+    throw new Error(`${label}: cast bar center offset is ${centerOffset.toFixed(1)}px (expected <= 24px)`);
+  }
+
+  const gapAboveAbility = abilityBar.top - castBar.bottom;
+  if (gapAboveAbility < 4 || gapAboveAbility > 24) {
+    throw new Error(
+      `${label}: cast bar gap above ability bar is ${gapAboveAbility.toFixed(1)}px (expected 4px to 24px)`
+    );
+  }
+
+  if (prompt?.visible && rectanglesOverlap(castBar, prompt)) {
+    throw new Error(`${label}: prompt overlaps cast bar while harvest is active`);
+  }
+}
+
 function isClickableInViewport(/** @type {any} */ rect, /** @type {any} */ viewport) {
   if (!rect || !viewport) return false;
   if (rect.width < 2 || rect.height < 2) return false;
@@ -634,6 +709,9 @@ async function run() {
       TEST_TIMEOUT_MS,
       'harvest channel start'
     );
+    await advance(page, 1000 / 30);
+    await sleep(50);
+    await assertHarvestProgressHudPlacement(page, 'harvest HUD placement');
     const preCompleteAdvance = Math.max(200, harvestDurationMs - 450);
     await advance(page, preCompleteAdvance);
     state = await getState(page);

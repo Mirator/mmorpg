@@ -215,15 +215,20 @@ export function createUiState(/** @type {any} */ {
   }
 
   function updateCastBar(/** @type {any} */ me, /** @type {any} */ serverNow) {
-    if (!castBarWrap || !castBarFill || !castBarName) return;
+    if (!castBarWrap || !castBarFill || !castBarName) {
+      document.body.classList.remove('cast-bar-active');
+      return;
+    }
     const cast = me?.cast;
     const harvest = me?.harvest;
     if (!cast && !harvest) {
       castBarWrap.classList.add('hidden');
+      document.body.classList.remove('cast-bar-active');
       return;
     }
 
     castBarWrap.classList.remove('hidden');
+    document.body.classList.add('cast-bar-active');
     const startedAt = cast?.startedAt ?? harvest?.startedAt ?? serverNow;
     const endsAt = cast?.endsAt ?? harvest?.endsAt ?? serverNow + 1000;
     const duration = Math.max(1, endsAt - startedAt);

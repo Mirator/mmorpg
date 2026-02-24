@@ -8,7 +8,6 @@ const /** @type {any} */ COLORS = {
   base: '#d8b880',
   obstacle: '#3a3f44',
   resource: '#5ef2c2',
-  resourceDim: '#1b2a28',
   mob: '#ff4d4d',
   player: '#4da3ff',
   playerStroke: '#ffffff',
@@ -89,8 +88,9 @@ export function createMinimap(/** @type {any} */ containerEl) {
 
     // 4. Resources
     for (const r of resources) {
+      if (r.available === false) continue;
       const p = worldToCanvas(r.x, r.z, mapSize, drawW, drawH);
-      ctx.fillStyle = r.available ? COLORS.resource : COLORS.resourceDim;
+      ctx.fillStyle = COLORS.resource;
       ctx.beginPath();
       ctx.arc(p.px, p.py, DOT_RADIUS, 0, Math.PI * 2);
       ctx.fill();

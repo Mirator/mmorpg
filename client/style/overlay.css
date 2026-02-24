@@ -195,9 +195,14 @@
 }
 
 .cast-bar-wrap {
-  margin-top: 6px;
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  transform: translateX(-50%);
   padding: 4px 0;
-  width: 100%;
+  width: min(420px, 86vw);
+  z-index: 16;
+  pointer-events: none;
 }
 .cast-bar-wrap.hidden {
   display: none;
@@ -357,6 +362,10 @@
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
+}
+
+body.cast-bar-active #prompt {
+  bottom: 132px;
 }
 
 #prompt.visible {

@@ -429,7 +429,6 @@ function buildResourceMesh(/** @type {any} */ type = 'crystal') {
   group.userData.crystal = placeholder;
   group.userData.placeholder = placeholder;
   group.userData.type = type;
-  group.userData.pulseOffset = Math.random() * Math.PI * 2;
 
   hydrateResourceMesh(type, group).catch((/** @type {any} */ err) => {
     console.warn('[world] Failed to load resource node model:', err);
@@ -929,13 +928,9 @@ async function loadEnvironmentModels(/** @type {any} */ worldState, /** @type {a
 export function animateWorld(/** @type {any} */ worldState, /** @type {any} */ now) {
   if (!worldState) return;
   for (const mesh of worldState.resourceMeshes.values()) {
-    const available = mesh.userData.available;
-    if (!available) {
-      mesh.scale.set(0.85, 0.6, 0.85);
-      continue;
+    mesh.scale.set(1, 1, 1);
+    if (mesh.userData.available === false) {
+      mesh.visible = false;
     }
-    const offset = mesh.userData.pulseOffset ?? 0;
-    const pulse = 1 + 0.08 * Math.sin(now * 0.004 + offset);
-    mesh.scale.set(pulse, pulse, pulse);
   }
 }

@@ -84,6 +84,14 @@ describe('style scope integrity', () => {
     }
   });
 
+  it('anchors cast progress near abilities and shifts prompt while active', () => {
+    const overlayCss = read(OVERLAY_CSS);
+    expect(overlayCss).toMatch(
+      /\.cast-bar-wrap\s*\{[\s\S]*position:\s*fixed;[\s\S]*left:\s*50%;[\s\S]*bottom:\s*\d+px;[\s\S]*transform:\s*translateX\(-50%\);[\s\S]*pointer-events:\s*none;/
+    );
+    expect(overlayCss).toMatch(/body\.cast-bar-active\s+#prompt\s*\{[\s\S]*bottom:\s*\d+px;/);
+  });
+
   it('does not contain legacy sci-fi signature colors in primary style files', () => {
     const styles = [BASE_CSS, MENU_CSS, OVERLAY_CSS, PANELS_CSS, VENDOR_CSS, CHAT_CSS, TOAST_CSS]
       .map(read)
