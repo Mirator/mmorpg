@@ -27,6 +27,16 @@ function resetStore() {
   store.charactersByLower.clear();
 }
 
+function extractClassId(state) {
+  const classId = typeof state?.classId === 'string' ? state.classId : '';
+  return classId || 'fighter';
+}
+
+function extractLevel(state) {
+  const level = Number(state?.level);
+  return Number.isFinite(level) && level >= 1 ? Math.floor(level) : 1;
+}
+
 vi.mock('./db/accountRepo.js', () => ({
   findAccountByUsernameLower: async (usernameLower) => store.accountsByLower.get(usernameLower) ?? null,
   createAccount: async (account) => {
@@ -35,16 +45,72 @@ vi.mock('./db/accountRepo.js', () => ({
       err.code = 'P2002';
       throw err;
     }
-    const next = { ...account };
+    const now = new Date();
+    const next = {
+      ...account,
+      createdAt: account.createdAt ?? now,
+      lastSignedInAt: account.lastSignedInAt ?? null,
+      lastSeenAt: account.lastSeenAt ?? null,
+    };
     store.accountsById.set(next.id, next);
     store.accountsByLower.set(next.usernameLower, next);
     return next;
+  },
+  markAccountSignedIn: async (id, at = new Date()) => {
+    const account = store.accountsById.get(id);
+    if (!account) return null;
+    account.lastSignedInAt = at;
+    account.lastSeenAt = at;
+    return account;
   },
   updateAccountLastSeen: async (id, lastSeenAt = new Date()) => {
     const account = store.accountsById.get(id);
     if (!account) return null;
     account.lastSeenAt = lastSeenAt;
     return account;
+  },
+  listAccountsOverview: async ({ page = 1, pageSize = 50 } = {}) => {
+    const safePage = Math.max(1, Math.floor(Number(page) || 1));
+    const safePageSize = Math.max(10, Math.min(100, Math.floor(Number(pageSize) || 50)));
+    const sorted = [...store.accountsById.values()].sort((a, b) => {
+      const aSignedIn = Date.parse(String(a.lastSignedInAt ?? '')) || 0;
+      const bSignedIn = Date.parse(String(b.lastSignedInAt ?? '')) || 0;
+      if (bSignedIn !== aSignedIn) return bSignedIn - aSignedIn;
+      return String(a.usernameLower ?? '').localeCompare(String(b.usernameLower ?? ''));
+    });
+
+    const start = (safePage - 1) * safePageSize;
+    const paged = sorted.slice(start, start + safePageSize);
+    const accounts = paged.map((account) => {
+      const characters = [...store.charactersById.values()]
+        .filter((character) => character.accountId === account.id)
+        .sort((a, b) => Number(b.updatedAt) - Number(a.updatedAt))
+        .map((character) => ({
+          id: character.id,
+          name: character.name,
+          classId: extractClassId(character.state),
+          level: extractLevel(character.state),
+          lastSeenAt: character.lastSeenAt ?? null,
+          updatedAt: character.updatedAt ?? null,
+        }));
+
+      return {
+        id: account.id,
+        username: account.username,
+        createdAt: account.createdAt ?? null,
+        lastSignedInAt: account.lastSignedInAt ?? null,
+        lastSeenAt: account.lastSeenAt ?? null,
+        characters,
+      };
+    });
+
+    return {
+      page: safePage,
+      pageSize: safePageSize,
+      totalAccounts: sorted.length,
+      totalCharacters: store.charactersById.size,
+      accounts,
+    };
   },
 }));
 
@@ -437,6 +503,7 @@ describe('admin designer APIs', () => {
     const { server, baseUrl } = await startServer(app);
     try {
       const routes = [
+        '/admin/accounts-overview',
         '/admin/designer-state?zone=world-map',
         '/admin/prefabs?zone=world-map',
         '/admin/comments?zone=world-map',
@@ -455,6 +522,119 @@ describe('admin designer APIs', () => {
       const ok = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { cookie });
       expect(ok.res.status).toBe(200);
       expect(ok.payload?.zoneKey).toBe('world-map');
+
+      const accountsOverviewOk = await requestJson(baseUrl, '/admin/accounts-overview', { cookie });
+      expect(accountsOverviewOk.res.status).toBe(200);
+      expect(Array.isArray(accountsOverviewOk.payload?.accounts)).toBe(true);
+    } finally {
+      await new Promise((resolve, reject) => {
+        server.close((err) => (err ? reject(err) : resolve()));
+      });
+      files.cleanup();
+    }
+  });
+
+  it('returns paginated accounts overview sorted by recent sign-in with character details', async () => {
+    resetStore();
+    const files = createTempAdminFiles();
+    const config = createTestConfig();
+    const world = createWorldFromConfig(buildMapConfig());
+    const players = new Map([
+      ['char-0', { accountId: 'acct-0' }],
+      ['char-5', { accountId: 'acct-5' }],
+    ]);
+
+    const signedInBase = Date.parse('2026-02-24T10:00:00Z');
+    for (let i = 0; i < 12; i += 1) {
+      const accountId = `acct-${i}`;
+      const username = `user_${String(i).padStart(2, '0')}`;
+      const lastSignedInAt = new Date(signedInBase - i * 60_000);
+      const createdAt = new Date(signedInBase - (i + 100) * 60_000);
+      const lastSeenAt = new Date(signedInBase - i * 55_000);
+      const account = {
+        id: accountId,
+        username,
+        usernameLower: username.toLowerCase(),
+        passwordHash: 'hash',
+        passwordSalt: 'salt',
+        createdAt,
+        lastSignedInAt,
+        lastSeenAt,
+      };
+      store.accountsById.set(accountId, account);
+      store.accountsByLower.set(account.usernameLower, account);
+
+      const character = {
+        id: `char-${i}`,
+        accountId,
+        name: `Hero ${i}`,
+        nameLower: `hero ${i}`,
+        state: {
+          classId: i % 2 === 0 ? 'fighter' : 'mage',
+          level: i + 1,
+        },
+        lastSeenAt,
+        updatedAt: new Date(signedInBase - i * 53_000),
+      };
+      store.charactersById.set(character.id, character);
+      store.charactersByLower.set(character.nameLower, character);
+    }
+
+    const app = createHttpApp({
+      config,
+      world,
+      players,
+      resources: [],
+      mobs: [],
+      spawner: { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+    });
+
+    const { server, baseUrl } = await startServer(app);
+    try {
+      const { cookie } = await unlockAdmin(baseUrl);
+
+      const pageOne = await requestJson(baseUrl, '/admin/accounts-overview?page=1&pageSize=1', { cookie });
+      expect(pageOne.res.status).toBe(200);
+      expect(pageOne.payload?.pagination).toMatchObject({
+        page: 1,
+        pageSize: 10,
+        totalAccounts: 12,
+        totalPages: 2,
+        hasPrev: false,
+        hasNext: true,
+      });
+      expect(pageOne.payload?.totals).toMatchObject({
+        totalCharacters: 12,
+        onlineCharacters: 2,
+      });
+      expect(pageOne.payload?.accounts?.length).toBe(10);
+      expect(pageOne.payload?.accounts?.[0]?.id).toBe('acct-0');
+      expect(pageOne.payload?.accounts?.[0]?.isOnline).toBe(true);
+      expect(pageOne.payload?.accounts?.[0]?.onlineCharacterCount).toBe(1);
+      expect(pageOne.payload?.accounts?.[0]?.characterCount).toBe(1);
+      expect(pageOne.payload?.accounts?.[0]?.characters?.[0]).toMatchObject({
+        id: 'char-0',
+        classId: 'fighter',
+        level: 1,
+        isOnline: true,
+      });
+
+      const pageTwo = await requestJson(baseUrl, '/admin/accounts-overview?page=2&pageSize=1', { cookie });
+      expect(pageTwo.res.status).toBe(200);
+      expect(pageTwo.payload?.pagination).toMatchObject({
+        page: 2,
+        pageSize: 10,
+        totalAccounts: 12,
+        totalPages: 2,
+        hasPrev: true,
+        hasNext: false,
+      });
+      expect(pageTwo.payload?.accounts?.length).toBe(2);
+      expect(pageTwo.payload?.accounts?.[0]?.id).toBe('acct-10');
+      expect(pageTwo.payload?.accounts?.[1]?.id).toBe('acct-11');
+      expect(pageTwo.payload?.accounts?.[1]?.characters?.[0]?.isOnline).toBe(false);
     } finally {
       await new Promise((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()));
@@ -533,6 +713,11 @@ describe('admin designer APIs', () => {
       });
       expect(stateOk.res.status).toBe(200);
 
+      const accountsOverviewOk = await requestJson(baseUrl, '/admin/accounts-overview', {
+        cookie,
+      });
+      expect(accountsOverviewOk.res.status).toBe(200);
+
       const designerOk = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', {
         cookie,
       });
@@ -581,6 +766,11 @@ describe('admin designer APIs', () => {
         cookie,
       });
       expect(stateAfterLogout.res.status).toBe(401);
+
+      const accountsOverviewAfterLogout = await requestJson(baseUrl, '/admin/accounts-overview', {
+        cookie,
+      });
+      expect(accountsOverviewAfterLogout.res.status).toBe(401);
     } finally {
       await new Promise((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()));

@@ -59,6 +59,7 @@ export async function seedDevAccount({ env, config, logger = console, deps = {} 
       usernameLower: normalized.lower,
       passwordHash: hash,
       passwordSalt: salt,
+      lastSignedInAt: new Date(),
       lastSeenAt: new Date(),
     });
 

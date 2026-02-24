@@ -88,6 +88,49 @@
         </div>
       </section>
 
+      <section class="panel accounts-panel">
+        <div class="panel-title">Accounts &amp; Characters</div>
+        <div class="accounts-summary-row">
+          <div class="summary-grid accounts-summary-grid">
+            <div class="summary-card">
+              <div class="label">Accounts</div>
+              <div id="accounts-total" class="value">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Characters</div>
+              <div id="characters-total" class="value">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Online Characters</div>
+              <div id="characters-online-total" class="value">0</div>
+            </div>
+          </div>
+          <div id="accounts-updated" class="note">Updated: --</div>
+        </div>
+        <div class="table-wrap accounts-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Created</th>
+                <th>Last Signed In</th>
+                <th>Last Seen</th>
+                <th>Online</th>
+                <th>Characters</th>
+              </tr>
+            </thead>
+            <tbody id="accounts-body"></tbody>
+          </table>
+        </div>
+        <div class="table-controls">
+          <div class="pager">
+            <button id="accounts-prev-btn" type="button" disabled>Prev</button>
+            <span id="accounts-page-label">Page 1 / 1</span>
+            <button id="accounts-next-btn" type="button" disabled>Next</button>
+          </div>
+        </div>
+      </section>
+
       <section class="panel zone-list-panel">
         <div class="panel-title">Zone List</div>
         <div class="table-wrap">

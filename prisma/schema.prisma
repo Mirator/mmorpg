@@ -30,10 +30,13 @@ model Account {
   passwordHash  String
   passwordSalt  String
   createdAt     DateTime @default(now())
+  lastSignedInAt DateTime?
   lastSeenAt    DateTime?
 
   sessions      Session[]
   players       Player[]
+
+  @@index([lastSignedInAt])
 }
 
 model Session {

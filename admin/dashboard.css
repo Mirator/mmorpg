@@ -93,8 +93,77 @@
   text-decoration: underline;
 }
 
+.accounts-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.accounts-summary-grid {
+  flex: 1 1 520px;
+  margin-bottom: 0;
+}
+
+.accounts-table-wrap {
+  max-height: 460px;
+}
+
+.accounts-account-cell strong {
+  display: block;
+}
+
+.accounts-account-id {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.accounts-character-list {
+  display: grid;
+  gap: 4px;
+}
+
+.accounts-character-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accounts-online-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 11px;
+  border: 1px solid var(--panel-border);
+  text-transform: lowercase;
+}
+
+.accounts-online-pill.online {
+  border-color: rgba(var(--ok-rgb), 0.5);
+  color: var(--ok);
+}
+
+.accounts-online-pill.offline {
+  border-color: rgba(var(--warning-rgb), 0.45);
+  color: var(--warning);
+}
+
+.accounts-empty-cell {
+  color: var(--muted);
+  text-align: center;
+}
+
 @media (max-width: 1020px) {
   .admin-header {
+    flex-direction: column;
+  }
+
+  .accounts-summary-row {
     flex-direction: column;
   }
 }

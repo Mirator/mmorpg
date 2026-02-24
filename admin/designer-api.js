@@ -116,6 +116,14 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       return request('/admin/state', { zoneScoped: false });
     },
 
+    getAccountsOverview(page = 1, pageSize = 50) {
+      const safePage = Math.max(1, Math.floor(Number(page) || 1));
+      const safePageSize = Math.max(10, Math.min(100, Math.floor(Number(pageSize) || 50)));
+      return request(`/admin/accounts-overview?page=${safePage}&pageSize=${safePageSize}`, {
+        zoneScoped: false,
+      });
+    },
+
     getMapConfig() {
       return request('/admin/map-config', { zoneScoped: false });
     },

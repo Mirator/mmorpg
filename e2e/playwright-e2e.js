@@ -124,7 +124,7 @@ async function safeSetViewport(/** @type {any} */ page, /** @type {any} */ viewp
     await page.setViewportSize(viewport);
     return;
   } catch (err) {
-    const message = String(err?.message ?? err);
+    const message = String((/** @type {any} */ (err))?.message ?? err);
     if (!message.includes('setWindowBounds')) {
       throw err;
     }
@@ -976,7 +976,9 @@ async function run() {
       const hpBeforeAttack = updatedTarget.hp ?? 0;
       const cooldownBeforeAttack = state.player?.attackCooldownUntil ?? 0;
       await page.evaluate(() => {
-        document.activeElement?.blur?.();
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
         if (window.__game?.forceAbility) {
           window.__game.forceAbility(1);
           return;

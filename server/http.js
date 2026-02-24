@@ -19,7 +19,13 @@ import {
   SESSION_TTL_MS,
   verifyPassword,
 } from './auth.js';
-import { createAccount, findAccountByUsernameLower, updateAccountLastSeen } from './db/accountRepo.js';
+import {
+  createAccount,
+  findAccountByUsernameLower,
+  listAccountsOverview,
+  markAccountSignedIn,
+  updateAccountLastSeen,
+} from './db/accountRepo.js';
 import { createSession, deleteSession, getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import {
   createCharacter,
@@ -72,6 +78,16 @@ function isUniqueConstraintError(err) {
  */
 function sendError(res, status, message) {
   res.status(status).json({ error: message });
+}
+
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @returns {number}
+ */
+function toInt(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? ''), 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 /**
@@ -348,6 +364,73 @@ export function createHttpApp({
       mobs,
     })
   );
+  app.get('/admin/accounts-overview', async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    if (!isAdminAuthorizedRequest(req)) {
+      sendError(res, 401, 'Unauthorized');
+      return;
+    }
+
+    const query = /** @type {{ page?: unknown, pageSize?: unknown }} */ (req.query ?? {});
+    const page = Math.max(1, toInt(query.page, 1));
+    const pageSize = Math.max(10, Math.min(100, toInt(query.pageSize, 50)));
+
+    try {
+      const { totalAccounts, totalCharacters, accounts } = await listAccountsOverview({ page, pageSize });
+      const onlineCharactersByAccountId = new Map();
+      const onlineCharacterIds = new Set();
+
+      for (const [characterId, player] of players.entries()) {
+        if (!player?.accountId) continue;
+        onlineCharacterIds.add(characterId);
+        onlineCharactersByAccountId.set(
+          player.accountId,
+          (onlineCharactersByAccountId.get(player.accountId) ?? 0) + 1
+        );
+      }
+
+      const serializedAccounts = accounts.map((account) => {
+        const characters = account.characters.map((/** @type {any} */ character) => ({
+          ...character,
+          isOnline: onlineCharacterIds.has(character.id),
+        }));
+        const onlineCharacterCount = onlineCharactersByAccountId.get(account.id) ?? 0;
+        return {
+          id: account.id,
+          username: account.username,
+          createdAt: account.createdAt,
+          lastSignedInAt: account.lastSignedInAt,
+          lastSeenAt: account.lastSeenAt,
+          isOnline: onlineCharacterCount > 0,
+          onlineCharacterCount,
+          characterCount: characters.length,
+          characters,
+        };
+      });
+
+      const totalPages = Math.max(1, Math.ceil(totalAccounts / pageSize));
+      const onlineCharactersTotal = [...players.values()].filter((player) => !!player?.accountId).length;
+      res.json({
+        generatedAt: new Date().toISOString(),
+        totals: {
+          totalCharacters,
+          onlineCharacters: onlineCharactersTotal,
+        },
+        pagination: {
+          page,
+          pageSize,
+          totalAccounts,
+          totalPages,
+          hasPrev: page > 1,
+          hasNext: page < totalPages,
+        },
+        accounts: serializedAccounts,
+      });
+    } catch (err) {
+      if (sendDbError(res, err)) return;
+      console.error('Admin accounts overview error:', err);
+      sendError(res, 500, 'Unable to load accounts overview.');
+    }
+  });
 
   const mapHandlers = createMapConfigHandlers({
     mapConfigPath,
@@ -424,6 +507,7 @@ export function createHttpApp({
         usernameLower: normalized.lower,
         passwordHash: hash,
         passwordSalt: salt,
+        lastSignedInAt: now,
         lastSeenAt: now,
       });
     } catch (err) {
@@ -505,7 +589,7 @@ export function createHttpApp({
         expiresAt,
         lastSeenAt: now,
       });
-      await updateAccountLastSeen(account.id, now);
+      await markAccountSignedIn(account.id, now);
     } catch (err) {
       if (sendDbError(res, err)) return;
       console.error('Login session error:', err);

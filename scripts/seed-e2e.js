@@ -28,6 +28,7 @@ async function seedE2e() {
     usernameLower: normalized.lower,
     passwordHash: hash,
     passwordSalt: salt,
+    lastSignedInAt: new Date(),
     lastSeenAt: new Date(),
   });
   console.log(`[e2e] Seeded account "${normalized.name}".`);
