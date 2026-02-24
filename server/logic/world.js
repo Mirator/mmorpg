@@ -19,6 +19,7 @@ const MOB_COUNT = WORLD_CONFIG.mobCount;
 const MOB_RESPAWN_MS = MOB_CONFIG.respawnMs;
 
 const HARVEST_RADIUS = RESOURCE_CONFIG.harvestRadius;
+const HARVEST_DURATION_MS = RESOURCE_CONFIG.harvestDurationMs;
 const RESOURCE_RESPAWN_MS = RESOURCE_CONFIG.respawnMs;
 
 const PLAYER_MAX_HP = PLAYER_CONFIG.maxHp;
@@ -144,6 +145,7 @@ export function createSimulatedWorld() {
     mobCount: MOB_COUNT,
     mobRespawnMs: MOB_RESPAWN_MS,
     harvestRadius: HARVEST_RADIUS,
+    harvestDurationMs: HARVEST_DURATION_MS,
     resourceRespawnMs: RESOURCE_RESPAWN_MS,
     playerMaxHp: PLAYER_MAX_HP,
     playerSpeed: PLAYER_SPEED,
@@ -247,6 +249,7 @@ export function createWorldFromConfig(/** @type {any} */ mapConfig) {
     mobCount: mobSpawns.length,
     mobRespawnMs: MOB_RESPAWN_MS,
     harvestRadius: HARVEST_RADIUS,
+    harvestDurationMs: HARVEST_DURATION_MS,
     resourceRespawnMs: RESOURCE_RESPAWN_MS,
     playerMaxHp: PLAYER_MAX_HP,
     playerSpeed: PLAYER_SPEED,
@@ -272,6 +275,7 @@ export function worldSnapshot(/** @type {any} */ world) {
     collisionObstacles: world.collisionObstacles ?? world.obstacles,
     structures: world.structures ?? [],
     harvestRadius: world.harvestRadius,
+    harvestDurationMs: world.harvestDurationMs,
     playerSpeed: world.playerSpeed,
     playerInvSlots: world.playerInvSlots,
     playerInvStackMax: world.playerInvStackMax,

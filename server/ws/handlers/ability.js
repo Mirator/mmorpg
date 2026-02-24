@@ -2,6 +2,7 @@
 import { tryUseAbility } from '../../logic/combat.js';
 import { sendCombatLog } from '../../logic/combatLog.js';
 import { buildCombatLogDispatch } from '../../logic/combatLogEntries.js';
+import { clearHarvest } from '../../logic/resources.js';
 
 export function handleAbility(/** @type {any} */ ctx) {
   const {
@@ -15,6 +16,7 @@ export function handleAbility(/** @type {any} */ ctx) {
     persistence,
   } = ctx;
   const now = Date.now();
+  clearHarvest(player);
   const result = /** @type {any} */ (tryUseAbility({
     player,
     slot: ctx.msg.slot,

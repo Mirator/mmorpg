@@ -21,7 +21,7 @@ describe('assetPaths', () => {
     expect(ASSET_PATHS.environment).toHaveProperty('trees');
     expect(ASSET_PATHS).toHaveProperty('resourceNodes');
     expect(ASSET_PATHS.resourceNodes.ore).toBe('/assets/resources/nodes/ore/Resource_Rock_1.gltf');
-    expect(ASSET_PATHS.resourceNodes.tree).toBe('/assets/resources/nodes/tree/Resource_Tree_Group_Cut.gltf');
+    expect(ASSET_PATHS.resourceNodes.tree).toBe('/assets/nature/CommonTree_1.gltf');
     expect(ASSET_PATHS.resourceNodes.herb).toBe('/assets/resources/nodes/herb/Plant_1.gltf');
     expect(ASSET_PATHS.resourceNodes.flower).toBe('/assets/resources/nodes/flower/Flower_3_Single.gltf');
   });

@@ -49,6 +49,13 @@ const /** @type {any} */ RESOURCE_TYPE_COLORS = {
   tree: { active: 0x8b6914, dim: 0x3d3228 },
   flower: { active: 0xe85d9a, dim: 0x4a2a35 },
 };
+const /** @type {any} */ RESOURCE_TARGET_HEIGHTS = {
+  crystal: 1.6,
+  ore: 1.6,
+  herb: 1.6,
+  flower: 1.6,
+  tree: 4.8,
+};
 const CORPSE_MARKER_HEIGHT = 1.2;
 
 const mobPrototypeCache = new Map();
@@ -431,7 +438,13 @@ function buildResourceMesh(/** @type {any} */ type = 'crystal') {
   return group;
 }
 
-function applyResourceMaterialColors(/** @type {any} */ ref, /** @type {any} */ colors, /** @type {any} */ available) {
+function applyResourceMaterialColors(
+  /** @type {any} */ ref,
+  /** @type {any} */ colors,
+  /** @type {any} */ available,
+  /** @type {any} */ resourceType = 'crystal'
+) {
+  if (resourceType === 'tree') return;
   if (!ref) return;
   const intensity = available ? 0.25 : 0.05;
   const color = available ? colors.active : colors.dim;
@@ -456,8 +469,9 @@ async function hydrateResourceMesh(/** @type {any} */ type, /** @type {any} */ g
   const gltf = await loadGltf(url);
   if (!gltf?.scene) return;
   const model = gltf.scene.clone(true);
-  normalizeToHeight(model, 1.6);
-  model.position.y = 0.8;
+  const targetHeight = RESOURCE_TARGET_HEIGHTS[type] ?? RESOURCE_TARGET_HEIGHTS.crystal;
+  normalizeToHeight(model, targetHeight);
+  model.position.y = 0;
   group.remove(group.userData.placeholder);
   group.userData.placeholder = null;
   group.userData.crystal = model;
@@ -687,11 +701,11 @@ export function updateResources(/** @type {any} */ worldState, /** @type {any} *
       worldState.group.add(mesh);
     } else if (mesh.userData.type !== resourceType) {
       mesh.userData.type = resourceType;
-      applyResourceMaterialColors(mesh.userData.crystal, colors, true);
+      applyResourceMaterialColors(mesh.userData.crystal, colors, true, resourceType);
     }
     mesh.position.set(resource.x, resource.y ?? 0, resource.z);
     mesh.userData.available = resource.available;
-    applyResourceMaterialColors(mesh.userData.crystal, colors, resource.available);
+    applyResourceMaterialColors(mesh.userData.crystal, colors, resource.available, resourceType);
   }
 
   for (const [id, mesh] of worldState.resourceMeshes.entries()) {

@@ -15,6 +15,7 @@ export const WORLD_CONFIG = {
 
 export const RESOURCE_CONFIG = {
   harvestRadius: 2.2,
+  harvestDurationMs: 2_500,
   respawnMs: 15_000,
 };
 
@@ -78,6 +79,7 @@ export function getConfigSnapshot() {
     },
     resource: {
       harvestRadius: RESOURCE_CONFIG.harvestRadius,
+      harvestDurationMs: RESOURCE_CONFIG.harvestDurationMs,
       respawnMs: RESOURCE_CONFIG.respawnMs,
     },
     mob: {

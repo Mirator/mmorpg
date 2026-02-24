@@ -808,12 +808,17 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   renderSystem.animateWorldMeshes(now);
   const players = latestPlayers;
   const deadPlayerIds = new Set();
+  const harvestingById = new Set();
   if (players && typeof players === 'object') {
     for (const [id, p] of Object.entries(players)) {
       if (p?.dead) deadPlayerIds.add(id);
+      if (p?.harvesting) harvestingById.add(id);
     }
   }
-  renderSystem.updateAnimations(dt, now, deadPlayerIds);
+  if (ctx.playerId && localState?.harvest) {
+    harvestingById.add(ctx.playerId);
+  }
+  renderSystem.updateAnimations(dt, now, { deadPlayerIds, harvestingById });
   renderSystem.updateEffects(now);
   const resolvedTarget = resolveTarget(ctx.selectedTarget, {
     mobs: gameState.getLatestMobs(),
@@ -862,6 +867,14 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
 
   if (ui.isUiBlocking()) {
     ui.clearPrompt();
+  } else if (localState?.harvest) {
+    const resourceType = localState.harvest.resourceType ?? 'crystal';
+    if (resourceType === 'tree') {
+      ui.showPrompt('Chopping Tree...');
+    } else {
+      const itemName = getResourceConfig(resourceType).itemName ?? 'Resource';
+      ui.showPrompt(`Harvesting ${itemName}...`);
+    }
   } else if (inVendorRange && nearestVendor) {
     ui.showPrompt(`Press E to talk to ${nearestVendor.name ?? 'Vendor'}`);
   } else if (viewPos && gameState.getLatestResources().length) {
@@ -888,8 +901,12 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
     }
     if (nearestResource) {
       const resourceType = nearestResource.type ?? 'crystal';
-      const itemName = getResourceConfig(resourceType).itemName ?? 'Resource';
-      ui.showPrompt(`Press E to harvest ${itemName}`);
+      if (resourceType === 'tree') {
+        ui.showPrompt('Press E to chop Tree');
+      } else {
+        const itemName = getResourceConfig(resourceType).itemName ?? 'Resource';
+        ui.showPrompt(`Press E to harvest ${itemName}`);
+      }
     } else {
       ui.clearPrompt();
     }
@@ -970,6 +987,7 @@ function buildTextState() {
   const structures = worldConfig?.structures ?? [];
   const mapSize = worldConfig?.mapSize ?? 0;
   const harvestRadius = worldConfig?.harvestRadius ?? 2;
+  const harvestDurationMs = worldConfig?.harvestDurationMs ?? 2_500;
   const inventorySlots = Array.isArray(me?.inventory) ? me.inventory : [];
   const inventoryOpen = ui.isInventoryOpen();
   const tradeOpen = ui.isTradeOpen();
@@ -1008,6 +1026,7 @@ function buildTextState() {
       mapSize,
       base,
       harvestRadius,
+      harvestDurationMs,
       vendors: worldConfig?.vendors ?? [],
       vendorInteractRadius: worldConfig?.vendorInteractRadius ?? 2.5,
       obstacles: obstacles.map((/** @type {any} */ o) => ({ x: o.x, z: o.z, r: o.r ?? o.radius })),
@@ -1064,6 +1083,14 @@ function buildTextState() {
           currency: splitCurrency(currencyCopper),
           dead: me.dead,
           respawnAt: me.respawnAt ?? 0,
+          harvest: me.harvest
+            ? {
+                resourceId: me.harvest.resourceId ?? null,
+                resourceType: me.harvest.resourceType ?? null,
+                startedAt: me.harvest.startedAt ?? 0,
+                endsAt: me.harvest.endsAt ?? 0,
+              }
+            : null,
         }
       : null,
     target: target

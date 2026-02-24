@@ -622,13 +622,29 @@ async function run() {
         `distance=${distance(state.player, resource).toFixed(2)}`
     );
 
+    const harvestDurationMs = state.world?.harvestDurationMs ?? 2500;
     const invBefore = state.player.inv;
     await page.evaluate(() => window.__game?.interact());
     state = await waitForCondition(
       page,
-      (/** @type {any} */ s) => s.player && s.player.inv === invBefore + 1,
+      (/** @type {any} */ s) =>
+        s.player &&
+        s.player.harvest &&
+        s.player.harvest.resourceId === resource.id,
       TEST_TIMEOUT_MS,
-      'harvest'
+      'harvest channel start'
+    );
+    const preCompleteAdvance = Math.max(200, harvestDurationMs - 450);
+    await advance(page, preCompleteAdvance);
+    state = await getState(page);
+    if ((state?.player?.inv ?? 0) !== invBefore) {
+      throw new Error('Inventory increased before timed harvest completed');
+    }
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.player && s.player.inv === invBefore + 1,
+      TEST_TIMEOUT_MS + harvestDurationMs,
+      'harvest completion'
     );
     state = await assertAliveBefore(page, 'inventory/equipment checks', state);
 

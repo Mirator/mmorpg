@@ -1,7 +1,7 @@
 // @ts-check
 import { stepPlayer } from './logic/movement.js';
 import { applyCollisions } from './logic/collision.js';
-import { stepResources } from './logic/resources.js';
+import { stepResources, stepPlayerHarvest } from './logic/resources.js';
 import { stepMobs } from './logic/mobs.js';
 import { clearInventory, countInventory } from './logic/inventory.js';
 import { respawnPlayer } from './logic/players.js';
@@ -48,6 +48,7 @@ export function createGameLoop(/** @type {any} */ { players, world, resources, m
     player.targetId = null;
     player.targetKind = null;
     player.cast = null;
+    player.harvest = null;
     player.keys = { w: false, a: false, s: false, d: false };
     markDirty(player);
     if (typeof onPlayerDeath === 'function') {
@@ -70,6 +71,7 @@ export function createGameLoop(/** @type {any} */ { players, world, resources, m
         if (player.dead) {
           if (player.respawnAt && now >= player.respawnAt) {
             respawnPlayer(player, spawner.getSpawnPoint(), markDirty);
+            player.harvest = null;
             respawned = true;
           }
         }
@@ -107,6 +109,16 @@ export function createGameLoop(/** @type {any} */ { players, world, resources, m
       stepMobs(mobs, Array.from(players.values()), world, dt, now, mobConfig);
 
       for (const player of players.values()) {
+        const harvestResult = stepPlayerHarvest(resources, player, now, {
+          harvestRadius: config.resource?.harvestRadius ?? 2,
+          harvestDurationMs: config.resource?.harvestDurationMs ?? 2_500,
+          respawnMs: config.resource?.respawnMs ?? 15_000,
+          stackMax: player.invStackMax,
+        });
+        if (harvestResult?.status === 'completed') {
+          markDirty(player);
+        }
+
         const castResult = stepPlayerCast(player, mobs, now, config.mob.respawnMs, players);
         if (castResult.event && typeof onCombatEvent === 'function') {
           onCombatEvent(castResult.event, now);

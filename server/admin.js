@@ -135,6 +135,14 @@ export function serializePlayerPrivate(player) {
           firedTicks: player.cast.firedTicks ?? 0,
         }
       : null,
+    harvest: player.harvest
+      ? {
+          resourceId: player.harvest.resourceId,
+          resourceType: player.harvest.resourceType,
+          startedAt: player.harvest.startedAt ?? 0,
+          endsAt: player.harvest.endsAt ?? 0,
+        }
+      : null,
     moveSpeedMultiplier: player.moveSpeedMultiplier ?? 1,
     equipment: player.equipment ?? null,
     weaponKind: getEquippedWeapon(player.equipment, player.classId)?.kind ?? null,

@@ -63,7 +63,7 @@ export const ASSET_PATHS = {
     crystal: `${RESOURCES_ROOT}/Crystal1.glb`,
     ore: `${RESOURCES_ROOT}/nodes/ore/Resource_Rock_1.gltf`,
     herb: `${RESOURCES_ROOT}/nodes/herb/Plant_1.gltf`,
-    tree: `${RESOURCES_ROOT}/nodes/tree/Resource_Tree_Group_Cut.gltf`,
+    tree: `${NATURE_ROOT}/CommonTree_1.gltf`,
     flower: `${RESOURCES_ROOT}/nodes/flower/Flower_3_Single.gltf`,
   },
 };

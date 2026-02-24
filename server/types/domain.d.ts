@@ -77,6 +77,13 @@ export interface ServerPlayer {
     targetId?: string | null;
     firedTicks?: number;
   } | null;
+  harvest?: {
+    resourceId: string;
+    resourceType: string;
+    startedAt: number;
+    endsAt: number;
+    hpAtStart: number;
+  } | null;
   moveSpeedMultiplier?: number;
   damageTakenMultiplier?: number;
   slowImmuneUntil?: number;
@@ -259,6 +266,8 @@ export interface PublicPlayerState {
   name: string | null;
   dirX?: number;
   dirZ?: number;
+  harvesting?: boolean;
+  harvestType?: string | null;
   duelOpponentId?: string | null;
 }
 

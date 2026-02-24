@@ -159,6 +159,7 @@ function initCombatState(player) {
   player.lastMoveDir = null;
   player.movedThisTick = false;
   player.cast = null;
+  player.harvest = null;
   player.moveSpeedMultiplier = 1;
   player.damageTakenMultiplier = 1;
   player.slowImmuneUntil = 0;
@@ -201,6 +202,7 @@ function createRuntimePlayer({
     level: state.level,
     xp: state.xp,
     attackCooldownUntil: 0,
+    harvest: null,
     accountId: accountId ?? null,
     name: name ?? null,
     nameLower: nameLower ?? null,
@@ -333,7 +335,7 @@ export function createWebSocketServer({
    * @param {string[]} [includeIds]
    * @returns {PublicPlayersById}
    */
-  function filterPlayersByAOI(playersMap, centerPos, includeIds = []) {
+  function filterPlayersByAOI(playersMap, centerPos, includeIds = [], now = Date.now()) {
     /** @type {PublicPlayersById} */
     const out = {};
     const includeSet = new Set(includeIds ?? []);
@@ -354,6 +356,15 @@ export function createWebSocketServer({
           level: p.level ?? 1,
           name: p.name ?? null,
         };
+        const harvest = p.harvest;
+        if (
+          harvest &&
+          Number.isFinite(harvest.endsAt) &&
+          harvest.endsAt > now
+        ) {
+          playerState.harvesting = true;
+          playerState.harvestType = harvest.resourceType ?? null;
+        }
         const facingDir = normalizeFacingDir(p.lastMoveDir);
         if (facingDir) {
           playerState.dirX = facingDir.x;
@@ -408,7 +419,7 @@ export function createWebSocketServer({
   function buildPublicStateForPlayer(player, now) {
     const pos = player?.pos ?? { x: 0, y: 0, z: 0 };
     const partyIds = getPartyMemberIds(player?.id);
-    const filteredPlayers = filterPlayersByAOI(players, pos, partyIds);
+    const filteredPlayers = filterPlayersByAOI(players, pos, partyIds, now);
     const filteredResources = filterResourcesByAOI(resources, pos);
     const filteredMobs = filterMobsByAOI(mobs, pos);
     const filteredCorpses = filterCorpsesByAOI(corpses ?? [], pos);

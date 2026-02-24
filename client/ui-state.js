@@ -1,6 +1,7 @@
 // @ts-check
 import {
   formatCurrency,
+  getResourceConfig,
   VENDOR_SELL_PRICES,
   VENDOR_BUY_ITEMS,
 } from '/shared/economy.js';
@@ -216,18 +217,31 @@ export function createUiState(/** @type {any} */ {
   function updateCastBar(/** @type {any} */ me, /** @type {any} */ serverNow) {
     if (!castBarWrap || !castBarFill || !castBarName) return;
     const cast = me?.cast;
-    if (!cast) {
+    const harvest = me?.harvest;
+    if (!cast && !harvest) {
       castBarWrap.classList.add('hidden');
       return;
     }
+
     castBarWrap.classList.remove('hidden');
-    const startedAt = cast.startedAt ?? serverNow;
-    const endsAt = cast.endsAt ?? serverNow + 1000;
+    const startedAt = cast?.startedAt ?? harvest?.startedAt ?? serverNow;
+    const endsAt = cast?.endsAt ?? harvest?.endsAt ?? serverNow + 1000;
     const duration = Math.max(1, endsAt - startedAt);
     const elapsed = Math.max(0, serverNow - startedAt);
     const progress = Math.min(1, elapsed / duration);
     castBarFill.style.width = `${(progress * 100).toFixed(1)}%`;
-    castBarName.textContent = formatAbilityNameFromId(cast.id);
+    if (cast) {
+      castBarName.textContent = formatAbilityNameFromId(cast.id);
+      return;
+    }
+
+    const resourceType = harvest?.resourceType ?? 'crystal';
+    if (resourceType === 'tree') {
+      castBarName.textContent = 'Chopping Tree';
+      return;
+    }
+    const itemName = getResourceConfig(resourceType).itemName ?? 'Resource';
+    castBarName.textContent = `Harvesting ${itemName}`;
   }
 
   function formatDeathTimer(/** @type {any} */ remainingMs) {

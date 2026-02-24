@@ -139,6 +139,7 @@ export function getServerConfig(/** @type {any} */ env = process.env) {
     respawnMs: parseIntEnv(env.RESPAWN_MS, 60_000),
     resource: {
       harvestRadius: RESOURCE_CONFIG.harvestRadius,
+      harvestDurationMs: RESOURCE_CONFIG.harvestDurationMs,
       respawnMs: RESOURCE_CONFIG.respawnMs,
     },
     mob: {

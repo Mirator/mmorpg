@@ -377,8 +377,12 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     animateWorld(worldState, now);
   }
 
-  function updateAnimations(/** @type {any} */ dt, /** @type {any} */ now, /** @type {any} */ deadPlayerIds = new Set()) {
-    updateControllerMap(playerControllers, playerMeshes, dt, now, deadPlayerIds);
+  function updateAnimations(
+    /** @type {any} */ dt,
+    /** @type {any} */ now,
+    /** @type {any} */ { deadPlayerIds = new Set(), harvestingById = new Set() } = {}
+  ) {
+    updateControllerMap(playerControllers, playerMeshes, dt, now, { deadPlayerIds, harvestingById });
     if (worldState?.mobControllers && worldState?.mobMeshes) {
       updateControllerMap(worldState.mobControllers, worldState.mobMeshes, dt, now);
     }
@@ -483,6 +487,8 @@ export function createRenderSystem(/** @type {any} */ { app }) {
             walkNames: ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Walk_Formal_Loop'],
             attackNames: ['Sword_Attack', 'Punch_Jab', 'Punch_Cross'],
             attackKeywords: ['attack', 'slash', 'swing', 'punch'],
+            interactNames: ['Interact', 'PickUp_Table', 'Fixing_Kneeling'],
+            interactKeywords: ['interact', 'pickup', 'fix'],
             deathNames: ['Death'],
             deathKeywords: ['death'],
           }
@@ -491,6 +497,8 @@ export function createRenderSystem(/** @type {any} */ { app }) {
             walkNames: ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Walk_Formal_Loop'],
             attackNames: ['Sword_Attack', 'Punch_Jab', 'Punch_Cross'],
             attackKeywords: ['attack', 'slash', 'swing', 'punch'],
+            interactNames: ['Interact', 'PickUp_Table', 'Fixing_Kneeling'],
+            interactKeywords: ['interact', 'pickup', 'fix'],
             deathNames: ['Death'],
             deathKeywords: ['death'],
           };
@@ -522,7 +530,7 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       const mixer = new THREE.AnimationMixer(model);
       const actions = createActions(mixer, clipSet);
       const walkCycle = buildWalkCycle(model);
-      /** @type {{ mixer: any, actions: any, active: 'idle' | 'walk' | 'attack' | 'death' | null, attackUntil: number, lastPos: any, walkCycle: any }} */
+      /** @type {{ mixer: any, actions: any, active: 'idle' | 'walk' | 'attack' | 'interact' | 'death' | null, attackUntil: number, lastPos: any, walkCycle: any }} */
       const controller = {
         mixer,
         actions,
@@ -544,11 +552,19 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       idle: clipSet.idle ? mixer.clipAction(clipSet.idle) : null,
       walk: clipSet.walk ? mixer.clipAction(clipSet.walk) : null,
       attack: clipSet.attack ? mixer.clipAction(clipSet.attack) : null,
+      interact: clipSet.interact
+        ? mixer.clipAction(clipSet.interact)
+        : clipSet.attack
+          ? mixer.clipAction(clipSet.attack)
+          : null,
       death: clipSet.death ? mixer.clipAction(clipSet.death) : null,
     };
     if (actions.attack) {
       actions.attack.setLoop(THREE.LoopOnce, 1);
       actions.attack.clampWhenFinished = true;
+    }
+    if (actions.interact) {
+      actions.interact.setLoop(THREE.LoopRepeat, Infinity);
     }
     if (actions.death) {
       actions.death.setLoop(THREE.LoopOnce, 1);
@@ -664,8 +680,16 @@ export function createRenderSystem(/** @type {any} */ { app }) {
 
   const WALK_HYSTERESIS_MS = 180;
 
-  function updateControllerMap(/** @type {any} */ controllers, /** @type {any} */ meshes, /** @type {any} */ dt, /** @type {any} */ now, /** @type {any} */ deadPlayerIds = new Set()) {
+  function updateControllerMap(
+    /** @type {any} */ controllers,
+    /** @type {any} */ meshes,
+    /** @type {any} */ dt,
+    /** @type {any} */ now,
+    /** @type {any} */ options = {}
+  ) {
     if (!controllers || !meshes) return;
+    const deadPlayerIds = options.deadPlayerIds ?? new Set();
+    const harvestingById = options.harvestingById ?? new Set();
     for (const [id, controller] of controllers.entries()) {
       const mesh = meshes.get(id);
       if (!mesh) continue;
@@ -673,6 +697,7 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       const speed = mesh.position.distanceTo(lastPos) / Math.max(0.001, dt);
       controller.lastPos = mesh.position.clone();
       const isDead = deadPlayerIds && deadPlayerIds.has(id);
+      const isHarvesting = harvestingById && harvestingById.has(id);
       const isAttacking = controller.actions?.attack && controller.attackUntil && now < controller.attackUntil;
       const wantsWalk = speed > 0.1;
       const inWalkHysteresis =
@@ -684,6 +709,9 @@ export function createRenderSystem(/** @type {any} */ { app }) {
 
       if (isDead && controller.actions?.death) {
         playAction(controller, 'death');
+      } else if (isHarvesting && controller.actions?.interact) {
+        controller.walkUntil = 0;
+        playAction(controller, 'interact');
       } else if (isAttacking) {
         playAction(controller, 'attack');
       } else if (effectiveWantsWalk && controller.actions?.walk) {
@@ -698,13 +726,16 @@ export function createRenderSystem(/** @type {any} */ { app }) {
 
       controller.mixer?.update(dt);
 
-      if (useWalkCycle && !isAttacking && !isDead) {
+      if (useWalkCycle && !isAttacking && !isDead && !isHarvesting) {
         if (effectiveWantsWalk) {
           applyWalkCycle(controller.walkCycle, now, speed);
         } else if (controller.walkCycle.wasWalking) {
           resetWalkCycle(controller.walkCycle);
           controller.walkCycle.wasWalking = false;
         }
+      } else if (useWalkCycle && controller.walkCycle.wasWalking) {
+        resetWalkCycle(controller.walkCycle);
+        controller.walkCycle.wasWalking = false;
       }
     }
   }

@@ -213,10 +213,12 @@ export function pickClips(/** @type {any} */ clips, /** @type {any} */ overrides
   const idleNames = overrides.idleNames ?? null;
   const walkNames = overrides.walkNames ?? null;
   const attackNames = overrides.attackNames ?? null;
+  const interactNames = overrides.interactNames ?? null;
   const deathNames = overrides.deathNames ?? null;
   const idleKeywords = overrides.idleKeywords ?? ['idle'];
   const walkKeywords = overrides.walkKeywords ?? ['walk', 'run'];
   const attackKeywords = overrides.attackKeywords ?? ['attack', 'slash', 'swing', 'punch', 'bite'];
+  const interactKeywords = overrides.interactKeywords ?? ['interact', 'pickup', 'fix', 'gather', 'chop', 'harvest'];
   const deathKeywords = overrides.deathKeywords ?? ['death'];
 
   const findByName = (/** @type {any} */ names) => {
@@ -237,6 +239,10 @@ export function pickClips(/** @type {any} */ clips, /** @type {any} */ overrides
     findClipByKeywords(clipList, attackKeywords) ??
     clipList[2] ??
     null;
+  const interact =
+    findByName(interactNames) ??
+    findClipByKeywords(clipList, interactKeywords) ??
+    null;
   const death =
     findByName(deathNames) ??
     findClipByKeywords(clipList, deathKeywords) ??
@@ -246,6 +252,7 @@ export function pickClips(/** @type {any} */ clips, /** @type {any} */ overrides
     idle,
     walk,
     attack,
+    interact,
     death,
     all: clipList,
   };
