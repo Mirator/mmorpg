@@ -83,7 +83,11 @@ function handleUnauthorized(err) {
 }
 
 function statusClass(status) {
-  return String(status || '').replaceAll(' ', '-');
+  const normalized = String(status || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return normalized || 'unknown';
 }
 
 function selectedPatch() {
@@ -119,11 +123,22 @@ function renderPatchList() {
     if (patch.id === state.selectedPatchId) {
       row.classList.add('active');
     }
-    row.innerHTML = [
-      `<strong>${patch.title}</strong>`,
-      `<div class="meta mono">${patch.id}</div>`,
-      `<div class="meta"><span class="pill status-${statusClass(patch.status)}">${patch.status}</span></div>`,
-    ].join('');
+
+    const title = document.createElement('strong');
+    title.textContent = String(patch.title ?? '');
+
+    const idMeta = document.createElement('div');
+    idMeta.className = 'meta mono';
+    idMeta.textContent = String(patch.id ?? '');
+
+    const statusMeta = document.createElement('div');
+    statusMeta.className = 'meta';
+    const pill = document.createElement('span');
+    pill.className = `pill status-${statusClass(patch.status)}`;
+    pill.textContent = String(patch.status ?? '');
+    statusMeta.appendChild(pill);
+
+    row.append(title, idMeta, statusMeta);
 
     row.addEventListener('click', () => {
       state.selectedPatchId = patch.id;
@@ -148,11 +163,19 @@ function renderComments() {
   for (const comment of state.comments.slice(0, 12)) {
     const row = document.createElement('div');
     row.className = 'list-item';
-    row.innerHTML = [
-      `<strong>${comment.status === 'resolved' ? 'Resolved' : 'Open'} comment</strong>`,
-      `<div class="meta mono">${comment.id}</div>`,
-      `<div class="meta">${comment.text}</div>`,
-    ].join('');
+
+    const title = document.createElement('strong');
+    title.textContent = `${comment.status === 'resolved' ? 'Resolved' : 'Open'} comment`;
+
+    const idMeta = document.createElement('div');
+    idMeta.className = 'meta mono';
+    idMeta.textContent = String(comment.id ?? '');
+
+    const textMeta = document.createElement('div');
+    textMeta.className = 'meta';
+    textMeta.textContent = String(comment.text ?? '');
+
+    row.append(title, idMeta, textMeta);
     commentListEl.appendChild(row);
   }
 }

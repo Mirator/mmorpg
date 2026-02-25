@@ -1,12 +1,18 @@
 // @ts-check
 
 const ADMIN_ALIAS_KEY = 'ra.admin.alias';
+const ADMIN_ALIAS_MAX_LENGTH = 48;
+const ADMIN_ALIAS_PATTERN = /^[A-Za-z0-9 ._@-]+$/;
 
 /**
  * @param {string} value
  */
 function normalizeAlias(value) {
-  return typeof value === 'string' ? value.trim() : '';
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  if (!normalized || normalized.length > ADMIN_ALIAS_MAX_LENGTH) return '';
+  if (!ADMIN_ALIAS_PATTERN.test(normalized)) return '';
+  return normalized;
 }
 
 export function getStoredAdminAlias() {

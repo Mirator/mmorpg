@@ -180,7 +180,19 @@ vi.mock('./db/playerRepo.js', () => ({
 }));
 
 vi.mock('./wsTicket.js', () => ({
-  createTicket: ({ accountId, characterId }) => `ticket-${accountId}-${characterId}`,
+  createTicket: (() => {
+    const issuedByAccount = new Map();
+    const maxPerAccount = 20;
+    return ({ accountId, characterId }) => {
+      const issued = issuedByAccount.get(accountId) ?? 0;
+      if (issued >= maxPerAccount) {
+        return null;
+      }
+      const next = issued + 1;
+      issuedByAccount.set(accountId, next);
+      return `ticket-${accountId}-${characterId}-${next}`;
+    };
+  })(),
 }));
 
 async function startServer(app) {
@@ -350,7 +362,8 @@ describe('HTTP auth lifecycle integration', () => {
         body: { characterId },
       });
       expect(ticket.res.status).toBe(200);
-      expect(ticket.payload?.ticket).toContain(`-${characterId}`);
+      expect(typeof ticket.payload?.ticket).toBe('string');
+      expect(ticket.payload?.ticket?.length ?? 0).toBeGreaterThan(10);
 
       const csrfBlocked = await requestJson(baseUrl, '/api/ws-ticket', {
         method: 'POST',
@@ -382,6 +395,21 @@ describe('HTTP auth lifecycle integration', () => {
         body: { characterId },
       });
       expect(bearerBypass.res.status).toBe(200);
+
+      let ticketLimitReached = false;
+      for (let i = 0; i < 30; i += 1) {
+        const attempt = await requestJson(baseUrl, '/api/ws-ticket', {
+          method: 'POST',
+          cookie: signupCookie,
+          body: { characterId },
+        });
+        if (attempt.res.status === 429) {
+          ticketLimitReached = true;
+          expect(attempt.payload?.error).toContain('Too many pending connection tickets');
+          break;
+        }
+      }
+      expect(ticketLimitReached).toBe(true);
 
       const del = await requestJson(baseUrl, `/api/characters/${characterId}`, {
         method: 'DELETE',

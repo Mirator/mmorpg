@@ -135,11 +135,20 @@ function renderLayerLocks() {
     const action = lock ? (owned ? 'release' : 'blocked') : 'acquire';
     const label = lock ? (owned ? 'Release' : `Held by ${lock.alias}`) : 'Acquire';
 
-    row.innerHTML = [
-      `<strong>${layerId}</strong>`,
-      `<div class="meta">${lock ? `Locked by ${lock.alias}` : 'Unlocked'}</div>`,
-      `<button type="button" data-layer-id="${layerId}" data-action="${action}">${label}</button>`,
-    ].join('');
+    const title = document.createElement('strong');
+    title.textContent = layerId;
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = lock ? `Locked by ${lock.alias}` : 'Unlocked';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.layerId = layerId;
+    button.dataset.action = action;
+    button.textContent = label;
+
+    row.append(title, meta, button);
 
     layerLocksEl.appendChild(row);
   }
@@ -161,16 +170,38 @@ function renderComments() {
   for (const comment of state.comments) {
     const row = document.createElement('div');
     row.className = 'list-item';
-    row.innerHTML = [
-      `<strong>${comment.status === 'resolved' ? 'Resolved' : 'Open'} · ${comment.layerId || 'no-layer'}</strong>`,
-      `<div class="meta mono">${comment.id}</div>`,
-      `<div class="meta">(${Number(comment.x ?? 0).toFixed(1)}, ${Number(comment.z ?? 0).toFixed(1)})</div>`,
-      `<div>${comment.text}</div>`,
-      `<div class="toolbar">`,
-      `<button type="button" data-comment-id="${comment.id}" data-action="resolve">Resolve</button>`,
-      `<button type="button" data-comment-id="${comment.id}" data-action="reopen">Reopen</button>`,
-      `</div>`,
-    ].join('');
+
+    const headline = document.createElement('strong');
+    headline.textContent = `${comment.status === 'resolved' ? 'Resolved' : 'Open'} · ${comment.layerId || 'no-layer'}`;
+
+    const idMeta = document.createElement('div');
+    idMeta.className = 'meta mono';
+    idMeta.textContent = String(comment.id ?? '');
+
+    const positionMeta = document.createElement('div');
+    positionMeta.className = 'meta';
+    positionMeta.textContent = `(${Number(comment.x ?? 0).toFixed(1)}, ${Number(comment.z ?? 0).toFixed(1)})`;
+
+    const commentTextEl = document.createElement('div');
+    commentTextEl.textContent = String(comment.text ?? '');
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'toolbar';
+
+    const resolveBtn = document.createElement('button');
+    resolveBtn.type = 'button';
+    resolveBtn.dataset.commentId = String(comment.id ?? '');
+    resolveBtn.dataset.action = 'resolve';
+    resolveBtn.textContent = 'Resolve';
+
+    const reopenBtn = document.createElement('button');
+    reopenBtn.type = 'button';
+    reopenBtn.dataset.commentId = String(comment.id ?? '');
+    reopenBtn.dataset.action = 'reopen';
+    reopenBtn.textContent = 'Reopen';
+
+    toolbar.append(resolveBtn, reopenBtn);
+    row.append(headline, idMeta, positionMeta, commentTextEl, toolbar);
 
     commentsEl.appendChild(row);
   }
@@ -203,12 +234,23 @@ function renderAudit() {
   for (const entry of filtered) {
     const row = document.createElement('div');
     row.className = 'list-item';
-    row.innerHTML = [
-      `<strong>${entry.action}</strong>`,
-      `<div class="meta">${entry.alias} · ${entry.type} · ${entry.status}</div>`,
-      `<div class="meta">${entry.t}</div>`,
-      `<div class="meta">${entry.message || ''}</div>`,
-    ].join('');
+
+    const actionEl = document.createElement('strong');
+    actionEl.textContent = String(entry.action ?? '');
+
+    const actorMeta = document.createElement('div');
+    actorMeta.className = 'meta';
+    actorMeta.textContent = `${entry.alias} · ${entry.type} · ${entry.status}`;
+
+    const timestampMeta = document.createElement('div');
+    timestampMeta.className = 'meta';
+    timestampMeta.textContent = String(entry.t ?? '');
+
+    const messageMeta = document.createElement('div');
+    messageMeta.className = 'meta';
+    messageMeta.textContent = String(entry.message ?? '');
+
+    row.append(actionEl, actorMeta, timestampMeta, messageMeta);
     auditList.appendChild(row);
   }
 }

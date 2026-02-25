@@ -694,6 +694,10 @@ export function createHttpApp({
       accountId: account.id,
       characterId: character.id,
     });
+    if (!ticket) {
+      sendError(res, 429, 'Too many pending connection tickets. Please retry shortly.');
+      return;
+    }
     res.json({ ticket });
   });
 

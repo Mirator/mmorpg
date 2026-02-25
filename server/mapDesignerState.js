@@ -30,6 +30,15 @@ const DEFAULT_MAP_DESIGNER_STATE_PATH = path.resolve(
 );
 
 const MAX_AUDIT_ENTRIES = 4000;
+const ADMIN_ALIAS_MAX_LENGTH = 48;
+const COMMENT_TEXT_MAX_LENGTH = 500;
+const PATCH_TITLE_MAX_LENGTH = 120;
+const PATCH_DESCRIPTION_MAX_LENGTH = 2000;
+const PREFAB_NAME_MAX_LENGTH = 120;
+const PREFAB_TYPE_MAX_LENGTH = 64;
+const ENTITY_REF_MAX_LENGTH = 128;
+const LOCK_REASON_MAX_LENGTH = 240;
+const ADMIN_ALIAS_PATTERN = /^[A-Za-z0-9 ._@-]+$/;
 
 /** @typedef {Error & { status?: number, details?: string[], revision?: number }} HttpErrorLike */
 
@@ -64,6 +73,61 @@ function stringArray(value) {
   return value
     .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
     .filter((entry) => entry.length > 0);
+}
+
+/**
+ * @param {unknown} value
+ * @param {{ field: string, maxLength: number, required?: boolean, multiline?: boolean }} options
+ * @returns {string}
+ */
+function normalizeTextField(value, { field, maxLength, required = false, multiline = false }) {
+  if (typeof value !== 'string') {
+    if (required) {
+      throw createHttpError(400, `${field} is required.`);
+    }
+    return '';
+  }
+  let normalized = value.normalize('NFC');
+  if (multiline) {
+    normalized = normalized
+      .replace(/\r\n?/g, '\n')
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+      .trim();
+  } else {
+    normalized = normalized
+      .replace(/[\u0000-\u001F\u007F]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  if (!normalized) {
+    if (required) {
+      throw createHttpError(400, `${field} is required.`);
+    }
+    return '';
+  }
+  if (normalized.length > maxLength) {
+    throw createHttpError(400, `${field} must be at most ${maxLength} characters.`);
+  }
+  return normalized;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizeAdminAlias(value) {
+  const alias = normalizeTextField(value, {
+    field: 'admin alias',
+    maxLength: ADMIN_ALIAS_MAX_LENGTH,
+  });
+  if (!alias) return 'admin';
+  if (!ADMIN_ALIAS_PATTERN.test(alias)) {
+    throw createHttpError(
+      400,
+      'admin alias must contain only letters, numbers, spaces, ".", "_", "-", or "@".'
+    );
+  }
+  return alias;
 }
 
 /**
@@ -149,9 +213,7 @@ export function loadDesignerStateSync(filePath) {
 function getProvidedAdminAlias(req) {
   if (typeof req.get !== 'function') return 'admin';
   const raw = req.get('x-admin-alias');
-  if (typeof raw !== 'string') return 'admin';
-  const normalized = raw.trim();
-  return normalized || 'admin';
+  return normalizeAdminAlias(raw);
 }
 
 /**
@@ -238,20 +300,23 @@ function normalizeLayerId(raw) {
  */
 function normalizePrefabPayload(raw) {
   const input = isObject(raw) ? raw : {};
+  const name = normalizeTextField(input.name, {
+    field: 'name',
+    maxLength: PREFAB_NAME_MAX_LENGTH,
+    required: true,
+  });
+  const entityType = normalizeTextField(input.entityType, {
+    field: 'entityType',
+    maxLength: PREFAB_TYPE_MAX_LENGTH,
+    required: true,
+  });
   const payload = {
-    name: typeof input.name === 'string' ? input.name.trim() : '',
-    entityType: typeof input.entityType === 'string' ? input.entityType.trim() : '',
+    name,
+    entityType,
     assetPath: typeof input.assetPath === 'string' ? input.assetPath.trim() : '',
     tags: stringArray(input.tags),
     defaults: isObject(input.defaults) ? input.defaults : {},
   };
-
-  if (!payload.name) {
-    throw createHttpError(400, 'name is required.');
-  }
-  if (!payload.entityType) {
-    throw createHttpError(400, 'entityType is required.');
-  }
   if (!payload.assetPath || !payload.assetPath.startsWith('/assets/')) {
     throw createHttpError(400, 'assetPath must start with /assets/.');
   }
@@ -264,10 +329,12 @@ function normalizePrefabPayload(raw) {
  */
 function normalizeCommentPayload(raw) {
   const input = isObject(raw) ? raw : {};
-  const text = typeof input.text === 'string' ? input.text.trim() : '';
-  if (!text) {
-    throw createHttpError(400, 'text is required.');
-  }
+  const text = normalizeTextField(input.text, {
+    field: 'text',
+    maxLength: COMMENT_TEXT_MAX_LENGTH,
+    required: true,
+    multiline: true,
+  });
   const layerId = input.layerId == null ? '' : String(input.layerId).trim();
   if (layerId && !isDesignerLayerId(layerId)) {
     throw createHttpError(400, 'layerId must be a valid layer id.');
@@ -279,7 +346,10 @@ function normalizeCommentPayload(raw) {
     z: Number(input.z ?? 0),
     text,
     layerId,
-    entityRef: input.entityRef == null ? '' : String(input.entityRef).trim(),
+    entityRef: normalizeTextField(input.entityRef, {
+      field: 'entityRef',
+      maxLength: ENTITY_REF_MAX_LENGTH,
+    }),
   };
 }
 
@@ -288,12 +358,16 @@ function normalizeCommentPayload(raw) {
  */
 function normalizePatchCreatePayload(raw) {
   const input = isObject(raw) ? raw : {};
-  const title = typeof input.title === 'string' ? input.title.trim() : '';
-  if (!title) {
-    throw createHttpError(400, 'title is required.');
-  }
-
-  const description = typeof input.description === 'string' ? input.description.trim() : '';
+  const title = normalizeTextField(input.title, {
+    field: 'title',
+    maxLength: PATCH_TITLE_MAX_LENGTH,
+    required: true,
+  });
+  const description = normalizeTextField(input.description, {
+    field: 'description',
+    maxLength: PATCH_DESCRIPTION_MAX_LENGTH,
+    multiline: true,
+  });
   const dependencyIds = [...new Set(stringArray(input.dependencyIds))];
   const sourceSnapshot = isObject(input.sourceSnapshot) ? input.sourceSnapshot : {};
 
@@ -314,7 +388,11 @@ function normalizeLockActionPayload(raw) {
   if (action !== 'acquire' && action !== 'release') {
     throw createHttpError(400, 'action must be acquire or release.');
   }
-  const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
+  const reason = normalizeTextField(input.reason, {
+    field: 'reason',
+    maxLength: LOCK_REASON_MAX_LENGTH,
+    multiline: true,
+  });
   return {
     action,
     reason,

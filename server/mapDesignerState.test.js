@@ -119,6 +119,35 @@ describe('mapDesignerState store', () => {
     expect(prefab.id).toContain('prefab-');
   });
 
+  it('rejects oversized patch titles and comment text', () => {
+    const { store } = makeStore();
+
+    expect(() =>
+      store.createPatch(
+        'world-map',
+        {
+          title: 'x'.repeat(121),
+          description: '',
+          dependencyIds: [],
+        },
+        'alice'
+      )
+    ).toThrow(/title must be at most 120 characters/);
+
+    expect(() =>
+      store.createComment(
+        'world-map',
+        {
+          x: 1,
+          y: 0,
+          z: 2,
+          text: 'x'.repeat(501),
+        },
+        'alice'
+      )
+    ).toThrow(/text must be at most 500 characters/);
+  });
+
   it('publishes and rolls back patch snapshots across map + designer files', async () => {
     const { mapPath, designerPath, store } = makeStore();
 
