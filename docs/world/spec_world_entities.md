@@ -8,6 +8,11 @@ This document describes how locations, mobs, resources, vendors, and related wor
 
 The game has a **single world/location** (no zones or multiple maps). All world entities are defined in one map config file and loaded at server startup.
 
+The current contracts + professions slice does **not** add new world-schema objects. Instead:
+
+- profession stations are inferred from existing structure kinds
+- vendor contract pools are inferred from existing vendor IDs
+
 **Config flow:**
 1. `server/data/world-map.json` (or path from `MAP_CONFIG_PATH` env) is loaded at server startup
 2. `shared/mapConfig.js` validates and normalizes the config
@@ -40,7 +45,7 @@ The game has a **single world/location** (no zones or multiple maps). All world 
 | obstacles[].radius | number | yes | Obstacle radius (alias: r) |
 | structures | array | yes | Placed environment structures and optional colliders |
 | structures[].id | string | yes | Unique ID |
-| structures[].kind | string | yes | One of: fence, market, barracks, storage, houseA, houseB, bellTower, villageCenter |
+| structures[].kind | string | yes | One of: fence, market, barracks, storage, houseA, houseB, bellTower, villageCenter. Runtime station mapping: `market -> alchemy_table`, `barracks -> forge`, `storage -> workbench` |
 | structures[].x, .y?, .z | number | yes | Position |
 | structures[].rotation | number | no | Y-axis rotation (default: 0) |
 | structures[].collides | boolean | no | If false, structure does not contribute collision (default: true) |
@@ -103,6 +108,26 @@ The game has a **single world/location** (no zones or multiple maps). All world 
 
 Use `getMobStats(mobType)` to resolve stats. Dummy: 1 HP, no damage, no movement, no aggro.
 
+**Behavior profiles** (`MOB_BEHAVIOR_TYPES` in [shared/entityTypes.js](../../shared/entityTypes.js)):
+
+| mobType | Behavior |
+|---|---|
+| `bull` | `charger` |
+| `wolf` | `skirmisher` |
+| `fox` | `ambusher` |
+| `tribal` | `pack_leader` |
+| `demon` | `healer` |
+| `orc`, `yeti`, `stag` | `baseline` |
+| `dummy` | `dummy` / stationary |
+
+Runtime behavior notes:
+
+- `charger`: short wind-up, burst approach, empowered first hit
+- `skirmisher`: prefers space and backsteps when crowded
+- `ambusher`: delayed activation with stronger opening hit
+- `pack_leader`: buffs nearby allies
+- `healer`: periodically heals the lowest-health nearby ally
+
 **Loot tables:** Each mob type has an associated loot table in [shared/lootTables.js](../../shared/lootTables.js) (`MOB_LOOT_TABLES`). On kill, the attacker receives rolled drops (items/copper) per the table. See [Economy spec §6](../economy/spec_economy.md#6-mob-loot-drops).
 
 ---
@@ -139,6 +164,12 @@ Vendors are placed in the map config. Each has:
 - All vendors use the same model: [client/assetPaths.js](../../client/assetPaths.js) `vendorModel`
 - Interact radius: 2.5 (from `VENDOR_CONFIG`)
 
+Vendors also act as **contract issuers**:
+
+- hub vendors (`vendor_c_*`) use the starter/general contract pool
+- the outpost vendor (`vendor_sw_01`) uses the outpost/general contract pool
+- no extra map-config field is required for contract boards or contract pools
+
 At runtime, `resolveVendorBuyItems(vendor)` in [shared/economy.js](../../shared/economy.js) resolves the full catalog; world vendors include `buyItems` in the snapshot for the client.
 
 Corpse markers use `/assets/environment/graveyard/grave.glb` (`ASSET_PATHS.corpseMarker`) and the village center uses `/assets/environment/TownCenter_FirstAge_Level1.gltf` (`ASSET_PATHS.villageCenterModel`) in [client/world.js](../../client/world.js).
@@ -152,6 +183,8 @@ Corpse markers use `/assets/environment/graveyard/grave.glb` (`ASSET_PATHS.corps
 | Map layout | world-map.json | Base, spawns, obstacles, structures, resource nodes, vendors, mob spawns |
 | Entity type lists | shared/entityTypes.js | MOB_TYPES, RESOURCE_TYPE_LIST — validation and UI |
 | Economy (harvest output) | shared/economy.js | RESOURCE_TYPES (itemKind, itemName, sellPrice) |
+| Contracts | shared/contracts.js | Rotating vendor offers and contract templates |
+| Professions | shared/professions.js | Station mapping and profession constants |
 | Runtime defaults | shared/config.js | WORLD_CONFIG, MOB_CONFIG, RESOURCE_CONFIG, VENDOR_CONFIG |
 | 3D model paths | client/assetPaths.js | ASSET_PATHS.monsters, ASSET_PATHS.resourceNodes, ASSET_PATHS.villageCenterModel, ASSET_PATHS.corpseMarker |
 

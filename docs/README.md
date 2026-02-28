@@ -9,7 +9,7 @@
 - [Game Design](./game-design/GDD.md)
 - [Area Design](./area-design/README.md)
 - [Combat](./combat/spec_combat.md), [Abilities](./combat/spec_abilities.md), [Experience](./combat/spec_experience.md)
-- [Economy and Crafting](./economy/spec_economy.md)
+- [Economy, Contracts, and Crafting](./economy/spec_economy.md)
 - [World Entities](./world/spec_world_entities.md)
 - [UI Log](./ui/spec_log.md)
 - [Auth/Character UI Flow](./ui/spec_auth_character_flow.md)
@@ -50,7 +50,7 @@ These remain intentionally outside `docs/`:
 - Combat attributes and formulas: `docs/combat/spec_combat.md`
 - Class abilities and unlocks: `docs/combat/spec_abilities.md`
 - Progression and XP: `docs/combat/spec_experience.md`
-- Economy, vendor, crafting: `docs/economy/spec_economy.md`
+- Economy, vendors, contracts, crafting, and maintenance: `docs/economy/spec_economy.md`
 - World/map/entity schema: `docs/world/spec_world_entities.md`
 - Wire protocol and message contracts: `docs/network/spec_protocol.md`
 - Party/chat behavior and XP interactions: `docs/social/spec_party_and_chat.md`

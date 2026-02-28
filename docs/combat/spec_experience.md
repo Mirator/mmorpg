@@ -1,8 +1,8 @@
-# Experience Specification (v2)
+# Experience Specification (v3)
 
 ## Level 1--30 Progression System
 
-This document defines the XP, leveling, and party experience rules.
+This document defines the XP, leveling, party experience, and non-combat XP rules.
 
 Target: \~60 hours solo (grinding-only) to reach level 30 under average
 \~1 kill/min sustained pace.
@@ -159,13 +159,39 @@ heavily under-leveled - Prevents powerleveling exploits
 
 ------------------------------------------------------------------------
 
-# 6. Design Goals
+# 6. Contract XP and Profession Mastery
+
+Character XP is no longer kill-only.
+
+Vendor contracts award flat character XP on turn-in:
+
+- starter contracts currently range from `90` to `130` XP
+- outpost contracts currently range from `160` to `180` XP
+- XP is granted only when the completed contract is turned in
+
+Profession mastery uses a separate progression track and does **not** consume or replace character XP:
+
+- tracks: `gathering`, `smithing`, `alchemy`, `woodcraft`
+- mastery XP is earned from harvesting, profession crafting, and some contract rewards
+- mastery curve: `100 + (level - 1) * 50`
+- mastery cap: `10`
+
+This means:
+
+- mob kills remain the primary repeatable combat XP source
+- contracts provide directed XP for short-session progression
+- harvesting/crafting contribute to profession growth even when character XP is unchanged
+
+------------------------------------------------------------------------
+
+# 7. Design Goals
 
 1.  Smooth XP curve without phase jumps
 2.  No hard XP cliffs
 3.  Party play faster than solo, but controlled
 4.  No killing-blow abuse
 5.  No trivial boosting
-6.  Easy retuning via two constants (XP_K, MOB_XP_A)
+6.  Directed non-combat XP without replacing combat progression
+7.  Easy retuning via two constants (XP_K, MOB_XP_A)
 
 ------------------------------------------------------------------------

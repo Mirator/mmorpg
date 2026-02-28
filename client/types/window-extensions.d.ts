@@ -16,6 +16,13 @@ declare global {
         toSlot: number | string;
       }) => void;
       vendorSell: (slot: number, vendorId: string) => void;
+      vendorBuy: (kind: string, count: number, vendorId: string) => void;
+      craft: (recipeId: string, count?: number) => void;
+      contractAccept: (vendorId: string, contractId: string) => void;
+      contractAbandon: (contractId: string) => void;
+      contractTurnIn: (vendorId: string, contractId: string) => void;
+      repairItem: (fromType: 'inventory' | 'equipment', slot: number | string) => void;
+      salvageItem: (slot: number) => void;
       forceAbility: (slot: number) => void;
       useAbility: (slot: number) => void;
       projectToScreen: (x: number, z: number) => { x: number; y: number } | null;

@@ -1,189 +1,71 @@
 // @ts-check
-import { stepPlayer } from './logic/movement.js';
-import { applyCollisions } from './logic/collision.js';
-import { stepResources, stepPlayerHarvest } from './logic/resources.js';
-import { stepMobs } from './logic/mobs.js';
-import { clearInventory, countInventory } from './logic/inventory.js';
-import { respawnPlayer } from './logic/players.js';
-import { createCorpse, stepCorpses } from './logic/corpses.js';
-import { stepPlayerResources, stepPlayerCast, stepDotTicks, stepHotTicks, setLootContext } from './logic/combat.js';
-import { endDuel } from './logic/duel.js';
-import { buildCombatLogDispatch } from './logic/combatLogEntries.js';
+import { setLootContext } from './logic/combat.js';
+import {
+  buildGameLoopRuntime,
+  stepPlayerActionPhase,
+  stepPlayerMovementPhase,
+  stepWorldSystemsPhase,
+} from './gameLoopPhases.js';
 
 export function createGameLoop(/** @type {any} */ { players, world, resources, mobs, corpses, config, spawner, nextItemIdRef, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent, onDuelEnded }) {
-  const tickHz = config.tickHz;
-  const dt = 1 / tickHz;
-  const playerRadius = config.playerRadius;
-  const respawnMs = config.respawnMs;
-  const /** @type {any} */ mobConfig = {
-    mobRadius: config.mob.radius,
-    respawnMs: config.mob.respawnMs,
-    attackDamageBase: config.mob.attackDamageBase,
-    attackDamagePerLevel: config.mob.attackDamagePerLevel,
-    onPlayerDamaged,
-  };
-
-  const corpseExpiryMs = config.corpse?.expiryMs ?? 600_000;
-
-  function killPlayer(/** @type {any} */ player, /** @type {any} */ now) {
-    if (player.dead) return;
-    const opponent = endDuel(player, players);
-    if (opponent && typeof onDuelEnded === 'function') {
-      onDuelEnded(player, opponent, 'death', markDirty);
-    }
-    player.dead = true;
-    player.respawnAt = now + respawnMs;
-    if (corpses && Array.isArray(corpses) && player.inventory && countInventory(player.inventory) > 0) {
-      const corpse = createCorpse(
-        player.id,
-        player.pos,
-        player.inventory,
-        now + corpseExpiryMs
-      );
-      corpses.push(corpse);
-    }
-    player.inv = 0;
-    clearInventory(player.inventory);
-    player.target = null;
-    player.targetId = null;
-    player.targetKind = null;
-    player.cast = null;
-    player.harvest = null;
-    player.keys = {
-      w: false,
-      a: false,
-      s: false,
-      d: false,
-      walk: !!player.keys?.walk,
-    };
-    markDirty(player);
-    if (typeof onPlayerDeath === 'function') {
-      onPlayerDeath(player.id, now);
-    }
-  }
+  const runtime = buildGameLoopRuntime(config, onPlayerDamaged);
 
   let /** @type {any} */ timeoutId = null;
   let nextTickAt = 0;
-  const dtMs = dt * 1000;
+
+  function scheduleNextTick() {
+    nextTickAt += runtime.dtMs;
+    const delay = Math.max(0, nextTickAt - Date.now());
+    timeoutId = setTimeout(tick, delay);
+  }
 
   function tick() {
     const now = Date.now();
     setLootContext(nextItemIdRef ? { nextItemIdRef } : null);
 
-    for (const player of players.values()) {
-        const /** @type {any} */ prevPos = { x: player.pos.x, y: player.pos.y ?? 0, z: player.pos.z };
-        let respawned = false;
+    stepPlayerMovementPhase({
+      players,
+      world,
+      spawner,
+      now,
+      runtime,
+      markDirty,
+    });
 
-        if (player.dead) {
-          if (player.respawnAt && now >= player.respawnAt) {
-            respawnPlayer(player, spawner.getSpawnPoint(), markDirty);
-            player.harvest = null;
-            respawned = true;
-          }
-        }
+    const playerList = Array.from(players.values());
 
-        if (!player.dead) {
-          const rooted = (player.rootedUntil ?? 0) > now;
-          const stunned = (player.stunnedUntil ?? 0) > now;
-          const canMove = !rooted && !stunned;
-          const slowMult = (player.slowUntil ?? 0) > now ? (player.slowMultiplier ?? 0.5) : 1;
-          const baseSpeed =
-            player.keys?.walk
-              ? (world.playerWalkSpeed ?? world.playerSpeed)
-              : world.playerSpeed;
-          const speed = canMove ? baseSpeed * (player.moveSpeedMultiplier ?? 1) * slowMult : 0;
-          const result = stepPlayer(
-            { pos: player.pos, target: player.target },
-            { keys: player.keys },
-            dt,
-            { speed, targetEpsilon: 0.1 }
-          );
-          player.pos = applyCollisions(result.pos, world, playerRadius);
-          player.target = result.target;
-        }
+    stepWorldSystemsPhase({
+      players,
+      playerList,
+      world,
+      resources,
+      mobs,
+      corpses,
+      now,
+      runtime,
+    });
 
-        const dx = player.pos.x - prevPos.x;
-        const dz = player.pos.z - prevPos.z;
-        const dist = Math.hypot(dx, dz);
-        const moved = !player.dead && !respawned && dist > 0.001;
-        player.movedThisTick = moved;
-        if (moved) {
-          player.lastMoveDir = { x: dx / dist, z: dz / dist };
-        }
-      }
+    stepPlayerActionPhase({
+      players,
+      resources,
+      mobs,
+      corpses,
+      now,
+      runtime,
+      markDirty,
+      onCombatLog,
+      onCombatEvent,
+      onPlayerDeath,
+      onDuelEnded,
+    });
 
-      stepResources(resources, now);
-      if (corpses) stepCorpses(corpses, now);
-      stepDotTicks(mobs, now, config.mob?.respawnMs ?? 10_000, players);
-      stepHotTicks(players, now);
-      stepMobs(mobs, Array.from(players.values()), world, dt, now, mobConfig);
-
-      for (const player of players.values()) {
-        const harvestResult = stepPlayerHarvest(resources, player, now, {
-          harvestRadius: config.resource?.harvestRadius ?? 2,
-          harvestDurationMs: config.resource?.harvestDurationMs ?? 2_500,
-          respawnMs: config.resource?.respawnMs ?? 15_000,
-          stackMax: player.invStackMax,
-        });
-        if (harvestResult?.status === 'completed') {
-          markDirty(player);
-        }
-
-        const castResult = stepPlayerCast(player, mobs, now, config.mob.respawnMs, players);
-        if (castResult.event && typeof onCombatEvent === 'function') {
-          onCombatEvent(castResult.event, now);
-        }
-        if (castResult.combatLog && typeof onCombatLog === 'function') {
-          const { actorEntries, xpEntriesByPlayer } = buildCombatLogDispatch(castResult.combatLog, now);
-          if (actorEntries.length > 0) {
-            onCombatLog(player.id, actorEntries);
-          }
-          for (const xp of xpEntriesByPlayer) {
-            if (xp.entries.length > 0) {
-              onCombatLog(xp.playerId, xp.entries);
-            }
-          }
-        }
-        const xpGainByPlayer = castResult.combatLog?.xpGainByPlayer ?? [];
-        for (const p of xpGainByPlayer) {
-          const targetPlayer = players.get(p.playerId);
-          if (targetPlayer && (p.xpGain > 0 || p.leveledUp)) {
-            markDirty(targetPlayer);
-          }
-        }
-        if (xpGainByPlayer.length === 0 && (castResult.xpGain > 0 || castResult.leveledUp)) {
-          markDirty(player);
-        }
-        stepPlayerResources(player, now, dt);
-        if (player.targetId) {
-          if (player.targetKind === 'player') {
-            const targetPlayer = players.get(player.targetId);
-            if (!targetPlayer || targetPlayer.dead) {
-              player.targetId = null;
-              player.targetKind = null;
-            }
-          } else {
-            const target = mobs.find((/** @type {any} */ mob) => mob.id === player.targetId);
-            if (!target || target.dead || target.hp <= 0) {
-              player.targetId = null;
-              player.targetKind = null;
-            }
-          }
-        }
-        if (!player.dead && player.hp <= 0) {
-          killPlayer(player, now);
-        }
-      }
-
-    nextTickAt += dtMs;
-    const delay = Math.max(0, nextTickAt - Date.now());
-    timeoutId = setTimeout(tick, delay);
+    scheduleNextTick();
   }
 
   function start() {
     if (timeoutId) return;
-    nextTickAt = Date.now() + dtMs;
-    timeoutId = setTimeout(tick, dtMs);
+    nextTickAt = Date.now();
+    scheduleNextTick();
   }
 
   function stop() {

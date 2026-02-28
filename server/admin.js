@@ -3,6 +3,7 @@ import { worldSnapshot } from './logic/world.js';
 import { xpToNext } from '../shared/progression.js';
 import { getEquippedWeapon } from '../shared/equipment.js';
 import { computeRawAttributes, computeDerivedStats } from '../shared/attributes.js';
+import { getContractSnapshotForPlayer } from '../shared/contracts.js';
 
 /** @typedef {import('./types/domain.d.ts').Corpse} Corpse */
 /** @typedef {import('./types/domain.d.ts').HttpRequestLike} HttpRequestLike */
@@ -107,6 +108,7 @@ export function serializePlayerPrivate(player) {
   if (!player) return null;
   const attributes = computeRawAttributes(player);
   const derivedStats = computeDerivedStats(player);
+  const contractSnapshot = getContractSnapshotForPlayer(player, Date.now());
   return {
     invCap: player.invCap,
     invSlots: player.invSlots,
@@ -151,6 +153,10 @@ export function serializePlayerPrivate(player) {
     derivedStats,
     partyId: player.partyId ?? null,
     duelOpponentId: player.duelOpponentId ?? null,
+    activeContracts: contractSnapshot.activeContracts,
+    contractOffersByVendor: contractSnapshot.offersByVendor,
+    professionMasteries: player.professionMasteries ?? null,
+    knownRecipes: player.knownRecipes ?? [],
   };
 }
 

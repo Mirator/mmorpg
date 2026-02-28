@@ -75,6 +75,12 @@ export function computeAbilityDamage(player, ability, now = 0, isPvP = false) {
     const dmgMult = isPvP ? (player.pvpDamageDealtMultiplier ?? 1.15) : (player.damageDealtMultiplier ?? 1.25);
     damage = Math.floor(damage * dmgMult);
   }
+  if ((player.berserkEmpoweredHits ?? 0) > 0 && (ability?.baseValue ?? 0) > 0) {
+    damage = Math.floor(damage * 1.2);
+  }
+  if ((player.repositionedUntil ?? 0) > now && ability?.attackType === 'ranged' && (ability?.baseValue ?? 0) > 0) {
+    damage = Math.floor(damage * 1.15);
+  }
   if ((player.bloodRageUntil ?? 0) > now) {
     damage = Math.floor(damage * (player.bloodRageDamageMultiplier ?? 1));
   }

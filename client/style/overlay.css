@@ -366,6 +366,50 @@
   pointer-events: auto;
 }
 
+.objective-tracker {
+  width: min(240px, 80vw);
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(var(--accent-2-rgb), 0.28);
+  background: rgba(6, 12, 18, 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.objective-tracker.hidden {
+  display: none;
+}
+
+.objective-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.objective-row + .objective-row {
+  margin-top: 6px;
+}
+
+.objective-title {
+  min-width: 0;
+  font-weight: 600;
+}
+
+.objective-progress {
+  flex-shrink: 0;
+  color: #bce8df;
+  font-variant-numeric: tabular-nums;
+}
+
+.objective-more {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+
 #minimap-container {
   width: 130px;
   height: 130px;

@@ -34,6 +34,18 @@ Primary sources:
 - `equipment`
 - `classId`, `level`, `xp`
 - `invSlots`, `invStackMax`
+- `activeContracts`
+- `professionMasteries`
+- `knownRecipes`
+
+Persisted inventory/equipment items may also carry per-item metadata:
+
+- `rarity`
+- `durability`
+- `maxDurability`
+- `craftedProfession`
+- `isStarter`
+- `sourceRecipeId`
 
 Not persisted as durable character state (runtime-only): active WS connection data, movement keys/targets, cooldown timers, cast/runtime combat flags, AOI caches.
 
@@ -88,7 +100,11 @@ Authenticated endpoints:
 - `POST /api/characters` `{ name, classId }`:
   - validates name/class,
   - enforces global case-insensitive name uniqueness,
-  - creates base state via `createBasePlayerState`, stores with current `PLAYER_STATE_VERSION`.
+  - creates base state via `createBasePlayerState`, including:
+    - empty `activeContracts`
+    - fresh `professionMasteries`
+    - starter `knownRecipes`
+  - stores with current `PLAYER_STATE_VERSION`.
 - `DELETE /api/characters/:id`:
   - ownership check required,
   - if character is online, server closes the active WS and removes runtime player,
@@ -98,7 +114,7 @@ Authenticated endpoints:
 
 ## 5.1 Versioning
 
-- Current runtime version: `PLAYER_STATE_VERSION = 2`.
+- Current runtime version: `PLAYER_STATE_VERSION = 3`.
 - DB schema default may be older (`stateVersion` default `1`), so migration runs on load.
 
 ## 5.2 Migration behavior
@@ -116,7 +132,11 @@ If WS load upgraded state, server immediately persists upgraded state.
 
 - clamps position to world bounds,
 - normalizes inventory slots/counts,
+- preserves item durability/crafted-item metadata,
 - normalizes equipment and class id,
+- normalizes `activeContracts`,
+- normalizes `professionMasteries`,
+- normalizes `knownRecipes`,
 - clamps hp and recomputes `maxHp` from current derived stats,
 - computes runtime capacity fields (`inv`, `invCap`).
 
@@ -133,6 +153,8 @@ Implemented dirty triggers include:
 - vendor sell/buy,
 - harvest and corpse loot,
 - craft,
+- contract accept / abandon / turn-in,
+- repair / salvage,
 - party accept/leave,
 - combat XP/level changes,
 - death and respawn.

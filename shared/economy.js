@@ -33,6 +33,18 @@ export const /** @type {any} */ RESOURCE_TYPES = {
   flower: { itemKind: 'flower', itemName: 'Flower', sellPrice: 10, respawnMs: 10_000 },
 };
 
+export const /** @type {Record<string, string>} */ ITEM_DISPLAY_NAMES = {
+  weapon_iron_blade: 'Iron Blade',
+  weapon_reinforced_training_sword: 'Reinforced Training Sword',
+  weapon_reinforced_training_bow: 'Reinforced Training Bow',
+  armor_chest_crude_plate: 'Crude Plate Vest',
+  offhand_wooden_focus: 'Wooden Focus',
+  consumable_strong_health_potion: 'Strong Health Potion',
+  consumable_strong_mana_potion: 'Strong Mana Potion',
+  consumable_cleansing_tonic: 'Cleansing Tonic',
+  consumable_travel_kit: 'Travel Kit',
+};
+
 /**
  * Get display name for an item kind. Used by crafting, vendor, etc.
  * @param {string} kind
@@ -42,6 +54,7 @@ export function getItemDisplayName(kind) {
   if (!kind || typeof kind !== 'string') return 'Item';
   const buyEntry = VENDOR_BUY_ITEMS.find((/** @type {any} */ e) => e.kind === kind);
   if (buyEntry) return buyEntry.name;
+  if (ITEM_DISPLAY_NAMES[kind]) return ITEM_DISPLAY_NAMES[kind];
   const resourceType = Object.values(RESOURCE_TYPES).find((/** @type {any} */ r) => r.itemKind === kind);
   if (resourceType) return resourceType.itemName;
   return kind

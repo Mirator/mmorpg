@@ -23,6 +23,10 @@ export function createFighterHandlers(d) {
           leveledUp = result.leveledUp;
         }
         hit = true;
+        const hpPct = (target.hp ?? 0) / Math.max(1, target.maxHp ?? 1);
+        if (player.resourceType === 'rage' && hpPct <= 0.35) {
+          player.resource = d.clampResource(player, (player.resource ?? 0) + 15);
+        }
       }
       const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : d.getMobDisplayName(targetMob);
       return {
@@ -83,6 +87,7 @@ export function createFighterHandlers(d) {
       player.pos = d.applyCollisions(nextPos, world, 0.6);
       player.target = null;
       player.slowImmuneUntil = ctx.now + (ability.durationMs ?? 1000);
+      player.repositionedUntil = ctx.now + 3000;
       return {};
     },
     berserk(/** @type {any} */ ctx) {
@@ -90,6 +95,7 @@ export function createFighterHandlers(d) {
       player.berserkUntil = ctx.now + (ability.durationMs ?? 6000);
       player.damageDealtMultiplier = ability.damageDealtMultiplier ?? 1.25;
       player.pvpDamageDealtMultiplier = ability.pvpDamageDealtMultiplier ?? 1.15;
+      player.berserkEmpoweredHits = 2;
       return {};
     },
     whirlwind(/** @type {any} */ ctx) {

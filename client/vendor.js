@@ -43,9 +43,11 @@ export function createVendorUI(/** @type {any} */ {
       btn.classList.toggle('active', btn.dataset.tab === tab);
     }
     for (const view of views) {
-      const isSell = view.classList.contains('vendor-sell');
-      const isBuy = view.classList.contains('vendor-buy');
-      const shouldShow = (tab === 'sell' && isSell) || (tab === 'buy' && isBuy);
+      const viewTab = view.dataset.tab
+        ?? (view.classList.contains('vendor-sell')
+          ? 'sell'
+          : (view.classList.contains('vendor-buy') ? 'buy' : ''));
+      const shouldShow = viewTab === tab;
       view.classList.toggle('active', shouldShow);
     }
   }

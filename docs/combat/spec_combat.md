@@ -241,6 +241,33 @@ Gear can provide: STR, DEX, INT, VIT, SPI, Armor, Magic Resist, Accuracy, Evasio
 | weapon_training_bow   | +2 DEX     |
 | weapon_training_staff | +2 INT     |
 | weapon_apprentice_wand| +3 INT, +1 SPI |
+| weapon_iron_blade | +4 STR |
+| weapon_reinforced_training_sword | +6 STR, +1 VIT |
+| weapon_reinforced_training_bow | +5 DEX, +6 Accuracy |
+
+## 9.2 Offhand / Armor Stats (Implemented)
+
+| Kind | Stats |
+|---|---|
+| armor_head_cloth | +2 Armor |
+| armor_chest_leather | +4 Armor |
+| armor_legs_cloth | +2 Armor |
+| armor_feet_leather | +2 Armor |
+| armor_chest_crude_plate | +7 Armor, +2 VIT |
+| offhand_wooden_focus | +2 INT, +2 SPI, +2 Magic Resist |
+
+## 9.3 Durability and Broken State
+
+- Only non-starter crafted gear tracks durability
+- Current durability by rarity:
+  - `common = 20`
+  - `uncommon = 30`
+  - `rare = 40`
+  - `epic = 50`
+- Broken items remain equipped/in inventory but contribute no stat bonuses
+- Broken weapons still define the player's attack type and range, but their stat bonuses are ignored
+
+For repair/salvage rules, see [Economy spec §7.8](../economy/spec_economy.md#78-durability-repair-and-salvage).
 
 ---
 

@@ -1,6 +1,7 @@
 // @ts-check
 import { tryStartHarvest } from '../../logic/resources.js';
 import { tryLootCorpse } from '../../logic/corpses.js';
+import { refreshDeliveryContractProgress } from '../../logic/contracts.js';
 
 export function handleInteract(/** @type {any} */ ctx) {
   const { player, resources, corpses, config, persistence, sendPrivateState, ws } = ctx;
@@ -19,6 +20,7 @@ export function handleInteract(/** @type {any} */ ctx) {
     lootRadius: config.corpse?.lootRadius ?? 2.5,
   });
   if (looted) {
+    refreshDeliveryContractProgress(player);
     persistence.markDirty(player);
     sendPrivateState?.(ws, player, Date.now());
   }

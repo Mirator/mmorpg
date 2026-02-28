@@ -17,6 +17,7 @@ import { totalXpForLevel, xpToNext } from '/shared/progression.js';
 import {
   setStatus,
   updateHud,
+  updateObjectives,
   updateTargetHud,
   showPrompt,
   clearPrompt,
@@ -29,13 +30,14 @@ import { createEquipmentUI } from './equipment.js';
 import { createVendorUI } from './vendor.js';
 import { createCraftingUI } from './crafting.js';
 import { createPlayerTradeUI } from './trade.js';
-import { getRecipeById } from '/shared/recipes.js';
+import { getRecipeById, getRecipesForKnownIds } from '/shared/recipes.js';
 import { createAbilityBar } from './ui-state/abilityBar.js';
 import { createSkillsPanelUpdater } from './ui-state/skillsPanel.js';
 import { createCharacterPreview } from './character-preview.js';
 import { createWindowDragController } from './window-drag.js';
 import { getItemIconFile } from './gameIcons.js';
 import { createGlyphElement } from './uiGlyphs.js';
+import { createJournalUI } from './journal.js';
 
 function formatItemName(/** @type {any} */ kind) {
   if (!kind) return 'Item';
@@ -73,6 +75,11 @@ export function createUiState(/** @type {any} */ {
   onVendorSell,
   onVendorBuy,
   onCraft,
+  onContractAccept,
+  onContractAbandon,
+  onContractTurnIn,
+  onRepairItem,
+  onSalvageItem,
   onAbilityClick,
   onUiOpen,
   onRespawn,
@@ -102,7 +109,9 @@ export function createUiState(/** @type {any} */ {
   const inventoryGrid = document.getElementById('inventory-grid');
   const inventoryView = document.getElementById('inventory-view');
   const craftView = document.getElementById('craft-view');
+  const journalView = document.getElementById('journal-view');
   const craftRecipeListEl = document.getElementById('craft-recipe-list');
+  const journalRootEl = document.getElementById('journal-root');
   const inventoryTabBtns = /** @type {NodeListOf<HTMLElement>} */ (
     document.querySelectorAll('.inventory-tab')
   );
@@ -135,6 +144,7 @@ export function createUiState(/** @type {any} */ {
   const vendorPanelCloseBtn = document.getElementById('vendor-panel-close');
   const vendorPricesEl = document.getElementById('vendor-sell-prices');
   const vendorBuyItemsEl = document.getElementById('vendor-buy-items');
+  const vendorContractsEl = document.getElementById('vendor-contract-list');
   const inventoryCoinsEl = document.getElementById('inventory-coins');
   const abilityBar = document.getElementById('ability-bar');
   const deathScreen = document.getElementById('death-screen');
@@ -149,6 +159,7 @@ export function createUiState(/** @type {any} */ {
   let /** @type {any} */ vendorUI = null;
   let /** @type {any} */ playerTradeUI = null;
   let /** @type {any} */ craftingUI = null;
+  let /** @type {any} */ journalUI = null;
   let /** @type {any} */ windowDragController = null;
 
   let inventoryOpen = false;
@@ -169,13 +180,23 @@ export function createUiState(/** @type {any} */ {
   const characterPreview = createCharacterPreview(characterModelPreviewEl);
   let wasDead = false;
 
-  /** @type {{ hp: number | null, inv: number | null, currencyCopper: number | null, level: number | null, totalXp: number | null }} */
+  /** @type {{
+   *   hp: number | null,
+   *   inv: number | null,
+   *   currencyCopper: number | null,
+   *   level: number | null,
+   *   totalXp: number | null,
+   *   activeContracts: any[],
+   *   contractOffersByVendor: Record<string, any[]>,
+   * }} */
   const lastStats = {
     hp: null,
     inv: null,
     currencyCopper: null,
     level: null,
     totalXp: null,
+    activeContracts: [],
+    contractOffersByVendor: {},
   };
 
   function getCurrentClassId(/** @type {any} */ me) {
@@ -233,15 +254,18 @@ export function createUiState(/** @type {any} */ {
   }
 
   function setInventoryTab(/** @type {any} */ tab) {
-    if (!['inventory', 'craft'].includes(tab)) return;
+    if (!['inventory', 'craft', 'journal'].includes(tab)) return;
     inventoryTab = tab;
     inventoryView?.classList.toggle('active', tab === 'inventory');
     craftView?.classList.toggle('active', tab === 'craft');
+    journalView?.classList.toggle('active', tab === 'journal');
     for (const btn of inventoryTabBtns ?? []) {
       btn.classList.toggle('active', btn.dataset.tab === tab);
     }
     if (tab === 'craft') {
       craftingUI?.render?.();
+    } else if (tab === 'journal') {
+      journalUI?.render?.();
     }
   }
 
@@ -394,6 +418,74 @@ export function createUiState(/** @type {any} */ {
     }
   }
 
+  function renderVendorContracts() {
+    if (!vendorContractsEl) return;
+    vendorContractsEl.innerHTML = '';
+    const vendor = vendorUI?.getVendor?.();
+    const vendorId = vendor?.id;
+    const activeContracts = Array.isArray(lastStats.activeContracts)
+      ? lastStats.activeContracts.filter((contract) => contract.vendorId === vendorId)
+      : [];
+    const offersByVendor = lastStats.contractOffersByVendor ?? {};
+    const offers = Array.isArray(offersByVendor?.[vendorId]) ? offersByVendor[vendorId] : [];
+
+    if (offers.length === 0 && activeContracts.length === 0) {
+      vendorContractsEl.textContent = 'No contracts available right now.';
+      return;
+    }
+
+    const renderContractRow = (/** @type {any} */ contract, /** @type {boolean} */ isOffer) => {
+      const row = document.createElement('div');
+      row.className = 'vendor-contract-row';
+      const info = document.createElement('div');
+      info.className = 'vendor-contract-info';
+      const title = document.createElement('div');
+      title.className = 'vendor-contract-title';
+      title.textContent = contract.title ?? contract.id ?? 'Contract';
+      const meta = document.createElement('div');
+      meta.className = 'vendor-contract-meta';
+      if (isOffer) {
+        meta.textContent = `Reward ${formatCurrency(contract.rewardCopper ?? 0)} · ${contract.rewardXp ?? 0} XP`;
+      } else if (contract.completed) {
+        meta.textContent = 'Ready to turn in';
+      } else {
+        meta.textContent = `${Math.min(contract.progress ?? 0, contract.requiredCount ?? 1)}/${contract.requiredCount ?? 1}`;
+      }
+      info.appendChild(title);
+      info.appendChild(meta);
+      row.appendChild(info);
+
+      const actionBtn = document.createElement('button');
+      actionBtn.type = 'button';
+      actionBtn.className = 'vendor-buy-btn';
+      if (isOffer) {
+        actionBtn.textContent = 'Accept';
+        actionBtn.addEventListener('click', () => {
+          if (vendorId) onContractAccept?.(vendorId, contract.id);
+        });
+      } else if (contract.completed) {
+        actionBtn.textContent = 'Turn In';
+        actionBtn.addEventListener('click', () => {
+          if (vendorId) onContractTurnIn?.(vendorId, contract.contractId ?? contract.templateId);
+        });
+      } else {
+        actionBtn.textContent = 'Abandon';
+        actionBtn.addEventListener('click', () => {
+          onContractAbandon?.(contract.contractId ?? contract.templateId);
+        });
+      }
+      row.appendChild(actionBtn);
+      vendorContractsEl.appendChild(row);
+    };
+
+    for (const contract of activeContracts) {
+      renderContractRow(contract, false);
+    }
+    for (const offer of offers) {
+      renderContractRow(offer, true);
+    }
+  }
+
   if (inventoryPanel && inventoryGrid) {
     inventoryUI = createInventoryUI({
       panel: inventoryPanel,
@@ -450,6 +542,16 @@ export function createUiState(/** @type {any} */ {
         const name = recipe?.name ?? recipe?.output?.kind ?? 'Item';
         showToast?.(count > 1 ? `Crafted ${name} × ${count}` : `Crafted ${name}`);
       },
+    });
+  }
+
+  if (journalRootEl) {
+    journalUI = createJournalUI({
+      journalRootEl,
+      onContractAbandon,
+      onContractTurnIn,
+      onRepairItem,
+      onSalvageItem,
     });
   }
 
@@ -552,6 +654,7 @@ export function createUiState(/** @type {any} */ {
       panelCloseButton: vendorPanelCloseBtn,
       onTradeOpen: () => {
         renderVendorBuyItems();
+        renderVendorContracts();
         openVendorTradeLayout();
       },
       onTradeClose: () => {
@@ -627,6 +730,7 @@ export function createUiState(/** @type {any} */ {
       wasDead = isDead;
 
       updateHud(me, serverNow);
+      updateObjectives(me);
       updateCastBar(me, serverNow);
       if (inventoryUI) {
         inventoryUI.setInventory(me.inventory ?? [], {
@@ -636,10 +740,19 @@ export function createUiState(/** @type {any} */ {
       }
       if (craftingUI) {
         craftingUI.setInventory(me.inventory ?? []);
+        craftingUI.setRecipes(getRecipesForKnownIds(me.knownRecipes));
+        craftingUI.setContext?.({
+          playerPos: { x: me.x, y: me.y ?? 0, z: me.z },
+          worldConfig,
+        });
       }
       if (equipmentUI) {
         equipmentUI.setEquipment(me.equipment ?? {});
       }
+      journalUI?.setState?.(me);
+      lastStats.activeContracts = Array.isArray(me.activeContracts) ? me.activeContracts : [];
+      lastStats.contractOffersByVendor = me.contractOffersByVendor ?? {};
+      renderVendorContracts();
       if (inventoryCoinsEl) {
         inventoryCoinsEl.textContent = formatCurrency(me.currencyCopper ?? 0);
       }
@@ -706,6 +819,7 @@ export function createUiState(/** @type {any} */ {
         deathTimerEl.textContent = '--';
       }
       updateHud(null, serverNow);
+      updateObjectives(null);
       updateCastBar(null, serverNow);
       if (inventoryUI) {
         inventoryUI.setInventory([], {
@@ -715,10 +829,16 @@ export function createUiState(/** @type {any} */ {
       }
       if (craftingUI) {
         craftingUI.setInventory([]);
+        craftingUI.setRecipes(getRecipesForKnownIds(null));
+        craftingUI.setContext?.({ playerPos: null, worldConfig });
       }
       if (equipmentUI) {
         equipmentUI.setEquipment({});
       }
+      journalUI?.setState?.(null);
+      lastStats.activeContracts = [];
+      lastStats.contractOffersByVendor = {};
+      renderVendorContracts();
       if (inventoryCoinsEl) {
         inventoryCoinsEl.textContent = '--';
       }
@@ -761,7 +881,7 @@ export function createUiState(/** @type {any} */ {
   for (const btn of inventoryTabBtns ?? []) {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
-      if (tab && ['inventory', 'craft'].includes(tab)) {
+      if (tab && ['inventory', 'craft', 'journal'].includes(tab)) {
         setInventoryTab(tab);
       }
     });

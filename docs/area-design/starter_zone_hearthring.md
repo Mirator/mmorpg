@@ -1,6 +1,6 @@
 # Starter Zone - The Hearthring (Levels 1-5)
 
-Design goal: teach core mechanics through world layout instead of quest text.
+Design goal: teach core mechanics through world layout first, with optional vendor-contract guidance layered on top.
 
 The starter experience now spans the full map (`x/z in [-200, 200]`) using a 3x3 district layout. Progression is preserved by district composition and encounter pressure, not by adding new systems.
 
@@ -54,7 +54,7 @@ These lanes are kept visually and physically readable so players can always re-o
 Purpose: safe onboarding and economy anchor.
 
 - Spawn, vendors, training dummies, fast loop resources.
-- Teaches movement, interact, inventory, and sell loop.
+- Teaches movement, interact, inventory, sell loop, and first contract pickup/turn-in.
 
 ### N, NW, SW - Low-Risk Expansion
 
@@ -108,5 +108,7 @@ The world teaches by repetition with pressure scaling:
 3. Fight predictable threats
 4. Manage positioning in constrained spaces
 5. Handle mixed-threat pulls with better timing
+
+Contracts can reinforce this path, but players can still explore freely or follow future quest-style guidance.
 
 The intended feeling remains: safe -> curious -> tense -> challenging.

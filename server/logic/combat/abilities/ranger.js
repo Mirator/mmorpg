@@ -25,6 +25,8 @@ export function createRangerHandlers(d) {
         targetMob.dotDamagePerTick = dotDmgPerTick;
         targetMob.dotSourceId = player.id;
         targetMob.dotNextTickAt = now + d.DOT_TICK_MS;
+        targetMob.slowUntil = now + (ability.dotDurationMs ?? 6000);
+        targetMob.slowMultiplier = 0.85;
       }
       return {
         xpGain,

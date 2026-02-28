@@ -29,6 +29,24 @@ export const /** @type {any} */ WEAPON_DEFS = {
     attackType: 'ranged',
     range: 6.0,
   },
+  weapon_iron_blade: {
+    kind: 'weapon_iron_blade',
+    name: 'Iron Blade',
+    attackType: 'melee',
+    range: 2.2,
+  },
+  weapon_reinforced_training_sword: {
+    kind: 'weapon_reinforced_training_sword',
+    name: 'Reinforced Training Sword',
+    attackType: 'melee',
+    range: 2.3,
+  },
+  weapon_reinforced_training_bow: {
+    kind: 'weapon_reinforced_training_bow',
+    name: 'Reinforced Training Bow',
+    attackType: 'ranged',
+    range: 6.5,
+  },
 };
 
 const DEFAULT_WEAPON_FALLBACK = 'weapon_training_sword';
@@ -44,6 +62,13 @@ const /** @type {any} */ SLOT_PREFIXES = {
 
 /** @typedef {{ id: string, kind: string, name: string, count: number }} EquipmentItem */
 /** @typedef {{ weapon: EquipmentItem | null, offhand: EquipmentItem | null, head: EquipmentItem | null, chest: EquipmentItem | null, legs: EquipmentItem | null, feet: EquipmentItem | null }} EquipmentState */
+
+export const /** @type {any} */ DURABILITY_BY_RARITY = {
+  common: 20,
+  uncommon: 30,
+  rare: 40,
+  epic: 50,
+};
 
 function normalizeItemId(/** @type {any} */ item, /** @type {any} */ fallbackPrefix = 'eq') {
   if (typeof item?.id === 'string' && item.id.trim()) return item.id.trim();
@@ -63,6 +88,54 @@ function normalizeCount(/** @type {any} */ value) {
   return Math.max(1, Math.floor(num));
 }
 
+function normalizeDurability(/** @type {any} */ value, /** @type {any} */ fallback) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.max(0, Math.floor(num));
+}
+
+function normalizeItemMeta(/** @type {any} */ raw, /** @type {any} */ defaults = {}) {
+  const rarity = typeof raw?.rarity === 'string'
+    ? raw.rarity
+    : typeof defaults?.rarity === 'string'
+      ? defaults.rarity
+      : undefined;
+  const craftedProfession = typeof raw?.craftedProfession === 'string'
+    ? raw.craftedProfession
+    : typeof defaults?.craftedProfession === 'string'
+      ? defaults.craftedProfession
+      : undefined;
+  const maxDurability = normalizeDurability(
+    raw?.maxDurability,
+    Number.isFinite(defaults?.maxDurability) ? defaults.maxDurability : undefined
+  );
+  const durability = normalizeDurability(
+    raw?.durability,
+    Number.isFinite(defaults?.durability) ? defaults.durability : maxDurability
+  );
+  const isStarter = raw?.isStarter === true || defaults?.isStarter === true;
+  const sourceRecipeId = typeof raw?.sourceRecipeId === 'string'
+    ? raw.sourceRecipeId
+    : typeof defaults?.sourceRecipeId === 'string'
+      ? defaults.sourceRecipeId
+      : undefined;
+  return {
+    ...(rarity ? { rarity } : {}),
+    ...(Number.isFinite(maxDurability) ? { maxDurability } : {}),
+    ...(Number.isFinite(durability) ? { durability } : {}),
+    ...(craftedProfession ? { craftedProfession } : {}),
+    ...(isStarter ? { isStarter: true } : {}),
+    ...(sourceRecipeId ? { sourceRecipeId } : {}),
+  };
+}
+
+function applyItemMeta(/** @type {any} */ item, /** @type {any} */ raw, /** @type {any} */ defaults = {}) {
+  return {
+    ...item,
+    ...normalizeItemMeta(raw, defaults),
+  };
+}
+
 export function getWeaponDef(/** @type {any} */ kind) {
   if (!kind) return null;
   return WEAPON_DEFS[kind] ?? null;
@@ -73,45 +146,45 @@ export function getDefaultWeaponKind(/** @type {any} */ classId) {
   return klass?.defaultWeaponKind ?? DEFAULT_WEAPON_FALLBACK;
 }
 
-export function createWeaponItem(/** @type {any} */ kind) {
+export function createWeaponItem(/** @type {any} */ kind, /** @type {any} */ options = {}) {
   const safeKind = kind ?? DEFAULT_WEAPON_FALLBACK;
   const def = getWeaponDef(safeKind);
   if (!def) return null;
-  return {
+  return applyItemMeta({
     id: normalizeItemId(null, 'weapon'),
     kind: def.kind,
     name: def.name,
     count: 1,
-  };
+  }, options, options);
 }
 
 function normalizeWeaponItem(/** @type {any} */ item, /** @type {any} */ fallbackKind) {
   const kind = typeof item?.kind === 'string' ? item.kind : fallbackKind;
   const def = getWeaponDef(kind);
   if (!def) return null;
-  return {
+  return applyItemMeta({
     id: normalizeItemId(item, 'weapon'),
     kind: def.kind,
     name: normalizeItemName(item, def.name),
     count: 1,
-  };
+  }, item);
 }
 
 function normalizeGenericItem(/** @type {any} */ item) {
   if (!item || typeof item.kind !== 'string' || !item.kind.trim()) return null;
-  return {
+  return applyItemMeta({
     id: normalizeItemId(item, 'eq'),
     kind: item.kind.trim(),
     name: normalizeItemName(item, item.kind),
     count: normalizeCount(item.count),
-  };
+  }, item);
 }
 
 export function createDefaultEquipment(/** @type {any} */ classId) {
   const equipment = /** @type {EquipmentState} */ (
     Object.fromEntries(EQUIP_SLOTS.map((/** @type {any} */ slot) => [slot, null]))
   );
-  const defaultWeapon = createWeaponItem(getDefaultWeaponKind(classId));
+  const defaultWeapon = createWeaponItem(getDefaultWeaponKind(classId), { isStarter: true });
   if (defaultWeapon) {
     equipment.weapon = defaultWeapon;
   }
@@ -146,7 +219,7 @@ export function normalizeEquipment(/** @type {any} */ raw, /** @type {any} */ cl
   }
 
   if (!base.weapon) {
-    base.weapon = createWeaponItem(getDefaultWeaponKind(classId));
+    base.weapon = createWeaponItem(getDefaultWeaponKind(classId), { isStarter: true });
   }
 
   return base;
@@ -173,6 +246,7 @@ export function getStatsFromEquipment(equipment) {
   for (const slot of EQUIP_SLOTS) {
     const item = /** @type {any} */ (equipment)[slot];
     if (!item) continue;
+    if (isBrokenItem(item)) continue;
     const def = getItemStats(item.kind);
     if (def) {
       stats.str += def.str ?? 0;
@@ -200,10 +274,51 @@ function getItemStats(kind) {
     weapon_training_bow: { dex: 2 },
     weapon_training_staff: { int: 2 },
     weapon_apprentice_wand: { int: 3, spi: 1 },
+    weapon_iron_blade: { str: 4 },
+    weapon_reinforced_training_sword: { str: 6, vit: 1 },
+    weapon_reinforced_training_bow: { dex: 5, accuracy: 6 },
     armor_head_cloth: { armor: 2 },
     armor_chest_leather: { armor: 4 },
     armor_legs_cloth: { armor: 2 },
     armor_feet_leather: { armor: 2 },
+    armor_chest_crude_plate: { armor: 7, vit: 2 },
+    offhand_wooden_focus: { int: 2, spi: 2, magicResist: 2 },
   };
   return ITEM_STATS[kind] ?? null;
+}
+
+export function isDurabilityTrackedItem(/** @type {any} */ item) {
+  if (!item || item.isStarter === true) return false;
+  return Number.isFinite(item.maxDurability) && item.maxDurability > 0;
+}
+
+export function isBrokenItem(/** @type {any} */ item) {
+  if (!isDurabilityTrackedItem(item)) return false;
+  return (item.durability ?? 0) <= 0;
+}
+
+export function applyDurabilityLoss(/** @type {any} */ item, /** @type {any} */ amount = 1) {
+  if (!isDurabilityTrackedItem(item)) return false;
+  const loss = Math.max(0, Math.floor(Number(amount) || 0));
+  if (loss <= 0) return false;
+  const next = Math.max(0, (item.durability ?? item.maxDurability ?? 0) - loss);
+  if (next === (item.durability ?? item.maxDurability ?? 0)) return false;
+  item.durability = next;
+  return true;
+}
+
+export function repairDurability(/** @type {any} */ item) {
+  if (!isDurabilityTrackedItem(item)) return false;
+  const maxDurability = Math.max(0, Math.floor(Number(item.maxDurability) || 0));
+  if (maxDurability <= 0) return false;
+  if ((item.durability ?? maxDurability) >= maxDurability) return false;
+  item.durability = maxDurability;
+  return true;
+}
+
+export function getMissingDurability(/** @type {any} */ item) {
+  if (!isDurabilityTrackedItem(item)) return 0;
+  const maxDurability = Math.max(0, Math.floor(Number(item.maxDurability) || 0));
+  const durability = Math.max(0, Math.floor(Number(item.durability) || 0));
+  return Math.max(0, maxDurability - durability);
 }

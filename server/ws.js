@@ -11,7 +11,7 @@ import { worldSnapshot } from './logic/world.js';
 import { countInventory } from './logic/inventory.js';
 import { loadPlayer, savePlayer } from './db/playerRepo.js';
 import { hydratePlayerState, migratePlayerState, serializePlayerState } from './db/playerState.js';
-import { createBasePlayerState, seedGuestStarterInventory } from './logic/players.js';
+import { applyE2eTestBoosts, createBasePlayerState, seedGuestStarterInventory } from './logic/players.js';
 import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
 import { sendCombatLog } from './logic/combatLog.js';
@@ -20,6 +20,7 @@ import { endDuel } from './logic/duel.js';
 import { endTradeSession, getTradePartner } from './logic/trade.js';
 import { validateAndConsumeTicket } from './wsTicket.js';
 import { createMessageHandlers } from './ws/handlers/index.js';
+import { handleContractSyncOnConnect } from './ws/handlers/contracts.js';
 import { getCookieValue, normalizeId } from './authParsing.js';
 import { createPublicStateBuilder } from './ws/stateView.js';
 import {
@@ -513,6 +514,9 @@ export function createWebSocketServer({
       if (stored?.state) {
         const migrated = migratePlayerState(stored.state, stored.stateVersion);
         const hydrated = hydratePlayerState(migrated.state, world, spawn);
+        if (process.env.E2E_TEST === 'true') {
+          applyE2eTestBoosts(hydrated);
+        }
         basePlayer = createRuntimePlayer({
           id,
           ws,
@@ -537,6 +541,9 @@ export function createWebSocketServer({
         });
         if (guest) {
           seedGuestStarterInventory(baseState);
+        }
+        if (process.env.E2E_TEST === 'true') {
+          applyE2eTestBoosts(baseState);
         }
         basePlayer = createRuntimePlayer({
           id,
@@ -582,6 +589,7 @@ export function createWebSocketServer({
         config: config.configSnapshot,
       });
       sendPrivateState(ws, player, now);
+      handleContractSyncOnConnect({ player, ws, safeSend, sendPrivateState });
 
       const msgHandlers = createMessageHandlers();
 

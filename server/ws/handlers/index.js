@@ -10,6 +10,7 @@ import * as inventory from './inventory.js';
 import * as ability from './ability.js';
 import * as vendor from './vendor.js';
 import * as craft from './craft.js';
+import * as contracts from './contracts.js';
 
 /**
  * Returns an array of [match, handler] for message dispatch.
@@ -26,6 +27,9 @@ export function createMessageHandlers() {
     [(msg) => msg.type === 'partyInvite', party.handlePartyInvite],
     [(msg) => msg.type === 'partyAccept', party.handlePartyAccept],
     [(msg) => msg.type === 'partyLeave', party.handlePartyLeave],
+    [(msg) => msg.type === 'contractAccept', contracts.handleContractAccept],
+    [(msg) => msg.type === 'contractAbandon', contracts.handleContractAbandon],
+    [(msg) => msg.type === 'contractTurnIn', contracts.handleContractTurnIn],
     [(msg) => msg.type === 'duelRequest', duel.handleDuelRequest],
     [(msg) => msg.type === 'duelAccept', duel.handleDuelAccept],
     [(msg) => msg.type === 'duelDecline', duel.handleDuelDecline],
@@ -44,6 +48,8 @@ export function createMessageHandlers() {
     [(msg) => msg.type === 'classSelect', player.handleClassSelect],
     [(msg) => msg.type === 'inventorySwap', inventory.handleInventorySwap],
     [(msg) => msg.type === 'equipSwap', inventory.handleEquipSwap],
+    [(msg) => msg.type === 'repairItem', inventory.handleRepairItem],
+    [(msg) => msg.type === 'salvageItem', inventory.handleSalvageItem],
     [(msg) => msg.type === 'action' && msg.kind === 'ability', ability.handleAbility],
     [(msg) => msg.type === 'vendorSell', vendor.handleVendorSell],
     [(msg) => msg.type === 'vendorBuy', vendor.handleVendorBuy],

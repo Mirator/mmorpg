@@ -11,7 +11,7 @@ import {
   getResourceForClass,
 } from '../../shared/classes.js';
 import { COMBAT_CONFIG } from '../../shared/config.js';
-import { getEquippedWeapon } from '../../shared/equipment.js';
+import { applyDurabilityLoss, getEquippedWeapon } from '../../shared/equipment.js';
 import { computeDerivedStats } from '../../shared/attributes.js';
 import { getMobMaxHp } from './mobs.js';
 import { getMobDisplayName as resolveMobDisplayName, getMobStats } from '../../shared/entityTypes.js';
@@ -44,6 +44,7 @@ import {
   resolveCastFacingDirection,
 } from './combat/primitives.js';
 import { rollAndGrantLoot } from './loot.js';
+import { applyContractProgress } from './contracts.js';
 
 // Ownership boundary: this module is the server-authoritative combat rules engine.
 // Transport/session concerns belong in WS/HTTP layers, not in combat logic.
@@ -234,6 +235,20 @@ function applyDamageToMob(/** @type {any} */ { mob, damage, attacker, now, respa
         lootContext.rand,
         stackMax
       );
+    }
+
+    if (attacker) {
+      if (applyDurabilityLoss(attacker.equipment?.weapon, 1)) {
+        attacker.pendingProgressDirty = true;
+      }
+      const contractProgress = applyContractProgress(attacker, {
+        kind: 'hunt',
+        target: mob.mobType ?? 'orc',
+        count: 1,
+      });
+      if (contractProgress.changed) {
+        attacker.pendingProgressDirty = true;
+      }
     }
   }
 
@@ -653,10 +668,15 @@ export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, 
     return { success: false, reason: 'salvation_pve_only' };
   }
 
-  if (targetMob && !withinRange(player.pos, targetMob.pos, ability.range ?? 0)) {
+  const effectiveRange =
+    (player.repositionedUntil ?? 0) > now && ability.attackType === 'ranged'
+      ? (ability.range ?? 0) + 2
+      : (ability.range ?? 0);
+
+  if (targetMob && !withinRange(player.pos, targetMob.pos, effectiveRange)) {
     return { success: false, reason: 'out_of_range' };
   }
-  if (targetPlayer && targetPlayer !== player && !withinRange(player.pos, targetPlayer.pos, ability.range ?? 0)) {
+  if (targetPlayer && targetPlayer !== player && !withinRange(player.pos, targetPlayer.pos, effectiveRange)) {
     return { success: false, reason: 'out_of_range' };
   }
 
@@ -689,7 +709,10 @@ export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, 
     if (!ability.exemptFromGCD) {
       player.globalCooldownUntil = now + GLOBAL_COOLDOWN_MS;
     }
-    const windUp = ability.windUpMs ?? (ability.id === 'aimed_shot' ? 600 : 1500);
+    let windUp = ability.windUpMs ?? (ability.id === 'aimed_shot' ? 600 : 1500);
+    if (ability.id === 'arcane_missiles' && (targetMob?.chilledUntil ?? 0) > now) {
+      windUp = Math.max(800, windUp - 400);
+    }
     player.cast = {
       id: ability.id,
       endsAt: now + windUp,
@@ -795,6 +818,12 @@ export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, 
 
   if (hit) {
     tagCombat(player, now);
+    if ((player.berserkEmpoweredHits ?? 0) > 0 && (ability.baseValue ?? 0) > 0) {
+      player.berserkEmpoweredHits = Math.max(0, (player.berserkEmpoweredHits ?? 0) - 1);
+    }
+    if ((player.repositionedUntil ?? 0) > now && ability.attackType === 'ranged' && (ability.baseValue ?? 0) > 0) {
+      player.repositionedUntil = 0;
+    }
   }
 
   const event = buildAbilityEvent({

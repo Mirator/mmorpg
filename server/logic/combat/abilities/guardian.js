@@ -29,6 +29,10 @@ export function createGuardianHandlers(d) {
           targetMob.stunnedUntil = now + stunDuration;
           targetMob.stunImmuneUntil = now + (ability.stunImmunityMs ?? 0);
         }
+        if ((targetMob.tauntedUntil ?? 0) > now && targetMob.tauntSourceId === player.id && targetMob.tauntExtended !== true) {
+          targetMob.tauntedUntil += 1000;
+          targetMob.tauntExtended = true;
+        }
       }
       if (hit && targetPlayer && isPvP) {
         const stunDuration = d.applyCCWithDR(targetPlayer, 'stun', ability.stunDurationMs ?? 0, ability, true, now);
@@ -67,6 +71,9 @@ export function createGuardianHandlers(d) {
       if (!targetMob) return {};
       targetMob.targetId = player.id;
       targetMob.tauntedUntil = ctx.now + (ability.durationMs ?? 3000);
+      targetMob.tauntSourceId = player.id;
+      targetMob.tauntDamageDebuffUntil = ctx.now + (ability.durationMs ?? 3000);
+      targetMob.tauntExtended = false;
       return {};
     },
     shield_wall(/** @type {any} */ ctx) {

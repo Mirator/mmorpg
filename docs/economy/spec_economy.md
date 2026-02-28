@@ -1,6 +1,6 @@
 # Economy and Crafting Specification
 
-This document describes the currency system, vendor trading, resource harvesting, and crafting/recipe system as implemented in the codebase.
+This document describes the currency system, vendor trading, contracts, resource harvesting, profession crafting, and item-maintenance systems as implemented in the codebase.
 
 ---
 
@@ -14,7 +14,7 @@ All currency is stored as **copper** (integer). Display uses gold, silver, and c
 |--------|-------------------------|
 | Copper | 1c = 1 copper           |
 | Silver | 1s = 100 copper         |
-| Gold   | 1g = 1 silver = 100 copper |
+| Gold   | 1g = 100 silver = 10,000 copper |
 
 Constants: `COPPER_PER_SILVER = 100`, `SILVER_PER_GOLD = 100`, `COPPER_PER_GOLD = 10,000`
 
@@ -31,7 +31,7 @@ Constants: `COPPER_PER_SILVER = 100`, `SILVER_PER_GOLD = 100`, `COPPER_PER_GOLD 
 
 ## 2.1 Structure
 
-- **Slots:** Array of `{ id?, kind, name?, count } | null`
+- **Slots:** Array of `{ id?, kind, name?, count, rarity?, durability?, maxDurability?, craftedProfession?, isStarter?, sourceRecipeId? } | null`
 - **Slot count:** From world config `playerInvSlots` (default: 20)
 - **Stack max:** From world config `playerInvStackMax` (default: 20)
 - **Capacity:** `invSlots × invStackMax` total items
@@ -89,6 +89,10 @@ Resource nodes are placed in the world (from map config). Each node has:
 
 - Player must be within `vendorInteractRadius` (default: 2.5) of vendor
 - Press E to open vendor dialog; "Trade" opens the trade panel
+- The trade panel contains:
+  - `Buy`
+  - `Sell`
+  - `Contracts`
 
 ## 4.2 Selling
 
@@ -105,6 +109,7 @@ Resource nodes are placed in the world (from map config). Each node has:
 | flower | 10c   |
 
 - Item is removed from inventory; copper is added to player
+- Broken durability-tracked crafted gear cannot be sold to vendors
 
 ## 4.3 Buying
 
@@ -130,6 +135,30 @@ Resource nodes are placed in the world (from map config). Each node has:
 | armor_feet_leather          | Leather Boots      | 45c   | armor      |
 
 **Source:** [shared/economy.js](../../shared/economy.js), [server/ws/handlers/vendor.js](../../server/ws/handlers/vendor.js)
+
+## 4.4 Vendor Contracts
+
+- Vendors expose up to **3 rotating contract offers** at a time
+- Rotation uses a deterministic 10-minute bucket (`CONTRACT_ROTATION_MS`)
+- Contract types:
+  - `hunt`
+  - `gather`
+  - `craft`
+  - `delivery`
+- Players may hold up to **3 active contracts** at once
+- The same contract template cannot be accepted twice at the same time
+- Contracts are turned in at the issuing vendor
+- Rewards can include:
+  - character XP
+  - copper
+  - profession mastery XP
+
+The current pool is inferred from vendor identity:
+
+- hub vendors (`vendor_c_*`) use the starter/general pool
+- the outpost vendor (`vendor_sw_01`) uses the outpost/general pool
+
+**Source:** [shared/contracts.js](../../shared/contracts.js), [server/logic/contracts.js](../../server/logic/contracts.js), [server/ws/handlers/contracts.js](../../server/ws/handlers/contracts.js), [client/ui-state.js](../../client/ui-state.js)
 
 ---
 
@@ -201,30 +230,58 @@ Each entry: `{ kind, minCount, maxCount, chancePct }`
 
 ## 7.1 Overview
 
-Crafting consumes ingredients from inventory and produces output items. No location or station required; crafting can be done anywhere.
+Crafting consumes ingredients from inventory and produces output items.
+
+- **Portable recipes** can be crafted anywhere
+- **Station recipes** require the player to stand near a structure-derived station
+
+Current station mapping is inferred from existing structure kinds (no extra map field):
+
+- `barracks` -> `forge`
+- `market` -> `alchemy_table`
+- `storage` -> `workbench`
 
 ## 7.2 Recipe Format
 
 ```js
 {
-  id: string,           // Unique recipe identifier
-  name?: string,        // Display name for output
-  inputs: [             // Required ingredients
-    { kind: string, count: number },
-    ...
-  ],
+  id: string,
+  name?: string,
+  inputs: [{ kind: string, count: number }, ...],
   output: { kind: string, count: number },
-  category?: string      // e.g. "weapon", "consumable"
+  category?: string,
+  profession?: 'smithing' | 'alchemy' | 'woodcraft',
+  stationType?: 'forge' | 'alchemy_table' | 'workbench' | null,
+  masteryLevelRequired?: number,
+  portable?: boolean,
+  outputRarity?: 'common' | 'uncommon' | 'rare',
+  unlockAtMasteryLevel?: number
 }
 ```
 
 ## 7.3 Recipes
 
-| ID                 | Inputs              | Output                    | Category   |
-|--------------------|---------------------|---------------------------|------------|
-| ore_crystal_sword  | 2 ore, 1 crystal   | Training Sword × 1        | weapon     |
-| herb_health_potion | 2 herb             | Minor Health Potion × 1   | consumable |
-| herb_mana_potion   | 2 herb, 1 crystal  | Minor Mana Potion × 1     | consumable |
+Starter portable recipes:
+
+| ID | Inputs | Output | Notes |
+|---|---|---|---|
+| `ore_crystal_sword` | 2 ore, 1 crystal | Training Sword × 1 | portable |
+| `herb_health_potion` | 2 herb | Minor Health Potion × 1 | portable |
+| `herb_mana_potion` | 2 herb, 1 crystal | Minor Mana Potion × 1 | portable |
+
+Profession recipes:
+
+| ID | Profession | Station | Unlock | Output |
+|---|---|---|---|---|
+| `smith_iron_blade` | smithing | forge | level 2 | Iron Blade |
+| `smith_reinforced_training_sword` | smithing | forge | level 4 | Reinforced Training Sword |
+| `smith_crude_plate` | smithing | forge | level 5 | Crude Plate Vest |
+| `alchemy_strong_health` | alchemy | alchemy_table | level 2 | Strong Health Potion |
+| `alchemy_strong_mana` | alchemy | alchemy_table | level 3 | Strong Mana Potion |
+| `alchemy_cleansing_tonic` | alchemy | alchemy_table | level 5 | Cleansing Tonic |
+| `woodcraft_reinforced_bow` | woodcraft | workbench | level 2 | Reinforced Training Bow |
+| `woodcraft_travel_kit` | woodcraft | workbench | level 3 | Travel Kit |
+| `woodcraft_focus_component` | woodcraft | workbench | level 5 | Wooden Focus |
 
 ## 7.4 Protocol
 
@@ -233,46 +290,114 @@ Crafting consumes ingredients from inventory and produces output items. No locat
 ```json
 {
   "type": "craft",
-  "recipeId": "ore_crystal_sword",
+  "recipeId": "smith_iron_blade",
   "count": 1,
   "seq": 1
 }
 ```
 
 - `recipeId`: Required, non-empty string
-- `count`: Optional, integer 1–99, default 1 (number of times to craft)
+- `count`: Optional, integer `1..99`, default `1`
 
 ## 7.5 Server Logic
 
 1. Look up recipe by `recipeId`; reject if not found
-2. For each input: `countItem(inventory, kind) >= input.count × craftCount`
-3. Consume all inputs via `consumeItems`
-4. Create output: weapons use `createWeaponItem`, others use generic `{ id, kind, name, count }`
-5. Add output to inventory; if add fails, rollback consumed ingredients
-6. Update `player.inv` and mark dirty for persistence
+2. Reject if the recipe is not in `player.knownRecipes`
+3. If the recipe has `stationType`, validate proximity to a matching station within `STATION_INTERACT_RADIUS` (`4.5`)
+4. Validate ingredients using `countItem`
+5. Consume ingredients via `consumeItems`
+6. Create output:
+   - weapons use `createWeaponItem`
+   - other items use a generic item object
+7. Profession gear outputs can receive durability metadata (`rarity`, `durability`, `maxDurability`, `craftedProfession`, `sourceRecipeId`)
+8. Add output to inventory; rollback consumed inputs on failure
+9. Update:
+   - `player.inv`
+   - profession mastery XP for the crafting profession
+   - recipe unlocks when mastery thresholds are crossed
+   - matching craft-contract progress
 
-**Source:** [shared/recipes.js](../../shared/recipes.js), [shared/protocol.js](../../shared/protocol.js), [server/ws.js](../../server/ws.js)
+**Source:** [shared/recipes.js](../../shared/recipes.js), [shared/professions.js](../../shared/professions.js), [server/ws/handlers/craft.js](../../server/ws/handlers/craft.js), [server/logic/contracts.js](../../server/logic/contracts.js)
 
 ## 7.6 UI
 
-- Craft tab in inventory panel (I key)
-- Recipe list with ingredients (have/need), output, count input, Craft button
-- Craft button disabled when ingredients insufficient
-- `getItemDisplayName(kind)` used for display names
+- Inventory panel now contains:
+  - `Inventory`
+  - `Craft`
+  - `Journal`
+- Craft tab shows:
+  - known recipes only
+  - ingredients (`have / need`)
+  - required station badges
+  - count input
+  - craft button
+- The HUD shows a compact objective tracker for active contracts
+- Journal shows:
+  - active contracts
+  - profession masteries
+  - known recipes
+  - maintenance actions (repair / salvage)
 
-**Source:** [client/crafting.js](../../client/crafting.js), [client/ui-state.js](../../client/ui-state.js)
+**Source:** [client/crafting.js](../../client/crafting.js), [client/journal.js](../../client/journal.js), [client/ui-state.js](../../client/ui-state.js), [client/ui.js](../../client/ui.js)
+
+## 7.7 Profession Mastery
+
+Implemented profession tracks:
+
+- `gathering`
+- `smithing`
+- `alchemy`
+- `woodcraft`
+
+Rules:
+
+- gathering XP is earned on successful harvest
+- profession XP is earned on successful profession craft
+- contracts may also grant mastery XP
+- mastery level curve: `100 + (level - 1) * 50`
+- mastery cap: `10`
+
+Mastery progression unlocks additional recipes and modifies:
+
+- repair cost discounts at levels `3`, `6`, `9`
+- salvage yield increases at levels `4`, `8`
+
+## 7.8 Durability, Repair, and Salvage
+
+- Only non-starter crafted gear uses durability
+- Current durability tiers:
+  - `common = 20`
+  - `uncommon = 30`
+  - `rare = 40`
+  - `epic = 50`
+- Broken items remain equipped/in inventory but:
+  - contribute no stats
+  - cannot be sold to vendors
+- Repair:
+  - only works near a vendor
+  - restores full durability
+  - costs copper based on missing durability
+  - `rare` items also consume one profession material
+- Salvage:
+  - only works on unequipped crafted items in inventory
+  - destroys the item
+  - returns deterministic material output from the source recipe
+
+**Source:** [shared/equipment.js](../../shared/equipment.js), [server/ws/handlers/inventory.js](../../server/ws/handlers/inventory.js)
 
 ---
 
 # 8. Item Display Names
 
-`getItemDisplayName(kind)` resolves display names in order:
+`getItemDisplayName(kind)` resolves fallback display names in order:
 
 1. `VENDOR_BUY_ITEMS` (weapons, consumables, armor)
 2. `RESOURCE_TYPES` (crystal, ore, herb)
 3. Fallback: `kind` with underscores replaced by spaces, title-cased
 
-**Source:** [shared/economy.js](../../shared/economy.js)
+Most UI surfaces prefer the stored item name (`item.name`) when present, then fall back to `getItemDisplayName(kind)`.
+
+**Source:** [shared/economy.js](../../shared/economy.js), [client/ui-state.js](../../client/ui-state.js), [client/crafting.js](../../client/crafting.js)
 
 ---
 
@@ -283,9 +408,12 @@ Crafting consumes ingredients from inventory and produces output items. No locat
 | playerInvSlots      | 20      | Inventory slot count          |
 | playerInvStackMax   | 20      | Max stack per slot             |
 | harvestRadius       | 2.2     | Distance to harvest resources  |
+| stationInteractRadius | 4.5   | Distance to use profession stations |
+| contractRotationMs  | 600,000 | Contract offer rotation window |
+| maxActiveContracts  | 3       | Maximum active contracts |
 | respawnMs           | per-type| Resource respawn (ms) — see RESOURCE_TYPES |
 | vendorInteractRadius| 2.5     | Distance to interact with vendor |
 | corpseExpiryMs      | 600,000 | Corpse despawn (ms, 10 min)    |
 | corpseLootRadius    | 2.5     | Distance to loot corpse        |
 
-**Source:** [shared/config.js](../../shared/config.js), [server/logic/world.js](../../server/logic/world.js)
+**Source:** [shared/config.js](../../shared/config.js), [shared/professions.js](../../shared/professions.js), [server/logic/world.js](../../server/logic/world.js)

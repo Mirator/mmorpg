@@ -55,6 +55,18 @@ export const MOB_STATS = {
   dummy: { attackDamageBase: 0, attackDamagePerLevel: 0, speed: 0, wanderSpeed: 0, respawnMs: 3_000, radius: 0.6 },
 };
 
+export const /** @type {Record<string, 'baseline' | 'charger' | 'skirmisher' | 'ambusher' | 'pack_leader' | 'healer'>} */ MOB_BEHAVIOR_TYPES = {
+  orc: 'baseline',
+  demon: 'healer',
+  yeti: 'baseline',
+  tribal: 'pack_leader',
+  wolf: 'skirmisher',
+  fox: 'ambusher',
+  bull: 'charger',
+  stag: 'baseline',
+  dummy: 'baseline',
+};
+
 /**
  * Get merged mob stats for a mob type. Falls back to MOB_CONFIG for missing fields.
  * @param {string} [mobType]
@@ -71,6 +83,11 @@ export function getMobStats(mobType) {
     respawnMs: overrides.respawnMs ?? MOB_CONFIG.respawnMs,
     radius: overrides.radius ?? MOB_CONFIG.radius,
   };
+}
+
+export function getMobBehaviorType(/** @type {any} */ mobType) {
+  if (!mobType || typeof mobType !== 'string') return 'baseline';
+  return MOB_BEHAVIOR_TYPES[mobType] ?? 'baseline';
 }
 
 /**

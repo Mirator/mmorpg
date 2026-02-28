@@ -3,8 +3,11 @@ import { createInventory, countInventory } from '../logic/inventory.js';
 import { DEFAULT_CLASS_ID, isValidClassId } from '../../shared/classes.js';
 import { normalizeEquipment } from '../../shared/equipment.js';
 import { computeDerivedStats } from '../../shared/attributes.js';
+import { createActiveContracts } from '../../shared/contracts.js';
+import { createProfessionMasteries } from '../../shared/professions.js';
+import { getDefaultKnownRecipeIds } from '../../shared/recipes.js';
 
-export const PLAYER_STATE_VERSION = 2;
+export const PLAYER_STATE_VERSION = 3;
 
 /** @typedef {{ id: string, kind: string, name: string, count: number }} InventoryItem */
 
@@ -47,6 +50,12 @@ function sanitizeInventory(/** @type {any} */ raw, /** @type {any} */ slots, /**
       kind: item.kind,
       name,
       count,
+      ...(typeof item.rarity === 'string' ? { rarity: item.rarity } : {}),
+      ...(Number.isFinite(item.maxDurability) ? { maxDurability: Math.max(0, Math.floor(item.maxDurability)) } : {}),
+      ...(Number.isFinite(item.durability) ? { durability: Math.max(0, Math.floor(item.durability)) } : {}),
+      ...(typeof item.craftedProfession === 'string' ? { craftedProfession: item.craftedProfession } : {}),
+      ...(item.isStarter === true ? { isStarter: true } : {}),
+      ...(typeof item.sourceRecipeId === 'string' ? { sourceRecipeId: item.sourceRecipeId } : {}),
     };
   }
 
@@ -70,6 +79,11 @@ export function serializePlayerState(/** @type {any} */ player) {
     xp: toNumber(player?.xp, 0),
     invSlots: toNumber(player?.invSlots, 0),
     invStackMax: toNumber(player?.invStackMax, 1),
+    activeContracts: createActiveContracts(player?.activeContracts),
+    professionMasteries: createProfessionMasteries(player?.professionMasteries),
+    knownRecipes: Array.isArray(player?.knownRecipes)
+      ? player.knownRecipes.filter((/** @type {any} */ id) => typeof id === 'string')
+      : getDefaultKnownRecipeIds(),
   };
 }
 
@@ -110,6 +124,18 @@ export function migratePlayerState(/** @type {any} */ rawState, /** @type {any} 
     didUpgrade = true;
   }
 
+  if (currentVersion < 3) {
+    state = {
+      ...state,
+      activeContracts: createActiveContracts(state?.activeContracts),
+      professionMasteries: createProfessionMasteries(state?.professionMasteries),
+      knownRecipes: Array.isArray(state?.knownRecipes)
+        ? state.knownRecipes.filter((/** @type {any} */ id) => typeof id === 'string')
+        : getDefaultKnownRecipeIds(),
+    };
+    didUpgrade = true;
+  }
+
   return { state, version: PLAYER_STATE_VERSION, didUpgrade };
 }
 
@@ -130,6 +156,11 @@ export function hydratePlayerState(/** @type {any} */ rawState, /** @type {any} 
   const xp = Math.max(0, Math.floor(toNumber(rawState?.xp, 0)));
   const currencyCopper = Math.max(0, Math.floor(toNumber(rawState?.currencyCopper, 0)));
   const equipment = normalizeEquipment(rawState?.equipment, classId);
+  const activeContracts = createActiveContracts(rawState?.activeContracts);
+  const professionMasteries = createProfessionMasteries(rawState?.professionMasteries);
+  const knownRecipes = Array.isArray(rawState?.knownRecipes)
+    ? Array.from(new Set(rawState.knownRecipes.filter((/** @type {any} */ id) => typeof id === 'string')))
+    : getDefaultKnownRecipeIds();
 
   const derived = computeDerivedStats({ classId, level, equipment });
   const maxHp = derived.maxHp;
@@ -154,5 +185,8 @@ export function hydratePlayerState(/** @type {any} */ rawState, /** @type {any} 
     classId,
     level,
     xp,
+    activeContracts,
+    professionMasteries,
+    knownRecipes,
   };
 }

@@ -241,4 +241,60 @@ describe('protocol validation', () => {
     expect(parseClientMessage({ type: 'craft', recipeId: '', seq: 1 })).toBe(null);
     expect(parseClientMessage({ type: 'craft', recipeId: 123, seq: 1 })).toBe(null);
   });
+
+  it('accepts contract and maintenance messages', () => {
+    expect(
+      parseClientMessage({ type: 'contractAccept', vendorId: 'vendor_c_01', contractId: 'gather_herbs_for_tonics', seq: 7 })
+    ).toEqual({
+      type: 'contractAccept',
+      vendorId: 'vendor_c_01',
+      contractId: 'gather_herbs_for_tonics',
+      seq: 7,
+    });
+    expect(
+      parseClientMessage({ type: 'contractAbandon', contractId: 'gather_herbs_for_tonics' })
+    ).toEqual({
+      type: 'contractAbandon',
+      contractId: 'gather_herbs_for_tonics',
+      seq: undefined,
+    });
+    expect(
+      parseClientMessage({ type: 'contractTurnIn', vendorId: 'vendor_c_01', contractId: 'gather_herbs_for_tonics' })
+    ).toEqual({
+      type: 'contractTurnIn',
+      vendorId: 'vendor_c_01',
+      contractId: 'gather_herbs_for_tonics',
+      seq: undefined,
+    });
+    expect(
+      parseClientMessage({ type: 'repairItem', fromType: 'equipment', slot: 'weapon', seq: 3 })
+    ).toEqual({
+      type: 'repairItem',
+      fromType: 'equipment',
+      slot: 'weapon',
+      seq: 3,
+    });
+    expect(
+      parseClientMessage({ type: 'repairItem', fromType: 'inventory', slot: 4 })
+    ).toEqual({
+      type: 'repairItem',
+      fromType: 'inventory',
+      slot: 4,
+      seq: undefined,
+    });
+    expect(
+      parseClientMessage({ type: 'salvageItem', slot: 2, seq: 9 })
+    ).toEqual({
+      type: 'salvageItem',
+      slot: 2,
+      seq: 9,
+    });
+  });
+
+  it('rejects invalid maintenance messages', () => {
+    expect(parseClientMessage({ type: 'contractAccept', vendorId: '', contractId: 'x' })).toBe(null);
+    expect(parseClientMessage({ type: 'repairItem', fromType: 'equipment', slot: 7 })).toBe(null);
+    expect(parseClientMessage({ type: 'repairItem', fromType: 'inventory', slot: 'weapon' })).toBe(null);
+    expect(parseClientMessage({ type: 'salvageItem', slot: 'bad' })).toBe(null);
+  });
 });

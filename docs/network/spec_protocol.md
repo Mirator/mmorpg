@@ -2,6 +2,8 @@
 
 This document defines the implemented HTTP + WebSocket protocol contracts for the game runtime.
 
+Current wire version: `PROTOCOL_VERSION = 2`
+
 ## 1. Scope
 
 - Authenticated HTTP endpoints for account/character lifecycle and WS ticket issuance.
@@ -25,7 +27,11 @@ Primary sources:
 4. Client connects to WebSocket URL with query params:
    - authenticated: `?characterId=<id>&ticket=<ticket>`
    - guest: `?guest=1`
-5. On success server sends `welcome`, then periodic `state` and `me` updates.
+5. On success server sends:
+   - `welcome`
+   - initial `me`
+   - initial `contracts`
+   - then periodic `state` and `me` updates
 
 ## 3. Client -> Server Messages
 
@@ -51,6 +57,11 @@ All client messages are JSON and validated by `parseClientMessage`.
 | `partyAccept` | `{ type: 'partyAccept', inviterId, seq? }` | Accepts pending invite from inviter. |
 | `partyLeave` | `{ type: 'partyLeave', seq? }` | Leaves current party. |
 | `craft` | `{ type: 'craft', recipeId, count?, seq? }` | `count` clamped to `1..99`. |
+| `contractAccept` | `{ type: 'contractAccept', vendorId, contractId, seq? }` | Accepts a currently offered vendor contract while in range. |
+| `contractAbandon` | `{ type: 'contractAbandon', contractId, seq? }` | Abandons an active contract. |
+| `contractTurnIn` | `{ type: 'contractTurnIn', vendorId, contractId, seq? }` | Turns in a completed contract at the issuing vendor. |
+| `repairItem` | `{ type: 'repairItem', fromType, slot, seq? }` | Repairs a durability-tracked item while near a vendor. |
+| `salvageItem` | `{ type: 'salvageItem', slot, seq? }` | Salvages an unequipped crafted item from inventory. |
 | `duelRequest` | `{ type: 'duelRequest', targetId, seq? }` | Challenges target player to a duel. |
 | `duelAccept` | `{ type: 'duelAccept', challengerId, seq? }` | Accepts pending duel from challenger. |
 | `duelDecline` | `{ type: 'duelDecline', challengerId, seq? }` | Declines duel from challenger. |
@@ -69,7 +80,10 @@ All client messages are JSON and validated by `parseClientMessage`.
 | `welcome` | `{ type: 'welcome', id, snapshot, config }` | First post-auth payload. `snapshot` includes `world` and initial public state. |
 | `pong` | `{ type: 'pong', t }` | Sent in response to `ping`; echoes normalized timestamp used by server. |
 | `state` | `{ type: 'state', t, full?, players?, resources?, mobs?, corpses?, removedPlayers?, removedResources?, removedMobs?, removedCorpses? }` | Full or delta world state payload. |
-| `me` | `{ type: 'me', t, id, data }` | Private player state (`inventory`, `currency`, `equipment`, `resource`, `cooldowns`, `attributes`, `derivedStats`, `duelOpponentId`, etc.). |
+| `me` | `{ type: 'me', t, id, data }` | Private player state (`inventory`, `currency`, `equipment`, `resource`, `cooldowns`, `attributes`, `derivedStats`, `duelOpponentId`, `activeContracts`, `professionMasteries`, `knownRecipes`, etc.). |
+| `contracts` | `{ type: 'contracts', offersByVendor, activeContracts }` | Contract snapshot sent on connect and after explicit contract sync actions (`accept`, `abandon`, `turn_in`). |
+| `contractResult` | `{ type: 'contractResult', action, contractId, ok, error?, rewards? }` | Immediate result of accept/abandon/turn-in. |
+| `masteryUpdated` | `{ type: 'masteryUpdated', professionMasteries, unlockedRecipeIds? }` | Profession mastery delta after craft or contract rewards. |
 | `combatEvent` | `{ type: 'combatEvent', t, events: [...] }` | AOI-filtered combat VFX event stream. |
 | `abilityFailed` | `{ type: 'abilityFailed', reason, slot }` | Returned when ability request is rejected. |
 | `chat` | `{ type: 'chat', channel, authorId, author, text, timestamp }` | Chat channel broadcast payload. |

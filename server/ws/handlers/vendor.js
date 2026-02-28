@@ -1,8 +1,13 @@
 // @ts-check
 import { getSellPriceCopper } from '../../../shared/economy.js';
-import { createWeaponItem, getWeaponDef } from '../../../shared/equipment.js';
+import {
+  createWeaponItem,
+  getWeaponDef,
+  isBrokenItem,
+} from '../../../shared/equipment.js';
 import { addItem } from '../../logic/inventory.js';
 import { countInventory } from '../../logic/inventory.js';
+import { refreshDeliveryContractProgress } from '../../logic/contracts.js';
 
 export function handleVendorSell(/** @type {any} */ ctx) {
   const { player, world, msg, persistence } = ctx;
@@ -16,11 +21,13 @@ export function handleVendorSell(/** @type {any} */ ctx) {
   if (dist > maxDist) return;
   const unitPrice = getSellPriceCopper(item.kind);
   if (!Number.isFinite(unitPrice) || unitPrice <= 0) return;
+  if (isBrokenItem(item)) return;
   const count = Math.max(1, Number(item.count) || 1);
   const total = Math.floor(unitPrice * count);
   player.inventory[msg.slot] = null;
   player.inv = countInventory(player.inventory);
   player.currencyCopper = (player.currencyCopper ?? 0) + total;
+  refreshDeliveryContractProgress(player);
   persistence.markDirty(player);
 }
 
@@ -44,10 +51,10 @@ export function handleVendorBuy(/** @type {any} */ ctx) {
   const weaponDef = getWeaponDef(msg.kind);
   let item;
   if (weaponDef) {
-    item = createWeaponItem(msg.kind);
+    item = createWeaponItem(msg.kind, { isStarter: true });
     if (!item) return;
     for (let i = 1; i < count; i += 1) {
-      const extra = createWeaponItem(msg.kind);
+      const extra = createWeaponItem(msg.kind, { isStarter: true });
       if (!extra || !addItem(player.inventory, extra, stackMax)) return;
     }
   } else {
@@ -56,10 +63,12 @@ export function handleVendorBuy(/** @type {any} */ ctx) {
       kind: msg.kind,
       name: catalogEntry.name,
       count,
+      ...(catalogEntry.category === 'armor' ? { isStarter: true } : {}),
     };
   }
   if (!addItem(player.inventory, item, stackMax)) return;
   player.currencyCopper = playerCopper - total;
   player.inv = countInventory(player.inventory);
+  refreshDeliveryContractProgress(player);
   persistence.markDirty(player);
 }

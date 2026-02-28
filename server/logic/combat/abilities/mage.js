@@ -8,7 +8,9 @@ export function createMageHandlers(d) {
       if (!target) return {};
       const isPvP = !!targetPlayer;
       const { damage: rawDmg, derived, isCrit } = d.computeAbilityDamage(player, ability, now, isPvP);
-      const damage = d.applyPvpDamageMultiplier(rawDmg, ability, isPvP);
+      const chilled = (target.chilledUntil ?? 0) > now;
+      const boosted = chilled ? Math.floor(rawDmg * 1.2) : rawDmg;
+      const damage = d.applyPvpDamageMultiplier(boosted, ability, isPvP);
       let hit = false;
       let xpGain = 0;
       let leveledUp = false;
@@ -28,6 +30,9 @@ export function createMageHandlers(d) {
           }
         }
         hit = true;
+        if (chilled) {
+          target.chilledUntil = 0;
+        }
       }
       const targetName = targetPlayer ? (targetPlayer.name ?? 'Player') : d.getMobDisplayName(targetMob);
       return {
@@ -133,17 +138,25 @@ export function createMageHandlers(d) {
     },
     frost_nova(/** @type {any} */ ctx) {
       const { player, ability, mobs, players, now, respawnMs } = ctx;
+      const radius = ability.radius ?? 0;
       const result = d.applyNova({
         player,
         mobs,
         players,
-        radius: ability.radius ?? 0,
+        radius,
         ability,
         slowPct: ability.slowPct ?? 0,
         slowDurationMs: ability.durationMs ?? 3000,
         now,
         respawnMs,
       });
+      for (const mob of mobs ?? []) {
+        if (!mob || mob.dead) continue;
+        const dist = Math.hypot((mob.pos?.x ?? 0) - (player.pos?.x ?? 0), (mob.pos?.z ?? 0) - (player.pos?.z ?? 0));
+        if (dist <= radius) {
+          mob.chilledUntil = now + 4000;
+        }
+      }
       if (result.killed > 0 && player.classId === 'mage') {
         const refund = Math.floor((ability.resourceCost ?? 0) * 0.15 * result.killed);
         if (refund > 0) {

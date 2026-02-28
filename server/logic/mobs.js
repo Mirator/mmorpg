@@ -1,7 +1,7 @@
 // @ts-check
 import { applyCollisions } from './collision.js';
 import { MOB_MAX_LEVEL, clampMobLevel } from '../../shared/progression.js';
-import { MOB_TYPES, getMobStats } from '../../shared/entityTypes.js';
+import { MOB_TYPES, getMobBehaviorType, getMobStats } from '../../shared/entityTypes.js';
 import { computeDerivedStats } from '../../shared/attributes.js';
 
 function randomRange(/** @type {any} */ rand, /** @type {any} */ min, /** @type {any} */ max) {
@@ -92,6 +92,17 @@ export function createMobs(/** @type {any} */ count, /** @type {any} */ world, /
       dead: false,
       respawnAt: 0,
       mobType,
+      tauntSourceId: null,
+      tauntDamageDebuffUntil: 0,
+      behaviorType: getMobBehaviorType(mobType),
+      chargeWindupUntil: 0,
+      chargeCooldownUntil: 0,
+      chargeEmpoweredUntil: 0,
+      ambushTriggered: false,
+      ambushBonusUntil: 0,
+      packLeaderBuffUntil: 0,
+      healCooldownUntil: 0,
+      skirmishBackstepUntil: 0,
     });
   }
 
@@ -150,6 +161,17 @@ export function createMobsFromSpawns(/** @type {any} */ spawns, /** @type {any} 
       respawnAt: 0,
       mobType,
       aggressive: spawn.aggressive !== false,
+      tauntSourceId: null,
+      tauntDamageDebuffUntil: 0,
+      behaviorType: getMobBehaviorType(mobType),
+      chargeWindupUntil: 0,
+      chargeCooldownUntil: 0,
+      chargeEmpoweredUntil: 0,
+      ambushTriggered: false,
+      ambushBonusUntil: 0,
+      packLeaderBuffUntil: 0,
+      healCooldownUntil: 0,
+      skirmishBackstepUntil: 0,
     };
   });
 }
@@ -222,6 +244,16 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
           mob.damageBy = {};
           mob.supportBy = {};
           mob.tauntedUntil = 0;
+          mob.tauntSourceId = null;
+          mob.tauntDamageDebuffUntil = 0;
+          mob.chargeWindupUntil = 0;
+          mob.chargeCooldownUntil = 0;
+          mob.chargeEmpoweredUntil = 0;
+          mob.ambushTriggered = false;
+          mob.ambushBonusUntil = 0;
+          mob.packLeaderBuffUntil = 0;
+          mob.healCooldownUntil = 0;
+          mob.skirmishBackstepUntil = 0;
           if (mob.spawnPos) {
             mob.pos = applyCollisions(getRespawnPos(mob.spawnPos, rand), world, mobRadius);
           }
@@ -249,6 +281,16 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
         mob.damageBy = {};
         mob.supportBy = {};
         mob.tauntedUntil = 0;
+        mob.tauntSourceId = null;
+        mob.tauntDamageDebuffUntil = 0;
+        mob.chargeWindupUntil = 0;
+        mob.chargeCooldownUntil = 0;
+        mob.chargeEmpoweredUntil = 0;
+        mob.ambushTriggered = false;
+        mob.ambushBonusUntil = 0;
+        mob.packLeaderBuffUntil = 0;
+        mob.healCooldownUntil = 0;
+        mob.skirmishBackstepUntil = 0;
         if (mob.spawnPos) {
           mob.pos = applyCollisions(getRespawnPos(mob.spawnPos, rand), world, mobRadius);
         }
@@ -271,6 +313,49 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
       Number.isFinite(mob.weakenedUntil) && mob.weakenedUntil > now
         ? mob.weakenedMultiplier ?? 1
         : 1;
+    const behaviorType = mob.behaviorType ?? getMobBehaviorType(mob.mobType);
+    const hasPackLeaderBuff =
+      behaviorType !== 'pack_leader' &&
+      Number.isFinite(mob.packLeaderBuffUntil) &&
+      mob.packLeaderBuffUntil > now;
+    const moveBuffMultiplier = hasPackLeaderBuff ? 1.15 : 1;
+    const damageBuffMultiplier = hasPackLeaderBuff ? 1.1 : 1;
+
+    if (behaviorType === 'pack_leader') {
+      for (const ally of mobs) {
+        if (!ally || ally.id === mob.id || ally.dead) continue;
+        const distToAlly = Math.hypot(
+          (ally.pos?.x ?? 0) - (mob.pos?.x ?? 0),
+          (ally.pos?.z ?? 0) - (mob.pos?.z ?? 0)
+        );
+        if (distToAlly <= 6) {
+          ally.packLeaderBuffUntil = now + 1500;
+        }
+      }
+    }
+
+    if (behaviorType === 'healer' && now >= (mob.healCooldownUntil ?? 0)) {
+      let /** @type {any} */ lowest = null;
+      let lowestRatio = 1;
+      for (const ally of mobs) {
+        if (!ally || ally.dead || ally.id === mob.id) continue;
+        const distToAlly = Math.hypot(
+          (ally.pos?.x ?? 0) - (mob.pos?.x ?? 0),
+          (ally.pos?.z ?? 0) - (mob.pos?.z ?? 0)
+        );
+        if (distToAlly > 8) continue;
+        const ratio = (ally.hp ?? 0) / Math.max(1, ally.maxHp ?? 1);
+        if (ratio < lowestRatio) {
+          lowestRatio = ratio;
+          lowest = ally;
+        }
+      }
+      if (lowest) {
+        const healAmount = 8 + 2 * (mob.level ?? 1);
+        lowest.hp = Math.min(lowest.maxHp ?? lowest.hp ?? 0, (lowest.hp ?? 0) + healAmount);
+        mob.healCooldownUntil = now + 6000;
+      }
+    }
 
     let /** @type {any} */ target = null;
     if (!isPassive) {
@@ -282,7 +367,8 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
         }
       }
       if (!target) {
-        let closestDist2 = aggroRadius * aggroRadius;
+        const effectiveAggroRadius = behaviorType === 'ambusher' && !mob.ambushTriggered ? 4 : aggroRadius;
+        let closestDist2 = effectiveAggroRadius * effectiveAggroRadius;
         for (const player of alivePlayers) {
           const dist2 = distance2(player.pos, mob.pos);
           if (dist2 <= closestDist2) {
@@ -294,6 +380,10 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
     }
 
     if (target) {
+      if (behaviorType === 'ambusher' && !mob.ambushTriggered) {
+        mob.ambushTriggered = true;
+        mob.ambushBonusUntil = now + 2000;
+      }
       mob.state = 'chase';
       mob.targetId = target.id;
     } else if (mob.state === 'chase') {
@@ -326,9 +416,32 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
         mob.targetId = null;
         mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
       } else if (dist > 0.01 && !rooted) {
-        const step = (speed * slowMultiplier * dt) / dist;
-        mob.pos.x += dx * step;
-        mob.pos.z += dz * step;
+        let stepScale = speed * slowMultiplier * moveBuffMultiplier;
+        if (
+          behaviorType === 'charger' &&
+          dist >= 4 &&
+          dist <= 9 &&
+          now >= (mob.chargeCooldownUntil ?? 0)
+        ) {
+          if (now < (mob.chargeWindupUntil ?? 0)) {
+            stepScale = 0;
+          } else if ((mob.chargeWindupUntil ?? 0) === 0) {
+            mob.chargeWindupUntil = now + 500;
+            stepScale = 0;
+          } else {
+            stepScale *= 2.2;
+            mob.chargeCooldownUntil = now + 8000;
+            mob.chargeWindupUntil = 0;
+            mob.chargeEmpoweredUntil = now + 700;
+          }
+        } else if (behaviorType === 'skirmisher' && dist < 2) {
+          mob.skirmishBackstepUntil = now + 700;
+        }
+        const moveAway = behaviorType === 'skirmisher' && (mob.skirmishBackstepUntil ?? 0) > now;
+        const step = (stepScale * dt) / dist;
+        const dirMult = moveAway ? -1 : 1;
+        mob.pos.x += dx * step * dirMult;
+        mob.pos.z += dz * step * dirMult;
         mob.pos.y = (mob.pos.y ?? 0) + dy * Math.min(1, step);
         mob.pos = applyCollisions(mob.pos, world, mobRadius);
       } else {
@@ -338,6 +451,18 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
       if (dist <= attackRange && now >= mob.attackCooldownUntil) {
         let rawDamage =
           attackDamageBase + attackDamagePerLevel * (mob.level ?? 1);
+        rawDamage *= damageBuffMultiplier;
+        if ((mob.chargeEmpoweredUntil ?? 0) > now) {
+          rawDamage *= 1.35;
+          mob.chargeEmpoweredUntil = 0;
+        }
+        if ((mob.ambushBonusUntil ?? 0) > now) {
+          rawDamage *= 1.25;
+          mob.ambushBonusUntil = 0;
+        }
+        if ((mob.tauntDamageDebuffUntil ?? 0) > now && mob.targetId !== mob.tauntSourceId) {
+          rawDamage *= 0.8;
+        }
         rawDamage *= weakenedMultiplier;
         rawDamage *= target.damageTakenMultiplier ?? 1;
         const derived = computeDerivedStats(target);

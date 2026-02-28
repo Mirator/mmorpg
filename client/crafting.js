@@ -1,6 +1,10 @@
 // @ts-check
 import { RECIPES } from '/shared/recipes.js';
 import { getItemDisplayName } from '/shared/economy.js';
+import {
+  getStationKindsForType,
+  STATION_INTERACT_RADIUS,
+} from '/shared/professions.js';
 import { getItemIconFile } from './gameIcons.js';
 import { createGlyphElement } from './uiGlyphs.js';
 
@@ -35,6 +39,41 @@ function appendKindGlyph(
   );
 }
 
+function formatTrackLabel(/** @type {string | undefined} */ track) {
+  if (!track) return 'Crafting';
+  return track.charAt(0).toUpperCase() + track.slice(1);
+}
+
+function formatStationLabel(/** @type {string | null | undefined} */ stationType) {
+  if (!stationType) return 'Portable';
+  return stationType
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function hasNearbyStation(
+  /** @type {Recipe} */ recipe,
+  /** @type {{ playerPos?: { x?: number, z?: number } | null, worldConfig?: any } | null} */ context
+) {
+  if (!recipe.stationType) return true;
+  const playerPos = context?.playerPos;
+  const structures = Array.isArray(context?.worldConfig?.structures) ? context.worldConfig.structures : [];
+  if (!playerPos || structures.length === 0) return false;
+  const validKinds = new Set(getStationKindsForType(recipe.stationType));
+  for (const structure of structures) {
+    if (!structure || !validKinds.has(structure.kind)) continue;
+    const distance = Math.hypot(
+      (Number(playerPos.x) || 0) - (Number(structure.x) || 0),
+      (Number(playerPos.z) || 0) - (Number(structure.z) || 0)
+    );
+    if (distance <= STATION_INTERACT_RADIUS) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * @param {Object} opts
  * @param {HTMLElement} [opts.recipeListEl]
@@ -45,6 +84,7 @@ function appendKindGlyph(
 export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIPES, onCraft }) {
   let currentInventory = Array.isArray(inventory) ? inventory : [];
   let currentRecipes = Array.isArray(recipes) ? recipes : RECIPES;
+  let currentContext = { playerPos: null, worldConfig: null };
 
   function render() {
     if (!recipeListEl) return;
@@ -71,6 +111,13 @@ export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIP
       header.appendChild(headerText);
       row.appendChild(header);
 
+      const meta = document.createElement('div');
+      meta.className = 'craft-recipe-meta';
+      meta.textContent = recipe.profession
+        ? `${formatTrackLabel(recipe.profession)} recipe`
+        : 'Portable recipe';
+      row.appendChild(meta);
+
       const ingredients = document.createElement('div');
       ingredients.className = 'craft-ingredients';
       let canCraft = true;
@@ -94,6 +141,31 @@ export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIP
         ingredients.appendChild(span);
       }
       row.appendChild(ingredients);
+
+      const requirements = document.createElement('div');
+      requirements.className = 'craft-requirements';
+      if (recipe.stationType) {
+        const nearbyStation = hasNearbyStation(recipe, currentContext);
+        if (!nearbyStation) canCraft = false;
+        const stationBadge = document.createElement('span');
+        stationBadge.className = `craft-requirement${nearbyStation ? '' : ' insufficient'}`;
+        stationBadge.textContent = nearbyStation
+          ? `${formatStationLabel(recipe.stationType)} nearby`
+          : `${formatStationLabel(recipe.stationType)} required`;
+        requirements.appendChild(stationBadge);
+      } else {
+        const portableBadge = document.createElement('span');
+        portableBadge.className = 'craft-requirement';
+        portableBadge.textContent = 'Portable';
+        requirements.appendChild(portableBadge);
+      }
+      if (recipe.profession && Number.isFinite(recipe.masteryLevelRequired)) {
+        const masteryBadge = document.createElement('span');
+        masteryBadge.className = 'craft-requirement';
+        masteryBadge.textContent = `${formatTrackLabel(recipe.profession)} Lv. ${recipe.masteryLevelRequired}`;
+        requirements.appendChild(masteryBadge);
+      }
+      row.appendChild(requirements);
 
       const output = document.createElement('div');
       output.className = 'craft-output';
@@ -143,9 +215,18 @@ export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIP
     render();
   }
 
+  function setContext(/** @type {any} */ next) {
+    currentContext = {
+      playerPos: next?.playerPos ?? null,
+      worldConfig: next?.worldConfig ?? null,
+    };
+    render();
+  }
+
   return {
     render,
     setInventory,
     setRecipes,
+    setContext,
   };
 }

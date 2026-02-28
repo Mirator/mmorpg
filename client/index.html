@@ -202,6 +202,7 @@
         <div class="inventory-tabs">
           <button class="inventory-tab active" data-tab="inventory" type="button">Inventory</button>
           <button class="inventory-tab" data-tab="craft" type="button">Craft</button>
+          <button class="inventory-tab" data-tab="journal" type="button">Journal</button>
         </div>
       </div>
       <div id="inventory-view" class="inventory-view active">
@@ -209,6 +210,9 @@
       </div>
       <div id="craft-view" class="craft-view">
         <div id="craft-recipe-list" class="craft-recipe-list"></div>
+      </div>
+      <div id="journal-view" class="journal-view">
+        <div id="journal-root" class="journal-root"></div>
       </div>
     </div>
     <div id="character-sheet-panel" class="character-sheet-panel">
@@ -290,17 +294,21 @@
       <div class="vendor-header">
         <div class="vendor-title" id="vendor-panel-name">General Vendor</div>
         <div class="vendor-tabs">
-          <button class="vendor-tab active" data-tab="buy">Buy</button>
-          <button class="vendor-tab" data-tab="sell">Sell</button>
+          <button class="vendor-tab active" data-tab="buy" type="button">Buy</button>
+          <button class="vendor-tab" data-tab="sell" type="button">Sell</button>
+          <button class="vendor-tab" data-tab="contracts" type="button">Contracts</button>
         </div>
       </div>
       <div class="vendor-body">
-        <div class="vendor-view vendor-buy active">
+        <div class="vendor-view vendor-buy active" data-tab="buy">
           <div id="vendor-buy-items" class="vendor-buy-items"></div>
         </div>
-        <div class="vendor-view vendor-sell">
+        <div class="vendor-view vendor-sell" data-tab="sell">
           <div id="vendor-sell-prices" class="vendor-prices"></div>
           <div class="vendor-dropzone">Drop items here to sell.</div>
+        </div>
+        <div class="vendor-view vendor-contracts" data-tab="contracts">
+          <div id="vendor-contract-list" class="vendor-contract-list"></div>
         </div>
       </div>
       <div class="vendor-footer">Drag items from your inventory to sell.</div>
@@ -328,6 +336,7 @@
       </div>
     </div>
     <div id="top-right-panel">
+      <div id="objective-tracker" class="objective-tracker hidden"></div>
       <div id="minimap-container">
         <canvas id="minimap"></canvas>
       </div>

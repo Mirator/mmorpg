@@ -2,7 +2,7 @@
 
 import { EQUIP_SLOTS } from './equipment.js';
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 const MAX_ID_LENGTH = 64;
 
@@ -26,6 +26,11 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'partyAccept', inviterId: string, seq?: number }} PartyAcceptMessage
  * @typedef {{ type: 'partyLeave', seq?: number }} PartyLeaveMessage
  * @typedef {{ type: 'craft', recipeId: string, count?: number, seq?: number }} CraftMessage
+ * @typedef {{ type: 'contractAccept', vendorId: string, contractId: string, seq?: number }} ContractAcceptMessage
+ * @typedef {{ type: 'contractAbandon', contractId: string, seq?: number }} ContractAbandonMessage
+ * @typedef {{ type: 'contractTurnIn', vendorId: string, contractId: string, seq?: number }} ContractTurnInMessage
+ * @typedef {{ type: 'repairItem', fromType: 'inventory' | 'equipment', slot: number | string, seq?: number }} RepairItemMessage
+ * @typedef {{ type: 'salvageItem', slot: number, seq?: number }} SalvageItemMessage
  * @typedef {{ type: 'duelRequest', targetId: string, seq?: number }} DuelRequestMessage
  * @typedef {{ type: 'duelAccept', challengerId: string, seq?: number }} DuelAcceptMessage
  * @typedef {{ type: 'duelDecline', challengerId: string, seq?: number }} DuelDeclineMessage
@@ -36,7 +41,7 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'tradeOffer', op: 'add'|'remove', slot?: number, copper?: number, seq?: number }} TradeOfferMessage
  * @typedef {{ type: 'tradeConfirm', seq?: number }} TradeConfirmMessage
  * @typedef {{ type: 'tradeCancel', seq?: number }} TradeCancelMessage
- * @typedef {HelloMessage | PingMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | VendorBuyMessage | ChatMessage | PartyInviteMessage | PartyAcceptMessage | PartyLeaveMessage | CraftMessage | DuelRequestMessage | DuelAcceptMessage | DuelDeclineMessage | DuelForfeitMessage | TradeRequestMessage | TradeAcceptMessage | TradeDeclineMessage | TradeOfferMessage | TradeConfirmMessage | TradeCancelMessage} ClientMessage
+ * @typedef {HelloMessage | PingMessage | RespawnMessage | InputMessage | MoveTargetMessage | TargetSelectMessage | InteractMessage | AbilityMessage | ClassSelectMessage | InventorySwapMessage | EquipSwapMessage | VendorSellMessage | VendorBuyMessage | ChatMessage | PartyInviteMessage | PartyAcceptMessage | PartyLeaveMessage | CraftMessage | ContractAcceptMessage | ContractAbandonMessage | ContractTurnInMessage | RepairItemMessage | SalvageItemMessage | DuelRequestMessage | DuelAcceptMessage | DuelDeclineMessage | DuelForfeitMessage | TradeRequestMessage | TradeAcceptMessage | TradeDeclineMessage | TradeOfferMessage | TradeConfirmMessage | TradeCancelMessage} ClientMessage
  */
 
 const CHAT_CHANNELS = new Set(['global', 'area', 'trade', 'party']);
@@ -60,6 +65,11 @@ const CLIENT_MESSAGE_TYPES = new Set([
   'partyAccept',
   'partyLeave',
   'craft',
+  'contractAccept',
+  'contractAbandon',
+  'contractTurnIn',
+  'repairItem',
+  'salvageItem',
   'duelRequest',
   'duelAccept',
   'duelDecline',
@@ -283,6 +293,40 @@ export function parseClientMessage(raw) {
     const count = raw.count !== undefined ? Number(raw.count) : 1;
     const safeCount = Number.isInteger(count) && count >= 1 ? Math.min(count, 99) : 1;
     return { type: 'craft', recipeId, count: safeCount, seq };
+  }
+
+  if (type === 'contractAccept') {
+    const vendorId = normalizeString(raw.vendorId);
+    const contractId = normalizeString(raw.contractId);
+    if (!vendorId || !contractId) return null;
+    return { type: 'contractAccept', vendorId, contractId, seq };
+  }
+
+  if (type === 'contractAbandon') {
+    const contractId = normalizeString(raw.contractId);
+    if (!contractId) return null;
+    return { type: 'contractAbandon', contractId, seq };
+  }
+
+  if (type === 'contractTurnIn') {
+    const vendorId = normalizeString(raw.vendorId);
+    const contractId = normalizeString(raw.contractId);
+    if (!vendorId || !contractId) return null;
+    return { type: 'contractTurnIn', vendorId, contractId, seq };
+  }
+
+  if (type === 'repairItem') {
+    const fromType = normalizeSwapType(raw.fromType);
+    if (!fromType) return null;
+    const slot = normalizeSwapSlot(raw.slot, fromType);
+    if (slot === null) return null;
+    return { type: 'repairItem', fromType, slot, seq };
+  }
+
+  if (type === 'salvageItem') {
+    const slot = Number(raw.slot);
+    if (!Number.isInteger(slot) || slot < 0) return null;
+    return { type: 'salvageItem', slot, seq };
   }
 
   if (type === 'duelRequest') {

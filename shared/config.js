@@ -1,8 +1,13 @@
 // @ts-check
 
 import { PROTOCOL_VERSION } from './protocol.js';
+import {
+  CONTRACT_ROTATION_MS,
+  MAX_ACTIVE_CONTRACTS,
+  MAX_PROFESSION_LEVEL,
+} from './professions.js';
 
-export const GAME_CONFIG_VERSION = 1;
+export const GAME_CONFIG_VERSION = 2;
 
 export const WORLD_CONFIG = {
   seed: 1337,
@@ -107,6 +112,13 @@ export function getConfigSnapshot() {
       maxLength: CHAT_CONFIG.maxLength,
       rateLimitMax: CHAT_CONFIG.rateLimitMax,
       rateLimitIntervalMs: CHAT_CONFIG.rateLimitIntervalMs,
+    },
+    contracts: {
+      maxActive: MAX_ACTIVE_CONTRACTS,
+      rotationMs: CONTRACT_ROTATION_MS,
+    },
+    professions: {
+      maxLevel: MAX_PROFESSION_LEVEL,
     },
   };
 }

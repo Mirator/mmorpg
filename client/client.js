@@ -136,6 +136,7 @@ const MINIMAP_UPDATE_MS = 125;
  *   currentMe: LocalPlayerRef;
  *   selectedTarget: SelectedTarget | null;
  *   pingMs: number | null;
+ *   latestContracts?: Record<string, any> | null;
  * }} ClientCtx
  */
 
@@ -156,6 +157,7 @@ const ctx = {
   currentMe: null,
   selectedTarget: null,
   pingMs: null,
+  latestContracts: null,
 };
 
 let /** @type {any} */ nearestVendor = null;
@@ -174,7 +176,8 @@ function setWorld(/** @type {any} */ config) {
 }
 
 function updateLocalUi() {
-  const me = gameState.getLocalPlayer();
+  const baseMe = gameState.getLocalPlayer();
+  const me = baseMe ? { ...baseMe, ...(ctx.latestContracts ?? {}) } : null;
   const serverNow = gameState.getServerNow();
   ctx.currentMe = me;
   if (me && Object.prototype.hasOwnProperty.call(me, 'targetId')) {
@@ -229,6 +232,21 @@ const ui = createUiState({
   },
   onCraft: (/** @type {any} */ recipeId, /** @type {any} */ count) => {
     sendWithSeq({ type: 'craft', recipeId, count });
+  },
+  onContractAccept: (/** @type {any} */ vendorId, /** @type {any} */ contractId) => {
+    sendWithSeq({ type: 'contractAccept', vendorId, contractId });
+  },
+  onContractAbandon: (/** @type {any} */ contractId) => {
+    sendWithSeq({ type: 'contractAbandon', contractId });
+  },
+  onContractTurnIn: (/** @type {any} */ vendorId, /** @type {any} */ contractId) => {
+    sendWithSeq({ type: 'contractTurnIn', vendorId, contractId });
+  },
+  onRepairItem: (/** @type {any} */ fromType, /** @type {any} */ slot) => {
+    sendWithSeq({ type: 'repairItem', fromType, slot });
+  },
+  onSalvageItem: (/** @type {any} */ slot) => {
+    sendWithSeq({ type: 'salvageItem', slot });
   },
   onAbilityClick: (/** @type {any} */ slot) => {
     combatRef.current?.useAbility(slot);

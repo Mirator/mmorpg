@@ -5,6 +5,7 @@ export function createPriestHandlers(d) {
     heal(/** @type {any} */ ctx) {
       const { player, ability, targetPlayer, mobs, now } = ctx;
       const healTarget = targetPlayer ?? player;
+      const beforeHp = healTarget.hp ?? 0;
       const baseValue = ability.baseValue ?? 15;
       const coefficient = ability.coefficient ?? 0.9;
       const derived = d.computeDerivedStats(player);
@@ -13,6 +14,15 @@ export function createPriestHandlers(d) {
       const healAmount = d.applyPvpHealMultiplier(rawHeal, ability, isPvPHeal);
       const maxHp = healTarget.maxHp ?? healTarget.hp ?? 0;
       healTarget.hp = d.clamp((healTarget.hp ?? 0) + healAmount, 0, maxHp);
+      const wasLow = beforeHp / Math.max(1, maxHp) <= 0.4;
+      if (wasLow && (healTarget.lowHealthHealShieldLockoutUntil ?? 0) <= now) {
+        const bonusShield = Math.max(1, Math.floor(healAmount * 0.2));
+        const currentAbsorb = (healTarget.absorbUntil ?? 0) > now ? (healTarget.absorbAmount ?? 0) : 0;
+        healTarget.absorbAmount = Math.max(currentAbsorb, bonusShield);
+        healTarget.absorbUntil = now + 4000;
+        healTarget.lowHealthHealShieldLockoutUntil = now + 8000;
+        player.lastLowHealthHealTargetId = healTarget.id ?? null;
+      }
       const healTargetName = healTarget === player ? 'yourself' : (healTarget.name ?? 'ally');
       if (
         ability.supportTag &&
@@ -45,6 +55,17 @@ export function createPriestHandlers(d) {
       healTarget.hotHealPerTick = healPerTick;
       healTarget.hotSourceId = player.id;
       healTarget.hotNextTickAt = ctx.now + d.DOT_TICK_MS;
+      if (
+        healTarget.id &&
+        player.lastLowHealthHealTargetId &&
+        healTarget.id !== player.lastLowHealthHealTargetId &&
+        (healTarget.lowHealthHealShieldLockoutUntil ?? 0) > now
+      ) {
+        healTarget.lowHealthHealShieldLockoutUntil = Math.max(
+          now,
+          (healTarget.lowHealthHealShieldLockoutUntil ?? 0) - 1000
+        );
+      }
       if (ability.supportTag && healTarget !== player && healTarget.targetId && (healTarget.combatTagUntil ?? 0) > now) {
         const supportMob = Array.isArray(mobs) ? mobs.find((/** @type {any} */ m) => m.id === healTarget.targetId) : null;
         if (supportMob && !supportMob.dead && supportMob.hp > 0) {

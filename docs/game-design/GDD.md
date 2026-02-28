@@ -5,8 +5,8 @@ Rising Ages Game Design Document (Current Functionality)
 This document describes the game as it exists today in the codebase. It is meant to capture current functionality for extension in future work. It does not include planned features, speculative design, or dev/testing hooks.
 
 **Overview**
-Genre: lightweight top-down multiplayer RPG with real-time combat, harvesting, and trading.
-Core loop: sign in → create/select character → move around world → harvest resources → sell to vendor → fight mobs (loot drops) → gain XP and level up. Optional: player-to-player trade, PvP duels.
+Genre: lightweight top-down multiplayer RPG with real-time combat, harvesting, contracts, and trading.
+Core loop: sign in → create/select character → move around world → harvest resources → accept vendor contracts → sell/craft/repair at town anchors → fight mobs (loot drops) → turn in contracts → gain XP and level up. Optional: player-to-player trade, PvP duels.
 Multiplayer: all connected players share the same world state and see each other in real time.
 
 **World And Map**
@@ -41,6 +41,9 @@ Core stats:
 - Currency: copper total
 - Class, level, XP
 - Equipment: weapon, offhand, head, chest, legs, feet
+- Active contracts
+- Profession masteries
+- Known recipes
 
 Movement:
 - WASD uses camera-relative axes and cancels active click-to-move targets.
@@ -65,10 +68,14 @@ Harvesting:
 
 Vendor interaction:
 - Press E near a vendor within 2.5 units to open dialog.
-- Trade panel opens from dialog and supports selling and buying.
+- Trade panel opens from dialog and supports:
+  - buying
+  - selling
+  - vendor-issued contracts
 - Sell by dragging an item to the vendor drop zone.
 - Only items with a configured price can be sold.
 - Buy tab lists the nearby vendor catalog; purchases validate range, price, and inventory capacity.
+- Contracts tab shows rotating vendor offers (`hunt`, `gather`, `craft`, `delivery`) and active turn-ins.
 
 **Inventory And Equipment**
 Inventory:
@@ -81,6 +88,8 @@ Equipment:
 - Slots: weapon, offhand, head, chest, legs, feet
 - Items are restricted by prefix rules per slot.
 - Drag-and-drop swaps between inventory and equipment or between equipment slots.
+- Non-starter crafted gear can include rarity + durability metadata.
+- Broken crafted gear stays equipped but contributes no stats until repaired.
 
 Default weapons by class:
 - Guardian: Training Sword
@@ -104,6 +113,20 @@ Sell prices:
 Selling rules:
 - Item removed from inventory.
 - Currency added to player total.
+- Broken durability-tracked crafted gear cannot be vendor sold.
+
+Contracts:
+- Vendors expose up to 3 rotating offers at a time.
+- Players may hold up to 3 active contracts.
+- Contract rewards can grant character XP, copper, and profession mastery XP.
+
+Crafting and maintenance:
+- Starter recipes remain portable.
+- Profession recipes require nearby structure-derived stations:
+  - barracks -> forge
+  - market -> alchemy table
+  - storage -> workbench
+- Crafted non-starter gear can be repaired near vendors and salvaged from inventory.
 
 Mob loot:
 - On kill, attacker receives drops from mob's loot table (shared/lootTables.js). Per-mob-type chances and quantity ranges.

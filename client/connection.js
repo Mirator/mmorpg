@@ -91,6 +91,7 @@ export function createConnection(/** @type {any} */ {
     renderSystem.syncPlayers([]);
     renderSystem.setLocalPlayerId(null);
     ctx.currentMe = null;
+    ctx.latestContracts = null;
     ctx.playerId = null;
     ui.updateLocalUi({ me: null, worldConfig: null, serverNow: Date.now() });
   }
@@ -341,6 +342,38 @@ export function createConnection(/** @type {any} */ {
             }
             gameState.updateMe(msg.data ?? null);
             updateLocalUi();
+            return;
+          }
+
+          if (msg.type === 'contracts') {
+            ctx.latestContracts = {
+              contractOffersByVendor: msg.offersByVendor ?? {},
+              activeContracts: Array.isArray(msg.activeContracts) ? msg.activeContracts : [],
+            };
+            updateLocalUi();
+            return;
+          }
+
+          if (msg.type === 'contractResult') {
+            if (msg.ok) {
+              if (msg.action === 'turn_in') {
+                ui.showToast?.('Contract turned in');
+              } else if (msg.action === 'accept') {
+                ui.showToast?.('Contract accepted');
+              } else if (msg.action === 'abandon') {
+                ui.showToast?.('Contract abandoned');
+              }
+            } else {
+              ui.showToast?.(`Contract failed: ${msg.error ?? 'unknown'}`);
+            }
+            return;
+          }
+
+          if (msg.type === 'masteryUpdated') {
+            const unlocked = Array.isArray(msg.unlockedRecipeIds) ? msg.unlockedRecipeIds : [];
+            if (unlocked.length > 0) {
+              ui.showToast?.(unlocked.length === 1 ? 'New recipe unlocked' : `${unlocked.length} recipes unlocked`);
+            }
             return;
           }
 

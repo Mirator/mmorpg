@@ -15,7 +15,8 @@ export function buildDebugTextState(/** @type {any} */ {
   getInputKeys,
   getMovementSpeed,
 }) {
-  const me = gameState.getLocalPlayer();
+  const baseMe = gameState.getLocalPlayer();
+  const me = baseMe ? { ...baseMe, ...(ctx.latestContracts ?? {}) } : null;
   const inputKeys = getInputKeys?.() ?? null;
   const worldConfig = gameState.getWorldConfig();
   const base = worldConfig?.base ?? null;
@@ -128,6 +129,10 @@ export function buildDebugTextState(/** @type {any} */ {
           currency: splitCurrency(currencyCopper),
           dead: me.dead,
           respawnAt: me.respawnAt ?? 0,
+          activeContracts: Array.isArray(me.activeContracts) ? me.activeContracts : [],
+          contractOffersByVendor: me.contractOffersByVendor ?? {},
+          professionMasteries: me.professionMasteries ?? {},
+          knownRecipes: Array.isArray(me.knownRecipes) ? me.knownRecipes : [],
           harvest: me.harvest
             ? {
                 resourceId: me.harvest.resourceId ?? null,
@@ -214,6 +219,12 @@ export function buildDebugTextState(/** @type {any} */ {
                 kind: item.kind ?? null,
                 name: item.name ?? null,
                 count: item.count ?? 0,
+                rarity: item.rarity ?? null,
+                durability: item.durability ?? null,
+                maxDurability: item.maxDurability ?? null,
+                craftedProfession: item.craftedProfession ?? null,
+                sourceRecipeId: item.sourceRecipeId ?? null,
+                isStarter: item.isStarter === true,
               }
             : null
         )
@@ -223,6 +234,7 @@ export function buildDebugTextState(/** @type {any} */ {
       id: r.id,
       x: r.x,
       z: r.z,
+      type: r.type ?? null,
       available: r.available,
       respawnAt: r.respawnAt ?? 0,
     })),
@@ -276,6 +288,27 @@ export function installDebugSurface(/** @type {any} */ {
     },
     vendorSell: (/** @type {any} */ slot, /** @type {any} */ vendorId) => {
       sendWithSeq({ type: 'vendorSell', slot, vendorId });
+    },
+    vendorBuy: (/** @type {any} */ kind, /** @type {any} */ count, /** @type {any} */ vendorId) => {
+      sendWithSeq({ type: 'vendorBuy', kind, count, vendorId });
+    },
+    craft: (/** @type {any} */ recipeId, /** @type {any} */ count = 1) => {
+      sendWithSeq({ type: 'craft', recipeId, count });
+    },
+    contractAccept: (/** @type {any} */ vendorId, /** @type {any} */ contractId) => {
+      sendWithSeq({ type: 'contractAccept', vendorId, contractId });
+    },
+    contractAbandon: (/** @type {any} */ contractId) => {
+      sendWithSeq({ type: 'contractAbandon', contractId });
+    },
+    contractTurnIn: (/** @type {any} */ vendorId, /** @type {any} */ contractId) => {
+      sendWithSeq({ type: 'contractTurnIn', vendorId, contractId });
+    },
+    repairItem: (/** @type {any} */ fromType, /** @type {any} */ slot) => {
+      sendWithSeq({ type: 'repairItem', fromType, slot });
+    },
+    salvageItem: (/** @type {any} */ slot) => {
+      sendWithSeq({ type: 'salvageItem', slot });
     },
     forceAbility: (/** @type {any} */ slot) => {
       sendWithSeq({ type: 'action', kind: 'ability', slot });

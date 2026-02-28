@@ -33,6 +33,7 @@ const entryBannerTitleEl = document.getElementById('entry-banner-title');
 const entryBannerSubtitleEl = document.getElementById('entry-banner-subtitle');
 const controlsCardEl = document.getElementById('controls-card');
 const controlsCardCloseEl = document.getElementById('controls-card-close');
+const objectivesEl = document.getElementById('objective-tracker');
 
 let /** @type {any} */ eventTimeout = null;
 let /** @type {any} */ entryBannerTimeout = null;
@@ -251,6 +252,41 @@ export function updateTargetHud(/** @type {any} */ target) {
     setBar(targetHpFillEl, targetHpValueEl, target.hp, target.maxHp, 'targetHp');
   } else {
     setBar(targetHpFillEl, targetHpValueEl, null, null, 'targetHp');
+  }
+}
+
+export function updateObjectives(/** @type {any} */ player) {
+  if (!objectivesEl) return;
+  objectivesEl.innerHTML = '';
+  const activeContracts = Array.isArray(player?.activeContracts) ? player.activeContracts : [];
+  if (activeContracts.length === 0) {
+    objectivesEl.classList.add('hidden');
+    return;
+  }
+  objectivesEl.classList.remove('hidden');
+  const visible = activeContracts.slice(0, 2);
+  for (const contract of visible) {
+    const row = document.createElement('div');
+    row.className = 'objective-row';
+    const title = document.createElement('div');
+    title.className = 'objective-title';
+    title.textContent = contract.title ?? 'Contract';
+    const progress = document.createElement('div');
+    progress.className = 'objective-progress';
+    if (contract.completed) {
+      progress.textContent = contract.delivered ? 'Completed' : 'Turn in';
+    } else {
+      progress.textContent = `${Math.min(contract.progress ?? 0, contract.requiredCount ?? 1)}/${contract.requiredCount ?? 1}`;
+    }
+    row.appendChild(title);
+    row.appendChild(progress);
+    objectivesEl.appendChild(row);
+  }
+  if (activeContracts.length > 2) {
+    const more = document.createElement('div');
+    more.className = 'objective-more';
+    more.textContent = `+${activeContracts.length - 2} more`;
+    objectivesEl.appendChild(more);
   }
 }
 

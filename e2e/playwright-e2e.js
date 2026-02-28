@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getSellPriceCopper } from '../shared/economy.js';
 import {
   BASE_URL,
   DATABASE_URL_E2E,
@@ -439,6 +440,152 @@ function summarizePlayer(/** @type {any} */ state) {
     currencyCopper: player.currencyCopper ?? null,
     dead: !!player.dead,
   };
+}
+
+function getInventoryItems(/** @type {any} */ state) {
+  return Array.isArray(state?.inventory?.items) ? state.inventory.items : [];
+}
+
+function countInventoryKind(/** @type {any} */ state, /** @type {any} */ kind) {
+  if (typeof kind !== 'string' || kind.length === 0) return 0;
+  return getInventoryItems(state).reduce((total, item) => {
+    if (!item || item.kind !== kind) return total;
+    return total + Math.max(0, Math.floor(Number(item.count) || 0));
+  }, 0);
+}
+
+function findInventoryItem(/** @type {any} */ state, /** @type {any} */ predicate) {
+  return getInventoryItems(state).find((item) => predicate(item)) ?? null;
+}
+
+function getActiveContract(/** @type {any} */ state, /** @type {any} */ contractId) {
+  if (typeof contractId !== 'string' || contractId.length === 0) return null;
+  const activeContracts = Array.isArray(state?.player?.activeContracts) ? state.player.activeContracts : [];
+  return activeContracts.find(
+    (/** @type {any} */ contract) =>
+      contract?.contractId === contractId || contract?.templateId === contractId
+  ) ?? null;
+}
+
+function pickPreferredContractOffer(/** @type {any} */ state, /** @type {any} */ vendorId) {
+  const offers = Array.isArray(state?.player?.contractOffersByVendor?.[vendorId])
+    ? state.player.contractOffersByVendor[vendorId]
+    : [];
+  const herbCount = countInventoryKind(state, 'herb');
+  const deliveryOffer = offers.find(
+    (/** @type {any} */ offer) =>
+      offer?.kind === 'delivery' &&
+      countInventoryKind(state, offer.deliveryItemKind) >= (offer.deliveryItemCount ?? offer.requiredCount ?? 1)
+  );
+  if (deliveryOffer) return deliveryOffer;
+  const craftOffer = offers.find(
+    (/** @type {any} */ offer) =>
+      offer?.kind === 'craft' &&
+      offer.target === 'herb_health_potion' &&
+      herbCount >= Math.max(4, (offer.requiredCount ?? 1) * 2)
+  );
+  if (craftOffer) return craftOffer;
+  const gatherOffer = offers.find((/** @type {any} */ offer) => offer?.kind === 'gather');
+  if (gatherOffer) return gatherOffer;
+  return null;
+}
+
+function pickNearestResourceOfType(/** @type {any} */ state, /** @type {any} */ resourceType) {
+  const player = state?.player ?? null;
+  if (!player || typeof resourceType !== 'string' || resourceType.length === 0) return null;
+  const resources = Array.isArray(state?.resources) ? state.resources : [];
+  const obstacles = state?.world?.collisionObstacles ?? state?.world?.obstacles ?? [];
+  const matching = resources.filter(
+    (/** @type {any} */ resource) => resource?.available && resource.type === resourceType
+  );
+  if (matching.length === 0) return null;
+  const visible = matching.filter((/** @type {any} */ resource) => hasLineOfSight(player, resource, obstacles));
+  const pool = visible.length > 0 ? visible : matching;
+  return pool.reduce((/** @type {any} */ closest, /** @type {any} */ resource) => {
+    if (!closest) return resource;
+    return distance(player, resource) < distance(player, closest) ? resource : closest;
+  }, null);
+}
+
+async function clickVendorContractAction(/** @type {any} */ page, /** @type {any} */ title, /** @type {any} */ actionText) {
+  await page.evaluate((/** @type {any} */ payload) => {
+    const rows = Array.from(document.querySelectorAll('.vendor-contract-row'));
+    for (const row of rows) {
+      const titleEl = row.querySelector('.vendor-contract-title');
+      const button = row.querySelector('button');
+      const rowTitle = titleEl?.textContent?.trim() ?? '';
+      const buttonText = button?.textContent?.trim() ?? '';
+      if (rowTitle === payload.title && buttonText === payload.actionText) {
+        button?.click();
+        return;
+      }
+    }
+    throw new Error(`Vendor contract action not found: ${payload.actionText} (${payload.title})`);
+  }, { title, actionText });
+}
+
+async function completeGatherContract(
+  /** @type {any} */ page,
+  /** @type {any} */ contract
+) {
+  const contractId = contract?.contractId ?? contract?.templateId;
+  if (!contractId || contract?.kind !== 'gather' || !contract?.target) {
+    throw new Error('Gather contract payload is invalid');
+  }
+
+  let state = await getState(page);
+  let active = getActiveContract(state, contractId);
+  while (active && !active.completed) {
+    const resource = pickNearestResourceOfType(state, contract.target);
+    if (!resource) {
+      throw new Error(`No available ${contract.target} resource found for gather contract`);
+    }
+
+    const beforeProgress = active.progress ?? 0;
+    const beforeCount = countInventoryKind(state, contract.target);
+    const harvestRadius = state.world?.harvestRadius ?? 2;
+
+    await page.evaluate(
+      (/** @type {any} */ point) => window.__game?.moveTo(point.x, point.z),
+      resource
+    );
+    await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.player && distance(s.player, resource) <= harvestRadius - 0.05,
+      TEST_TIMEOUT_MS,
+      `reach ${contract.target} resource`
+    );
+
+    await page.evaluate(() => window.__game?.interact());
+    await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.player?.harvest?.resourceId === resource.id,
+      TEST_TIMEOUT_MS,
+      `start ${contract.target} harvest`
+    );
+    await waitForCondition(
+      page,
+      (/** @type {any} */ s) => {
+        const nextActive = getActiveContract(s, contractId);
+        const nextResource = s.resources?.find((/** @type {any} */ entry) => entry.id === resource.id);
+        return (
+          (nextActive && (nextActive.progress ?? 0) > beforeProgress) ||
+          (nextResource && !nextResource.available) ||
+          countInventoryKind(s, contract.target) > beforeCount
+        );
+      },
+      TEST_TIMEOUT_MS + 5000,
+      `finish ${contract.target} harvest`
+    );
+
+    state = await getState(page);
+    active = getActiveContract(state, contractId);
+  }
+
+  if (!active?.completed) {
+    throw new Error(`Gather contract did not complete: ${contractId}`);
+  }
+  return state;
 }
 
 async function assertAliveBefore(/** @type {any} */ page, /** @type {any} */ label, /** @type {any} */ state = null) {
@@ -1161,7 +1308,7 @@ async function run() {
     state = await assertAliveBefore(page, 'vendor desktop checks', state);
 
     stage = 'vendor-trade-desktop';
-    const vendor = state.world?.vendors?.[0];
+    let vendor = state.world?.vendors?.[0];
     if (!vendor) {
       throw new Error('No vendor found in world snapshot');
     }
@@ -1223,6 +1370,154 @@ async function run() {
     await assertVendorControlsInViewport(page, 'desktop vendor layout after viewport restore');
     await assertVendorTradePanelsSeparated(page, 'desktop vendor layout after viewport restore');
 
+    stage = 'vendor-contract-flow';
+    await safeClick(page, '.vendor-tab[data-tab="contracts"]');
+    await page.waitForFunction(() => {
+      const contractsView = document.querySelector('.vendor-contracts');
+      return contractsView?.classList.contains('active');
+    });
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) =>
+        Array.isArray(s.player?.contractOffersByVendor?.[vendor.id]) &&
+        s.player.contractOffersByVendor[vendor.id].length > 0,
+      TEST_TIMEOUT_MS,
+      'contract offers'
+    );
+    const contractOffer = pickPreferredContractOffer(state, vendor.id);
+    if (!contractOffer) {
+      throw new Error('No supported vendor contract offer available for E2E coverage');
+    }
+    const contractXpBefore = state.player?.xp ?? 0;
+    const contractCopperBefore = state.player?.currencyCopper ?? 0;
+
+    await clickVendorContractAction(page, contractOffer.title, 'Accept');
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => !!getActiveContract(s, contractOffer.id),
+      TEST_TIMEOUT_MS,
+      `accept contract ${contractOffer.id}`
+    );
+    let activeContract = getActiveContract(state, contractOffer.id);
+    if (!activeContract) {
+      throw new Error(`Accepted contract missing from state: ${contractOffer.id}`);
+    }
+    await page.waitForFunction(
+      (/** @type {any} */ title) => {
+        const tracker = document.getElementById('objective-tracker');
+        return (
+          tracker &&
+          !tracker.classList.contains('hidden') &&
+          (tracker.textContent ?? '').includes(title)
+        );
+      },
+      contractOffer.title
+    );
+    await safeClick(page, '.inventory-tab[data-tab="journal"]');
+    await page.waitForFunction(() =>
+      document.getElementById('journal-view')?.classList.contains('active')
+    );
+    await page.waitForFunction(
+      (/** @type {any} */ title) =>
+        document.getElementById('journal-root')?.textContent?.includes(title),
+      contractOffer.title
+    );
+    await safeClick(page, '.inventory-tab[data-tab="inventory"]');
+
+    if (activeContract.kind === 'craft') {
+      await safeClick(page, '#vendor-panel-close');
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('#vendor-panel')?.classList.contains('open') &&
+          !document.body.classList.contains('trade-open') &&
+          !document.body.classList.contains('vendor-layout-open')
+      );
+      await page.evaluate(() => window.__game?.craft?.('herb_health_potion', 2));
+      state = await waitForCondition(
+        page,
+        (/** @type {any} */ s) => !!getActiveContract(s, contractOffer.id)?.completed,
+        TEST_TIMEOUT_MS,
+        `complete craft contract ${contractOffer.id}`
+      );
+      await page.keyboard.press('e');
+      await page.waitForSelector('#vendor-dialog.open');
+      await safeClick(page, '#vendor-trade-btn');
+      await page.waitForSelector('#vendor-panel.open');
+      state = await waitForCondition(
+        page,
+        (/** @type {any} */ s) => s.inventory?.open,
+        TEST_TIMEOUT_MS,
+        'inventory reopen for contract turn-in'
+      );
+      await safeClick(page, '.vendor-tab[data-tab="contracts"]');
+      await page.waitForFunction(() => {
+        const contractsView = document.querySelector('.vendor-contracts');
+        return contractsView?.classList.contains('active');
+      });
+      activeContract = getActiveContract(state, contractOffer.id);
+    } else if (activeContract.kind === 'gather') {
+      await safeClick(page, '#vendor-panel-close');
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('#vendor-panel')?.classList.contains('open') &&
+          !document.body.classList.contains('trade-open') &&
+          !document.body.classList.contains('vendor-layout-open')
+      );
+      state = await completeGatherContract(page, activeContract);
+      await page.evaluate(
+        (/** @type {any} */ point) => window.__game?.moveTo(point.x, point.z),
+        vendor
+      );
+      state = await waitForCondition(
+        page,
+        (/** @type {any} */ s) =>
+          s.player &&
+          distance(s.player, vendor) <= (s.world?.vendorInteractRadius ?? 2.5) - 0.05,
+        TEST_TIMEOUT_MS,
+        'return to vendor for contract turn-in'
+      );
+      await page.keyboard.press('e');
+      await page.waitForSelector('#vendor-dialog.open');
+      await safeClick(page, '#vendor-trade-btn');
+      await page.waitForSelector('#vendor-panel.open');
+      state = await waitForCondition(
+        page,
+        (/** @type {any} */ s) => s.inventory?.open,
+        TEST_TIMEOUT_MS,
+        'inventory reopen after gather contract'
+      );
+      await waitForVendorTradeLayoutStable(page);
+      await safeClick(page, '.vendor-tab[data-tab="contracts"]');
+      await page.waitForFunction(() => {
+        const contractsView = document.querySelector('.vendor-contracts');
+        return contractsView?.classList.contains('active');
+      });
+      activeContract = getActiveContract(state, contractOffer.id);
+    }
+
+    if (!getActiveContract(state, contractOffer.id)?.completed) {
+      state = await waitForCondition(
+        page,
+        (/** @type {any} */ s) => !!getActiveContract(s, contractOffer.id)?.completed,
+        TEST_TIMEOUT_MS,
+        `completed contract ${contractOffer.id}`
+      );
+    }
+
+    await clickVendorContractAction(page, contractOffer.title, 'Turn In');
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => !getActiveContract(s, contractOffer.id),
+      TEST_TIMEOUT_MS,
+      `turn in contract ${contractOffer.id}`
+    );
+    if (
+      (state.player?.currencyCopper ?? 0) <= contractCopperBefore &&
+      (state.player?.xp ?? 0) <= contractXpBefore
+    ) {
+      throw new Error('Contract turn-in did not update currency or XP');
+    }
+
     await safeClick(page, '.vendor-tab[data-tab=\"sell\"]');
     await page.waitForFunction(() => {
       const sell = document.querySelector('.vendor-sell');
@@ -1234,8 +1529,14 @@ async function run() {
     if (sellItems.length === 0) {
       throw new Error('No inventory items available to sell');
     }
-    const sellSlot = sellItems[0].slot;
-    const sellCount = sellItems[0].count ?? 1;
+    const sellItem =
+      sellItems.find((/** @type {any} */ item) => item.kind === 'crystal') ??
+      sellItems.find((/** @type {any} */ item) => item.kind === 'herb') ??
+      sellItems.find((/** @type {any} */ item) => !['ore', 'wood'].includes(item.kind)) ??
+      sellItems[0];
+    const sellSlot = sellItem.slot;
+    const sellKind = sellItem.kind;
+    const sellCount = sellItem.count ?? 1;
     const currencyBefore = state.player?.currencyCopper ?? 0;
 
     await page.evaluate(
@@ -1252,7 +1553,7 @@ async function run() {
       'vendor sell'
     );
     const currencyAfter = state.player?.currencyCopper ?? 0;
-    const expectedIncrease = sellCount * 10;
+    const expectedIncrease = sellCount * getSellPriceCopper(sellKind);
     if (currencyAfter - currencyBefore !== expectedIncrease) {
       throw new Error(
         `Currency mismatch. Expected +${expectedIncrease}, got +${currencyAfter - currencyBefore}`
@@ -1267,6 +1568,107 @@ async function run() {
         !document.body.classList.contains('trade-open') &&
         !document.body.classList.contains('vendor-layout-open')
     );
+    state = await getState(page);
+    stage = 'station-crafting';
+    const forge = state.world?.structures?.find((/** @type {any} */ structure) => structure.kind === 'barracks');
+    if (!forge) {
+      throw new Error('No barracks structure available for forge crafting checks');
+    }
+    await page.evaluate(
+      (/** @type {any} */ point) => window.__game?.moveTo(point.x, point.z),
+      forge
+    );
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) =>
+        s.player && distance(s.player, forge) <= 4.4,
+      TEST_TIMEOUT_MS,
+      'reach forge station'
+    );
+    const wrongStationCountBefore = countInventoryKind(state, 'weapon_reinforced_training_bow');
+    await page.evaluate(() => window.__game?.craft?.('woodcraft_reinforced_bow', 1));
+    await advance(page, 600);
+    await sleep(80);
+    state = await getState(page);
+    if (countInventoryKind(state, 'weapon_reinforced_training_bow') !== wrongStationCountBefore) {
+      throw new Error('Wrong-station craft unexpectedly succeeded at forge');
+    }
+
+    const ironBladeCountBefore = countInventoryKind(state, 'weapon_iron_blade');
+    await page.evaluate(() => window.__game?.craft?.('smith_iron_blade', 1));
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => countInventoryKind(s, 'weapon_iron_blade') >= ironBladeCountBefore + 1,
+      TEST_TIMEOUT_MS,
+      'forge crafting'
+    );
+    const craftedBlade = findInventoryItem(
+      state,
+      (/** @type {any} */ item) => item.kind === 'weapon_iron_blade'
+    );
+    if (!craftedBlade) {
+      throw new Error('Crafted iron blade not found in inventory');
+    }
+    await page.evaluate(
+      (/** @type {any} */ slot) =>
+        window.__game?.equipSwap?.({
+          fromType: 'inventory',
+          fromSlot: slot,
+          toType: 'equipment',
+          toSlot: 'weapon',
+        }),
+      craftedBlade.slot
+    );
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.player?.equipment?.weapon?.kind === 'weapon_iron_blade',
+      TEST_TIMEOUT_MS,
+      'equip crafted iron blade'
+    );
+    await page.evaluate(() => window.__game?.craft?.('smith_iron_blade', 1));
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => countInventoryKind(s, 'weapon_iron_blade') >= ironBladeCountBefore + 1,
+      TEST_TIMEOUT_MS,
+      'forge crafting spare blade'
+    );
+    const spareCraftedBlade = findInventoryItem(
+      state,
+      (/** @type {any} */ item) => item.kind === 'weapon_iron_blade'
+    );
+    if (!spareCraftedBlade) {
+      throw new Error('Expected a spare crafted iron blade for salvage coverage');
+    }
+    const oreBeforeForgeSalvage = countInventoryKind(state, 'ore');
+    const woodBeforeForgeSalvage = countInventoryKind(state, 'wood');
+    await page.evaluate(
+      (/** @type {any} */ slot) => window.__game?.salvageItem?.(slot),
+      spareCraftedBlade.slot
+    );
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => {
+        const itemStillPresent = getInventoryItems(s).some(
+          (/** @type {any} */ item) => item.slot === spareCraftedBlade.slot && item.kind === 'weapon_iron_blade'
+        );
+        return (
+          !itemStillPresent &&
+          (countInventoryKind(s, 'ore') > oreBeforeForgeSalvage || countInventoryKind(s, 'wood') > woodBeforeForgeSalvage)
+        );
+      },
+      TEST_TIMEOUT_MS,
+      'salvage crafted spare blade'
+    );
+    const nearbyVendor =
+      state.world?.vendors?.reduce((/** @type {any} */ closest, /** @type {any} */ candidate) => {
+        if (!closest) return candidate;
+        return distance(state.player, candidate) < distance(state.player, closest)
+          ? candidate
+          : closest;
+      }, null) ?? null;
+    if (nearbyVendor) {
+      vendor = nearbyVendor;
+    }
     state = await assertAliveBefore(page, 'vendor small viewport checks');
 
     stage = 'vendor-trade-small-viewport';
@@ -1607,6 +2009,73 @@ async function run() {
         `Respawn HUD mismatch. Expected ~${expectedRespawn}s, got ${respawnSeconds}s`
       );
     }
+
+    stage = 'repair-and-salvage';
+    await safeClick(page, '#death-respawn-btn');
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.player && !s.player.dead && (s.player.hp ?? 0) > 0,
+      TEST_TIMEOUT_MS,
+      'respawn after death'
+    );
+    await page.waitForFunction(
+      () => !document.querySelector('#death-screen')?.classList.contains('open')
+    );
+
+    await page.evaluate(
+      (/** @type {any} */ point) => window.__game?.moveTo(point.x, point.z),
+      vendor
+    );
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) =>
+        s.player &&
+        distance(s.player, vendor) <= (s.world?.vendorInteractRadius ?? 2.5) - 0.05,
+      TEST_TIMEOUT_MS,
+      'return to vendor for repair'
+    );
+    const equippedWeaponBeforeRepair = state.player?.equipment?.weapon ?? null;
+    if (!equippedWeaponBeforeRepair || equippedWeaponBeforeRepair.kind !== 'weapon_iron_blade') {
+      throw new Error('Crafted iron blade was not equipped after respawn');
+    }
+    const weaponMaxDurabilityBeforeRepair = Number(equippedWeaponBeforeRepair.maxDurability ?? 0);
+    const weaponDurabilityBeforeRepair = Number(equippedWeaponBeforeRepair.durability ?? 0);
+    if (!(weaponMaxDurabilityBeforeRepair > 0) || !(weaponDurabilityBeforeRepair < weaponMaxDurabilityBeforeRepair)) {
+      throw new Error('Crafted weapon did not lose durability before repair check');
+    }
+
+    await page.keyboard.press('i');
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.inventory?.open,
+      TEST_TIMEOUT_MS,
+      'inventory open for maintenance'
+    );
+    await safeClick(page, '.inventory-tab[data-tab="journal"]');
+    await page.waitForFunction(() =>
+      document.getElementById('journal-view')?.classList.contains('active')
+    );
+    await page.waitForFunction(() => {
+      const root = document.getElementById('journal-root');
+      const text = root?.textContent ?? '';
+      return text.includes('Maintenance') && text.includes('Repair');
+    });
+
+    const copperBeforeRepair = state.player?.currencyCopper ?? 0;
+    await page.evaluate(() => window.__game?.repairItem?.('equipment', 'weapon'));
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => {
+        const weapon = s.player?.equipment?.weapon;
+        return (
+          weapon?.kind === 'weapon_iron_blade' &&
+          Number(weapon.durability ?? 0) >= Number(weapon.maxDurability ?? 0) &&
+          (s.player?.currencyCopper ?? 0) < copperBeforeRepair
+        );
+      },
+      TEST_TIMEOUT_MS,
+      'repair crafted weapon'
+    );
 
     if (consoleErrors.length) {
       throw new Error(`Console errors: ${consoleErrors.join('\n')}`);
