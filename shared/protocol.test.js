@@ -82,10 +82,31 @@ describe('protocol validation', () => {
       slot: 1,
       seq: 2,
     });
+    expect(
+      parseClientMessage({
+        type: 'action',
+        kind: 'ability',
+        slot: 4,
+        abilityId: 'meteor',
+        placementX: 3,
+        placementZ: -2,
+      })
+    ).toEqual({
+      type: 'action',
+      kind: 'ability',
+      slot: 4,
+      abilityId: 'meteor',
+      placementX: 3,
+      placementZ: -2,
+      seq: undefined,
+    });
   });
 
   it('rejects invalid ability slot', () => {
     expect(parseClientMessage({ type: 'action', kind: 'ability', slot: 0 })).toBe(null);
+    expect(parseClientMessage({ type: 'action', kind: 'ability', slot: 1, abilityId: '' })).toBe(
+      null
+    );
   });
 
   it('accepts inventorySwap message', () => {

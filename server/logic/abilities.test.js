@@ -197,6 +197,28 @@ describe('class abilities', () => {
     expect(fighter.lastMoveDir?.z).toBeCloseTo(Math.SQRT1_2, 5);
   });
 
+  it('resolves a learned ability by explicit ability id for custom client loadouts', () => {
+    const fighter = makePlayer({ classId: 'fighter', level: 2, resource: 100 });
+    const mob = makeMob('m1', 1.5, 0);
+    fighter.targetId = mob.id;
+    fighter.targetKind = 'mob';
+
+    const result = tryUseAbility({
+      player: fighter,
+      slot: 8,
+      abilityId: 'power_strike',
+      mobs: [mob],
+      players: new Map(),
+      world: makeWorld(),
+      now: 0,
+      respawnMs: 10_000,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.event?.abilityId).toBe('power_strike');
+    expect(mob.hp).toBeLessThan(mob.maxHp);
+  });
+
   it('adds crit impact metadata for targeted damage abilities', () => {
     const fighter = makePlayer({ classId: 'fighter', level: 2, resource: 100 });
     const mob = makeMob('m1', 1.5, 0);

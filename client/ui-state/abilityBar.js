@@ -1,7 +1,5 @@
 // @ts-check
 import { ABILITY_SLOTS } from '/shared/classes.js';
-import { getEquippedWeapon } from '/shared/equipment.js';
-import { getAbilitiesForClass } from '/shared/classes.js';
 import { getAbilityPresentation } from '/shared/abilityPresentation.js';
 import { getKeybinds } from '../keybinds.js';
 import { getAbilityIconFile } from '../gameIcons.js';
@@ -141,18 +139,24 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
     }
   }
 
-  function updateAbilityBar(/** @type {any} */ me, /** @type {any} */ serverNow, /** @type {any} */ getCurrentClassId, /** @type {any} */ globalCooldownMs = 900) {
+  function updateAbilityBar(
+    /** @type {any} */ me,
+    /** @type {any} */ serverNow,
+    /** @type {any} */ loadoutState,
+    /** @type {any} */ globalCooldownMs = 900
+  ) {
     if (!abilityBarEl || abilitySlots.length === 0) return;
     const keybinds = getKeybinds();
-    const classId = getCurrentClassId(me);
-    const weaponDef = getEquippedWeapon(me?.equipment, classId);
-    const abilities = getAbilitiesForClass(classId, me?.level ?? 1, weaponDef);
-    const abilityBySlot = new Map(abilities.map((/** @type {any} */ ability) => [ability.slot, ability]));
+    const classId = loadoutState?.classId ?? me?.classId ?? null;
+    const weaponDef = loadoutState?.weaponDef ?? null;
+    const slottedAbilities = Array.isArray(loadoutState?.slottedAbilities)
+      ? loadoutState.slottedAbilities
+      : [];
     const gcdEnd = me?.globalCooldownUntil ?? 0;
     const gcdRemaining = Math.max(0, gcdEnd - serverNow);
 
     for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
-      const ability = abilityBySlot.get(slot);
+      const ability = slottedAbilities[slot - 1] ?? null;
       const slotRef = abilitySlots[slot - 1];
       if (!slotRef) continue;
       const bound = keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot));

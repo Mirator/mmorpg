@@ -33,6 +33,7 @@ import { createPlayerTradeUI } from './trade.js';
 import { getRecipeById, getRecipesForKnownIds } from '/shared/recipes.js';
 import { createAbilityBar } from './ui-state/abilityBar.js';
 import { createSkillsPanelUpdater } from './ui-state/skillsPanel.js';
+import { createAbilityLoadoutController } from './abilityLoadout.js';
 import { createCharacterPreview } from './character-preview.js';
 import { createWindowDragController } from './window-drag.js';
 import { getItemIconFile } from './gameIcons.js';
@@ -90,6 +91,7 @@ export function createUiState(/** @type {any} */ {
   onTradeOfferRemoveCopper,
   onTradeConfirm,
   onTradeCancel,
+  getPlayerId,
 }) {
   const inventoryPanel = document.getElementById('inventory-panel');
   const characterSheetPanel = document.getElementById('character-sheet-panel');
@@ -171,11 +173,88 @@ export function createUiState(/** @type {any} */ {
   let pauseMenuOpen = false;
   let deadOpen = false;
   const abilityBarModule = createAbilityBar(abilityBar, onAbilityClick);
+  const abilityLoadout = createAbilityLoadoutController({
+    storage: globalThis?.localStorage ?? null,
+  });
+  function makeEmptyAbilitySlots() {
+    return Array.from({ length: ABILITY_SLOTS }, () => null);
+  }
+
+  function getAbilityLoadoutContext(/** @type {any} */ me) {
+    if (!me) return null;
+    const classId = getCurrentClassId(me);
+    const weaponDef = getEquippedWeapon(me?.equipment, classId);
+    const abilities = getAbilitiesForClass(classId, me?.level ?? 1, weaponDef);
+    return {
+      playerId: getPlayerId?.() ?? me?.id ?? null,
+      classId,
+      weaponDef,
+      abilities,
+    };
+  }
+
+  function buildAbilityPanelState(/** @type {any} */ me) {
+    const ctx = getAbilityLoadoutContext(me);
+    if (!ctx) {
+      return {
+        classId: DEFAULT_CLASS_ID,
+        weaponDef: null,
+        abilities: [],
+        slottedAbilities: makeEmptyAbilitySlots(),
+        loadoutSignature: makeEmptyAbilitySlots().map(() => '-').join('|'),
+      };
+    }
+    return {
+      classId: ctx.classId,
+      weaponDef: ctx.weaponDef,
+      abilities: ctx.abilities,
+      slottedAbilities: abilityLoadout.getSlottedAbilities(ctx),
+      loadoutSignature: abilityLoadout.getSignature(ctx),
+    };
+  }
+
+  function getAbilityForSlot(/** @type {any} */ me, /** @type {any} */ slot) {
+    const ctx = getAbilityLoadoutContext(me);
+    if (!ctx) return null;
+    return abilityLoadout.getAbilityForSlot(ctx, slot);
+  }
+
+  function getAbilityActionPayload(/** @type {any} */ me, /** @type {any} */ slot) {
+    const ability = getAbilityForSlot(me, slot);
+    if (!ability?.id) return null;
+    return { slot, abilityId: ability.id };
+  }
+
+  function setAbilityInSlot(/** @type {any} */ me, /** @type {any} */ abilityId, /** @type {any} */ slot) {
+    const ctx = getAbilityLoadoutContext(me);
+    if (!ctx) return buildAbilityPanelState(me);
+    abilityLoadout.setAbilityInSlot(ctx, abilityId, slot);
+    return buildAbilityPanelState(me);
+  }
+
+  function swapAbilitySlots(/** @type {any} */ me, /** @type {any} */ fromSlot, /** @type {any} */ toSlot) {
+    const ctx = getAbilityLoadoutContext(me);
+    if (!ctx) return buildAbilityPanelState(me);
+    abilityLoadout.swapSlots(ctx, fromSlot, toSlot);
+    return buildAbilityPanelState(me);
+  }
+
+  function clearAbilitySlot(/** @type {any} */ me, /** @type {any} */ slot) {
+    const ctx = getAbilityLoadoutContext(me);
+    if (!ctx) return buildAbilityPanelState(me);
+    abilityLoadout.clearSlot(ctx, slot);
+    return buildAbilityPanelState(me);
+  }
+
   const updateSkillsPanel = createSkillsPanelUpdater({
     skillsListEl,
     skillsClassEl,
     skillsLevelEl,
     skillsXpEl,
+    getAbilityPanelState: buildAbilityPanelState,
+    setAbilityInSlot,
+    swapAbilitySlots,
+    clearAbilitySlot,
   });
   const characterPreview = createCharacterPreview(characterModelPreviewEl);
   let wasDead = false;
@@ -929,8 +1008,8 @@ export function createUiState(/** @type {any} */ {
     updateLocalUi,
     updateTargetHud,
     updateAbilityBar: (/** @type {any} */ me, /** @type {any} */ serverNow, /** @type {any} */ globalCooldownMs) =>
-      abilityBarModule.updateAbilityBar(me, serverNow, getCurrentClassId, globalCooldownMs),
-    updateSkillsPanel: (/** @type {any} */ me) => updateSkillsPanel(me, getCurrentClassId),
+      abilityBarModule.updateAbilityBar(me, serverNow, buildAbilityPanelState(me), globalCooldownMs),
+    updateSkillsPanel: (/** @type {any} */ me) => updateSkillsPanel(me),
     setInventoryOpen,
     toggleInventory,
     toggleCharacter,
@@ -946,6 +1025,9 @@ export function createUiState(/** @type {any} */ {
     isSkillsOpen,
     isUiBlocking,
     getCurrentClassId,
+    getAbilityForSlot,
+    getSlottedAbilities: (/** @type {any} */ me) => buildAbilityPanelState(me).slottedAbilities,
+    getAbilityActionPayload,
     setLocalCooldown: abilityBarModule.setLocalCooldown,
     getLocalCooldown: abilityBarModule.getLocalCooldown,
     vendorUI,

@@ -617,9 +617,14 @@ function applyNova(/** @type {any} */ { player, mobs, radius, ability, slowPct, 
   return { xpGain, leveledUp, hit, killed, xpGainByPlayer, impacts };
 }
 
-export function tryUseAbility(/** @type {any} */ { player, slot, mobs, players, world, now, respawnMs, placementX, placementZ }) {
+export function tryUseAbility(
+  /** @type {any} */ { player, slot, abilityId, mobs, players, world, now, respawnMs, placementX, placementZ }
+) {
   if (!player || player.dead) return { success: false };
-  const ability = getAbilityForSlot(player, slot) ?? null;
+  const hasExplicitAbilityId = typeof abilityId === 'string' && abilityId.trim().length > 0;
+  const ability = hasExplicitAbilityId
+    ? getAbilityById(player, abilityId) ?? null
+    : getAbilityForSlot(player, slot) ?? null;
   if (!ability) return { success: false, reason: 'unknown_ability' };
   if (player.cast) return { success: false, reason: 'casting' };
   if (now < (player.globalCooldownUntil ?? 0)) {

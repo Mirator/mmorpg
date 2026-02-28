@@ -15,7 +15,7 @@ const MAX_ID_LENGTH = 64;
  * @typedef {{ type: 'moveTarget', x: number, y?: number, z: number, seq?: number }} MoveTargetMessage
  * @typedef {{ type: 'targetSelect', targetId?: string | null, targetKind?: 'mob' | 'player' | null, seq?: number }} TargetSelectMessage
  * @typedef {{ type: 'action', kind: 'interact', seq?: number }} InteractMessage
- * @typedef {{ type: 'action', kind: 'ability', slot: number, seq?: number }} AbilityMessage
+ * @typedef {{ type: 'action', kind: 'ability', slot: number, abilityId?: string, placementX?: number, placementZ?: number, seq?: number }} AbilityMessage
  * @typedef {{ type: 'classSelect', classId: string, seq?: number }} ClassSelectMessage
  * @typedef {{ type: 'inventorySwap', from: number, to: number, seq?: number }} InventorySwapMessage
  * @typedef {{ type: 'equipSwap', fromType: 'inventory' | 'equipment', fromSlot: number | string, toType: 'inventory' | 'equipment', toSlot: number | string, seq?: number }} EquipSwapMessage
@@ -201,6 +201,9 @@ export function parseClientMessage(raw) {
     if (raw.kind === 'ability') {
       const slot = Number(raw.slot);
       if (!Number.isInteger(slot) || slot < 1) return null;
+      const hasAbilityId = raw.abilityId !== undefined && raw.abilityId !== null;
+      const abilityId = hasAbilityId ? normalizeString(raw.abilityId) : undefined;
+      if (hasAbilityId && !abilityId) return null;
       const placementX = raw.placementX !== undefined ? Number(raw.placementX) : undefined;
       const placementZ = raw.placementZ !== undefined ? Number(raw.placementZ) : undefined;
       return {
@@ -208,6 +211,7 @@ export function parseClientMessage(raw) {
         kind: 'ability',
         slot,
         seq,
+        ...(abilityId ? { abilityId } : {}),
         ...(Number.isFinite(placementX) && Number.isFinite(placementZ)
           ? { placementX, placementZ }
           : {}),

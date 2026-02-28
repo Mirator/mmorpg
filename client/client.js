@@ -264,6 +264,7 @@ const ui = createUiState({
   onTradeOfferRemoveCopper: () => connectionRef.current?.sendTradeOfferRemoveCopper?.(),
   onTradeConfirm: () => connectionRef.current?.sendTradeConfirm?.(),
   onTradeCancel: () => connectionRef.current?.sendTradeCancel?.(),
+  getPlayerId: () => ctx.playerId,
 });
 
 const menu = createMenu({
@@ -1092,6 +1093,8 @@ installDebugSurface({
   combatRef,
   renderSystem,
   combat,
+  ui,
+  ctx,
   getInputKeys: () => inputHandler?.getKeys?.() ?? null,
 });
 

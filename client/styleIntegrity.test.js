@@ -93,6 +93,19 @@ describe('style scope integrity', () => {
     expect(overlayCss).toMatch(/body\.cast-bar-active\s+#prompt\s*\{[\s\S]*bottom:\s*\d+px;/);
   });
 
+  it('lets ability bar tooltips render outside the slot bounds', () => {
+    const panelsCss = read(PANELS_CSS);
+    expect(panelsCss).toMatch(
+      /\.ability-slot\s*\{[\s\S]*overflow:\s*visible;/
+    );
+    expect(panelsCss).toMatch(
+      /\.ability-slot::after\s*\{[\s\S]*border-radius:\s*inherit;/
+    );
+    expect(panelsCss).toMatch(
+      /\.ability-tooltip\s*\{[\s\S]*width:\s*min\(260px,\s*calc\(100vw - 48px\)\);/
+    );
+  });
+
   it('keeps modal layout independent of body state panel-shift classes', () => {
     const layoutCss = read(LAYOUT_CSS);
     expect(layoutCss).not.toMatch(/body\.trade-open\s+#inventory-panel/);

@@ -1,7 +1,4 @@
 // @ts-check
-import { getAbilitiesForClass } from '/shared/classes.js';
-import { getEquippedWeapon } from '/shared/equipment.js';
-
 const MAX_COMBAT_EVENTS = 12;
 const COMBAT_EVENT_TTL_MS = 2500;
 
@@ -101,11 +98,10 @@ export function createCombat(/** @type {any} */ {
   function useAbility(/** @type {any} */ slot) {
     const currentMe = ctx.currentMe;
     if (ui.isUiBlocking()) return;
-    const classId = ui.getCurrentClassId(currentMe);
-    const weaponDef = getEquippedWeapon(currentMe?.equipment, classId);
-    const abilities = getAbilitiesForClass(classId, currentMe?.level ?? 1, weaponDef);
-    const ability = abilities.find((/** @type {any} */ item) => item.slot === slot);
+    const ability = ui.getAbilityForSlot?.(currentMe, slot) ?? null;
     if (!ability) return;
+    const actionPayload = ui.getAbilityActionPayload?.(currentMe, slot);
+    if (!actionPayload) return;
     if (placementMode && placementMode.slot !== slot) {
       cancelPlacement();
     }
@@ -149,7 +145,7 @@ export function createCombat(/** @type {any} */ {
     const localCooldownDuration = ability.windUpMs ?? ability.cooldownMs ?? 0;
     ui.setLocalCooldown(slot, now + localCooldownDuration);
     ui.updateAbilityBar(currentMe, now);
-    sendWithSeq({ type: 'action', kind: 'ability', slot });
+    sendWithSeq({ type: 'action', kind: 'ability', ...actionPayload });
   }
 
   const /** @type {any} */ ABILITY_COLORS = {
@@ -316,10 +312,17 @@ export function createCombat(/** @type {any} */ {
 
   function confirmPlacement(/** @type {any} */ pos) {
     if (!placementMode || !pos) return;
-    const { slot } = placementMode;
+    const { slot, ability } = placementMode;
     placementMode = null;
     renderSystem?.setPlacementIndicator?.(false);
-    sendWithSeq({ type: 'action', kind: 'ability', slot, placementX: pos.x, placementZ: pos.z });
+    sendWithSeq({
+      type: 'action',
+      kind: 'ability',
+      slot,
+      ...(ability?.id ? { abilityId: ability.id } : {}),
+      placementX: pos.x,
+      placementZ: pos.z,
+    });
   }
 
   function cancelPlacement() {

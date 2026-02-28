@@ -33,6 +33,14 @@ export function buildDebugTextState(/** @type {any} */ {
   const classId = ui.getCurrentClassId(me);
   const weaponDef = getEquippedWeapon(me?.equipment, classId);
   const abilities = getAbilitiesForClass(classId, me?.level ?? 1, weaponDef);
+  const slottedAbilities = ui.getSlottedAbilities?.(me) ?? [];
+  const assignedSlotById = new Map();
+  for (let i = 0; i < slottedAbilities.length; i += 1) {
+    const ability = slottedAbilities[i];
+    if (ability?.id && !assignedSlotById.has(ability.id)) {
+      assignedSlotById.set(ability.id, i + 1);
+    }
+  }
   const serverNow = gameState.getServerNow();
   const vendor = ui.vendorUI?.getVendor?.() ?? null;
   const tradeTab = tradeOpen ? ui.vendorUI?.getTab?.() ?? null : null;
@@ -159,7 +167,8 @@ export function buildDebugTextState(/** @type {any} */ {
     abilities: abilities.map((/** @type {any} */ ability) => ({
       id: ability.id,
       name: ability.name,
-      slot: ability.slot,
+      slot: assignedSlotById.get(ability.id) ?? null,
+      templateSlot: ability.slot,
       cooldownMs: ability.cooldownMs ?? 0,
       range: ability.range ?? 0,
       attackType: ability.attackType ?? null,
@@ -260,6 +269,8 @@ export function installDebugSurface(/** @type {any} */ {
   combatRef,
   renderSystem,
   combat,
+  ui,
+  ctx,
   getInputKeys,
 }) {
   window.render_game_to_text = () => JSON.stringify(getTextState());
@@ -311,7 +322,9 @@ export function installDebugSurface(/** @type {any} */ {
       sendWithSeq({ type: 'salvageItem', slot });
     },
     forceAbility: (/** @type {any} */ slot) => {
-      sendWithSeq({ type: 'action', kind: 'ability', slot });
+      const payload = ui.getAbilityActionPayload?.(ctx.currentMe, slot);
+      if (!payload) return;
+      sendWithSeq({ type: 'action', kind: 'ability', ...payload });
     },
     useAbility: (/** @type {any} */ slot) => {
       combatRef.current?.useAbility(slot);

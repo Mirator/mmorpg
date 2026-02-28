@@ -35,16 +35,20 @@ describe('ability bar rendering', () => {
       globalCooldownUntil: 0,
       attackCooldownUntil: 0,
       abilityCooldowns: {
-        firebolt: 6500,
+        frost_nova: 6500,
       },
     };
     const classId = me.classId;
     const weaponDef = getEquippedWeapon(me.equipment, classId);
-    const slotTwoAbility = getAbilitiesForClass(classId, me.level, weaponDef).find((ability) => ability.slot === 2);
+    const abilities = getAbilitiesForClass(classId, me.level, weaponDef);
+    const slotTwoAbility = abilities.find((ability) => ability.id === 'frost_nova');
     const slotTwoPresentation = getAbilityPresentation(slotTwoAbility, { classId, weaponDef });
+    const slottedAbilities = Array.from({ length: 10 }, () => null);
+    slottedAbilities[0] = abilities.find((ability) => ability.id === 'basic_attack') ?? null;
+    slottedAbilities[1] = slotTwoAbility ?? null;
 
     abilityBar.buildAbilityBar();
-    abilityBar.updateAbilityBar(me, 6000, (player) => player?.classId ?? null, 900);
+    abilityBar.updateAbilityBar(me, 6000, { classId, weaponDef, slottedAbilities }, 900);
 
     const slotTwo = abilityBarEl.children[1];
     expect(slotTwoAbility).toBeTruthy();
@@ -56,8 +60,8 @@ describe('ability bar rendering', () => {
     expect(slotTwo.children[4].children[0].textContent).toBe(slotTwoAbility?.name ?? '');
     expect(slotTwo.children[4].children[1].textContent).toBe(slotTwoPresentation.summary);
     expect(slotTwo.children[4].children[2].textContent).toBe(slotTwoPresentation.metaLabel);
-    expect(slotTwo.children[4].children[2].textContent).toContain('40 Mana');
-    expect(slotTwo.style.values['--ability-primary-rgb']).toBe('255, 102, 51');
+    expect(slotTwo.children[4].children[2].textContent).toContain(slotTwoPresentation.costLabel);
+    expect(slotTwo.style.values['--ability-primary-rgb']).toBe(slotTwoPresentation.primaryRgb);
   });
 
   it('keeps empty slots visually blank while preserving the fixed layout', () => {
@@ -73,7 +77,13 @@ describe('ability bar rendering', () => {
     };
 
     abilityBar.buildAbilityBar();
-    abilityBar.updateAbilityBar(me, 1000, (player) => player?.classId ?? null, 900);
+    abilityBar.updateAbilityBar(me, 1000, {
+      classId: me.classId,
+      weaponDef: getEquippedWeapon(me.equipment, me.classId),
+      slottedAbilities: getAbilitiesForClass(me.classId, me.level, getEquippedWeapon(me.equipment, me.classId))
+        .slice(0, 9)
+        .concat(null),
+    }, 900);
 
     const emptySlot = abilityBarEl.children[9];
     expect(emptySlot.classList.contains('empty')).toBe(true);
@@ -99,10 +109,14 @@ describe('ability bar rendering', () => {
     };
 
     abilityBar.buildAbilityBar();
-    abilityBar.updateAbilityBar(me, 1000, (player) => player?.classId ?? null, 900);
+    const weaponDef = getEquippedWeapon(me.equipment, me.classId);
+    const abilities = getAbilitiesForClass(me.classId, me.level, weaponDef);
+    const slottedAbilities = Array.from({ length: 10 }, () => null);
+    slottedAbilities[0] = abilities[0] ?? null;
+    abilityBar.updateAbilityBar(me, 1000, { classId: me.classId, weaponDef, slottedAbilities }, 900);
     const firstCounts = collectCounters(abilityBarEl);
 
-    abilityBar.updateAbilityBar(me, 1000, (player) => player?.classId ?? null, 900);
+    abilityBar.updateAbilityBar(me, 1000, { classId: me.classId, weaponDef, slottedAbilities }, 900);
     const secondCounts = collectCounters(abilityBarEl);
 
     expect(secondCounts).toEqual(firstCounts);

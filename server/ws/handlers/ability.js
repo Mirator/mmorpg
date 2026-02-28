@@ -20,6 +20,7 @@ export function handleAbility(/** @type {any} */ ctx) {
   const result = /** @type {any} */ (tryUseAbility({
     player,
     slot: ctx.msg.slot,
+    abilityId: ctx.msg.abilityId,
     mobs,
     players,
     world,
