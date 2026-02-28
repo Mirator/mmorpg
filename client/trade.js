@@ -1,4 +1,7 @@
 // @ts-check
+import { getItemIconFile } from './gameIcons.js';
+import { createGlyphElement, createVisuallyHiddenText } from './uiGlyphs.js';
+
 /**
  * Player-to-player trade UI.
  * Renders trade panel with my offer / their offer, add copper, confirm, cancel.
@@ -75,6 +78,22 @@ export function createPlayerTradeUI(/** @type {any} */ {
     return name.slice(0, 1).toUpperCase();
   }
 
+  function populateItemVisual(/** @type {HTMLElement} */ container, /** @type {any} */ item) {
+    const iconFile = getItemIconFile(item?.kind);
+    const label = item?.name || item?.kind || 'Item';
+    if (!iconFile) {
+      container.textContent = makeItemLabel(item);
+      return;
+    }
+    container.appendChild(
+      createGlyphElement(iconFile, {
+        className: 'ui-glyph ui-glyph-md trade-item-glyph',
+        label,
+      })
+    );
+    container.appendChild(createVisuallyHiddenText(label));
+  }
+
   function render() {
     if (!myOfferEl) return;
     myOfferEl.innerHTML = '';
@@ -86,9 +105,11 @@ export function createPlayerTradeUI(/** @type {any} */ {
       slot.className = 'trade-offer-slot';
       slot.dataset.index = String(i);
       const icon = document.createElement('div');
-      icon.textContent = makeItemLabel(item);
+      icon.className = 'trade-slot-icon';
+      populateItemVisual(icon, item);
       slot.appendChild(icon);
       const count = document.createElement('div');
+      count.className = 'trade-slot-count';
       count.textContent = String(item.count ?? 1);
       slot.appendChild(count);
       if (!confirmed) {
@@ -110,9 +131,11 @@ export function createPlayerTradeUI(/** @type {any} */ {
         const slot = document.createElement('div');
         slot.className = 'trade-offer-slot';
         const icon = document.createElement('div');
-        icon.textContent = makeItemLabel(item);
+        icon.className = 'trade-slot-icon';
+        populateItemVisual(icon, item);
         slot.appendChild(icon);
         const count = document.createElement('div');
+        count.className = 'trade-slot-count';
         count.textContent = String(item.count ?? 1);
         slot.appendChild(count);
         theirOfferEl.appendChild(slot);

@@ -193,6 +193,24 @@
   background: rgba(0, 0, 0, 0.3);
 }
 
+.trade-slot-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 16px;
+  color: #f8ecd0;
+  font-weight: 700;
+}
+
+.trade-item-glyph {
+  --ui-glyph-fill: linear-gradient(180deg, rgba(255, 241, 198, 0.98), rgba(214, 172, 85, 0.9));
+}
+
+.trade-slot-count {
+  font-size: 10px;
+  color: #e8d6ae;
+}
+
 .trade-offer-slot .remove-btn {
   position: absolute;
   top: 0;

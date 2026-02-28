@@ -5,6 +5,7 @@ import {
   resetKeybinds,
   DEFAULT_KEYBINDS,
 } from './keybinds.js';
+import { GAME_ICON_CREDITS, formatGameIconLabel } from './gameIcons.js';
 
 const /** @type {any} */ CONTROLS = [
   { key: 'W A S D', action: 'Move' },
@@ -65,21 +66,29 @@ export function createPauseMenu(/** @type {any} */ {
   const mainView = document.getElementById('pause-menu-main');
   const controlsView = document.getElementById('pause-menu-controls');
   const optionsView = document.getElementById('pause-menu-options');
+  const creditsView = document.getElementById('pause-menu-credits');
   const controlsList = document.getElementById('controls-list');
   const keybindsList = document.getElementById('keybinds-list');
+  const creditsSummary = document.getElementById('pause-credits-summary');
+  const creditsSource = document.getElementById('pause-credits-source');
+  const creditsLicense = document.getElementById('pause-credits-license');
+  const creditsIcons = document.getElementById('pause-credits-icons');
   const resumeBtn = document.getElementById('pause-resume-btn');
   const optionsBtn = document.getElementById('pause-options-btn');
   const controlsBtn = document.getElementById('pause-controls-btn');
+  const creditsBtn = document.getElementById('pause-credits-btn');
   const characterBtn = document.getElementById('pause-character-btn');
   const signOutBtn = document.getElementById('pause-signout-btn');
   const controlsBackBtn = document.getElementById('pause-controls-back-btn');
   const optionsBackBtn = document.getElementById('pause-options-back-btn');
+  const creditsBackBtn = document.getElementById('pause-credits-back-btn');
   const fpsToggle = /** @type {HTMLInputElement | null} */ (document.getElementById('pause-fps-toggle'));
   const keybindsResetBtn = document.getElementById('keybinds-reset-btn');
 
   let open = false;
   let showingControls = false;
   let showingOptions = false;
+  let showingCredits = false;
   let /** @type {any} */ rebindingAction = null;
 
   function renderControls() {
@@ -120,6 +129,33 @@ export function createPauseMenu(/** @type {any} */ {
     }
   }
 
+  function appendLink(/** @type {HTMLElement | null} */ parent, /** @type {string} */ label, /** @type {string} */ href) {
+    if (!parent) return;
+    parent.textContent = '';
+    const link = document.createElement('a');
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noreferrer noopener';
+    link.textContent = label;
+    parent.appendChild(link);
+  }
+
+  function renderCredits() {
+    if (creditsSummary) {
+      creditsSummary.textContent = `${GAME_ICON_CREDITS.statement}. This game uses selected gameplay UI icons by ${GAME_ICON_CREDITS.authorName}.`;
+    }
+    appendLink(creditsSource, GAME_ICON_CREDITS.sourceName, GAME_ICON_CREDITS.sourceUrl);
+    appendLink(creditsLicense, GAME_ICON_CREDITS.licenseName, GAME_ICON_CREDITS.licenseUrl);
+    if (!creditsIcons) return;
+    creditsIcons.innerHTML = '';
+    for (const file of GAME_ICON_CREDITS.usedFiles) {
+      const row = document.createElement('div');
+      row.className = 'credits-icon-row';
+      row.textContent = formatGameIconLabel(file);
+      creditsIcons.appendChild(row);
+    }
+  }
+
   function handleRebindKey(/** @type {any} */ event) {
     if (!rebindingAction) return;
     event.preventDefault();
@@ -157,32 +193,49 @@ export function createPauseMenu(/** @type {any} */ {
   function showMain() {
     showingControls = false;
     showingOptions = false;
+    showingCredits = false;
     rebindingAction = null;
     mainView?.classList.remove('hidden');
     controlsView?.classList.add('hidden');
     optionsView?.classList.add('hidden');
+    creditsView?.classList.add('hidden');
     window.removeEventListener('keydown', handleRebindKey);
   }
 
   function showControls() {
     showingControls = true;
     showingOptions = false;
+    showingCredits = false;
     mainView?.classList.add('hidden');
     controlsView?.classList.remove('hidden');
     optionsView?.classList.add('hidden');
+    creditsView?.classList.add('hidden');
     renderControls();
   }
 
   function showOptions() {
     showingControls = false;
     showingOptions = true;
+    showingCredits = false;
     mainView?.classList.add('hidden');
     controlsView?.classList.add('hidden');
     optionsView?.classList.remove('hidden');
+    creditsView?.classList.add('hidden');
     renderKeybinds();
     if (fpsToggle && typeof getShowFps === 'function') {
       fpsToggle.checked = !!getShowFps();
     }
+  }
+
+  function showCredits() {
+    showingControls = false;
+    showingOptions = false;
+    showingCredits = true;
+    mainView?.classList.add('hidden');
+    controlsView?.classList.add('hidden');
+    optionsView?.classList.add('hidden');
+    creditsView?.classList.remove('hidden');
+    renderCredits();
   }
 
   function handleEscape() {
@@ -191,7 +244,7 @@ export function createPauseMenu(/** @type {any} */ {
       renderKeybinds();
       return;
     }
-    if (showingControls || showingOptions) {
+    if (showingControls || showingOptions || showingCredits) {
       showMain();
     } else {
       setOpen(false);
@@ -216,11 +269,19 @@ export function createPauseMenu(/** @type {any} */ {
     showControls();
   });
 
+  creditsBtn?.addEventListener('click', () => {
+    showCredits();
+  });
+
   controlsBackBtn?.addEventListener('click', () => {
     showMain();
   });
 
   optionsBackBtn?.addEventListener('click', () => {
+    showMain();
+  });
+
+  creditsBackBtn?.addEventListener('click', () => {
     showMain();
   });
 
@@ -246,6 +307,7 @@ export function createPauseMenu(/** @type {any} */ {
   }
 
   renderControls();
+  renderCredits();
 
   if (characterBtn) {
     characterBtn.style.display = isGuest ? 'none' : '';
@@ -255,6 +317,7 @@ export function createPauseMenu(/** @type {any} */ {
     setOpen,
     isOpen,
     showMain,
+    showCredits,
     handleEscape,
     renderKeybinds,
   };

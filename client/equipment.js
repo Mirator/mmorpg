@@ -1,5 +1,7 @@
 // @ts-check
 import { EQUIP_SLOTS } from '/shared/equipment.js';
+import { getEquipmentSlotIconFile, getItemIconFile } from './gameIcons.js';
+import { createGlyphElement, createVisuallyHiddenText } from './uiGlyphs.js';
 
 const /** @type {any} */ SLOT_LABELS = {
   weapon: 'Weapon',
@@ -22,6 +24,22 @@ function cloneEquipment(/** @type {any} */ equipment) {
 function makeItemLabel(/** @type {any} */ item) {
   const name = item?.name || item?.kind || 'Item';
   return name.slice(0, 1).toUpperCase();
+}
+
+function populateItemVisual(/** @type {HTMLElement} */ container, /** @type {any} */ item) {
+  const iconFile = getItemIconFile(item?.kind);
+  const label = item?.name || item?.kind || 'Item';
+  if (!iconFile) {
+    container.textContent = makeItemLabel(item);
+    return;
+  }
+  container.appendChild(
+    createGlyphElement(iconFile, {
+      className: 'ui-glyph ui-glyph-lg equipment-item-glyph',
+      label,
+    })
+  );
+  container.appendChild(createVisuallyHiddenText(label));
 }
 
 export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
@@ -59,12 +77,22 @@ export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
       if (label) el.appendChild(label);
       if (!item) {
         el.title = `${SLOT_LABELS[slot] ?? slot} slot`;
+        const emptyIconFile = getEquipmentSlotIconFile(slot);
+        if (emptyIconFile) {
+          el.appendChild(
+            createGlyphElement(emptyIconFile, {
+              className: 'ui-glyph ui-glyph-lg equipment-slot-glyph',
+              label: `${SLOT_LABELS[slot] ?? slot} slot`,
+              muted: true,
+            })
+          );
+        }
         continue;
       }
       el.title = item.name ?? item.kind ?? 'Item';
       const icon = document.createElement('div');
       icon.className = 'equipment-item';
-      icon.textContent = makeItemLabel(item);
+      populateItemVisual(icon, item);
       el.appendChild(icon);
     }
   }
@@ -82,7 +110,7 @@ export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
     el.className = 'inventory-drag';
     const icon = document.createElement('div');
     icon.className = 'equipment-item';
-    icon.textContent = makeItemLabel(item);
+    populateItemVisual(icon, item);
     el.appendChild(icon);
     return el;
   }

@@ -1,6 +1,8 @@
 // @ts-check
 import { RECIPES } from '/shared/recipes.js';
 import { getItemDisplayName } from '/shared/economy.js';
+import { getItemIconFile } from './gameIcons.js';
+import { createGlyphElement } from './uiGlyphs.js';
 
 /** @typedef {import('/shared/recipes.js').Recipe} Recipe */
 
@@ -15,6 +17,22 @@ function countItem(inventory, kind) {
     if (!item || item.kind !== kind) return total;
     return total + (Number(item.count) || 0);
   }, 0);
+}
+
+function appendKindGlyph(
+  /** @type {HTMLElement} */ parent,
+  /** @type {any} */ kind,
+  /** @type {any} */ label,
+  /** @type {string} */ className
+) {
+  const iconFile = getItemIconFile(kind);
+  if (!iconFile) return;
+  parent.appendChild(
+    createGlyphElement(iconFile, {
+      className,
+      label,
+    })
+  );
 }
 
 /**
@@ -42,7 +60,15 @@ export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIP
 
       const header = document.createElement('div');
       header.className = 'craft-recipe-header';
-      header.textContent = `${outputName} × ${outputCount}`;
+      appendKindGlyph(
+        header,
+        recipe.output?.kind,
+        outputName,
+        'ui-glyph ui-glyph-md craft-recipe-glyph'
+      );
+      const headerText = document.createElement('span');
+      headerText.textContent = `${outputName} × ${outputCount}`;
+      header.appendChild(headerText);
       row.appendChild(header);
 
       const ingredients = document.createElement('div');
@@ -55,14 +81,31 @@ export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIP
         if (!ok) canCraft = false;
         const span = document.createElement('span');
         span.className = 'craft-ingredient' + (ok ? '' : ' insufficient');
-        span.textContent = `${getItemDisplayName(input.kind)}: ${have}/${need}`;
+        const inputName = getItemDisplayName(input.kind);
+        appendKindGlyph(
+          span,
+          input.kind,
+          inputName,
+          'ui-glyph ui-glyph-sm craft-ingredient-glyph'
+        );
+        const ingredientText = document.createElement('span');
+        ingredientText.textContent = `${inputName}: ${have}/${need}`;
+        span.appendChild(ingredientText);
         ingredients.appendChild(span);
       }
       row.appendChild(ingredients);
 
       const output = document.createElement('div');
       output.className = 'craft-output';
-      output.textContent = `→ ${outputName} × ${outputCount}`;
+      appendKindGlyph(
+        output,
+        recipe.output?.kind,
+        outputName,
+        'ui-glyph ui-glyph-sm craft-output-glyph'
+      );
+      const outputText = document.createElement('span');
+      outputText.textContent = `→ ${outputName} × ${outputCount}`;
+      output.appendChild(outputText);
       row.appendChild(output);
 
       const actions = document.createElement('div');

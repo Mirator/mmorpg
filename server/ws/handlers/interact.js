@@ -3,7 +3,7 @@ import { tryStartHarvest } from '../../logic/resources.js';
 import { tryLootCorpse } from '../../logic/corpses.js';
 
 export function handleInteract(/** @type {any} */ ctx) {
-  const { player, resources, corpses, config, persistence } = ctx;
+  const { player, resources, corpses, config, persistence, sendPrivateState, ws } = ctx;
   const harvest = tryStartHarvest(resources, player, Date.now(), {
     harvestRadius: config.resource.harvestRadius,
     harvestDurationMs: config.resource.harvestDurationMs,
@@ -11,6 +11,8 @@ export function handleInteract(/** @type {any} */ ctx) {
     stackMax: player.invStackMax,
   });
   if (harvest) {
+    player.target = null;
+    sendPrivateState?.(ws, player, Date.now());
     return;
   }
   const { looted } = tryLootCorpse(corpses ?? [], player, {
@@ -18,5 +20,6 @@ export function handleInteract(/** @type {any} */ ctx) {
   });
   if (looted) {
     persistence.markDirty(player);
+    sendPrivateState?.(ws, player, Date.now());
   }
 }

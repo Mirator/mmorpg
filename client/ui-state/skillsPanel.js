@@ -2,6 +2,8 @@
 import { getClassById, getAbilitiesForClass } from '/shared/classes.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 import { xpToNext } from '/shared/progression.js';
+import { getAbilityIconFile } from '../gameIcons.js';
+import { createGlyphElement } from '../uiGlyphs.js';
 
 function formatTargetType(/** @type {any} */ type) {
   if (!type) return 'None';
@@ -49,6 +51,17 @@ export function createSkillsPanelUpdater(/** @type {any} */ elements) {
     for (const ability of abilities) {
       const row = document.createElement('div');
       row.className = 'skill-row';
+      const iconFile = getAbilityIconFile(ability, weaponDef);
+      if (iconFile) {
+        row.appendChild(
+          createGlyphElement(iconFile, {
+            className: 'ui-glyph ui-glyph-md skill-glyph',
+            label: ability.name,
+          })
+        );
+      }
+      const copy = document.createElement('div');
+      copy.className = 'skill-copy';
       const name = document.createElement('div');
       name.className = 'skill-name';
       name.textContent = ability.name;
@@ -58,8 +71,9 @@ export function createSkillsPanelUpdater(/** @type {any} */ elements) {
       meta.textContent = `Slot ${ability.slot} · CD ${Math.round(
         (ability.cooldownMs ?? 0) / 1000
       )}s · ${typeLabel}`;
-      row.appendChild(name);
-      row.appendChild(meta);
+      copy.appendChild(name);
+      copy.appendChild(meta);
+      row.appendChild(copy);
       skillsListEl.appendChild(row);
     }
   };

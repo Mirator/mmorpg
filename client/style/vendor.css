@@ -192,8 +192,15 @@ body.vendor-layout-open #vendor-panel {
 
 .vendor-buy-name,
 .vendor-price-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
   color: #ffe8bf;
+}
+
+.vendor-item-glyph {
+  --ui-glyph-fill: linear-gradient(180deg, rgba(255, 242, 203, 0.98), rgba(255, 213, 79, 0.9));
 }
 
 .vendor-buy-price,

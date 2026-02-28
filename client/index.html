@@ -398,6 +398,7 @@
             <button id="pause-resume-btn" class="menu-primary" type="button">Resume</button>
             <button id="pause-options-btn" class="menu-secondary" type="button">Options</button>
             <button id="pause-controls-btn" class="menu-secondary" type="button">Controls</button>
+            <button id="pause-credits-btn" class="menu-secondary" type="button">Credits</button>
             <button id="pause-character-btn" class="menu-secondary" type="button">Return to Character Screen</button>
             <button id="pause-signout-btn" class="menu-ghost" type="button">Sign Out</button>
           </div>
@@ -425,6 +426,25 @@
             <button id="keybinds-reset-btn" class="menu-ghost small" type="button">Reset to default</button>
           </div>
           <button id="pause-options-back-btn" class="menu-ghost" type="button">Back</button>
+        </div>
+        <div class="pause-menu-credits hidden" id="pause-menu-credits">
+          <div class="pause-menu-title">Credits</div>
+          <div class="credits-copy">
+            <div id="pause-credits-summary" class="credits-summary"></div>
+            <div class="credits-row">
+              <span>Source</span>
+              <span id="pause-credits-source"></span>
+            </div>
+            <div class="credits-row">
+              <span>License</span>
+              <span id="pause-credits-license"></span>
+            </div>
+          </div>
+          <div class="credits-section">
+            <div class="options-section-title">Game Icons Used</div>
+            <div id="pause-credits-icons" class="credits-icons-list"></div>
+          </div>
+          <button id="pause-credits-back-btn" class="menu-ghost" type="button">Back</button>
         </div>
       </div>
     </div>

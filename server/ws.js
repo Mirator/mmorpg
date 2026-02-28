@@ -11,7 +11,7 @@ import { worldSnapshot } from './logic/world.js';
 import { countInventory } from './logic/inventory.js';
 import { loadPlayer, savePlayer } from './db/playerRepo.js';
 import { hydratePlayerState, migratePlayerState, serializePlayerState } from './db/playerState.js';
-import { createBasePlayerState } from './logic/players.js';
+import { createBasePlayerState, seedGuestStarterInventory } from './logic/players.js';
 import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
 import { sendCombatLog } from './logic/combatLog.js';
@@ -535,6 +535,9 @@ export function createWebSocketServer({
           spawn,
           classId: DEFAULT_CLASS_ID,
         });
+        if (guest) {
+          seedGuestStarterInventory(baseState);
+        }
         basePlayer = createRuntimePlayer({
           id,
           ws,

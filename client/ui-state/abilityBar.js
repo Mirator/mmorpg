@@ -3,6 +3,8 @@ import { ABILITY_SLOTS } from '/shared/classes.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 import { getAbilitiesForClass } from '/shared/classes.js';
 import { getKeybinds } from '../keybinds.js';
+import { getAbilityIconFile } from '../gameIcons.js';
+import { applyGlyphMask } from '../uiGlyphs.js';
 
 function formatKey(/** @type {any} */ key) {
   if (!key) return '';
@@ -53,6 +55,23 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
     slotRef.lastCooldownFraction = fractionText;
   }
 
+  function setSlotIcon(/** @type {any} */ slotRef, /** @type {any} */ iconFile, /** @type {any} */ label) {
+    const iconText = iconFile ? '' : (label ? String(label).slice(0, 1).toUpperCase() : '');
+    if (slotRef.lastIconFile !== iconFile) {
+      applyGlyphMask(slotRef.iconEl, iconFile);
+      slotRef.lastIconFile = iconFile ?? null;
+    }
+    if (slotRef.lastIconText !== iconText) {
+      slotRef.iconEl.textContent = iconText;
+      slotRef.lastIconText = iconText;
+    }
+    slotRef.iconEl.classList.toggle('is-text', !iconFile && !!iconText);
+    if (label) {
+      slotRef.iconEl.setAttribute('role', 'img');
+      slotRef.iconEl.setAttribute('aria-label', String(label));
+    }
+  }
+
   function setSlotEmptyState(/** @type {any} */ slotRef, /** @type {any} */ isEmpty) {
     if (slotRef.isEmpty === isEmpty) return;
     slotRef.root.classList.toggle('empty', isEmpty);
@@ -73,8 +92,10 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       key.className = 'ability-key';
       const bound = keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot));
       key.textContent = formatKey(bound);
+      const icon = document.createElement('div');
+      icon.className = 'ability-icon ui-glyph ui-glyph-lg';
       const name = document.createElement('div');
-      name.className = 'ability-name';
+      name.className = 'ability-name visually-hidden';
       name.textContent = '';
       const cooldownNum = document.createElement('div');
       cooldownNum.className = 'ability-cooldown-num';
@@ -82,7 +103,14 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       const tooltip = document.createElement('div');
       tooltip.className = 'ability-tooltip';
       tooltip.setAttribute('role', 'tooltip');
+      const tooltipTitle = document.createElement('div');
+      tooltipTitle.className = 'ability-tooltip-title';
+      const tooltipMeta = document.createElement('div');
+      tooltipMeta.className = 'ability-tooltip-meta';
+      tooltip.appendChild(tooltipTitle);
+      tooltip.appendChild(tooltipMeta);
       el.appendChild(key);
+      el.appendChild(icon);
       el.appendChild(name);
       el.appendChild(cooldownNum);
       el.appendChild(tooltip);
@@ -93,14 +121,20 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       abilitySlots.push({
         root: el,
         keyEl: key,
+        iconEl: icon,
         nameEl: name,
         cooldownNumEl: cooldownNum,
         tooltipEl: tooltip,
+        tooltipTitleEl: tooltipTitle,
+        tooltipMetaEl: tooltipMeta,
         lastAbilityId: null,
         lastKeyText: key.textContent,
+        lastIconFile: null,
+        lastIconText: '',
         lastNameText: name.textContent,
+        lastTooltipTitleText: tooltipTitle.textContent,
         lastCooldownText: cooldownNum.textContent,
-        lastTooltipText: tooltip.textContent,
+        lastTooltipText: tooltipMeta.textContent,
         lastCooldownFraction: '0',
         isEmpty: true,
       });
@@ -128,13 +162,17 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       if (ability) {
         setSlotEmptyState(slotRef, false);
         slotRef.lastAbilityId = ability.id ?? null;
+        setSlotIcon(slotRef, getAbilityIconFile(ability, weaponDef), ability.name);
         setSlotText(slotRef, 'lastNameText', slotRef.nameEl, ability.name);
+        setSlotText(slotRef, 'lastTooltipTitleText', slotRef.tooltipTitleEl, ability.name);
       } else {
         slotRef.lastAbilityId = null;
         setSlotEmptyState(slotRef, true);
+        setSlotIcon(slotRef, null, '');
         setSlotText(slotRef, 'lastNameText', slotRef.nameEl, '');
         setSlotCooldownFraction(slotRef, '0');
-        setSlotText(slotRef, 'lastTooltipText', slotRef.tooltipEl, '');
+        setSlotText(slotRef, 'lastTooltipTitleText', slotRef.tooltipTitleEl, '');
+        setSlotText(slotRef, 'lastTooltipText', slotRef.tooltipMetaEl, '');
         setSlotText(slotRef, 'lastCooldownText', slotRef.cooldownNumEl, '');
         continue;
       }
@@ -156,7 +194,7 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
         ? Math.min(1, remaining / durationMs)
         : 0;
       setSlotCooldownFraction(slotRef, fraction.toFixed(3));
-      setSlotText(slotRef, 'lastTooltipText', slotRef.tooltipEl, buildAbilityTooltip(ability));
+      setSlotText(slotRef, 'lastTooltipText', slotRef.tooltipMetaEl, buildAbilityTooltip(ability));
       setSlotText(
         slotRef,
         'lastCooldownText',

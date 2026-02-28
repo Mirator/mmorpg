@@ -1,4 +1,7 @@
 // @ts-check
+import { getItemIconFile } from './gameIcons.js';
+import { createGlyphElement, createVisuallyHiddenText } from './uiGlyphs.js';
+
 const DEFAULT_COLS = 5;
 
 function cloneSlots(/** @type {any} */ slots, /** @type {any} */ count) {
@@ -15,6 +18,22 @@ function cloneSlots(/** @type {any} */ slots, /** @type {any} */ count) {
 function makeItemLabel(/** @type {any} */ item) {
   const name = item?.name || item?.kind || 'Item';
   return name.slice(0, 1).toUpperCase();
+}
+
+function populateItemVisual(/** @type {HTMLElement} */ container, /** @type {any} */ item) {
+  const iconFile = getItemIconFile(item?.kind);
+  const label = item?.name || item?.kind || 'Item';
+  if (!iconFile) {
+    container.textContent = makeItemLabel(item);
+    return;
+  }
+  container.appendChild(
+    createGlyphElement(iconFile, {
+      className: 'ui-glyph ui-glyph-lg inventory-item-glyph',
+      label,
+    })
+  );
+  container.appendChild(createVisuallyHiddenText(label));
 }
 
 export function createInventoryUI(/** @type {any} */ { panel, grid, cols = DEFAULT_COLS, onSwap, onDropExternal }) {
@@ -88,7 +107,7 @@ export function createInventoryUI(/** @type {any} */ { panel, grid, cols = DEFAU
 
       const icon = document.createElement('div');
       icon.className = 'inventory-item';
-      icon.textContent = makeItemLabel(item);
+      populateItemVisual(icon, item);
       slotEl.appendChild(icon);
 
       const count = document.createElement('div');
@@ -109,7 +128,7 @@ export function createInventoryUI(/** @type {any} */ { panel, grid, cols = DEFAU
     el.className = 'inventory-drag';
     const icon = document.createElement('div');
     icon.className = 'inventory-item';
-    icon.textContent = makeItemLabel(item);
+    populateItemVisual(icon, item);
     el.appendChild(icon);
     const count = document.createElement('div');
     count.className = 'inventory-count';

@@ -34,6 +34,8 @@ import { createAbilityBar } from './ui-state/abilityBar.js';
 import { createSkillsPanelUpdater } from './ui-state/skillsPanel.js';
 import { createCharacterPreview } from './character-preview.js';
 import { createWindowDragController } from './window-drag.js';
+import { getItemIconFile } from './gameIcons.js';
+import { createGlyphElement } from './uiGlyphs.js';
 
 function formatItemName(/** @type {any} */ kind) {
   if (!kind) return 'Item';
@@ -41,6 +43,28 @@ function formatItemName(/** @type {any} */ kind) {
     .split('_')
     .map((/** @type {any} */ part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function createItemLabelNode(
+  /** @type {any} */ kind,
+  /** @type {any} */ text,
+  /** @type {string} */ className
+) {
+  const label = document.createElement('div');
+  label.className = className;
+  const iconFile = getItemIconFile(kind);
+  if (iconFile) {
+    label.appendChild(
+      createGlyphElement(iconFile, {
+        className: 'ui-glyph ui-glyph-sm vendor-item-glyph',
+        label: text,
+      })
+    );
+  }
+  const span = document.createElement('span');
+  span.textContent = String(text ?? '');
+  label.appendChild(span);
+  return label;
 }
 
 export function createUiState(/** @type {any} */ {
@@ -322,9 +346,7 @@ export function createUiState(/** @type {any} */ {
     for (const [kind, price] of entries) {
       const row = document.createElement('div');
       row.className = 'vendor-price-row';
-      const name = document.createElement('div');
-      name.className = 'vendor-price-name';
-      name.textContent = formatItemName(kind);
+      const name = createItemLabelNode(kind, formatItemName(kind), 'vendor-price-name');
       const value = document.createElement('div');
       value.className = 'vendor-price-value';
       value.textContent = formatCurrency(price);
@@ -348,9 +370,7 @@ export function createUiState(/** @type {any} */ {
       row.className = 'vendor-buy-row';
       const left = document.createElement('div');
       left.className = 'vendor-buy-info';
-      const name = document.createElement('div');
-      name.className = 'vendor-buy-name';
-      name.textContent = entry.name;
+      const name = createItemLabelNode(entry.kind, entry.name, 'vendor-buy-name');
       const price = document.createElement('div');
       price.className = 'vendor-buy-price';
       price.textContent = formatCurrency(entry.priceCopper);
