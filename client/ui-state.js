@@ -128,6 +128,7 @@ export function createUiState(/** @type {any} */ {
   let /** @type {any} */ windowDragController = null;
 
   let inventoryOpen = false;
+  let inventoryOpenBeforeVendorTrade = false;
   let inventoryTab = 'inventory';
   let characterOpen = false;
   let characterTab = 'character';
@@ -166,6 +167,23 @@ export function createUiState(/** @type {any} */ {
       clearPrompt();
       onUiOpen?.();
     }
+  }
+
+  function setVendorLayoutOpen(/** @type {any} */ next) {
+    document.body.classList.toggle('vendor-layout-open', !!next);
+  }
+
+  function openVendorTradeLayout() {
+    inventoryOpenBeforeVendorTrade = inventoryOpen;
+    setVendorLayoutOpen(true);
+    setInventoryOpen(true);
+  }
+
+  function closeVendorTradeLayout() {
+    setVendorLayoutOpen(false);
+    setInventoryOpen(inventoryOpenBeforeVendorTrade);
+    inventoryOpenBeforeVendorTrade = false;
+    setCharacterOpen(false);
   }
 
   function setCharacterOpen(/** @type {any} */ next) {
@@ -272,6 +290,7 @@ export function createUiState(/** @type {any} */ {
     menuOpen = !!open;
     document.body.classList.toggle('menu-open', menuOpen);
     if (menuOpen) {
+      setVendorLayoutOpen(false);
       setInventoryOpen(false);
       setCharacterOpen(false);
       clearPrompt();
@@ -511,17 +530,14 @@ export function createUiState(/** @type {any} */ {
       tradeButton: vendorTradeBtn,
       closeButton: vendorCloseBtn,
       panelCloseButton: vendorPanelCloseBtn,
-      onTradeOpen: () => renderVendorBuyItems(),
+      onTradeOpen: () => {
+        renderVendorBuyItems();
+        openVendorTradeLayout();
+      },
+      onTradeClose: () => {
+        closeVendorTradeLayout();
+      },
     });
-    vendorTradeBtn?.addEventListener('click', () => {
-      setInventoryOpen(true);
-    });
-    const closeTrade = () => {
-      setInventoryOpen(false);
-      setCharacterOpen(false);
-    };
-    vendorCloseBtn?.addEventListener('click', closeTrade);
-    vendorPanelCloseBtn?.addEventListener('click', closeTrade);
   }
 
   function isInventoryOpen() {

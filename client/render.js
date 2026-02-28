@@ -429,6 +429,29 @@ export function createRenderSystem(/** @type {any} */ { app }) {
   }
 
   const visibilityCheckPos = new THREE.Vector3();
+  const labelProjectionPos = new THREE.Vector3();
+
+  function syncVendorLabelVisibility(/** @type {any} */ vendorMesh) {
+    const label = vendorMesh?.userData?.nameSprite;
+    if (!label) return;
+    label.visible = !!vendorMesh.visible;
+    if (!label.visible) return;
+
+    const overlay = document.getElementById('overlay');
+    if (!(overlay instanceof HTMLElement)) return;
+    const overlayRect = overlay.getBoundingClientRect();
+    if (!overlayRect.width || !overlayRect.height) return;
+
+    label.getWorldPosition(labelProjectionPos);
+    const screenPos = projectToScreen(labelProjectionPos);
+    const padding = 18;
+    const insideOverlaySafeZone =
+      screenPos.x >= overlayRect.left - padding &&
+      screenPos.x <= overlayRect.right + padding &&
+      screenPos.y >= overlayRect.top - padding &&
+      screenPos.y <= overlayRect.bottom + padding;
+    label.visible = !insideOverlaySafeZone;
+  }
 
   function updateVisibility(/** @type {any} */ cameraTargetVec) {
     if (!cameraTargetVec || !worldState) return;
@@ -457,6 +480,7 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     }
     for (const mesh of worldState.vendorMeshes.values()) {
       setVisibleByDistance(mesh);
+      syncVendorLabelVisibility(mesh);
     }
     for (const [id, mesh] of playerMeshes) {
       if (id === myId) {

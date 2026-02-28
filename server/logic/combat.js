@@ -8,17 +8,41 @@ import {
 import { getPartyForPlayer } from './party.js';
 import {
   getClassById,
-  getAbilitiesForClass,
   getResourceForClass,
 } from '../../shared/classes.js';
 import { COMBAT_CONFIG } from '../../shared/config.js';
 import { getEquippedWeapon } from '../../shared/equipment.js';
-import { computeDerivedStats, computeHitChance } from '../../shared/attributes.js';
+import { computeDerivedStats } from '../../shared/attributes.js';
 import { getMobMaxHp } from './mobs.js';
 import { getMobDisplayName as resolveMobDisplayName, getMobStats } from '../../shared/entityTypes.js';
 import { applyCollisions } from './collision.js';
 import { isPvPAllowed } from './pvp.js';
 import { createAbilityHandlers } from './combat/abilityHandlers.js';
+import {
+  applyPvpCCDurationMultiplier,
+  applyPvpDamageMultiplier,
+  applyPvpHealMultiplier,
+  clamp,
+  clampResource,
+  computeAbilityDamage,
+  computeOutgoingDamage,
+  getAbilityById,
+  getAbilityCooldownUntil,
+  getAbilityForSlot,
+  getRelevantPower,
+  rollCrit,
+  rollHit,
+  setAbilityCooldown,
+} from './combat/calculations.js';
+import {
+  applyFacingDirection,
+  distance2,
+  getDirectionBetweenPoints,
+  makeDamageImpactForTarget,
+  makeHealImpactForTarget,
+  normalizeImpacts,
+  resolveCastFacingDirection,
+} from './combat/primitives.js';
 import { rollAndGrantLoot } from './loot.js';
 
 // Ownership boundary: this module is the server-authoritative combat rules engine.
@@ -39,212 +63,15 @@ export function getBasicAttackConfig(/** @type {any} */ player) {
   };
 }
 
-function getRelevantPower(/** @type {any} */ derived, /** @type {any} */ attackType) {
-  if (attackType === 'melee') return derived.physicalPower;
-  if (attackType === 'ranged') return derived.rangedPower;
-  return derived.magicPower;
-}
-
-function getRelevantPowerForAbility(/** @type {any} */ derived, /** @type {any} */ ability, /** @type {any} */ classId) {
-  const /** @type {any} */ magicClasses = ['mage', 'priest'];
-  const /** @type {any} */ magicAbilities = ['firebolt', 'frost_nova', 'smite'];
-  if (magicAbilities.includes(ability?.id) || (magicClasses.includes(classId) && ability?.id !== 'basic_attack')) {
-    return derived.magicPower;
-  }
-  const attackType = ability?.attackType;
-  if (attackType === 'melee') return derived.physicalPower;
-  if (attackType === 'ranged') return derived.rangedPower;
-  return derived.magicPower;
-}
-
-function applyPvpDamageMultiplier(/** @type {any} */ damage, /** @type {any} */ ability, /** @type {any} */ isPvP) {
-  if (!isPvP) return damage;
-  const mult = ability?.pvpDamageMultiplier ?? 1.0;
-  return Math.max(0, Math.floor(damage * mult));
-}
-
-function applyPvpHealMultiplier(/** @type {any} */ heal, /** @type {any} */ ability, /** @type {any} */ isPvP) {
-  if (!isPvP) return heal;
-  const mult = ability?.pvpHealMultiplier ?? 1.0;
-  return Math.max(0, Math.floor(heal * mult));
-}
-
-function applyPvpCCDurationMultiplier(/** @type {any} */ durationMs, /** @type {any} */ ability, /** @type {any} */ isPvP) {
-  if (!isPvP) return durationMs;
-  const mult = ability?.pvpCCDurationMultiplier ?? 1.0;
-  return Math.max(0, Math.floor(durationMs * mult));
-}
-
-/**
- * Damage = baseValue + (Relevant Power × coefficient)
- * @param {any} player
- * @param {any} ability
- * @param {number} [now]
- * @param {boolean} [isPvP] - When true, use PvP variants of self-buffs (Berserk, Avatar, Eagle Eye)
- */
-function computeAbilityDamage(player, ability, now = 0, isPvP = false) {
-  const baseValue = ability.baseValue ?? 0;
-  const coefficient = ability.coefficient ?? 0;
-  const derived = computeDerivedStats(player);
-  let relevantPower = getRelevantPowerForAbility(derived, ability, player.classId);
-  if ((player.avatarOfWarUntil ?? 0) > now && ability?.attackType === 'melee') {
-    const powMult = isPvP ? (player.pvpPhysicalPowerMultiplier ?? 1.2) : (player.physicalPowerMultiplier ?? 1.3);
-    relevantPower = Math.floor(relevantPower * powMult);
-  }
-  let damage = Math.max(0, Math.floor(baseValue + relevantPower * coefficient));
-  let critChance = derived.critChance ?? 0;
-  if ((player.eagleEyeUntil ?? 0) > now) {
-    const critBonus = isPvP ? (player.pvpCritChanceBonusPct ?? 10) : (player.critChanceBonusPct ?? 20);
-    critChance = Math.min(0.4, critChance + critBonus / 100);
-  }
-  const isCrit = rollCrit(critChance);
-  if (isCrit) {
-    damage = Math.floor(damage * 2);
-  }
-  if ((player.berserkUntil ?? 0) > now) {
-    const dmgMult = isPvP ? (player.pvpDamageDealtMultiplier ?? 1.15) : (player.damageDealtMultiplier ?? 1.25);
-    damage = Math.floor(damage * dmgMult);
-  }
-  if ((player.bloodRageUntil ?? 0) > now) {
-    damage = Math.floor(damage * (player.bloodRageDamageMultiplier ?? 1));
-  }
-  return { damage, derived, isCrit };
-}
-
-/**
- * Damage = baseValue + (Relevant Power × coefficient)
- */
-function computeOutgoingDamage(/** @type {any} */ baseValue, /** @type {any} */ coefficient, /** @type {any} */ relevantPower) {
-  return Math.max(0, Math.floor(baseValue + relevantPower * coefficient));
-}
-
-function rollHit(/** @type {any} */ attackerAccuracy, /** @type {any} */ targetEvasion) {
-  const hitChance = computeHitChance(attackerAccuracy, targetEvasion);
-  return Math.random() < hitChance;
-}
-
-function rollCrit(/** @type {any} */ critChance) {
-  return Math.random() < critChance;
-}
-
-function distance2(/** @type {any} */ a, /** @type {any} */ b) {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return dx * dx + dz * dz;
-}
-
-function toCombatPoint(/** @type {any} */ pos) {
-  if (!pos) return null;
-  const x = Number(pos.x);
-  const z = Number(pos.z);
-  if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
-  const y = Number(pos.y);
-  return Number.isFinite(y) ? { x, y, z } : { x, z };
-}
-
-function buildImpact(/** @type {any} */ { kind, amount, isCrit, targetId, targetKind, pos }) {
-  if ((kind !== 'damage' && kind !== 'heal') || !Number.isFinite(amount) || amount <= 0) {
-    return null;
-  }
-  const point = toCombatPoint(pos);
-  if (!point) return null;
-  return {
-    kind,
-    amount: Math.max(0, Math.floor(amount)),
-    ...(kind === 'damage' && isCrit ? { isCrit: true } : {}),
-    ...(targetId ? { targetId: String(targetId) } : {}),
-    ...(targetKind === 'mob' || targetKind === 'player' ? { targetKind } : {}),
-    ...point,
-  };
-}
-
-function normalizeImpacts(/** @type {any} */ impacts) {
-  if (!Array.isArray(impacts)) return [];
-  const /** @type {any} */ normalized = [];
-  for (const impact of impacts) {
-    const safe = buildImpact({
-      kind: impact?.kind,
-      amount: impact?.amount,
-      isCrit: impact?.isCrit,
-      targetId: impact?.targetId,
-      targetKind: impact?.targetKind,
-      pos: impact,
-    });
-    if (safe) normalized.push(safe);
-  }
-  return normalized;
-}
-
-function makeDamageImpactForTarget(/** @type {any} */ target, /** @type {any} */ amount, /** @type {any} */ isCrit, /** @type {any} */ targetId, /** @type {any} */ targetKind) {
-  return buildImpact({
-    kind: 'damage',
-    amount,
-    isCrit,
-    targetId,
-    targetKind,
-    pos: target?.pos ?? target,
-  });
-}
-
-function makeHealImpactForTarget(/** @type {any} */ target, /** @type {any} */ amount, /** @type {any} */ targetId, /** @type {any} */ targetKind) {
-  return buildImpact({
-    kind: 'heal',
-    amount,
-    targetId,
-    targetKind,
-    pos: target?.pos ?? target,
-  });
-}
-
 const COMBAT_TAG_MS = 5000;
 
 function getMobDisplayName(/** @type {any} */ mob) {
   return resolveMobDisplayName(mob?.mobType);
 }
 
-function clamp(/** @type {any} */ value, /** @type {any} */ min, /** @type {any} */ max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function clampResource(/** @type {any} */ player, /** @type {any} */ value) {
-  let max = Number.isFinite(player?.resourceMax) ? player.resourceMax : 0;
-  if (max <= 0) {
-    const resourceDef = getResourceForClass(player?.classId);
-    max = resourceDef?.max ?? 0;
-  }
-  return clamp(value ?? 0, 0, max);
-}
-
 function tagCombat(/** @type {any} */ player, /** @type {any} */ now) {
   if (!player) return;
   player.combatTagUntil = now + COMBAT_TAG_MS;
-}
-
-function getAbilityForSlot(/** @type {any} */ player, /** @type {any} */ slot) {
-  if (!player) return null;
-  const weaponDef = getEquippedWeapon(player?.equipment, player?.classId);
-  const abilities = getAbilitiesForClass(player?.classId, player?.level ?? 1, weaponDef);
-  return abilities.find((/** @type {any} */ ability) => ability.slot === slot) ?? null;
-}
-
-function getAbilityById(/** @type {any} */ player, /** @type {any} */ abilityId) {
-  if (!player) return null;
-  const weaponDef = getEquippedWeapon(player?.equipment, player?.classId);
-  const abilities = getAbilitiesForClass(player?.classId, player?.level ?? 1, weaponDef);
-  return abilities.find((/** @type {any} */ ability) => ability.id === abilityId) ?? null;
-}
-
-function getAbilityCooldownUntil(/** @type {any} */ player, /** @type {any} */ abilityId) {
-  if (!player || !abilityId) return 0;
-  return Number(player?.abilityCooldowns?.[abilityId]) || 0;
-}
-
-function setAbilityCooldown(/** @type {any} */ player, /** @type {any} */ abilityId, /** @type {any} */ until) {
-  if (!player || !abilityId) return;
-  if (!player.abilityCooldowns || typeof player.abilityCooldowns !== 'object') {
-    player.abilityCooldowns = {};
-  }
-  player.abilityCooldowns[abilityId] = until;
 }
 
 function getDirectionFromTarget(/** @type {any} */ player, /** @type {any} */ mobs) {
@@ -268,38 +95,6 @@ function getAbilityDirection(/** @type {any} */ player, /** @type {any} */ mobs)
     if (dist > 0.0001) return { x: x / dist, z: z / dist };
   }
   return null;
-}
-
-function normalizeDirection(/** @type {any} */ dir) {
-  if (!dir) return null;
-  const x = Number(dir.x);
-  const z = Number(dir.z);
-  if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
-  const dist = Math.hypot(x, z);
-  if (dist <= 0.0001) return null;
-  return { x: x / dist, z: z / dist };
-}
-
-function getDirectionBetweenPoints(/** @type {any} */ from, /** @type {any} */ to) {
-  if (!from || !to) return null;
-  const dx = (to.x ?? 0) - (from.x ?? 0);
-  const dz = (to.z ?? 0) - (from.z ?? 0);
-  return normalizeDirection({ x: dx, z: dz });
-}
-
-function resolveCastFacingDirection(/** @type {any} */ { player, abilityDir, targetMob, targetPlayer, placementCenter }) {
-  return (
-    normalizeDirection(abilityDir) ??
-    getDirectionBetweenPoints(player?.pos, targetMob?.pos) ??
-    getDirectionBetweenPoints(player?.pos, targetPlayer?.pos) ??
-    getDirectionBetweenPoints(player?.pos, placementCenter)
-  );
-}
-
-function applyFacingDirection(/** @type {any} */ player, /** @type {any} */ direction) {
-  const dir = normalizeDirection(direction);
-  if (!player || !dir) return;
-  player.lastMoveDir = dir;
 }
 
 const XP_RANGE_METERS = 35;
@@ -1153,68 +948,7 @@ const ABILITY_HANDLERS = createAbilityHandlers({
   DOT_TICK_MS,
 });
 
-export function stepPlayerResources(/** @type {any} */ player, /** @type {any} */ now, /** @type {any} */ dt) {
-  if (!player) return;
-  const resourceDef = getResourceForClass(player.classId);
-  if (!resourceDef) return;
-  if (!Number.isFinite(player.resourceMax)) {
-    const derived = computeDerivedStats(player);
-    player.resourceMax = resourceDef.type === 'mana' ? derived.maxMana : (resourceDef.max ?? 0);
-  }
-  if (!player.resourceType) {
-    player.resourceType = resourceDef.type ?? null;
-  }
-
-  let resource = player.resource ?? 0;
-  const inCombat = (player.combatTagUntil ?? 0) > now;
-
-  if (resourceDef.type === 'stamina') {
-    const regen = inCombat
-      ? resourceDef.regenInCombat ?? 0
-      : resourceDef.regenOutOfCombat ?? 0;
-    resource += regen * dt;
-  } else if (resourceDef.type === 'rage') {
-    if (!inCombat && Number.isFinite(resourceDef.decayOutOfCombat)) {
-      resource -= resourceDef.decayOutOfCombat * dt;
-    }
-  } else if (resourceDef.type === 'focus') {
-    const moving = !!player.movedThisTick;
-    const regen = moving ? resourceDef.regenMoving ?? 0 : resourceDef.regenStanding ?? 0;
-    resource += regen * dt;
-  } else if (resourceDef.type === 'mana') {
-    const derived = computeDerivedStats(player);
-    resource += derived.manaRegen * dt;
-  }
-
-  const maxResource = player.resourceMax ?? (resourceDef.type === 'mana' ? computeDerivedStats(player).maxMana : resourceDef.max ?? 0);
-  resource = clamp(resource, 0, maxResource);
-  player.resource = resource;
-
-  const stanceActive = player.defensiveStanceUntil && player.defensiveStanceUntil > now;
-  if (stanceActive && resource <= 0) {
-    player.defensiveStanceUntil = 0;
-    player.moveSpeedMultiplier = 1;
-    player.damageTakenMultiplier = 1;
-  } else if (stanceActive) {
-    player.moveSpeedMultiplier = 0.8;
-    player.damageTakenMultiplier = 0.7;
-  } else {
-    player.moveSpeedMultiplier = 1;
-    player.damageTakenMultiplier = 1;
-  }
-
-  const shieldWallActive = (player.shieldWallUntil ?? 0) > now;
-  if (shieldWallActive) {
-    player.damageTakenMultiplier = player.shieldWallDamageTakenMultiplier ?? 0.5;
-  }
-
-  if ((player.fortifyUntil ?? 0) <= now && (player.fortifyBaseMaxHp ?? 0) > 0) {
-    const base = player.fortifyBaseMaxHp;
-    player.maxHp = base;
-    player.fortifyBaseMaxHp = 0;
-    if ((player.hp ?? 0) > base) player.hp = base;
-  }
-}
+export { stepPlayerResources } from './combat/calculations.js';
 
 function fireChannelTick(/** @type {any} */ player, /** @type {any} */ ability, /** @type {any} */ target, /** @type {any} */ mobs, /** @type {any} */ now, /** @type {any} */ respawnMs, /** @type {any} */ players) {
   if (!target || target.dead || target.hp <= 0) return { xpGain: 0, leveledUp: false, combatLog: null, impacts: [] };

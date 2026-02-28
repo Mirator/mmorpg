@@ -580,6 +580,7 @@ function buildVendorMesh(/** @type {any} */ vendor, /** @type {any} */ worldStat
 
   const name = makeNameSprite(vendor?.name ?? 'Vendor');
   group.add(name);
+  group.userData.nameSprite = name;
 
   group.position.set(vendor.x, vendor.y ?? 0, vendor.z);
   group.userData.vendorId = vendor.id;

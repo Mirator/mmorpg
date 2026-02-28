@@ -31,15 +31,34 @@ const targetHpValueEl = document.getElementById('target-hp-value');
 const entryBannerEl = document.getElementById('entry-banner');
 const entryBannerTitleEl = document.getElementById('entry-banner-title');
 const entryBannerSubtitleEl = document.getElementById('entry-banner-subtitle');
+const controlsCardEl = document.getElementById('controls-card');
+const controlsCardCloseEl = document.getElementById('controls-card-close');
 
 let /** @type {any} */ eventTimeout = null;
 let /** @type {any} */ entryBannerTimeout = null;
+const CONTROLS_CARD_SEEN_KEY = 'rising-ages-controls-card-seen';
 const toastContainer = document.createElement('div');
 toastContainer.id = 'toast-container';
 toastContainer.className = 'toast-container';
 document.body.appendChild(toastContainer);
 
 const TOAST_DURATION_MS = 2500;
+
+function readControlsCardSeen() {
+  try {
+    return window.sessionStorage?.getItem(CONTROLS_CARD_SEEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeControlsCardSeen() {
+  try {
+    window.sessionStorage?.setItem(CONTROLS_CARD_SEEN_KEY, '1');
+  } catch {
+    /* ignore storage access failures */
+  }
+}
 
 export function showToast(/** @type {any} */ message) {
   if (!message || !toastContainer) return;
@@ -251,3 +270,20 @@ export function hideEntryBanner() {
   if (!entryBannerEl) return;
   entryBannerEl.classList.remove('visible');
 }
+
+export function showControlsCard() {
+  if (!controlsCardEl || readControlsCardSeen()) return;
+  controlsCardEl.classList.add('visible');
+}
+
+export function hideControlsCard({ remember = true } = {}) {
+  if (!controlsCardEl) return;
+  controlsCardEl.classList.remove('visible');
+  if (remember) {
+    writeControlsCardSeen();
+  }
+}
+
+controlsCardCloseEl?.addEventListener('click', () => {
+  hideControlsCard();
+});

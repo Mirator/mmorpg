@@ -1,5 +1,15 @@
 // @ts-check
-export function createVendorUI(/** @type {any} */ { dialog, panel, dialogName, panelName, tradeButton, closeButton, panelCloseButton, onTradeOpen }) {
+export function createVendorUI(/** @type {any} */ {
+  dialog,
+  panel,
+  dialogName,
+  panelName,
+  tradeButton,
+  closeButton,
+  panelCloseButton,
+  onTradeOpen,
+  onTradeClose,
+}) {
   let dialogOpen = false;
   let tradeOpen = false;
   let activeTab = 'buy';
@@ -52,13 +62,17 @@ export function createVendorUI(/** @type {any} */ { dialog, panel, dialogName, p
     setTab('buy');
     setDialogOpen(false);
     setTradeOpen(true);
-    onTradeOpen?.();
+    onTradeOpen?.(currentVendor);
   }
 
   function closeAll() {
+    const wasTradeOpen = tradeOpen;
     setDialogOpen(false);
     setTradeOpen(false);
     currentVendor = null;
+    if (wasTradeOpen) {
+      onTradeClose?.();
+    }
   }
 
   function isDialogOpen() {

@@ -34,6 +34,22 @@
   pointer-events: auto;
 }
 
+body.vendor-layout-open {
+  --trade-gap: 24px;
+  --trade-side-width: min(340px, 32vw);
+}
+
+body.vendor-layout-open #inventory-panel {
+  left: auto !important;
+  right: var(--trade-gap) !important;
+  top: auto !important;
+  bottom: 126px !important;
+  width: var(--trade-side-width) !important;
+  max-height: min(54vh, 430px);
+  transform: none !important;
+  z-index: 74;
+}
+
 #inventory-panel.window-dragged {
   --inventory-offset-x: 0px;
   --inventory-offset-y: 0px;
@@ -46,6 +62,18 @@
 
   #inventory-grid {
     gap: 8px;
+  }
+
+  body.vendor-layout-open {
+    --trade-gap: 12px;
+  }
+
+  body.vendor-layout-open #inventory-panel {
+    left: var(--trade-gap) !important;
+    right: var(--trade-gap) !important;
+    bottom: 12px !important;
+    width: auto !important;
+    max-height: min(24vh, 220px);
   }
 }
 

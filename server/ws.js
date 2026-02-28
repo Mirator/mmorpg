@@ -1,17 +1,11 @@
 // @ts-check
-import crypto from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import { parseClientMessage } from '../shared/protocol.js';
 import {
   DEFAULT_CLASS_ID,
-  getResourceForClass,
 } from '../shared/classes.js';
-import { computeDerivedStats } from '../shared/attributes.js';
 import {
   serializePlayerPrivate,
-  serializeResources,
-  serializeMobs,
-  serializeCorpses,
 } from './admin.js';
 import { worldSnapshot } from './logic/world.js';
 import { countInventory } from './logic/inventory.js';
@@ -21,12 +15,23 @@ import { createBasePlayerState } from './logic/players.js';
 import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
 import { sendCombatLog } from './logic/combatLog.js';
-import { leaveParty, getPartyForPlayer } from './logic/party.js';
+import { leaveParty } from './logic/party.js';
 import { endDuel } from './logic/duel.js';
 import { endTradeSession, getTradePartner } from './logic/trade.js';
 import { validateAndConsumeTicket } from './wsTicket.js';
 import { createMessageHandlers } from './ws/handlers/index.js';
 import { getCookieValue, normalizeId } from './authParsing.js';
+import { createPublicStateBuilder } from './ws/stateView.js';
+import {
+  createMessageLimiter,
+  createRuntimePlayer,
+  generatePlayerId,
+  getRemoteAddress,
+  initCombatState,
+  parseConnectionParams,
+  safeSend,
+  safeSendRaw,
+} from './ws/runtime.js';
 
 // Ownership boundary: this module owns WS connection lifecycle, auth gating, and AOI broadcasts.
 // Gameplay message behavior should stay in server/ws/handlers/* to keep this file transport-focused.
@@ -55,176 +60,6 @@ import { getCookieValue, normalizeId } from './authParsing.js';
 /** @typedef {{ id: string, ws: WsClient, state: RuntimePlayerState, accountId?: string | null, name?: string | null, nameLower?: string | null }} RuntimePlayerParams */
 /** @typedef {{ characterId: string | null, guest: boolean, ticket: string | null }} ConnectionParams */
 /** @typedef {{ server: import('http').Server, config: WsServerConfig, world: unknown, resources: ResourceNode[], mobs: MobEntity[], corpses: Corpse[], players: PlayerMap, spawner: SpawnerLike, persistence: WsPersistenceLike, nextItemIdRef?: { current: number } }} CreateWebSocketServerArgs */
-
-/**
- * @param {SocketLike | null | undefined} ws
- * @param {unknown} msg
- */
-function safeSend(ws, msg) {
-  if (!ws) return;
-  const open = typeof ws.OPEN === 'number' ? ws.OPEN : 1;
-  if (ws.readyState !== open) return;
-  try {
-    ws.send(JSON.stringify(msg));
-  } catch {
-    // Ignore send errors for closing sockets.
-  }
-}
-
-/**
- * @param {SocketLike | null | undefined} ws
- * @param {string} data
- */
-function safeSendRaw(ws, data) {
-  if (!ws) return;
-  const open = typeof ws.OPEN === 'number' ? ws.OPEN : 1;
-  if (ws.readyState !== open) return;
-  try {
-    ws.send(data);
-  } catch {
-    // Ignore send errors for closing sockets.
-  }
-}
-
-/**
- * @param {string | null | undefined} ip
- * @returns {string}
- */
-function normalizeIp(ip) {
-  if (!ip) return 'unknown';
-  return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-}
-
-/**
- * @param {WsUpgradeRequest} req
- * @param {boolean} trustProxy
- * @returns {string}
- */
-function getRemoteAddress(req, trustProxy) {
-  if (trustProxy) {
-    const xf = req.headers['x-forwarded-for'];
-    if (typeof xf === 'string' && xf.length > 0) {
-      return normalizeIp(xf.split(',')[0]?.trim());
-    }
-    if (Array.isArray(xf) && xf[0]) {
-      return normalizeIp(xf[0].split(',')[0]?.trim());
-    }
-  }
-  return normalizeIp(req.socket.remoteAddress ?? 'unknown');
-}
-
-/**
- * @param {number} max
- * @param {number} intervalMs
- * @returns {() => boolean}
- */
-function createMessageLimiter(max, intervalMs) {
-  let windowStart = Date.now();
-  let count = 0;
-  return () => {
-    const now = Date.now();
-    if (now - windowStart >= intervalMs) {
-      windowStart = now;
-      count = 0;
-    }
-    count += 1;
-    return count <= max;
-  };
-}
-
-function generatePlayerId() {
-  if (typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return `p-${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
-}
-
-/**
- * @param {ServerPlayer | null | undefined} player
- */
-function initCombatState(player) {
-  if (!player) return;
-  const resourceDef = getResourceForClass(player.classId);
-  const resourceType = resourceDef?.type ?? null;
-  const isManaClass = resourceType === 'mana';
-  const resourceMax = isManaClass
-    ? computeDerivedStats(player).maxMana
-    : (resourceDef?.max ?? 0);
-  player.resourceType = resourceType;
-  player.resourceMax = resourceMax;
-  player.resource = resourceType === 'rage' ? 0 : resourceMax;
-  player.abilityCooldowns = {};
-  player.globalCooldownUntil = 0;
-  player.combatTagUntil = 0;
-  player.lastMoveDir = null;
-  player.movedThisTick = false;
-  player.cast = null;
-  player.harvest = null;
-  player.moveSpeedMultiplier = 1;
-  player.damageTakenMultiplier = 1;
-  player.slowImmuneUntil = 0;
-  player.defensiveStanceUntil = 0;
-  player.targetKind = null;
-}
-
-/**
- * @param {RuntimePlayerParams} params
- * @returns {ServerPlayer}
- */
-function createRuntimePlayer({
-  id,
-  ws,
-  state,
-  accountId,
-  name,
-  nameLower,
-}) {
-  return {
-    id,
-    ws,
-    pos: state.pos,
-    target: null,
-    keys: { w: false, a: false, s: false, d: false },
-    lastInputSeq: 0,
-    hp: state.hp,
-    maxHp: state.maxHp,
-    inv: state.inv,
-    invCap: state.invCap,
-    invSlots: state.invSlots,
-    invStackMax: state.invStackMax,
-    inventory: state.inventory,
-    currencyCopper: state.currencyCopper,
-    equipment: state.equipment,
-    dead: false,
-    respawnAt: 0,
-    targetId: null,
-    classId: state.classId,
-    level: state.level,
-    xp: state.xp,
-    attackCooldownUntil: 0,
-    harvest: null,
-    accountId: accountId ?? null,
-    name: name ?? null,
-    nameLower: nameLower ?? null,
-    partyId: null,
-  };
-}
-
-/**
- * @param {WsUpgradeRequest} req
- * @returns {ConnectionParams}
- */
-function parseConnectionParams(req) {
-  try {
-    const url = new URL(req.url ?? '/', 'http://localhost');
-    const characterId = normalizeId(url.searchParams.get('characterId'));
-    const guest = url.searchParams.get('guest') === '1';
-    const ticket = url.searchParams.get('ticket')?.trim() || null;
-    return { characterId, guest, ticket };
-  } catch {
-    return { characterId: null, guest: false, ticket: null };
-  }
-}
 
 /**
  * @param {CreateWebSocketServerArgs} deps
@@ -290,148 +125,13 @@ export function createWebSocketServer({
   }
 
   const aoiRadius = config.aoiRadius ?? 80;
-  const aoiRadius2 = aoiRadius * aoiRadius;
-
-  /**
-   * @param {Position3D | null | undefined} pos
-   * @param {Position3D | null | undefined} centerPos
-   * @param {number} [radius2]
-   * @returns {boolean}
-   */
-  function isInAOI(pos, centerPos, radius2 = aoiRadius2) {
-    if (!pos || !centerPos) return false;
-    const dx = (pos.x ?? 0) - (centerPos.x ?? 0);
-    const dz = (pos.z ?? 0) - (centerPos.z ?? 0);
-    return dx * dx + dz * dz <= radius2;
-  }
-
-  /**
-   * @param {unknown} dir
-   * @returns {{ x: number, z: number } | null}
-   */
-  function normalizeFacingDir(dir) {
-    if (!dir || typeof dir !== 'object') return null;
-    const x = Number(/** @type {any} */ (dir).x);
-    const z = Number(/** @type {any} */ (dir).z);
-    if (!Number.isFinite(x) || !Number.isFinite(z)) return null;
-    const dist = Math.hypot(x, z);
-    if (dist <= 0.0001) return null;
-    return { x: x / dist, z: z / dist };
-  }
-
-  /**
-   * @param {string | null | undefined} playerId
-   * @returns {string[]}
-   */
-  function getPartyMemberIds(playerId) {
-    if (!playerId) return [];
-    const party = getPartyForPlayer(playerId, players);
-    return party ? party.memberIds : [];
-  }
-
-  /**
-   * @param {PlayerMap} playersMap
-   * @param {Position3D} centerPos
-   * @param {string[]} [includeIds]
-   * @returns {PublicPlayersById}
-   */
-  function filterPlayersByAOI(playersMap, centerPos, includeIds = [], now = Date.now()) {
-    /** @type {PublicPlayersById} */
-    const out = {};
-    const includeSet = new Set(includeIds ?? []);
-    for (const [id, p] of playersMap.entries()) {
-      if (!p?.pos) continue;
-      if (includeSet.has(id) || isInAOI(p.pos, centerPos)) {
-        /** @type {import('./types/domain.d.ts').PublicPlayerState} */
-        const playerState = {
-          x: p.pos.x,
-          y: p.pos.y ?? 0,
-          z: p.pos.z,
-          hp: p.hp ?? 0,
-          maxHp: p.maxHp ?? 0,
-          inv: p.inv ?? 0,
-          currencyCopper: p.currencyCopper ?? 0,
-          dead: Boolean(p.dead),
-          classId: p.classId ?? null,
-          level: p.level ?? 1,
-          name: p.name ?? null,
-        };
-        const harvest = p.harvest;
-        if (
-          harvest &&
-          Number.isFinite(harvest.endsAt) &&
-          harvest.endsAt > now
-        ) {
-          playerState.harvesting = true;
-          playerState.harvestType = harvest.resourceType ?? null;
-        }
-        const facingDir = normalizeFacingDir(p.lastMoveDir);
-        if (facingDir) {
-          playerState.dirX = facingDir.x;
-          playerState.dirZ = facingDir.z;
-        }
-        out[id] = playerState;
-      }
-    }
-    return out;
-  }
-
-  /**
-   * @param {ResourceNode[]} resourcesArr
-   * @param {Position3D} centerPos
-   * @returns {ResourceNode[]}
-   */
-  function filterResourcesByAOI(resourcesArr, centerPos) {
-    return resourcesArr.filter((r) =>
-      isInAOI({ x: r.x, z: r.z }, centerPos)
-    );
-  }
-
-  /**
-   * @param {MobEntity[]} mobsArr
-   * @param {Position3D} centerPos
-   * @returns {MobEntity[]}
-   */
-  function filterMobsByAOI(mobsArr, centerPos) {
-    return mobsArr.filter((m) =>
-      isInAOI(m?.pos ?? { x: m.x, z: m.z }, centerPos)
-    );
-  }
-
-  /**
-   * @param {Corpse[]} corpsesArr
-   * @param {Position3D} centerPos
-   * @returns {Corpse[]}
-   */
-  function filterCorpsesByAOI(corpsesArr, centerPos) {
-    if (!Array.isArray(corpsesArr)) return [];
-    return corpsesArr.filter((c) => {
-      const pos = c.pos;
-      return isInAOI(pos, centerPos);
-    });
-  }
-
-  /**
-   * @param {ServerPlayer} player
-   * @param {number} now
-   * @returns {PublicStateMessage}
-   */
-  function buildPublicStateForPlayer(player, now) {
-    const pos = player?.pos ?? { x: 0, y: 0, z: 0 };
-    const partyIds = getPartyMemberIds(player?.id);
-    const filteredPlayers = filterPlayersByAOI(players, pos, partyIds, now);
-    const filteredResources = filterResourcesByAOI(resources, pos);
-    const filteredMobs = filterMobsByAOI(mobs, pos);
-    const filteredCorpses = filterCorpsesByAOI(corpses ?? [], pos);
-    return {
-      type: 'state',
-      t: now,
-      players: filteredPlayers,
-      resources: serializeResources(filteredResources),
-      mobs: serializeMobs(filteredMobs),
-      corpses: serializeCorpses(filteredCorpses),
-    };
-  }
+  const buildPublicStateForPlayer = createPublicStateBuilder({
+    players,
+    resources,
+    mobs,
+    corpses,
+    aoiRadius,
+  });
 
   /** @type {Map<string, PublicStateMessage>} */
   const lastSentByPlayer = new Map();

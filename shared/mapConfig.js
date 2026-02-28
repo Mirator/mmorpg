@@ -1,9 +1,12 @@
 // @ts-check
 
+import { RESOURCE_CONFIG, VENDOR_CONFIG } from './config.js';
 import { VALID_MOB_TYPES, VALID_RESOURCE_TYPES } from './entityTypes.js';
 import { VENDOR_BUY_ITEMS } from './economy.js';
 
 const VALID_VENDOR_BUY_KINDS = new Set(VENDOR_BUY_ITEMS.map((/** @type {any} */ e) => e.kind));
+const INTERACTABLE_PADDING = 0.5;
+const HOSTILE_MOB_SAFE_RADIUS = 4;
 
 export const MAP_CONFIG_VERSION = 2;
 export const STRUCTURE_KIND_LIST = [
@@ -92,6 +95,7 @@ export function normalizeMapConfig(/** @type {any} */ raw) {
         z: isObject(item) ? item.z ?? 0 : 0,
         type: VALID_RESOURCE_TYPES.has(type) ? type : 'crystal',
         respawnMs,
+        allowOverlap: !!(isObject(item) && item.allowOverlap),
       };
     }),
     vendors: normalizeList(config.vendors, (/** @type {any} */ item) => {
@@ -111,6 +115,7 @@ export function normalizeMapConfig(/** @type {any} */ raw) {
         y: raw.y ?? 0,
         z: raw.z ?? 0,
         buyItems: buyItems && buyItems.length > 0 ? buyItems : undefined,
+        allowOverlap: !!raw.allowOverlap,
       };
     }),
     mobSpawns: normalizeList(config.mobSpawns, (/** @type {any} */ item) => {
@@ -127,6 +132,7 @@ export function normalizeMapConfig(/** @type {any} */ raw) {
         aggressive,
         level,
         levelVariance,
+        allowOverlap: !!raw.allowOverlap,
       };
     }),
   };
@@ -196,6 +202,52 @@ function validateId(/** @type {any} */ errors, /** @type {any} */ label, /** @ty
     return;
   }
   seen.add(trimmed);
+}
+
+function distanceBetween(/** @type {any} */ a, /** @type {any} */ b) {
+  const dx = (a?.x ?? 0) - (b?.x ?? 0);
+  const dz = (a?.z ?? 0) - (b?.z ?? 0);
+  return Math.hypot(dx, dz);
+}
+
+function validateProtectedVendorSpace(/** @type {any} */ errors, /** @type {any} */ config) {
+  const vendorRadius = VENDOR_CONFIG.interactRadius;
+  const harvestRadius = RESOURCE_CONFIG.harvestRadius;
+  const minVendorResourceDistance = vendorRadius + harvestRadius + INTERACTABLE_PADDING;
+  const minVendorHostileMobDistance = vendorRadius + HOSTILE_MOB_SAFE_RADIUS;
+
+  for (let vendorIndex = 0; vendorIndex < config.vendors.length; vendorIndex += 1) {
+    const vendor = config.vendors[vendorIndex];
+    if (vendor?.allowOverlap) continue;
+    if (!Number.isFinite(vendor?.x) || !Number.isFinite(vendor?.z)) continue;
+
+    for (let resourceIndex = 0; resourceIndex < config.resourceNodes.length; resourceIndex += 1) {
+      const resource = config.resourceNodes[resourceIndex];
+      if (resource?.allowOverlap) continue;
+      if (!Number.isFinite(resource?.x) || !Number.isFinite(resource?.z)) continue;
+      const distance = distanceBetween(vendor, resource);
+      if (distance < minVendorResourceDistance) {
+        addError(
+          errors,
+          `vendors[${vendorIndex}] and resourceNodes[${resourceIndex}] overlap usable radii; move them farther apart or set allowOverlap.`
+        );
+      }
+    }
+
+    for (let mobIndex = 0; mobIndex < config.mobSpawns.length; mobIndex += 1) {
+      const mob = config.mobSpawns[mobIndex];
+      if (mob?.allowOverlap) continue;
+      if (mob?.aggressive === false || mob?.mobType === 'dummy') continue;
+      if (!Number.isFinite(mob?.x) || !Number.isFinite(mob?.z)) continue;
+      const distance = distanceBetween(vendor, mob);
+      if (distance < minVendorHostileMobDistance) {
+        addError(
+          errors,
+          `vendors[${vendorIndex}] and mobSpawns[${mobIndex}] overlap safe interaction space; move them farther apart or set allowOverlap.`
+        );
+      }
+    }
+  }
 }
 
 export function validateMapConfig(/** @type {any} */ config) {
@@ -334,6 +386,14 @@ export function validateMapConfig(/** @type {any} */ config) {
         addError(errors, `mobSpawns[${index}] mobType must be one of: ${[...VALID_MOB_TYPES].join(', ')}.`);
       }
     });
+  }
+
+  if (
+    Array.isArray(config.vendors) &&
+    Array.isArray(config.resourceNodes) &&
+    Array.isArray(config.mobSpawns)
+  ) {
+    validateProtectedVendorSpace(errors, config);
   }
 
   return errors;

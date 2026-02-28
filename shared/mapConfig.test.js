@@ -11,7 +11,7 @@ function buildConfig(overrides = {}) {
     structures: [
       { id: 's1', kind: 'market', x: 15, z: 0, rotation: 1.57, colliderRadius: 3.6, collides: true },
     ],
-    resourceNodes: [{ id: 'r1', x: 8, z: -6 }],
+    resourceNodes: [{ id: 'r1', x: 12, z: -8 }],
     vendors: [{ id: 'vendor-1', name: 'Vendor', x: 6, z: -2 }],
     mobSpawns: [{ id: 'm1', x: 20, z: 10 }],
     ...overrides,
@@ -43,6 +43,27 @@ describe('map config validation', () => {
     expect(errors.some((e) => e.includes('unique'))).toBe(true);
   });
 
+  it('rejects vendor/resource overlap unless allowOverlap is set', () => {
+    const overlapping = buildConfig({
+      resourceNodes: [{ id: 'r1', x: 7, z: -2 }],
+    });
+    const overlapErrors = validateMapConfig(overlapping);
+    expect(overlapErrors.some((e) => e.includes('overlap usable radii'))).toBe(true);
+
+    const whitelisted = buildConfig({
+      resourceNodes: [{ id: 'r1', x: 7, z: -2, allowOverlap: true }],
+    });
+    expect(validateMapConfig(whitelisted)).toEqual([]);
+  });
+
+  it('rejects hostile mobs too close to vendors', () => {
+    const config = buildConfig({
+      mobSpawns: [{ id: 'm1', x: 8, z: -1, mobType: 'orc', aggressive: true }],
+    });
+    const errors = validateMapConfig(config);
+    expect(errors.some((e) => e.includes('safe interaction space'))).toBe(true);
+  });
+
   it('normalizes missing arrays', () => {
     const normalized = normalizeMapConfig({
       version: MAP_CONFIG_VERSION,
@@ -55,6 +76,17 @@ describe('map config validation', () => {
     expect(normalized.resourceNodes).toEqual([]);
     expect(normalized.vendors).toEqual([]);
     expect(normalized.mobSpawns).toEqual([]);
+  });
+
+  it('preserves allowOverlap markers when normalizing', () => {
+    const normalized = normalizeMapConfig(buildConfig({
+      resourceNodes: [{ id: 'r1', x: 12, z: -8, allowOverlap: true }],
+      vendors: [{ id: 'vendor-1', name: 'Vendor', x: 6, z: -2, allowOverlap: true }],
+      mobSpawns: [{ id: 'm1', x: 20, z: 10, allowOverlap: true }],
+    }));
+    expect(normalized.resourceNodes[0].allowOverlap).toBe(true);
+    expect(normalized.vendors[0].allowOverlap).toBe(true);
+    expect(normalized.mobSpawns[0].allowOverlap).toBe(true);
   });
 
   it('normalizes points with y', () => {

@@ -242,8 +242,13 @@
   color: var(--muted);
 }
 
-.overlay-controls {
+.overlay-quick-hint {
   font-size: 12px;
+  color: #e7d0a0;
+}
+
+.overlay-controls {
+  font-size: 11px;
   color: var(--muted);
   opacity: 0;
   max-height: 0;
@@ -274,6 +279,72 @@
 #overlay .overlay-status span,
 #hud span {
   color: var(--accent);
+}
+
+.controls-card {
+  position: fixed;
+  top: 152px;
+  right: 16px;
+  width: min(280px, calc(100vw - 32px));
+  padding: 14px 16px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(184, 150, 46, 0.35);
+  background: linear-gradient(180deg, rgba(14, 19, 24, 0.95), rgba(10, 14, 18, 0.98));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.34);
+  color: var(--text);
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 46;
+}
+
+.controls-card.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.controls-card-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(184, 150, 46, 0.26);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.controls-card-kicker {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+.controls-card-title {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff1bf;
+}
+
+.controls-card-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.controls-card-list strong {
+  color: var(--text);
+  font-weight: 600;
 }
 
 #top-right-panel {
@@ -312,6 +383,16 @@
   display: block;
   width: 130px;
   height: 130px;
+}
+
+@media (max-width: 760px) {
+  .controls-card {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 92px;
+    width: auto;
+  }
 }
 
 #hud {
