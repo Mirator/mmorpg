@@ -23,6 +23,10 @@ export function createMinimap(/** @type {any} */ containerEl) {
   if (!canvas) {
     return { render: () => {}, resize: () => {} };
   }
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return { render: () => {}, resize: () => {} };
+  }
 
   let width = MINIMAP_SIZE;
   let height = MINIMAP_SIZE;
@@ -49,8 +53,6 @@ export function createMinimap(/** @type {any} */ containerEl) {
 
   function render(/** @type {any} */ state) {
     if (!canvas || !state) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
 
     const mapSize = state.worldConfig?.mapSize ?? DEFAULT_MAP_SIZE;
     const base = state.worldConfig?.base ?? { x: 0, z: 0, radius: 8 };

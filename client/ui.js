@@ -37,6 +37,14 @@ const controlsCardCloseEl = document.getElementById('controls-card-close');
 let /** @type {any} */ eventTimeout = null;
 let /** @type {any} */ entryBannerTimeout = null;
 const CONTROLS_CARD_SEEN_KEY = 'rising-ages-controls-card-seen';
+const BAR_RENDER_CACHE = {
+  overlayHp: { width: '', text: '' },
+  overlayResource: { width: '', text: '' },
+  targetHp: { width: '', text: '' },
+};
+let lastPromptText = '';
+let promptVisible = false;
+let lastTargetHudKey = '';
 const toastContainer = document.createElement('div');
 toastContainer.id = 'toast-container';
 toastContainer.className = 'toast-container';
@@ -75,21 +83,31 @@ export function showToast(/** @type {any} */ message) {
   setTimeout(remove, TOAST_DURATION_MS);
 }
 
-function setBar(/** @type {any} */ fillEl, /** @type {any} */ valueEl, /** @type {any} */ value, /** @type {any} */ max) {
-  if (fillEl) {
-    if (Number.isFinite(value) && Number.isFinite(max) && max > 0) {
-      const clamped = Math.max(0, Math.min(1, value / max));
-      fillEl.style.width = `${(clamped * 100).toFixed(1)}%`;
-    } else {
-      fillEl.style.width = '0%';
-    }
+function setBar(
+  /** @type {any} */ fillEl,
+  /** @type {any} */ valueEl,
+  /** @type {any} */ value,
+  /** @type {any} */ max,
+  /** @type {'overlayHp' | 'overlayResource' | 'targetHp' | null} */ cacheKey = null
+) {
+  const hasNumbers = Number.isFinite(value) && Number.isFinite(max) && max > 0;
+  const widthText = hasNumbers
+    ? `${(Math.max(0, Math.min(1, value / max)) * 100).toFixed(1)}%`
+    : '0%';
+  const valueText = hasNumbers
+    ? `${Math.floor(value)}/${Math.floor(max)}`
+    : '--';
+  const cache = cacheKey ? BAR_RENDER_CACHE[cacheKey] : null;
+
+  if (fillEl && (!cache || cache.width !== widthText)) {
+    fillEl.style.width = widthText;
   }
-  if (valueEl) {
-    if (Number.isFinite(value) && Number.isFinite(max) && max > 0) {
-      valueEl.textContent = `${Math.floor(value)}/${Math.floor(max)}`;
-    } else {
-      valueEl.textContent = '--';
-    }
+  if (valueEl && (!cache || cache.text !== valueText)) {
+    valueEl.textContent = valueText;
+  }
+  if (cache) {
+    cache.width = widthText;
+    cache.text = valueText;
   }
 }
 
@@ -118,9 +136,8 @@ export function updateHud(/** @type {any} */ player, /** @type {any} */ now) {
     }
     if (xpBarValueEl) xpBarValueEl.textContent = '--';
     if (xpBarPercentEl) xpBarPercentEl.textContent = '--';
-    setBar(overlayHpFillEl, overlayHpValueEl, null, null);
-    if (overlayStaminaFillEl) overlayStaminaFillEl.style.width = '0%';
-    if (overlayStaminaValueEl) overlayStaminaValueEl.textContent = '--';
+    setBar(overlayHpFillEl, overlayHpValueEl, null, null, 'overlayHp');
+    setBar(overlayStaminaFillEl, overlayStaminaValueEl, null, null, 'overlayResource');
     if (overlayResourceLabelEl) overlayResourceLabelEl.textContent = 'Resource';
     if (overlayResourceBarEl) {
       overlayResourceBarEl.classList.remove('resource-type-mana', 'resource-type-stamina', 'resource-type-rage', 'resource-type-focus');
@@ -156,13 +173,15 @@ export function updateHud(/** @type {any} */ player, /** @type {any} */ now) {
     overlayHpFillEl,
     overlayHpValueEl,
     Number.isFinite(player.hp) ? player.hp : 0,
-    Number.isFinite(player.maxHp) ? player.maxHp : player.hp ?? 0
+    Number.isFinite(player.maxHp) ? player.maxHp : player.hp ?? 0,
+    'overlayHp'
   );
   setBar(
     overlayStaminaFillEl,
     overlayStaminaValueEl,
     Number.isFinite(player.resource) ? player.resource : 0,
-    Number.isFinite(player.resourceMax) ? player.resourceMax : player.resource ?? 0
+    Number.isFinite(player.resourceMax) ? player.resourceMax : player.resource ?? 0,
+    'overlayResource'
   );
   if (overlayResourceLabelEl) {
     overlayResourceLabelEl.textContent = formatResourceLabel(player.resourceType);
@@ -195,42 +214,64 @@ export function updateHud(/** @type {any} */ player, /** @type {any} */ now) {
 export function updateTargetHud(/** @type {any} */ target) {
   if (!targetHudEl) return;
   if (!target) {
+    if (lastTargetHudKey === '__none__') return;
+    lastTargetHudKey = '__none__';
     targetHudEl.classList.remove('visible');
     if (targetNameEl) targetNameEl.textContent = '--';
     if (targetMetaEl) targetMetaEl.textContent = '--';
     if (targetHpEl) targetHpEl.style.display = 'none';
-    setBar(targetHpFillEl, targetHpValueEl, null, null);
+    setBar(targetHpFillEl, targetHpValueEl, null, null, 'targetHp');
     return;
   }
+
+  const /** @type {any} */ metaParts = [];
+  if (target.kind === 'vendor') metaParts.push('Vendor');
+  if (target.kind === 'player') metaParts.push('Player');
+  if (target.kind === 'mob') metaParts.push('Enemy');
+  if (Number.isFinite(target.level)) metaParts.push(`Lvl ${target.level}`);
+  const metaText = metaParts.join(' · ');
+  const hasHp = Number.isFinite(target.hp) && Number.isFinite(target.maxHp);
+  const targetKey = [
+    target.kind ?? '',
+    target.id ?? '',
+    target.name ?? '--',
+    metaText,
+    hasHp ? `${target.hp}/${target.maxHp}` : 'no-hp',
+  ].join('|');
+  if (targetKey === lastTargetHudKey) return;
+  lastTargetHudKey = targetKey;
 
   targetHudEl.classList.add('visible');
   if (targetNameEl) targetNameEl.textContent = target.name ?? '--';
   if (targetMetaEl) {
-    const /** @type {any} */ metaParts = [];
-    if (target.kind === 'vendor') metaParts.push('Vendor');
-    if (target.kind === 'player') metaParts.push('Player');
-    if (target.kind === 'mob') metaParts.push('Enemy');
-    if (Number.isFinite(target.level)) metaParts.push(`Lvl ${target.level}`);
-    targetMetaEl.textContent = metaParts.join(' · ');
+    targetMetaEl.textContent = metaText;
   }
-  const hasHp = Number.isFinite(target.hp) && Number.isFinite(target.maxHp);
   if (targetHpEl) targetHpEl.style.display = hasHp ? 'flex' : 'none';
   if (hasHp) {
-    setBar(targetHpFillEl, targetHpValueEl, target.hp, target.maxHp);
+    setBar(targetHpFillEl, targetHpValueEl, target.hp, target.maxHp, 'targetHp');
   } else {
-    setBar(targetHpFillEl, targetHpValueEl, null, null);
+    setBar(targetHpFillEl, targetHpValueEl, null, null, 'targetHp');
   }
 }
 
 export function showPrompt(/** @type {any} */ text) {
   if (!promptEl) return;
-  promptEl.textContent = text;
-  promptEl.classList.add('visible');
+  if (lastPromptText !== text) {
+    promptEl.textContent = text;
+    lastPromptText = text;
+  }
+  if (!promptVisible) {
+    promptEl.classList.add('visible');
+    promptVisible = true;
+  }
 }
 
 export function clearPrompt() {
   if (!promptEl) return;
-  promptEl.classList.remove('visible');
+  if (promptVisible) {
+    promptEl.classList.remove('visible');
+    promptVisible = false;
+  }
 }
 
 export function showEvent(/** @type {any} */ text) {

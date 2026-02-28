@@ -40,6 +40,25 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
   const /** @type {any} */ abilitySlots = [];
   const localCooldowns = new Map();
 
+  function setSlotText(/** @type {any} */ slotRef, /** @type {any} */ key, /** @type {any} */ el, /** @type {any} */ value) {
+    if (!el) return;
+    if (slotRef[key] === value) return;
+    el.textContent = value;
+    slotRef[key] = value;
+  }
+
+  function setSlotCooldownFraction(/** @type {any} */ slotRef, /** @type {any} */ fractionText) {
+    if (slotRef.lastCooldownFraction === fractionText) return;
+    slotRef.root.style.setProperty('--cooldown', fractionText);
+    slotRef.lastCooldownFraction = fractionText;
+  }
+
+  function setSlotEmptyState(/** @type {any} */ slotRef, /** @type {any} */ isEmpty) {
+    if (slotRef.isEmpty === isEmpty) return;
+    slotRef.root.classList.toggle('empty', isEmpty);
+    slotRef.isEmpty = isEmpty;
+  }
+
   function buildAbilityBar() {
     if (!abilityBarEl) return;
     abilityBarEl.innerHTML = '';
@@ -71,7 +90,20 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
         onAbilityClick?.(slot);
       });
       abilityBarEl.appendChild(el);
-      abilitySlots.push(el);
+      abilitySlots.push({
+        root: el,
+        keyEl: key,
+        nameEl: name,
+        cooldownNumEl: cooldownNum,
+        tooltipEl: tooltip,
+        lastAbilityId: null,
+        lastKeyText: key.textContent,
+        lastNameText: name.textContent,
+        lastCooldownText: cooldownNum.textContent,
+        lastTooltipText: tooltip.textContent,
+        lastCooldownFraction: '0',
+        isEmpty: true,
+      });
     }
   }
 
@@ -87,22 +119,23 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
 
     for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
       const ability = abilityBySlot.get(slot);
-      const slotEl = abilitySlots[slot - 1];
-      if (!slotEl) continue;
-      const nameEl = slotEl.querySelector('.ability-name');
+      const slotRef = abilitySlots[slot - 1];
+      if (!slotRef) continue;
+      const bound = keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot));
+      const keyLabel = formatKey(bound);
+      setSlotText(slotRef, 'lastKeyText', slotRef.keyEl, keyLabel);
+
       if (ability) {
-        slotEl.classList.remove('empty');
-        if (nameEl) nameEl.textContent = ability.name;
+        setSlotEmptyState(slotRef, false);
+        slotRef.lastAbilityId = ability.id ?? null;
+        setSlotText(slotRef, 'lastNameText', slotRef.nameEl, ability.name);
       } else {
-        slotEl.classList.add('empty');
-        if (nameEl) nameEl.textContent = '';
-        slotEl.style.setProperty('--cooldown', '0');
-        const tooltipEl = slotEl.querySelector('.ability-tooltip');
-        const cooldownNumEl = slotEl.querySelector('.ability-cooldown-num');
-        const keyEl = slotEl.querySelector('.ability-key');
-        if (tooltipEl) tooltipEl.textContent = '';
-        if (cooldownNumEl) cooldownNumEl.textContent = '';
-        if (keyEl) keyEl.textContent = formatKey(keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot)));
+        slotRef.lastAbilityId = null;
+        setSlotEmptyState(slotRef, true);
+        setSlotText(slotRef, 'lastNameText', slotRef.nameEl, '');
+        setSlotCooldownFraction(slotRef, '0');
+        setSlotText(slotRef, 'lastTooltipText', slotRef.tooltipEl, '');
+        setSlotText(slotRef, 'lastCooldownText', slotRef.cooldownNumEl, '');
         continue;
       }
 
@@ -122,23 +155,16 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       const fraction = durationMs
         ? Math.min(1, remaining / durationMs)
         : 0;
-      slotEl.style.setProperty('--cooldown', fraction.toFixed(3));
-      const tooltipEl = slotEl.querySelector('.ability-tooltip');
-      const cooldownNumEl = slotEl.querySelector('.ability-cooldown-num');
-      const keyEl = slotEl.querySelector('.ability-key');
-      if (tooltipEl) {
-        tooltipEl.textContent = buildAbilityTooltip(ability);
-      }
-      if (keyEl) {
-        const bound = keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot));
-        keyEl.textContent = formatKey(bound);
-      }
-      if (cooldownNumEl) {
-        cooldownNumEl.textContent =
-          remaining > 0 && remaining < 60000
-            ? `${(remaining / 1000).toFixed(1)}s`
-            : '';
-      }
+      setSlotCooldownFraction(slotRef, fraction.toFixed(3));
+      setSlotText(slotRef, 'lastTooltipText', slotRef.tooltipEl, buildAbilityTooltip(ability));
+      setSlotText(
+        slotRef,
+        'lastCooldownText',
+        slotRef.cooldownNumEl,
+        remaining > 0 && remaining < 60000
+          ? `${(remaining / 1000).toFixed(1)}s`
+          : ''
+      );
     }
   }
 

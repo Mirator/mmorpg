@@ -15,6 +15,8 @@ import { showErrorOverlay } from './error-overlay.js';
 const CAMERA_LERP_SPEED = 5;
 const FRUSTUM_SIZE = 24;
 const CULL_DISTANCE = 100;
+const VISIBILITY_UPDATE_DISTANCE = 0.5;
+const VISIBILITY_UPDATE_INTERVAL_MS = 150;
 
 export function createRenderSystem(/** @type {any} */ { app }) {
   const scene = new THREE.Scene();
@@ -75,6 +77,7 @@ export function createRenderSystem(/** @type {any} */ { app }) {
   const cameraOffset = new THREE.Vector3(20, 20, 20);
   const cameraTarget = new THREE.Vector3();
   const cameraDesired = new THREE.Vector3();
+  const vendorLabelOverlapEl = document.getElementById('overlay');
 
   /** @type {any} */
   let camera;
@@ -135,6 +138,10 @@ export function createRenderSystem(/** @type {any} */ { app }) {
 
   let /** @type {any} */ placementIndicator = null;
   let placementIndicatorRadius = 2.5;
+  let lastVisibilityAt = -Infinity;
+  let lastVisibilityX = Number.NaN;
+  let lastVisibilityY = Number.NaN;
+  let lastVisibilityZ = Number.NaN;
 
   function setPlacementIndicator(/** @type {any} */ visible, /** @type {any} */ radius = 2.5, /** @type {any} */ placementRange = 10) {
     if (!visible) {
@@ -248,8 +255,9 @@ export function createRenderSystem(/** @type {any} */ { app }) {
 
     for (const [id, pos] of Object.entries(positions)) {
       const mesh = ensurePlayerMesh(id);
-      const prev = mesh.userData.lastPos;
-      const nextPos = new THREE.Vector3(pos.x, pos.y ?? 0, pos.z);
+      const nextX = pos.x;
+      const nextY = pos.y ?? 0;
+      const nextZ = pos.z;
       const facingState = playerStates?.[id];
       const dirX = Number(facingState?.dirX);
       const dirZ = Number(facingState?.dirZ);
@@ -259,17 +267,19 @@ export function createRenderSystem(/** @type {any} */ { app }) {
         Math.hypot(dirX, dirZ) > 0.0001;
       if (hasFacingDir) {
         mesh.rotation.y = Math.atan2(dirX, dirZ);
-      } else if (prev) {
-        const dx = nextPos.x - prev.x;
-        const dz = nextPos.z - prev.z;
+      } else if (Number.isFinite(mesh.userData.lastX) && Number.isFinite(mesh.userData.lastZ)) {
+        const dx = nextX - mesh.userData.lastX;
+        const dz = nextZ - mesh.userData.lastZ;
         const distSq = dx * dx + dz * dz;
         const isLocalWithNoInput = (id === localPlayerId) && !hasMovementInput;
         if (distSq > 0.0004 && !isLocalWithNoInput) {
           mesh.rotation.y = Math.atan2(dx, dz);
         }
       }
-      mesh.position.copy(nextPos);
-      mesh.userData.lastPos = nextPos;
+      mesh.position.set(nextX, nextY, nextZ);
+      mesh.userData.lastX = nextX;
+      mesh.userData.lastY = nextY;
+      mesh.userData.lastZ = nextZ;
     }
   }
 
@@ -358,6 +368,11 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       scene.remove(worldState.group);
     }
     worldState = initWorld(scene, config);
+    lastVisibilityAt = -Infinity;
+    lastVisibilityX = Number.NaN;
+    lastVisibilityY = Number.NaN;
+    lastVisibilityZ = Number.NaN;
+    if (cameraTarget) performVisibilityPass(cameraTarget);
     return worldState;
   }
 
@@ -431,16 +446,13 @@ export function createRenderSystem(/** @type {any} */ { app }) {
   const visibilityCheckPos = new THREE.Vector3();
   const labelProjectionPos = new THREE.Vector3();
 
-  function syncVendorLabelVisibility(/** @type {any} */ vendorMesh) {
+  function syncVendorLabelVisibility(/** @type {any} */ vendorMesh, /** @type {any} */ overlayRect) {
     const label = vendorMesh?.userData?.nameSprite;
     if (!label) return;
     label.visible = !!vendorMesh.visible;
     if (!label.visible) return;
 
-    const overlay = document.getElementById('overlay');
-    if (!(overlay instanceof HTMLElement)) return;
-    const overlayRect = overlay.getBoundingClientRect();
-    if (!overlayRect.width || !overlayRect.height) return;
+    if (!overlayRect?.width || !overlayRect?.height) return;
 
     label.getWorldPosition(labelProjectionPos);
     const screenPos = projectToScreen(labelProjectionPos);
@@ -453,9 +465,16 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     label.visible = !insideOverlaySafeZone;
   }
 
-  function updateVisibility(/** @type {any} */ cameraTargetVec) {
+  function performVisibilityPass(/** @type {any} */ cameraTargetVec) {
     if (!cameraTargetVec || !worldState) return;
     const cullDistSq = CULL_DISTANCE * CULL_DISTANCE;
+    let overlayRect = null;
+    if (vendorLabelOverlapEl instanceof HTMLElement) {
+      const nextRect = vendorLabelOverlapEl.getBoundingClientRect();
+      if (nextRect.width && nextRect.height) {
+        overlayRect = nextRect;
+      }
+    }
 
     const setVisibleByDistance = (/** @type {any} */ obj) => {
       obj.getWorldPosition(visibilityCheckPos);
@@ -480,7 +499,7 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     }
     for (const mesh of worldState.vendorMeshes.values()) {
       setVisibleByDistance(mesh);
-      syncVendorLabelVisibility(mesh);
+      syncVendorLabelVisibility(mesh, overlayRect);
     }
     for (const [id, mesh] of playerMeshes) {
       if (id === myId) {
@@ -489,6 +508,24 @@ export function createRenderSystem(/** @type {any} */ { app }) {
         setVisibleByDistance(mesh);
       }
     }
+  }
+
+  function updateVisibility(/** @type {any} */ cameraTargetVec, /** @type {any} */ now = performance.now()) {
+    if (!cameraTargetVec || !worldState) return;
+    const dx = cameraTargetVec.x - lastVisibilityX;
+    const dy = cameraTargetVec.y - lastVisibilityY;
+    const dz = cameraTargetVec.z - lastVisibilityZ;
+    const movedEnough =
+      !Number.isFinite(lastVisibilityX) ||
+      (dx * dx + dy * dy + dz * dz) >= VISIBILITY_UPDATE_DISTANCE * VISIBILITY_UPDATE_DISTANCE;
+    if (!movedEnough && now - lastVisibilityAt < VISIBILITY_UPDATE_INTERVAL_MS) {
+      return;
+    }
+    lastVisibilityAt = now;
+    lastVisibilityX = cameraTargetVec.x;
+    lastVisibilityY = cameraTargetVec.y;
+    lastVisibilityZ = cameraTargetVec.z;
+    performVisibilityPass(cameraTargetVec);
   }
 
   function renderFrame() {
@@ -554,13 +591,15 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       const mixer = new THREE.AnimationMixer(model);
       const actions = createActions(mixer, clipSet);
       const walkCycle = buildWalkCycle(model);
-      /** @type {{ mixer: any, actions: any, active: 'idle' | 'walk' | 'attack' | 'interact' | 'death' | null, attackUntil: number, lastPos: any, walkCycle: any }} */
+      /** @type {{ mixer: any, actions: any, active: 'idle' | 'walk' | 'attack' | 'interact' | 'death' | null, attackUntil: number, lastX: number, lastY: number, lastZ: number, walkCycle: any }} */
       const controller = {
         mixer,
         actions,
         active: null,
         attackUntil: 0,
-        lastPos: mesh.position.clone(),
+        lastX: mesh.position.x,
+        lastY: mesh.position.y,
+        lastZ: mesh.position.z,
         walkCycle,
       };
       if (actions.idle) {
@@ -717,9 +756,13 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     for (const [id, controller] of controllers.entries()) {
       const mesh = meshes.get(id);
       if (!mesh) continue;
-      const lastPos = controller.lastPos ?? mesh.position.clone();
-      const speed = mesh.position.distanceTo(lastPos) / Math.max(0.001, dt);
-      controller.lastPos = mesh.position.clone();
+      const dx = mesh.position.x - (controller.lastX ?? mesh.position.x);
+      const dy = mesh.position.y - (controller.lastY ?? mesh.position.y);
+      const dz = mesh.position.z - (controller.lastZ ?? mesh.position.z);
+      const speed = Math.hypot(dx, dy, dz) / Math.max(0.001, dt);
+      controller.lastX = mesh.position.x;
+      controller.lastY = mesh.position.y;
+      controller.lastZ = mesh.position.z;
       const isDead = deadPlayerIds && deadPlayerIds.has(id);
       const isHarvesting = harvestingById && harvestingById.has(id);
       const isAttacking = controller.actions?.attack && controller.attackUntil && now < controller.attackUntil;

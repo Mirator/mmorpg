@@ -16,6 +16,14 @@ export function createGameState(/** @type {any} */ { interpDelayMs, maxSnapshots
   let /** @type {any} */ predictedLocalPos = null;
   const correction = 0.1;
   const snapThreshold = 5;
+  const /** @type {Record<string, { x: number, y: number, z: number }>} */ interpolatedPlayers = {};
+  const interpolatedLocalPos = { x: 0, y: 0, z: 0 };
+  const interpolatedPlayerFrame = /** @type {{ positions: Record<string, { x: number, y: number, z: number }>, localPos: { x: number, y: number, z: number } | null }} */ ({
+    positions: interpolatedPlayers,
+    localPos: null,
+  });
+  const /** @type {any[]} */ interpolatedMobs = [];
+  const olderMobScratch = new Map();
 
   let serverTimeOffsetMs = 0;
   let hasServerTime = false;
@@ -142,7 +150,13 @@ export function createGameState(/** @type {any} */ { interpDelayMs, maxSnapshots
   }
 
   function renderInterpolatedPlayers(/** @type {any} */ now) {
-    if (snapshots.length === 0) return { positions: {}, localPos: null };
+    if (snapshots.length === 0) {
+      for (const id in interpolatedPlayers) {
+        delete interpolatedPlayers[id];
+      }
+      interpolatedPlayerFrame.localPos = null;
+      return interpolatedPlayerFrame;
+    }
 
     const renderTime = now - interpDelayMs;
     while (snapshots.length >= 2 && snapshots[1].t <= renderTime) {
@@ -158,23 +172,43 @@ export function createGameState(/** @type {any} */ { interpDelayMs, maxSnapshots
     }
     alpha = Math.max(0, Math.min(1, alpha));
 
-    const /** @type {any} */ positions = {};
-    let /** @type {any} */ localPos = null;
-
-    for (const [id, newerPos] of Object.entries(newer.players)) {
+    const newerPlayers = newer.players ?? {};
+    for (const id in newerPlayers) {
+      if (!Object.prototype.hasOwnProperty.call(newerPlayers, id)) continue;
+      const newerPos = newerPlayers[id];
       const olderPos = older.players?.[id];
       const x = olderPos ? olderPos.x + (newerPos.x - olderPos.x) * alpha : newerPos.x;
       const y = olderPos
         ? (olderPos.y ?? 0) + ((newerPos.y ?? 0) - (olderPos.y ?? 0)) * alpha
         : newerPos.y ?? 0;
       const z = olderPos ? olderPos.z + (newerPos.z - olderPos.z) * alpha : newerPos.z;
-      positions[id] = { x, y, z };
+      let target = interpolatedPlayers[id];
+      if (!target) {
+        target = { x, y, z };
+        interpolatedPlayers[id] = target;
+      } else {
+        target.x = x;
+        target.y = y;
+        target.z = z;
+      }
       if (id === myId) {
-        localPos = { x, y, z };
+        interpolatedLocalPos.x = x;
+        interpolatedLocalPos.y = y;
+        interpolatedLocalPos.z = z;
+        interpolatedPlayerFrame.localPos = interpolatedLocalPos;
       }
     }
 
-    return { positions, localPos };
+    for (const id in interpolatedPlayers) {
+      if (!Object.prototype.hasOwnProperty.call(newerPlayers, id)) {
+        delete interpolatedPlayers[id];
+      }
+    }
+    if (!myId || !Object.prototype.hasOwnProperty.call(newerPlayers, myId)) {
+      interpolatedPlayerFrame.localPos = null;
+    }
+
+    return interpolatedPlayerFrame;
   }
 
   function renderInterpolatedMobs(/** @type {any} */ now) {
@@ -194,11 +228,14 @@ export function createGameState(/** @type {any} */ { interpDelayMs, maxSnapshots
     }
     alpha = Math.max(0, Math.min(1, alpha));
 
-    const olderById = new Map(older.mobs.map((/** @type {any} */ m) => [m.id, m]));
-    const /** @type {any} */ result = [];
+    olderMobScratch.clear();
+    for (const oldMob of older.mobs) {
+      olderMobScratch.set(oldMob.id, oldMob);
+    }
 
+    let writeIndex = 0;
     for (const newMob of newer.mobs) {
-      const oldMob = olderById.get(newMob.id);
+      const oldMob = olderMobScratch.get(newMob.id);
       const x = oldMob
         ? oldMob.x + (newMob.x - oldMob.x) * alpha
         : newMob.x;
@@ -208,10 +245,29 @@ export function createGameState(/** @type {any} */ { interpDelayMs, maxSnapshots
       const z = oldMob
         ? oldMob.z + (newMob.z - oldMob.z) * alpha
         : newMob.z;
-      result.push({ ...newMob, x, y, z });
+      let target = interpolatedMobs[writeIndex];
+      if (!target) {
+        target = { x, y, z };
+        interpolatedMobs[writeIndex] = target;
+      }
+      for (const key in newMob) {
+        if (key === 'x' || key === 'y' || key === 'z') continue;
+        target[key] = newMob[key];
+      }
+      for (const key in target) {
+        if (key === 'x' || key === 'y' || key === 'z') continue;
+        if (!Object.prototype.hasOwnProperty.call(newMob, key)) {
+          delete target[key];
+        }
+      }
+      target.x = x;
+      target.y = y;
+      target.z = z;
+      writeIndex += 1;
     }
+    interpolatedMobs.length = writeIndex;
 
-    return result;
+    return interpolatedMobs;
   }
 
   function updateLocalPrediction(/** @type {any} */ dt, /** @type {any} */ serverPos, /** @type {any} */ inputKeys, /** @type {any} */ speed) {

@@ -705,6 +705,7 @@ export function updateResources(/** @type {any} */ worldState, /** @type {any} *
     }
     mesh.position.set(resource.x, resource.y ?? 0, resource.z);
     mesh.userData.available = resource.available;
+    mesh.visible = resource.available !== false;
     applyResourceMaterialColors(mesh.userData.crystal, colors, resource.available, resourceType);
   }
 
@@ -731,18 +732,21 @@ export function updateMobs(/** @type {any} */ worldState, /** @type {any} */ mob
       worldState.group.add(mesh);
     }
     mesh.userData.mobId = mob.id;
-    const prev = mesh.userData.lastPos;
-    const nextPos = new THREE.Vector3(mob.x, mob.y ?? 0, mob.z);
-    if (prev) {
-      const dx = nextPos.x - prev.x;
-      const dz = nextPos.z - prev.z;
+    const nextX = mob.x;
+    const nextY = mob.y ?? 0;
+    const nextZ = mob.z;
+    if (Number.isFinite(mesh.userData.lastX) && Number.isFinite(mesh.userData.lastZ)) {
+      const dx = nextX - mesh.userData.lastX;
+      const dz = nextZ - mesh.userData.lastZ;
       const distSq = dx * dx + dz * dz;
       if (distSq > 0.0004) {
         mesh.rotation.y = Math.atan2(dx, dz);
       }
     }
-    mesh.position.copy(nextPos);
-    mesh.userData.lastPos = nextPos;
+    mesh.position.set(nextX, nextY, nextZ);
+    mesh.userData.lastX = nextX;
+    mesh.userData.lastY = nextY;
+    mesh.userData.lastZ = nextZ;
   }
 
   for (const [id, mesh] of worldState.mobMeshes.entries()) {
@@ -928,10 +932,4 @@ async function loadEnvironmentModels(/** @type {any} */ worldState, /** @type {a
 
 export function animateWorld(/** @type {any} */ worldState, /** @type {any} */ now) {
   if (!worldState) return;
-  for (const mesh of worldState.resourceMeshes.values()) {
-    mesh.scale.set(1, 1, 1);
-    if (mesh.userData.available === false) {
-      mesh.visible = false;
-    }
-  }
 }

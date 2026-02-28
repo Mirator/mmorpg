@@ -25,6 +25,7 @@ import { buildDebugTextState, installDebugSurface } from './debugSurface.js';
 
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
+const fpsRowEl = document.querySelector('#hud .hud-fps-row');
 const pingEl = document.getElementById('ping-ms');
 const coordsEl = document.getElementById('coords');
 const accountNameEl = document.getElementById('account-name');
@@ -111,6 +112,9 @@ const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
 const MAX_SNAPSHOTS = 60;
 const DEFAULT_PLAYER_SPEED = PLAYER_CONFIG.speed;
+const ABILITY_BAR_UPDATE_MS = 100;
+const SKILLS_PANEL_UPDATE_MS = 250;
+const MINIMAP_UPDATE_MS = 125;
 
 /**
  * @typedef {{ kind: string, id: string | number }} SelectedTarget
@@ -654,8 +658,7 @@ function setShowFps(/** @type {any} */ value) {
   } catch {
     /* ignore */
   }
-  const fpsRow = fpsEl?.closest?.('#hud')?.querySelector?.('.hud-fps-row');
-  if (fpsRow) fpsRow.classList.toggle('hidden', !value);
+  if (fpsRowEl) fpsRowEl.classList.toggle('hidden', !value);
 }
 
 const pauseMenu = createPauseMenu({
@@ -675,12 +678,22 @@ const pauseMenu = createPauseMenu({
   getShowFps,
   setShowFps,
 });
+setShowFps(getShowFps());
 
 let lastFrameTime = performance.now();
 let fpsLastTime = lastFrameTime;
 let fpsFrameCount = 0;
 let manualStepping = false;
 let virtualNow = performance.now();
+const deadPlayerIds = new Set();
+const harvestingById = new Set();
+let lastBodyCursor = '';
+let lastCoordsText = '';
+let lastPingText = '';
+let nextAbilityBarUpdateAt = 0;
+let nextSkillsPanelUpdateAt = 0;
+let nextMinimapUpdateAt = 0;
+let wasSkillsOpen = false;
 
 function dismissOnboardingHints() {
   hideEntryBanner();
@@ -790,11 +803,16 @@ function getPlayerSpeed() {
 }
 
 function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
-  const { positions, localPos: serverLocalPos } = gameState.renderInterpolatedPlayers(now);
+  const inputKeys = inputHandler.getKeys();
+  const worldConfig = gameState.getWorldConfig();
   const latestPlayers = gameState.getLatestPlayers();
+  const latestResources = gameState.getLatestResources();
+  const latestMobs = gameState.getLatestMobs();
+  const serverNow = gameState.getServerNow();
+  const { positions, localPos: serverLocalPos } = gameState.renderInterpolatedPlayers(now);
   renderSystem.updatePlayerPositions(positions, {
     localPlayerId: ctx.playerId ?? null,
-    inputKeys: inputHandler.getKeys(),
+    inputKeys,
     playerStates: latestPlayers,
   });
 
@@ -805,7 +823,7 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
 
   const canPredict = !localState?.dead;
   const predictedPos = canPredict
-    ? gameState.updateLocalPrediction(dt, serverLocalPos, inputHandler.getKeys(), getPlayerSpeed())
+    ? gameState.updateLocalPrediction(dt, serverLocalPos, inputKeys, getPlayerSpeed())
     : serverLocalPos;
   const viewPos = predictedPos ?? serverLocalPos;
 
@@ -814,31 +832,31 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
       { [ctx.playerId]: predictedPos },
       {
         localPlayerId: ctx.playerId,
-        inputKeys: inputHandler.getKeys(),
+        inputKeys,
         playerStates: latestPlayers,
       }
     );
   }
 
+  let coordsText = '--, --, --';
   if (viewPos) {
     const cameraTarget = renderSystem.updateCamera(viewPos, dt);
-    if (cameraTarget) renderSystem.updateVisibility(cameraTarget);
-    if (coordsEl) {
-      coordsEl.textContent = `${viewPos.x.toFixed(1)}, ${(viewPos.y ?? 0).toFixed(1)}, ${viewPos.z.toFixed(1)}`;
-    }
-  } else if (coordsEl) {
-    coordsEl.textContent = '--, --, --';
+    if (cameraTarget) renderSystem.updateVisibility(cameraTarget, now);
+    coordsText = `${viewPos.x.toFixed(1)}, ${(viewPos.y ?? 0).toFixed(1)}, ${viewPos.z.toFixed(1)}`;
+  }
+  if (coordsEl && coordsText !== lastCoordsText) {
+    coordsEl.textContent = coordsText;
+    lastCoordsText = coordsText;
   }
 
   const interpolatedMobs = gameState.renderInterpolatedMobs(now);
   renderSystem.updateWorldMobs(interpolatedMobs);
 
   renderSystem.animateWorldMeshes(now);
-  const players = latestPlayers;
-  const deadPlayerIds = new Set();
-  const harvestingById = new Set();
-  if (players && typeof players === 'object') {
-    for (const [id, p] of Object.entries(players)) {
+  deadPlayerIds.clear();
+  harvestingById.clear();
+  if (latestPlayers && typeof latestPlayers === 'object') {
+    for (const [id, p] of Object.entries(latestPlayers)) {
       if (p?.dead) deadPlayerIds.add(id);
       if (p?.harvesting) harvestingById.add(id);
     }
@@ -849,9 +867,9 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   renderSystem.updateAnimations(dt, now, { deadPlayerIds, harvestingById });
   renderSystem.updateEffects(now);
   const resolvedTarget = resolveTarget(ctx.selectedTarget, {
-    mobs: gameState.getLatestMobs(),
-    players: gameState.getLatestPlayers(),
-    vendors: gameState.getWorldConfig()?.vendors ?? [],
+    mobs: latestMobs,
+    players: latestPlayers,
+    vendors: worldConfig?.vendors ?? [],
   });
   if (!resolvedTarget && ctx.selectedTarget) {
     ctx.selectedTarget = null;
@@ -867,26 +885,36 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   }
   ui.updateTargetHud(resolvedTarget);
 
-  ui.updateAbilityBar(
-    ctx.currentMe,
-    gameState.getServerNow(),
-    gameState.getConfigSnapshot()?.combat?.globalCooldownMs ?? 900
-  );
+  if (now >= nextAbilityBarUpdateAt) {
+    ui.updateAbilityBar(
+      localState,
+      serverNow,
+      gameState.getConfigSnapshot()?.combat?.globalCooldownMs ?? 900
+    );
+    nextAbilityBarUpdateAt = now + ABILITY_BAR_UPDATE_MS;
+  }
 
-  if (combat.getPlacementMode()) {
-    document.body.style.cursor = 'crosshair';
-  } else {
-    document.body.style.cursor = '';
+  const desiredCursor = combat.getPlacementMode() ? 'crosshair' : '';
+  if (desiredCursor !== lastBodyCursor) {
+    document.body.style.cursor = desiredCursor;
+    lastBodyCursor = desiredCursor;
   }
-  if (ui.isSkillsOpen()) {
-    ui.updateSkillsPanel(ctx.currentMe);
+
+  const skillsOpen = ui.isSkillsOpen();
+  if (skillsOpen && !wasSkillsOpen) {
+    nextSkillsPanelUpdateAt = 0;
   }
+  if (skillsOpen && now >= nextSkillsPanelUpdateAt) {
+    ui.updateSkillsPanel(localState);
+    nextSkillsPanelUpdateAt = now + SKILLS_PANEL_UPDATE_MS;
+  }
+  wasSkillsOpen = skillsOpen;
 
   nearestVendor = null;
   inVendorRange = false;
   if (viewPos) {
     const { vendor, distance } = getNearestVendor(viewPos);
-    const maxDist = gameState.getWorldConfig()?.vendorInteractRadius ?? 2.5;
+    const maxDist = worldConfig?.vendorInteractRadius ?? 2.5;
     nearestVendor = vendor;
     if (vendor && distance <= maxDist) {
       inVendorRange = true;
@@ -905,25 +933,26 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
     }
   } else if (inVendorRange && nearestVendor) {
     ui.showPrompt(`Press E to talk to ${nearestVendor.name ?? 'Vendor'}`);
-  } else if (viewPos && gameState.getLatestResources().length) {
-    const radius = gameState.getWorldConfig()?.harvestRadius ?? 2;
+  } else if (viewPos && latestResources.length) {
+    const radius = worldConfig?.harvestRadius ?? 2;
     const invCap =
       localState?.invCap ??
-      (gameState.getWorldConfig()?.playerInvSlots &&
-      gameState.getWorldConfig()?.playerInvStackMax
-        ? gameState.getWorldConfig().playerInvSlots * gameState.getWorldConfig().playerInvStackMax
+      (worldConfig?.playerInvSlots && worldConfig?.playerInvStackMax
+        ? worldConfig.playerInvSlots * worldConfig.playerInvStackMax
         : 5);
     const inv = localState?.inv ?? 0;
     let /** @type {any} */ nearestResource = null;
+    let nearestResourceDistSq = Infinity;
     const radiusSq = radius * radius;
     if (!localState?.dead && inv < invCap) {
-      for (const resource of gameState.getLatestResources()) {
+      for (const resource of latestResources) {
         if (!resource.available) continue;
         const dx = resource.x - viewPos.x;
         const dz = resource.z - viewPos.z;
         const distSq = dx * dx + dz * dz;
-        if (distSq <= radiusSq && (!nearestResource || distSq < nearestResource.distSq)) {
-          nearestResource = { ...resource, distSq };
+        if (distSq <= radiusSq && distSq < nearestResourceDistSq) {
+          nearestResource = resource;
+          nearestResourceDistSq = distSq;
         }
       }
     }
@@ -942,14 +971,15 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
     ui.clearPrompt();
   }
 
-  combat.pruneCombatEvents(gameState.getServerNow());
-
-  const fpsRow = document.getElementById('hud')?.querySelector('.hud-fps-row');
-  if (fpsRow) fpsRow.classList.toggle('hidden', !getShowFps());
+  combat.pruneCombatEvents(serverNow);
 
   if (pingEl) {
     const ms = ctx.pingMs;
-    pingEl.textContent = ms != null ? `${ms} ms` : '--';
+    const pingText = ms != null ? `${ms} ms` : '--';
+    if (pingText !== lastPingText) {
+      pingEl.textContent = pingText;
+      lastPingText = pingText;
+    }
   }
 
   fpsFrameCount += 1;
@@ -961,12 +991,15 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   }
 
   renderSystem.renderFrame();
-  minimap.render({
-    playerPos: viewPos,
-    mobs: gameState.getLatestMobs(),
-    resources: gameState.getLatestResources(),
-    worldConfig: gameState.getWorldConfig(),
-  });
+  if (now >= nextMinimapUpdateAt) {
+    minimap.render({
+      playerPos: viewPos,
+      mobs: latestMobs,
+      resources: latestResources,
+      worldConfig,
+    });
+    nextMinimapUpdateAt = now + MINIMAP_UPDATE_MS;
+  }
 }
 
 function animate() {

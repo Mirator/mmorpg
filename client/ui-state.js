@@ -679,8 +679,6 @@ export function createUiState(/** @type {any} */ {
       lastStats.currencyCopper = me.currencyCopper ?? 0;
       lastStats.level = me.level ?? 1;
       lastStats.totalXp = totalXp;
-      abilityBarModule.updateAbilityBar(me, serverNow, getCurrentClassId);
-      updateSkillsPanel(me, getCurrentClassId);
     } else {
       setDeathOpen(false);
       wasDead = false;
@@ -729,8 +727,6 @@ export function createUiState(/** @type {any} */ {
       lastStats.currencyCopper = null;
       lastStats.level = null;
       lastStats.totalXp = null;
-      abilityBarModule.updateAbilityBar(null, serverNow, getCurrentClassId);
-      updateSkillsPanel(null, getCurrentClassId);
     }
   }
 
