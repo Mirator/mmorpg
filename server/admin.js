@@ -144,6 +144,7 @@ export function serializePlayerPrivate(player) {
         }
       : null,
     moveSpeedMultiplier: player.moveSpeedMultiplier ?? 1,
+    walking: !!player.keys?.walk,
     equipment: player.equipment ?? null,
     weaponKind: getEquippedWeapon(player.equipment, player.classId)?.kind ?? null,
     attributes,

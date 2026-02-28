@@ -112,6 +112,7 @@ const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
 const MAX_SNAPSHOTS = 60;
 const DEFAULT_PLAYER_SPEED = PLAYER_CONFIG.speed;
+const DEFAULT_WALK_SPEED = PLAYER_CONFIG.speed * (PLAYER_CONFIG.walkSpeedMultiplier ?? 0.6);
 const ABILITY_BAR_UPDATE_MS = 100;
 const SKILLS_PANEL_UPDATE_MS = 250;
 const MINIMAP_UPDATE_MS = 125;
@@ -793,11 +794,19 @@ function handleInteract() {
   connection.sendInteract();
 }
 
-function getPlayerSpeed() {
+function getPlayerSpeed(/** @type {any} */ inputKeys = inputHandler?.getKeys?.()) {
   const worldConfig = gameState.getWorldConfig();
   const configSnapshot = gameState.getConfigSnapshot();
-  const baseSpeed =
-    worldConfig?.playerSpeed ?? configSnapshot?.player?.speed ?? DEFAULT_PLAYER_SPEED;
+  const sprintSpeed =
+    worldConfig?.playerSpeed ??
+    configSnapshot?.player?.sprintSpeed ??
+    configSnapshot?.player?.speed ??
+    DEFAULT_PLAYER_SPEED;
+  const walkSpeed =
+    worldConfig?.playerWalkSpeed ??
+    configSnapshot?.player?.walkSpeed ??
+    DEFAULT_WALK_SPEED;
+  const baseSpeed = inputKeys?.walk ? walkSpeed : sprintSpeed;
   const multiplier = ctx.currentMe?.moveSpeedMultiplier ?? 1;
   return baseSpeed * multiplier;
 }
@@ -864,7 +873,13 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   if (ctx.playerId && localState?.harvest) {
     harvestingById.add(ctx.playerId);
   }
-  renderSystem.updateAnimations(dt, now, { deadPlayerIds, harvestingById });
+  renderSystem.updateAnimations(dt, now, {
+    deadPlayerIds,
+    harvestingById,
+    localPlayerId: ctx.playerId ?? null,
+    inputKeys,
+    playerStates: latestPlayers,
+  });
   renderSystem.updateEffects(now);
   const resolvedTarget = resolveTarget(ctx.selectedTarget, {
     mobs: latestMobs,
@@ -1047,6 +1062,8 @@ function buildTextState() {
     auth,
     ctx,
     combat,
+    getInputKeys: () => inputHandler?.getKeys?.() ?? null,
+    getMovementSpeed: (/** @type {any} */ keys) => getPlayerSpeed(keys),
   });
 }
 
@@ -1057,6 +1074,7 @@ installDebugSurface({
   combatRef,
   renderSystem,
   combat,
+  getInputKeys: () => inputHandler?.getKeys?.() ?? null,
 });
 
 function getNearestVendor(/** @type {any} */ pos) {

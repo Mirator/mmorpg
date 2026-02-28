@@ -199,6 +199,7 @@ export async function loadPlayerAnimations() {
 }
 
 function findClipByKeywords(/** @type {any} */ clips, /** @type {any} */ keywords) {
+  if (!Array.isArray(keywords) || !keywords.length) return null;
   const lower = keywords.map((/** @type {any} */ keyword) => keyword.toLowerCase());
   return (
     clips.find((/** @type {any} */ clip) => {
@@ -212,11 +213,13 @@ export function pickClips(/** @type {any} */ clips, /** @type {any} */ overrides
   const clipList = Array.isArray(clips) ? clips : [];
   const idleNames = overrides.idleNames ?? null;
   const walkNames = overrides.walkNames ?? null;
+  const sprintNames = overrides.sprintNames ?? null;
   const attackNames = overrides.attackNames ?? null;
   const interactNames = overrides.interactNames ?? null;
   const deathNames = overrides.deathNames ?? null;
   const idleKeywords = overrides.idleKeywords ?? ['idle'];
   const walkKeywords = overrides.walkKeywords ?? ['walk', 'run'];
+  const sprintKeywords = overrides.sprintKeywords ?? ['sprint', 'run', 'jog'];
   const attackKeywords = overrides.attackKeywords ?? ['attack', 'slash', 'swing', 'punch', 'bite'];
   const interactKeywords = overrides.interactKeywords ?? ['interact', 'pickup', 'fix', 'gather', 'chop', 'harvest'];
   const deathKeywords = overrides.deathKeywords ?? ['death'];
@@ -230,10 +233,18 @@ export function pickClips(/** @type {any} */ clips, /** @type {any} */ overrides
     return null;
   };
 
+  const walkFallback = Object.prototype.hasOwnProperty.call(overrides, 'walkFallback')
+    ? overrides.walkFallback
+    : clipList[1] ?? null;
+  const sprintFallback = Object.prototype.hasOwnProperty.call(overrides, 'sprintFallback')
+    ? overrides.sprintFallback
+    : null;
   const idle =
     findByName(idleNames) ?? findClipByKeywords(clipList, idleKeywords) ?? clipList[0] ?? null;
   const walk =
-    findByName(walkNames) ?? findClipByKeywords(clipList, walkKeywords) ?? clipList[1] ?? idle ?? null;
+    findByName(walkNames) ?? findClipByKeywords(clipList, walkKeywords) ?? walkFallback;
+  const sprint =
+    findByName(sprintNames) ?? findClipByKeywords(clipList, sprintKeywords) ?? sprintFallback;
   const attack =
     findByName(attackNames) ??
     findClipByKeywords(clipList, attackKeywords) ??
@@ -251,6 +262,7 @@ export function pickClips(/** @type {any} */ clips, /** @type {any} */ overrides
   return {
     idle,
     walk,
+    sprint,
     attack,
     interact,
     death,

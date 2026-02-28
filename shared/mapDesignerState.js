@@ -1,7 +1,7 @@
 // @ts-check
 // @ts-nocheck
 
-import { normalizeMapConfig, validateMapConfig } from './mapConfig.js';
+import { normalizeMapConfig } from './mapConfig.js';
 
 export const MAP_DESIGNER_STATE_VERSION = 1;
 export const DESIGNER_ZONE_KEY_DEFAULT = 'world-map';
@@ -499,11 +499,6 @@ function validatePatches(errors, label, patches) {
   patches.forEach((patch, index) => {
     if (!PATCH_STATUS_SET.has(patch.status)) {
       errors.push(`${label}[${index}] status is invalid.`);
-    }
-
-    const mapErrors = validateMapConfig(normalizeMapConfig(patch?.sourceSnapshot?.mapConfig));
-    if (mapErrors.length > 0) {
-      errors.push(`${label}[${index}] sourceSnapshot.mapConfig is invalid.`);
     }
 
     const dependencies = Array.isArray(patch.dependencyIds) ? patch.dependencyIds : [];

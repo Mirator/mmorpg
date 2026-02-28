@@ -44,5 +44,6 @@ describe('world from map config', () => {
     expect(world.mobSpawns).toEqual([
       { id: 'm1', x: 18, y: 0, z: 9, mobType: 'orc', aggressive: true, level: undefined, levelVariance: 0 },
     ]);
+    expect(world.playerWalkSpeed).toBeCloseTo(1.8);
   });
 });

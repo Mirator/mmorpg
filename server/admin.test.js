@@ -203,6 +203,7 @@ describe('admin state serialization', () => {
       xp: 22,
       attackCooldownUntil: 9876,
       targetId: 'm-9',
+      keys: { w: false, a: false, s: false, d: false, walk: true },
     };
 
     const serialized = serializePlayerPrivate(player);
@@ -225,6 +226,7 @@ describe('admin state serialization', () => {
       resource: 0,
       abilityCooldowns: {},
       moveSpeedMultiplier: 1,
+      walking: true,
       equipment: rangerEquipment,
       weaponKind: 'weapon_training_bow',
     });

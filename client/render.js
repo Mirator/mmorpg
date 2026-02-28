@@ -395,14 +395,32 @@ export function createRenderSystem(/** @type {any} */ { app }) {
   function updateAnimations(
     /** @type {any} */ dt,
     /** @type {any} */ now,
-    /** @type {any} */ { deadPlayerIds = new Set(), harvestingById = new Set() } = {}
+    /** @type {any} */ {
+      deadPlayerIds = new Set(),
+      harvestingById = new Set(),
+      localPlayerId = null,
+      inputKeys = null,
+      playerStates = null,
+    } = {}
   ) {
-    updateControllerMap(playerControllers, playerMeshes, dt, now, { deadPlayerIds, harvestingById });
+    updateControllerMap(playerControllers, playerMeshes, dt, now, {
+      deadPlayerIds,
+      harvestingById,
+      localPlayerId,
+      inputKeys,
+      playerStates,
+    });
     if (worldState?.mobControllers && worldState?.mobMeshes) {
-      updateControllerMap(worldState.mobControllers, worldState.mobMeshes, dt, now);
+      updateControllerMap(worldState.mobControllers, worldState.mobMeshes, dt, now, {
+        deadPlayerIds,
+        harvestingById,
+      });
     }
     if (worldState?.vendorControllers && worldState?.vendorMeshes) {
-      updateControllerMap(worldState.vendorControllers, worldState.vendorMeshes, dt, now);
+      updateControllerMap(worldState.vendorControllers, worldState.vendorMeshes, dt, now, {
+        deadPlayerIds,
+        harvestingById,
+      });
     }
   }
 
@@ -545,7 +563,12 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       const overrides = ASSET_PATHS.playerModel
         ? {
             idleNames: ['Idle_Loop', 'Idle_Talking_Loop', 'Idle_No_Loop', 'Idle_FoldArms_Loop'],
-            walkNames: ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Walk_Formal_Loop'],
+            walkNames: ['Walk_Loop', 'Walk_Formal_Loop'],
+            walkKeywords: ['walk'],
+            walkFallback: null,
+            sprintNames: ['Sprint_Loop', 'Jog_Fwd_Loop'],
+            sprintKeywords: ['sprint', 'jog', 'run'],
+            sprintFallback: null,
             attackNames: ['Sword_Attack', 'Punch_Jab', 'Punch_Cross'],
             attackKeywords: ['attack', 'slash', 'swing', 'punch'],
             interactNames: ['Interact', 'PickUp_Table', 'Fixing_Kneeling'],
@@ -555,7 +578,12 @@ export function createRenderSystem(/** @type {any} */ { app }) {
           }
         : {
             idleNames: ['Idle_Loop', 'Idle_No_Loop'],
-            walkNames: ['Walk_Loop', 'Jog_Fwd_Loop', 'Sprint_Loop', 'Walk_Formal_Loop'],
+            walkNames: ['Walk_Loop', 'Walk_Formal_Loop'],
+            walkKeywords: ['walk'],
+            walkFallback: null,
+            sprintNames: ['Sprint_Loop', 'Jog_Fwd_Loop'],
+            sprintKeywords: ['sprint', 'jog', 'run'],
+            sprintFallback: null,
             attackNames: ['Sword_Attack', 'Punch_Jab', 'Punch_Cross'],
             attackKeywords: ['attack', 'slash', 'swing', 'punch'],
             interactNames: ['Interact', 'PickUp_Table', 'Fixing_Kneeling'],
@@ -591,12 +619,13 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       const mixer = new THREE.AnimationMixer(model);
       const actions = createActions(mixer, clipSet);
       const walkCycle = buildWalkCycle(model);
-      /** @type {{ mixer: any, actions: any, active: 'idle' | 'walk' | 'attack' | 'interact' | 'death' | null, attackUntil: number, lastX: number, lastY: number, lastZ: number, walkCycle: any }} */
+      /** @type {{ mixer: any, actions: any, active: 'idle' | 'walk' | 'sprint' | 'attack' | 'interact' | 'death' | null, attackUntil: number, locomotionUntil: number, lastX: number, lastY: number, lastZ: number, walkCycle: any }} */
       const controller = {
         mixer,
         actions,
         active: null,
         attackUntil: 0,
+        locomotionUntil: 0,
         lastX: mesh.position.x,
         lastY: mesh.position.y,
         lastZ: mesh.position.z,
@@ -614,6 +643,7 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     const /** @type {any} */ actions = {
       idle: clipSet.idle ? mixer.clipAction(clipSet.idle) : null,
       walk: clipSet.walk ? mixer.clipAction(clipSet.walk) : null,
+      sprint: clipSet.sprint ? mixer.clipAction(clipSet.sprint) : null,
       attack: clipSet.attack ? mixer.clipAction(clipSet.attack) : null,
       interact: clipSet.interact
         ? mixer.clipAction(clipSet.interact)
@@ -732,6 +762,10 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     if (!next) return;
     if (controller.active === name) return;
     const prev = controller.active ? controller.actions[controller.active] : null;
+    if (prev === next) {
+      controller.active = name;
+      return;
+    }
     next.reset();
     next.fadeIn(0.15);
     next.play();
@@ -753,6 +787,9 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     if (!controllers || !meshes) return;
     const deadPlayerIds = options.deadPlayerIds ?? new Set();
     const harvestingById = options.harvestingById ?? new Set();
+    const localPlayerId = options.localPlayerId ?? null;
+    const inputKeys = options.inputKeys ?? null;
+    const playerStates = options.playerStates ?? null;
     for (const [id, controller] of controllers.entries()) {
       const mesh = meshes.get(id);
       if (!mesh) continue;
@@ -766,35 +803,53 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       const isDead = deadPlayerIds && deadPlayerIds.has(id);
       const isHarvesting = harvestingById && harvestingById.has(id);
       const isAttacking = controller.actions?.attack && controller.attackUntil && now < controller.attackUntil;
-      const wantsWalk = speed > 0.1;
-      const inWalkHysteresis =
-        controller.active === 'walk' &&
-        controller.walkUntil != null &&
-        now < controller.walkUntil;
-      const effectiveWantsWalk = wantsWalk || inWalkHysteresis;
-      const useWalkCycle = controller.walkCycle && !controller.actions?.walk;
+      const wantsLocomotion = speed > 0.1;
+      const inLocomotionHysteresis =
+        (controller.active === 'walk' || controller.active === 'sprint') &&
+        controller.locomotionUntil != null &&
+        now < controller.locomotionUntil;
+      const effectiveWantsLocomotion = wantsLocomotion || inLocomotionHysteresis;
+      const walking = id === localPlayerId ? !!inputKeys?.walk : !!playerStates?.[id]?.walking;
+      const hasRequestedLocomotionAction = walking
+        ? !!controller.actions?.walk
+        : !!(controller.actions?.sprint || controller.actions?.walk);
+      const useWalkCycle = controller.walkCycle && !hasRequestedLocomotionAction;
+      let locomotionAction = null;
+      if (effectiveWantsLocomotion) {
+        if (
+          !wantsLocomotion &&
+          inLocomotionHysteresis &&
+          (controller.active === 'walk' || controller.active === 'sprint')
+        ) {
+          locomotionAction = controller.active;
+        } else if (walking) {
+          locomotionAction = controller.actions?.walk ? 'walk' : null;
+        } else {
+          locomotionAction = controller.actions?.sprint ? 'sprint' : controller.actions?.walk ? 'walk' : null;
+        }
+      }
 
       if (isDead && controller.actions?.death) {
         playAction(controller, 'death');
       } else if (isHarvesting && controller.actions?.interact) {
-        controller.walkUntil = 0;
+        controller.locomotionUntil = 0;
         playAction(controller, 'interact');
       } else if (isAttacking) {
         playAction(controller, 'attack');
-      } else if (effectiveWantsWalk && controller.actions?.walk) {
-        if (controller.active !== 'walk') {
-          controller.walkUntil = now + WALK_HYSTERESIS_MS;
+      } else if (effectiveWantsLocomotion && locomotionAction) {
+        if (wantsLocomotion || controller.active !== locomotionAction) {
+          controller.locomotionUntil = now + WALK_HYSTERESIS_MS;
         }
-        playAction(controller, 'walk');
+        playAction(controller, locomotionAction);
       } else if (controller.actions?.idle) {
-        controller.walkUntil = 0;
+        controller.locomotionUntil = 0;
         playAction(controller, 'idle');
       }
 
       controller.mixer?.update(dt);
 
       if (useWalkCycle && !isAttacking && !isDead && !isHarvesting) {
-        if (effectiveWantsWalk) {
+        if (effectiveWantsLocomotion) {
           applyWalkCycle(controller.walkCycle, now, speed);
         } else if (controller.walkCycle.wasWalking) {
           resetWalkCycle(controller.walkCycle);

@@ -100,6 +100,7 @@ export function createPublicStateBuilder({
           classId: p.classId ?? null,
           level: p.level ?? 1,
           name: p.name ?? null,
+          walking: !!p.keys?.walk,
         };
         const harvest = p.harvest;
         if (

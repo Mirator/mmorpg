@@ -718,8 +718,15 @@ async function run() {
     );
     state = await assertAliveBefore(page, 'movement checks', state);
     console.log(`Initial resources: ${state.resources.length}, mobs: ${state.mobs.length}`);
+    if (state.player?.movementMode !== 'sprint' || state.player?.walking !== false) {
+      throw new Error('Player should start in sprint mode.');
+    }
+    const sprintSpeed = Number(state.player?.movementSpeed ?? 0);
+    if (!(sprintSpeed > 0)) {
+      throw new Error(`Expected positive sprint speed, got ${state.player?.movementSpeed}.`);
+    }
 
-    const /** @type {any} */ startPos = { x: state.player.x, z: state.player.z };
+    const /** @type {any} */ sprintStartPos = { x: state.player.x, z: state.player.z };
     await page.keyboard.down('w');
     await sleep(300);
     await advance(page, 700);
@@ -727,9 +734,50 @@ async function run() {
 
     state = await waitForCondition(
       page,
-      (/** @type {any} */ s) => s.player && distance(s.player, startPos) > 0.5,
+      (/** @type {any} */ s) => s.player && distance(s.player, sprintStartPos) > 0.5,
       TEST_TIMEOUT_MS,
       'movement'
+    );
+    const sprintDistance = distance(state.player, sprintStartPos);
+
+    await page.keyboard.press('CapsLock');
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) =>
+        s.player?.movementMode === 'walk' &&
+        s.player?.walking === true &&
+        Number(s.player?.movementSpeed ?? 0) > 0 &&
+        Number(s.player?.movementSpeed ?? 0) < sprintSpeed,
+      TEST_TIMEOUT_MS,
+      'walk mode toggle'
+    );
+    const walkSpeed = Number(state.player?.movementSpeed ?? 0);
+
+    const /** @type {any} */ walkStartPos = { x: state.player.x, z: state.player.z };
+    await page.keyboard.down('w');
+    await sleep(300);
+    await advance(page, 700);
+    await page.keyboard.up('w');
+
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.player && distance(s.player, walkStartPos) > 0.4,
+      TEST_TIMEOUT_MS,
+      'walk movement'
+    );
+    const walkDistance = distance(state.player, walkStartPos);
+    if (!(walkDistance < sprintDistance)) {
+      throw new Error(
+        `Walk should be slower than sprint. distance=${walkDistance.toFixed(2)} sprintDistance=${sprintDistance.toFixed(2)} walkSpeed=${walkSpeed.toFixed(2)} sprintSpeed=${sprintSpeed.toFixed(2)}`
+      );
+    }
+
+    await page.keyboard.press('CapsLock');
+    state = await waitForCondition(
+      page,
+      (/** @type {any} */ s) => s.player?.movementMode === 'sprint' && s.player?.walking === false,
+      TEST_TIMEOUT_MS,
+      'sprint mode restore'
     );
     state = await assertAliveBefore(page, 'collision checks', state);
     await page.evaluate(() => window.__game?.clearInput());

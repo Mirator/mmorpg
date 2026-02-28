@@ -1,7 +1,6 @@
 // @ts-check
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 import {
-  getKeybinds,
   getAbilitySlotFromEvent,
   isKeyMatch,
 } from './keybinds.js';
@@ -41,7 +40,7 @@ export function createInputHandler(/** @type {any} */ {
   onPlacementUpdate,
   onTogglePauseMenu,
 }) {
-  const /** @type {any} */ keys = { w: false, a: false, s: false, d: false };
+  const /** @type {any} */ keys = { w: false, a: false, s: false, d: false, walk: false };
 
   function sendInput() {
     onInputChange?.({ ...keys });
@@ -49,7 +48,6 @@ export function createInputHandler(/** @type {any} */ {
 
   function handleMoveKey(/** @type {any} */ event, /** @type {any} */ isDown) {
     if (isUiBlocking()) return;
-    const keybinds = getKeybinds();
     for (const [action, keyName] of Object.entries(MOVE_ACTION_TO_KEY)) {
       if (isKeyMatch(event, action)) {
         if (event.repeat) return;
@@ -139,6 +137,12 @@ export function createInputHandler(/** @type {any} */ {
     }
     if (isKeyMatch(event, 'interact') && !event.repeat) {
       onInteract?.();
+      return;
+    }
+    if (isKeyMatch(event, 'toggleWalk') && !event.repeat) {
+      if (isUiBlocking()) return;
+      keys.walk = !keys.walk;
+      sendInput();
       return;
     }
     if (isUiBlocking()) return;

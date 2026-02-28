@@ -12,8 +12,11 @@ export function buildDebugTextState(/** @type {any} */ {
   auth,
   ctx,
   combat,
+  getInputKeys,
+  getMovementSpeed,
 }) {
   const me = gameState.getLocalPlayer();
+  const inputKeys = getInputKeys?.() ?? null;
   const worldConfig = gameState.getWorldConfig();
   const base = worldConfig?.base ?? null;
   const obstacles = worldConfig?.obstacles ?? [];
@@ -38,6 +41,11 @@ export function buildDebugTextState(/** @type {any} */ {
   const inventoryStackMax =
     me?.invStackMax ?? worldConfig?.playerInvStackMax ?? 0;
   const menuState = menu.getState();
+  const walking = !!me?.walking;
+  const movementMode = (inputKeys?.walk ?? walking) ? 'walk' : 'sprint';
+  const movementSpeed = me
+    ? (Number(getMovementSpeed?.(inputKeys)) || 0)
+    : 0;
   const target = resolveTarget(ctx.selectedTarget, {
     mobs: gameState.getLatestMobs(),
     players: gameState.getLatestPlayers(),
@@ -100,6 +108,9 @@ export function buildDebugTextState(/** @type {any} */ {
           abilityCooldowns: me.abilityCooldowns ?? {},
           globalCooldownUntil: me.globalCooldownUntil ?? 0,
           moveSpeedMultiplier: me.moveSpeedMultiplier ?? 1,
+          walking,
+          movementMode,
+          movementSpeed,
           equipment: me.equipment ?? null,
           weapon: weaponDef
             ? {
@@ -237,6 +248,7 @@ export function installDebugSurface(/** @type {any} */ {
   combatRef,
   renderSystem,
   combat,
+  getInputKeys,
 }) {
   window.render_game_to_text = () => JSON.stringify(getTextState());
 
@@ -245,7 +257,13 @@ export function installDebugSurface(/** @type {any} */ {
       connection.sendMoveTarget({ x, z });
     },
     clearInput: () => {
-      connection.sendInput({ w: false, a: false, s: false, d: false });
+      connection.sendInput({
+        w: false,
+        a: false,
+        s: false,
+        d: false,
+        walk: !!getInputKeys?.()?.walk,
+      });
     },
     interact: () => {
       connection.sendInteract();

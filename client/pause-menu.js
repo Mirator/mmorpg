@@ -4,11 +4,13 @@ import {
   setKeybind,
   resetKeybinds,
   DEFAULT_KEYBINDS,
+  normalizeKeyString,
 } from './keybinds.js';
 import { GAME_ICON_CREDITS, formatGameIconLabel } from './gameIcons.js';
 
 const /** @type {any} */ CONTROLS = [
   { key: 'W A S D', action: 'Move' },
+  { key: 'CapsLock', action: 'Toggle walk' },
   { key: 'Click', action: 'Move to location' },
   { key: 'Click / TAB', action: 'Select / cycle targets' },
   { key: 'E', action: 'Interact' },
@@ -25,6 +27,7 @@ const /** @type {any} */ KEYBIND_LABELS = {
   moveBack: 'Move back',
   moveLeft: 'Move left',
   moveRight: 'Move right',
+  toggleWalk: 'Toggle walk',
   interact: 'Interact',
   inventory: 'Inventory',
   character: 'Character sheet',
@@ -160,20 +163,18 @@ export function createPauseMenu(/** @type {any} */ {
     if (!rebindingAction) return;
     event.preventDefault();
     event.stopPropagation();
-    const key = event.key;
-    const code = event.code;
-    if (key === 'Escape') {
+    const rawKey = (event.code ?? '').match(/^(Digit|Numpad)(\d)$/i)
+      ? (event.code ?? '').replace(/^(Digit|Numpad)/i, '')
+      : event.key;
+    const normalizedKey = normalizeKeyString(rawKey);
+    if (normalizedKey === 'Escape') {
       rebindingAction = null;
       renderKeybinds();
       window.removeEventListener('keydown', handleRebindKey);
       return;
     }
-    let bindKey = key;
-    if (code?.match(/^(Digit|Numpad)(\d)$/i)) {
-      bindKey = code.replace(/^(Digit|Numpad)/i, '');
-    }
-    if (bindKey && bindKey.length <= 2) {
-      setKeybind(rebindingAction, bindKey);
+    if (normalizedKey) {
+      setKeybind(rebindingAction, normalizedKey);
       rebindingAction = null;
       renderKeybinds();
     }

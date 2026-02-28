@@ -109,4 +109,38 @@ describe('mapDesignerState shared model', () => {
     expect(errors.some((entry) => entry.includes('assetPath must start with /assets/'))).toBe(true);
     expect(errors.some((entry) => entry.includes('dependency'))).toBe(true);
   });
+
+  it('allows historical patch snapshots that no longer satisfy current map placement rules', () => {
+    const root = createDefaultDesignerStateRoot();
+    const zone = root.zones['world-map'];
+
+    zone.patches.push({
+      id: 'patch-legacy',
+      title: 'Legacy Patch',
+      description: '',
+      dependencyIds: [],
+      status: PATCH_STATUS.PUBLISHED,
+      sourceSnapshot: {
+        mapConfig: buildMapConfig({
+          resourceNodes: [{ id: 'r1', x: 3.5, z: 0 }],
+          vendors: [{ id: 'vendor-1', name: 'Vendor', x: 3, z: 0 }],
+        }),
+        zoneState: captureZoneSnapshot(zone),
+      },
+      publishedBaseline: null,
+      createdAt: '',
+      updatedAt: '',
+      createdBy: 'admin',
+      approvedAt: '',
+      approvedBy: '',
+      publishedAt: '',
+      publishedBy: '',
+      rolledBackAt: '',
+      rolledBackBy: '',
+      comments: [],
+    });
+
+    const errors = validateDesignerStateRoot(root);
+    expect(errors.some((entry) => entry.includes('sourceSnapshot.mapConfig is invalid.'))).toBe(false);
+  });
 });

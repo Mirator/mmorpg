@@ -24,6 +24,7 @@ const RESOURCE_RESPAWN_MS = RESOURCE_CONFIG.respawnMs;
 
 const PLAYER_MAX_HP = PLAYER_CONFIG.maxHp;
 const PLAYER_SPEED = PLAYER_CONFIG.speed;
+const PLAYER_WALK_SPEED = PLAYER_SPEED * (PLAYER_CONFIG.walkSpeedMultiplier ?? 0.6);
 const PLAYER_INV_SLOTS = PLAYER_CONFIG.invSlots;
 const PLAYER_INV_STACK_MAX = PLAYER_CONFIG.invStackMax;
 const PLAYER_INV_CAP = PLAYER_INV_SLOTS * PLAYER_INV_STACK_MAX;
@@ -149,6 +150,7 @@ export function createSimulatedWorld() {
     resourceRespawnMs: RESOURCE_RESPAWN_MS,
     playerMaxHp: PLAYER_MAX_HP,
     playerSpeed: PLAYER_SPEED,
+    playerWalkSpeed: PLAYER_WALK_SPEED,
     playerInvCap: PLAYER_INV_CAP,
     playerInvSlots: PLAYER_INV_SLOTS,
     playerInvStackMax: PLAYER_INV_STACK_MAX,
@@ -253,6 +255,7 @@ export function createWorldFromConfig(/** @type {any} */ mapConfig) {
     resourceRespawnMs: RESOURCE_RESPAWN_MS,
     playerMaxHp: PLAYER_MAX_HP,
     playerSpeed: PLAYER_SPEED,
+    playerWalkSpeed: PLAYER_WALK_SPEED,
     playerInvCap: PLAYER_INV_CAP,
     playerInvSlots: PLAYER_INV_SLOTS,
     playerInvStackMax: PLAYER_INV_STACK_MAX,
@@ -277,6 +280,7 @@ export function worldSnapshot(/** @type {any} */ world) {
     harvestRadius: world.harvestRadius,
     harvestDurationMs: world.harvestDurationMs,
     playerSpeed: world.playerSpeed,
+    playerWalkSpeed: world.playerWalkSpeed ?? PLAYER_WALK_SPEED,
     playerInvSlots: world.playerInvSlots,
     playerInvStackMax: world.playerInvStackMax,
     vendors: world.vendors ?? [],

@@ -8,6 +8,7 @@ describe('protocol validation', () => {
       a: false,
       s: true,
       d: false,
+      walk: false,
     });
   });
 
@@ -15,7 +16,7 @@ describe('protocol validation', () => {
     const msg = parseClientMessage({ type: 'input', keys: { w: true }, seq: 3 });
     expect(msg).toEqual({
       type: 'input',
-      keys: { w: true, a: false, s: false, d: false },
+      keys: { w: true, a: false, s: false, d: false, walk: false },
       seq: 3,
     });
   });

@@ -6,6 +6,7 @@ export const /** @type {any} */ DEFAULT_KEYBINDS = {
   moveBack: 's',
   moveLeft: 'a',
   moveRight: 'd',
+  toggleWalk: 'CapsLock',
   interact: 'e',
   inventory: 'i',
   character: 'c',
@@ -64,23 +65,28 @@ export function getKeyForAction(/** @type {any} */ action) {
   return getKeybinds()[action] ?? DEFAULT_KEYBINDS[action];
 }
 
+export function normalizeKeyString(/** @type {any} */ value) {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  const lower = trimmed.toLowerCase();
+  if (lower === 'escape' || lower === 'esc') return 'Escape';
+  if (lower === 'tab') return 'Tab';
+  if (lower === 'capslock' || lower === 'caps lock') return 'CapsLock';
+  if (trimmed.length === 1) return lower;
+  return trimmed;
+}
+
 function eventToKeyString(/** @type {any} */ event) {
-  const key = (event.key ?? '').toLowerCase();
-  if (key === 'escape' || key === 'esc') return 'Escape';
-  if (key === 'tab') return 'Tab';
   const digitMatch = (event.code ?? '').match(/^(Digit|Numpad)(\d)$/i);
   if (digitMatch) return digitMatch[2];
-  if (key.length === 1) return key;
-  return key;
+  return normalizeKeyString(event.key ?? '');
 }
 
 export function isKeyMatch(/** @type {any} */ event, /** @type {any} */ action) {
-  const bound = (getKeyForAction(action) ?? '').toLowerCase();
-  const eventKey = eventToKeyString(event).toLowerCase();
-  if (bound === 'escape' && (eventKey === 'escape' || eventKey === 'esc')) return true;
-  if (bound === eventKey) return true;
-  if (bound.length === 1 && eventKey.length === 1 && bound === eventKey) return true;
-  return false;
+  const bound = normalizeKeyString(getKeyForAction(action));
+  const eventKey = eventToKeyString(event);
+  return !!bound && !!eventKey && bound.toLowerCase() === eventKey.toLowerCase();
 }
 
 export function getAbilitySlotFromEvent(/** @type {any} */ event) {

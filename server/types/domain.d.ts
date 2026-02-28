@@ -34,7 +34,7 @@ export interface ServerPlayer {
   id: string;
   ws?: WsClient | null;
   pos?: Position3D | null;
-  keys?: { w: boolean; a: boolean; s: boolean; d: boolean };
+  keys?: { w: boolean; a: boolean; s: boolean; d: boolean; walk: boolean };
   lastInputSeq?: number;
   hp?: number;
   maxHp?: number;
@@ -264,6 +264,7 @@ export interface PublicPlayerState {
   classId: string | null;
   level: number;
   name: string | null;
+  walking?: boolean;
   dirX?: number;
   dirZ?: number;
   harvesting?: boolean;

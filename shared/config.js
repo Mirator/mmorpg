@@ -22,7 +22,8 @@ export const RESOURCE_CONFIG = {
 export const PLAYER_CONFIG = {
   /** @deprecated maxHp now comes from attributes (computeDerivedStats) */
   maxHp: 100,
-  speed: 3,
+  speed: 5,
+  walkSpeedMultiplier: 0.36,
   invSlots: 20,
   invStackMax: 20,
 };
@@ -60,6 +61,7 @@ export const CHAT_CONFIG = {
 };
 
 export function getConfigSnapshot() {
+  const walkSpeed = PLAYER_CONFIG.speed * (PLAYER_CONFIG.walkSpeedMultiplier ?? 0.6);
   return {
     version: GAME_CONFIG_VERSION,
     protocolVersion: PROTOCOL_VERSION,
@@ -74,6 +76,8 @@ export function getConfigSnapshot() {
     player: {
       maxHp: PLAYER_CONFIG.maxHp,
       speed: PLAYER_CONFIG.speed,
+      sprintSpeed: PLAYER_CONFIG.speed,
+      walkSpeed,
       invSlots: PLAYER_CONFIG.invSlots,
       invStackMax: PLAYER_CONFIG.invStackMax,
     },

@@ -7,7 +7,7 @@ export const PROTOCOL_VERSION = 1;
 const MAX_ID_LENGTH = 64;
 
 /**
- * @typedef {{ w?: boolean, a?: boolean, s?: boolean, d?: boolean }} InputKeys
+ * @typedef {{ w?: boolean, a?: boolean, s?: boolean, d?: boolean, walk?: boolean }} InputKeys
  * @typedef {{ type: 'hello', seq?: number }} HelloMessage
  * @typedef {{ type: 'ping', t?: number, seq?: number }} PingMessage
  * @typedef {{ type: 'respawn', seq?: number }} RespawnMessage
@@ -126,6 +126,7 @@ export function sanitizeInputKeys(raw) {
     a: !!keys.a,
     s: !!keys.s,
     d: !!keys.d,
+    walk: !!keys.walk,
   };
 }
 

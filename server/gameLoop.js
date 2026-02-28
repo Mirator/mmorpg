@@ -49,7 +49,13 @@ export function createGameLoop(/** @type {any} */ { players, world, resources, m
     player.targetKind = null;
     player.cast = null;
     player.harvest = null;
-    player.keys = { w: false, a: false, s: false, d: false };
+    player.keys = {
+      w: false,
+      a: false,
+      s: false,
+      d: false,
+      walk: !!player.keys?.walk,
+    };
     markDirty(player);
     if (typeof onPlayerDeath === 'function') {
       onPlayerDeath(player.id, now);
@@ -81,7 +87,11 @@ export function createGameLoop(/** @type {any} */ { players, world, resources, m
           const stunned = (player.stunnedUntil ?? 0) > now;
           const canMove = !rooted && !stunned;
           const slowMult = (player.slowUntil ?? 0) > now ? (player.slowMultiplier ?? 0.5) : 1;
-          const speed = canMove ? world.playerSpeed * (player.moveSpeedMultiplier ?? 1) * slowMult : 0;
+          const baseSpeed =
+            player.keys?.walk
+              ? (world.playerWalkSpeed ?? world.playerSpeed)
+              : world.playerSpeed;
+          const speed = canMove ? baseSpeed * (player.moveSpeedMultiplier ?? 1) * slowMult : 0;
           const result = stepPlayer(
             { pos: player.pos, target: player.target },
             { keys: player.keys },

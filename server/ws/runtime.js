@@ -132,7 +132,7 @@ export function createRuntimePlayer({
     ws,
     pos: state.pos,
     target: null,
-    keys: { w: false, a: false, s: false, d: false },
+    keys: { w: false, a: false, s: false, d: false, walk: false },
     lastInputSeq: 0,
     hp: state.hp,
     maxHp: state.maxHp,
