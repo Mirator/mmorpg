@@ -2,6 +2,7 @@
 import { ABILITY_SLOTS } from '/shared/classes.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 import { getAbilitiesForClass } from '/shared/classes.js';
+import { getAbilityPresentation } from '/shared/abilityPresentation.js';
 import { getKeybinds } from '../keybinds.js';
 import { getAbilityIconFile } from '../gameIcons.js';
 import { applyGlyphMask } from '../uiGlyphs.js';
@@ -12,30 +13,8 @@ function formatKey(/** @type {any} */ key) {
   return key.length === 1 ? key.toUpperCase() : key;
 }
 
-export function buildAbilityTooltip(/** @type {any} */ ability) {
-  const /** @type {any} */ parts = [];
-  if (ability.baseValue != null && ability.coefficient != null) {
-    parts.push(`Damage: ${ability.baseValue} + Power × ${ability.coefficient}`);
-  }
-  if (ability.resourceCost != null && ability.resourceCost > 0) {
-    parts.push(`Cost: ${ability.resourceCost}`);
-  }
-  if (ability.cooldownMs) {
-    parts.push(`CD: ${(ability.cooldownMs / 1000).toFixed(1)}s`);
-  }
-  if (ability.range) {
-    parts.push(`Range: ${ability.range}m`);
-  }
-  if (ability.requirePlacement) {
-    parts.push('Requires placement');
-  }
-  if (ability.radius) {
-    parts.push(`Radius: ${ability.radius}m`);
-  }
-  if (ability.damageTakenMultiplier != null && ability.damageTakenMultiplier < 1) {
-    parts.push(`Reduces damage taken by ${Math.round((1 - ability.damageTakenMultiplier) * 100)}%`);
-  }
-  return parts.join(' · ') || ability.name;
+export function buildAbilityTooltip(/** @type {any} */ ability, /** @type {any} */ opts = {}) {
+  return getAbilityPresentation(ability, opts).metaLabel;
 }
 
 export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any} */ onAbilityClick) {
@@ -53,6 +32,22 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
     if (slotRef.lastCooldownFraction === fractionText) return;
     slotRef.root.style.setProperty('--cooldown', fractionText);
     slotRef.lastCooldownFraction = fractionText;
+  }
+
+  function setSlotStyleVar(
+    /** @type {any} */ slotRef,
+    /** @type {string} */ cssName,
+    /** @type {string} */ stateKey,
+    /** @type {any} */ value
+  ) {
+    const normalized = value == null ? null : String(value);
+    if (slotRef[stateKey] === normalized) return;
+    if (normalized == null || normalized === '') {
+      slotRef.root.style.removeProperty(cssName);
+    } else {
+      slotRef.root.style.setProperty(cssName, normalized);
+    }
+    slotRef[stateKey] = normalized;
   }
 
   function setSlotIcon(/** @type {any} */ slotRef, /** @type {any} */ iconFile, /** @type {any} */ label) {
@@ -82,7 +77,6 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
     if (!abilityBarEl) return;
     abilityBarEl.innerHTML = '';
     abilitySlots.length = 0;
-    const keybinds = getKeybinds();
     for (let slot = 1; slot <= ABILITY_SLOTS; slot += 1) {
       const el = document.createElement('div');
       el.className = 'ability-slot empty';
@@ -90,8 +84,7 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       el.style.setProperty('--cooldown', '0');
       const key = document.createElement('div');
       key.className = 'ability-key';
-      const bound = keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot));
-      key.textContent = formatKey(bound);
+      key.textContent = '';
       const icon = document.createElement('div');
       icon.className = 'ability-icon ui-glyph ui-glyph-lg';
       const name = document.createElement('div');
@@ -105,9 +98,12 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       tooltip.setAttribute('role', 'tooltip');
       const tooltipTitle = document.createElement('div');
       tooltipTitle.className = 'ability-tooltip-title';
+      const tooltipBody = document.createElement('div');
+      tooltipBody.className = 'ability-tooltip-body';
       const tooltipMeta = document.createElement('div');
       tooltipMeta.className = 'ability-tooltip-meta';
       tooltip.appendChild(tooltipTitle);
+      tooltip.appendChild(tooltipBody);
       tooltip.appendChild(tooltipMeta);
       el.appendChild(key);
       el.appendChild(icon);
@@ -126,16 +122,20 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
         cooldownNumEl: cooldownNum,
         tooltipEl: tooltip,
         tooltipTitleEl: tooltipTitle,
+        tooltipBodyEl: tooltipBody,
         tooltipMetaEl: tooltipMeta,
         lastAbilityId: null,
         lastKeyText: key.textContent,
-        lastIconFile: null,
+        lastIconFile: undefined,
         lastIconText: '',
         lastNameText: name.textContent,
         lastTooltipTitleText: tooltipTitle.textContent,
+        lastTooltipBodyText: tooltipBody.textContent,
         lastCooldownText: cooldownNum.textContent,
-        lastTooltipText: tooltipMeta.textContent,
+        lastTooltipMetaText: tooltipMeta.textContent,
         lastCooldownFraction: '0',
+        lastPrimaryRgb: null,
+        lastSecondaryRgb: null,
         isEmpty: true,
       });
     }
@@ -157,22 +157,31 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       if (!slotRef) continue;
       const bound = keybinds[`ability${slot}`] ?? (slot === 10 ? '0' : String(slot));
       const keyLabel = formatKey(bound);
-      setSlotText(slotRef, 'lastKeyText', slotRef.keyEl, keyLabel);
 
       if (ability) {
+        const presentation = getAbilityPresentation(ability, { classId, weaponDef });
         setSlotEmptyState(slotRef, false);
         slotRef.lastAbilityId = ability.id ?? null;
+        setSlotText(slotRef, 'lastKeyText', slotRef.keyEl, keyLabel);
+        setSlotStyleVar(slotRef, '--ability-primary-rgb', 'lastPrimaryRgb', presentation.primaryRgb);
+        setSlotStyleVar(slotRef, '--ability-secondary-rgb', 'lastSecondaryRgb', presentation.secondaryRgb);
         setSlotIcon(slotRef, getAbilityIconFile(ability, weaponDef), ability.name);
         setSlotText(slotRef, 'lastNameText', slotRef.nameEl, ability.name);
         setSlotText(slotRef, 'lastTooltipTitleText', slotRef.tooltipTitleEl, ability.name);
+        setSlotText(slotRef, 'lastTooltipBodyText', slotRef.tooltipBodyEl, presentation.summary);
+        setSlotText(slotRef, 'lastTooltipMetaText', slotRef.tooltipMetaEl, presentation.metaLabel);
       } else {
         slotRef.lastAbilityId = null;
         setSlotEmptyState(slotRef, true);
+        setSlotText(slotRef, 'lastKeyText', slotRef.keyEl, '');
+        setSlotStyleVar(slotRef, '--ability-primary-rgb', 'lastPrimaryRgb', null);
+        setSlotStyleVar(slotRef, '--ability-secondary-rgb', 'lastSecondaryRgb', null);
         setSlotIcon(slotRef, null, '');
         setSlotText(slotRef, 'lastNameText', slotRef.nameEl, '');
         setSlotCooldownFraction(slotRef, '0');
         setSlotText(slotRef, 'lastTooltipTitleText', slotRef.tooltipTitleEl, '');
-        setSlotText(slotRef, 'lastTooltipText', slotRef.tooltipMetaEl, '');
+        setSlotText(slotRef, 'lastTooltipBodyText', slotRef.tooltipBodyEl, '');
+        setSlotText(slotRef, 'lastTooltipMetaText', slotRef.tooltipMetaEl, '');
         setSlotText(slotRef, 'lastCooldownText', slotRef.cooldownNumEl, '');
         continue;
       }
@@ -194,7 +203,6 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
         ? Math.min(1, remaining / durationMs)
         : 0;
       setSlotCooldownFraction(slotRef, fraction.toFixed(3));
-      setSlotText(slotRef, 'lastTooltipText', slotRef.tooltipMetaEl, buildAbilityTooltip(ability));
       setSlotText(
         slotRef,
         'lastCooldownText',

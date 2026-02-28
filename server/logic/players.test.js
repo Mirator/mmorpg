@@ -14,12 +14,12 @@ describe('players', () => {
     expect(state.invCap).toBe(240);
     expect(state.inv).toBe(12);
     expect(state.inventory.slice(0, 6)).toEqual([
-      { kind: 'crystal', name: 'Crystal', count: 3 },
-      { kind: 'ore', name: 'Iron Ore', count: 2 },
-      { kind: 'herb', name: 'Healing Herb', count: 3 },
-      { kind: 'weapon_training_bow', name: 'Training Bow', count: 1 },
-      { kind: 'consumable_minor_health_potion', name: 'Minor Health Potion', count: 2 },
-      { kind: 'armor_head_cloth', name: 'Cloth Cap', count: 1 },
+      { kind: 'crystal', name: 'Crystal', count: 3, isStarter: true },
+      { kind: 'ore', name: 'Iron Ore', count: 2, isStarter: true },
+      { kind: 'herb', name: 'Healing Herb', count: 3, isStarter: true },
+      { kind: 'weapon_training_bow', name: 'Training Bow', count: 1, isStarter: true },
+      { kind: 'consumable_minor_health_potion', name: 'Minor Health Potion', count: 2, isStarter: true },
+      { kind: 'armor_head_cloth', name: 'Cloth Cap', count: 1, isStarter: true },
     ]);
   });
 });

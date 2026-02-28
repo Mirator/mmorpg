@@ -33,13 +33,18 @@ describe('crafting recipe rendering', () => {
     ui.render();
 
     const row = recipeListEl.children[0];
-    const header = row.children[0];
+    const header = row.querySelector('.craft-recipe-header');
+    expect(header).toBeTruthy();
     expect(header.children[0].className).toContain('craft-recipe-glyph');
     expect(header.children[0].style.values['--ui-glyph-mask']).toContain('lorc/heart-bottle.svg');
 
-    const ingredients = row.children[1];
-    expect(ingredients.children[0].children[0].className).toContain('craft-ingredient-glyph');
-    expect(ingredients.children[0].children[0].style.values['--ui-glyph-mask']).toContain(
+    const ingredients = row.querySelector('.craft-ingredients');
+    expect(ingredients).toBeTruthy();
+    const firstIngredient = ingredients.children[0];
+    const ingredientGlyph = firstIngredient.querySelector('.craft-ingredient-glyph');
+    expect(ingredientGlyph).toBeTruthy();
+    expect(ingredientGlyph.className).toContain('craft-ingredient-glyph');
+    expect(ingredientGlyph.style.values['--ui-glyph-mask']).toContain(
       'lorc/lotus-flower.svg'
     );
   });
