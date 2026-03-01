@@ -107,10 +107,7 @@ export function createConnection(/** @type {any} */ {
       gameState.updateServerTime(msg.t);
     }
     if (msg.world) {
-      const currentWorld = gameState.getWorldConfig();
-      if (!currentWorld || currentWorld.mapSize !== msg.world.mapSize) {
-        setWorld(msg.world);
-      }
+      setWorld(msg.world);
     }
     const isFull = msg.full === true;
     const removedPlayers = msg.removedPlayers ?? [];

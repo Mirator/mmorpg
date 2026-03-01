@@ -61,7 +61,7 @@ export async function saveMapConfig(/** @type {any} */ filePath, /** @type {any}
   return normalized;
 }
 
-export function createMapConfigHandlers(/** @type {any} */ { mapConfigPath, isAuthorized }) {
+export function createMapConfigHandlers(/** @type {any} */ { mapConfigPath, isAuthorized, onAfterSave = null }) {
   const mapPath = mapConfigPath;
 
   const guard = (/** @type {any} */ req, /** @type {any} */ res) => {
@@ -87,6 +87,13 @@ export function createMapConfigHandlers(/** @type {any} */ { mapConfigPath, isAu
     if (!guard(req, res)) return;
     try {
       const saved = await saveMapConfig(mapPath, req.body ?? {});
+      const liveResult = typeof onAfterSave === 'function'
+        ? await onAfterSave(saved)
+        : null;
+      if (liveResult && typeof liveResult === 'object') {
+        res.json({ ok: true, config: saved, ...liveResult });
+        return;
+      }
       res.json({ ok: true, config: saved });
     } catch (err) {
       const error = /** @type {MapConfigError} */ (

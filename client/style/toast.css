@@ -22,6 +22,12 @@
   animation: toast-in 0.25s ease;
 }
 
+.toast-warning {
+  border-color: rgba(255, 128, 96, 0.5);
+  background: rgba(48, 19, 12, 0.94);
+  color: #ffe3d0;
+}
+
 .toast-exit {
   animation: toast-out 0.2s ease forwards;
 }

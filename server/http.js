@@ -167,7 +167,8 @@ function clearAdminSessionCookie(res, config) {
  *   mobs: MobEntity[],
  *   spawner: SpawnerLike,
  *   mapConfigPath: string,
- *   designerStatePath: string
+ *   designerStatePath: string,
+ *   onApplyMapConfig?: ((config?: unknown) => Promise<unknown>) | null
  * }} deps
  */
 export function createHttpApp({
@@ -179,6 +180,7 @@ export function createHttpApp({
   spawner,
   mapConfigPath,
   designerStatePath,
+  onApplyMapConfig = null,
 }) {
   const app = express();
   app.disable('x-powered-by');
@@ -435,15 +437,18 @@ export function createHttpApp({
   const mapHandlers = createMapConfigHandlers({
     mapConfigPath,
     isAuthorized: isAdminAuthorizedRequest,
+    onAfterSave: onApplyMapConfig,
   });
   app.get('/admin/map-config', mapHandlers.getHandler);
   app.put('/admin/map-config', csrfGuard, mapHandlers.putHandler);
 
-  const designerHandlers = createMapDesignerHandlers({
+  const designerHandlers = createMapDesignerHandlers(/** @type {any} */ ({
     isAuthorized: isAdminAuthorizedRequest,
     mapConfigPath,
     designerStatePath,
-  });
+    onAfterPublish: onApplyMapConfig ? () => onApplyMapConfig() : null,
+    onAfterRollback: onApplyMapConfig ? () => onApplyMapConfig() : null,
+  }));
   app.get('/admin/designer-state', designerHandlers.getDesignerState);
   app.put('/admin/designer-state', csrfGuard, designerHandlers.putDesignerState);
 

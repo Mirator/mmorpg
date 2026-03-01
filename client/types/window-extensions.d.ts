@@ -23,6 +23,17 @@ declare global {
       contractTurnIn: (vendorId: string, contractId: string) => void;
       repairItem: (fromType: 'inventory' | 'equipment', slot: number | string) => void;
       salvageItem: (slot: number) => void;
+      duelRequest: (targetId: string) => void;
+      duelAccept: (challengerId: string) => void;
+      duelDecline: (challengerId: string) => void;
+      duelForfeit: () => void;
+      tradeRequest: (targetId: string) => void;
+      tradeAccept: (traderId: string) => void;
+      tradeDecline: (traderId: string) => void;
+      tradeOfferAddSlot: (slot: number) => void;
+      tradeOfferAddCopper: (amount: number) => void;
+      tradeConfirm: () => void;
+      tradeCancel: () => void;
       forceAbility: (slot: number) => void;
       useAbility: (slot: number) => void;
       projectToScreen: (x: number, z: number) => { x: number; y: number } | null;

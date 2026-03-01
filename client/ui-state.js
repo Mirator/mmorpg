@@ -520,11 +520,19 @@ export function createUiState(/** @type {any} */ {
       info.className = 'vendor-contract-info';
       const title = document.createElement('div');
       title.className = 'vendor-contract-title';
-      title.textContent = contract.title ?? contract.id ?? 'Contract';
+      title.textContent = contract.bonusType === 'daily_commission'
+        ? `${contract.title ?? contract.id ?? 'Contract'} · Daily`
+        : (contract.title ?? contract.id ?? 'Contract');
       const meta = document.createElement('div');
       meta.className = 'vendor-contract-meta';
       if (isOffer) {
-        meta.textContent = `Reward ${formatCurrency(contract.rewardCopper ?? 0)} · ${contract.rewardXp ?? 0} XP`;
+        const rewardText = `Reward ${formatCurrency(contract.rewardCopper ?? 0)} · ${contract.rewardXp ?? 0} XP`;
+        if (contract.bonusType === 'daily_commission' && Number.isFinite(contract.resetAt)) {
+          const hoursLeft = Math.max(1, Math.ceil((contract.resetAt - Date.now()) / 3_600_000));
+          meta.textContent = `Daily commission · resets in ${hoursLeft}h · ${rewardText}`;
+        } else {
+          meta.textContent = rewardText;
+        }
       } else if (contract.completed) {
         meta.textContent = 'Ready to turn in';
       } else {
@@ -996,7 +1004,7 @@ export function createUiState(/** @type {any} */ {
 
   function showAbilityError(/** @type {any} */ reason, /** @type {any} */ slot) {
     const text = ABILITY_FAIL_MESSAGES[reason] ?? 'Ability failed';
-    showEvent(text);
+    showToast(text, 'warning');
   }
 
   return {
@@ -1007,8 +1015,8 @@ export function createUiState(/** @type {any} */ {
     renderVendorPrices,
     updateLocalUi,
     updateTargetHud,
-    updateAbilityBar: (/** @type {any} */ me, /** @type {any} */ serverNow, /** @type {any} */ globalCooldownMs) =>
-      abilityBarModule.updateAbilityBar(me, serverNow, buildAbilityPanelState(me), globalCooldownMs),
+    updateAbilityBar: (/** @type {any} */ me, /** @type {any} */ serverNow, /** @type {any} */ globalCooldownMs, /** @type {any} */ target = null) =>
+      abilityBarModule.updateAbilityBar(me, serverNow, buildAbilityPanelState(me), globalCooldownMs, target),
     updateSkillsPanel: (/** @type {any} */ me) => updateSkillsPanel(me),
     setInventoryOpen,
     toggleInventory,

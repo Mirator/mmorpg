@@ -41,4 +41,33 @@ describe('contracts', () => {
     ]);
     expect(snapshot.offersByVendor.vendor_c_01).toHaveLength(3);
   });
+
+  it('surfaces a daily commission once per reset window', () => {
+    const snapshot = getContractSnapshotForPlayer({
+      id: 'p-1',
+      level: 5,
+      activeContracts: [],
+      dailyCommissionClaimedAt: 0,
+    }, 0);
+
+    const dailyOffer = Object.values(snapshot.offersByVendor)
+      .flat()
+      .find((offer) => offer?.bonusType === 'daily_commission');
+    expect(dailyOffer).toEqual(
+      expect.objectContaining({
+        bonusType: 'daily_commission',
+      })
+    );
+
+    const claimedSnapshot = getContractSnapshotForPlayer({
+      id: 'p-1',
+      level: 5,
+      activeContracts: [],
+      dailyCommissionClaimedAt: 1,
+    }, 1);
+    const claimedDaily = Object.values(claimedSnapshot.offersByVendor)
+      .flat()
+      .find((offer) => offer?.bonusType === 'daily_commission');
+    expect(claimedDaily).toBeUndefined();
+  });
 });

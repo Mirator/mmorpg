@@ -410,17 +410,21 @@ async function runPatchAction(action) {
     if (action === 'publish') {
       const payload = await state.api.publishPatch(patch.id);
       restartNote.hidden = false;
-      restartNote.textContent = payload?.restartRequired
-        ? 'Publish complete. Runtime restart is required to apply this patch.'
-        : 'Publish complete.';
+      restartNote.textContent = payload?.liveApplied
+        ? `Publish complete. Live world updated (v${payload.worldVersion ?? 'n/a'}).`
+        : payload?.restartRequired
+          ? 'Publish complete. Runtime restart is required to apply this patch.'
+          : 'Publish complete.';
       setStatus('Status: patch published.', 'ok');
     }
     if (action === 'rollback') {
       const payload = await state.api.rollbackPatch(patch.id);
       restartNote.hidden = false;
-      restartNote.textContent = payload?.restartRequired
-        ? 'Rollback complete. Runtime restart is required to apply rollback.'
-        : 'Rollback complete.';
+      restartNote.textContent = payload?.liveApplied
+        ? `Rollback complete. Live world updated (v${payload.worldVersion ?? 'n/a'}).`
+        : payload?.restartRequired
+          ? 'Rollback complete. Runtime restart is required to apply rollback.'
+          : 'Rollback complete.';
       setStatus('Status: patch rolled back.', 'ok');
     }
 

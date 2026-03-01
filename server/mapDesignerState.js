@@ -1114,7 +1114,13 @@ export function createMapDesignerStateStore({ designerStatePath, mapConfigPath }
  *   designerStatePath: string
  * }} params
  */
-export function createMapDesignerHandlers({ isAuthorized, mapConfigPath, designerStatePath }) {
+export function createMapDesignerHandlers({
+  isAuthorized,
+  mapConfigPath,
+  designerStatePath,
+  onAfterPublish = null,
+  onAfterRollback = null,
+}) {
   const store = createMapDesignerStateStore({
     mapConfigPath,
     designerStatePath,
@@ -1297,6 +1303,17 @@ export function createMapDesignerHandlers({ isAuthorized, mapConfigPath, designe
           String(req.params?.id ?? ''),
           getProvidedAdminAlias(req)
         );
+        if (typeof onAfterPublish === 'function') {
+          const liveResult = await onAfterPublish();
+          if (liveResult && typeof liveResult === 'object') {
+            res.json({
+              ...payload,
+              restartRequired: liveResult.liveApplied ? false : payload.restartRequired,
+              ...liveResult,
+            });
+            return;
+          }
+        }
         res.json(payload);
       } catch (err) {
         sendError(res, err);
@@ -1311,6 +1328,17 @@ export function createMapDesignerHandlers({ isAuthorized, mapConfigPath, designe
           String(req.params?.id ?? ''),
           getProvidedAdminAlias(req)
         );
+        if (typeof onAfterRollback === 'function') {
+          const liveResult = await onAfterRollback();
+          if (liveResult && typeof liveResult === 'object') {
+            res.json({
+              ...payload,
+              restartRequired: liveResult.liveApplied ? false : payload.restartRequired,
+              ...liveResult,
+            });
+            return;
+          }
+        }
         res.json(payload);
       } catch (err) {
         sendError(res, err);

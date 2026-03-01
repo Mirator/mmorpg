@@ -17,6 +17,7 @@ import { seedDevAccount } from './devSeed.js';
 import { autoMigrateDev } from './devMigrate.js';
 import { loadMapConfigSync, resolveMapConfigPath } from './mapConfig.js';
 import { resolveDesignerStatePath } from './mapDesignerState.js';
+import { applyCollisions } from './logic/collision.js';
 
 export function createServer(/** @type {any} */ { env = process.env } = {}) {
   const config = getServerConfig(env);
@@ -38,6 +39,61 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
   const /** @type {any} */ corpses = [];
   const spawner = createSpawner(world);
   const /** @type {any} */ nextItemIdRef = { current: 1 };
+  let worldVersion = 1;
+  let /** @type {any} */ persistence = null;
+  let /** @type {any} */ ws = null;
+
+  function replaceArrayContents(/** @type {any[]} */ target, /** @type {any[]} */ next) {
+    target.splice(0, target.length, ...next);
+  }
+
+  function clampPlayersIntoWorld() {
+    const runtimeWorld = /** @type {any} */ (world);
+    const half = Number.isFinite(runtimeWorld?.mapSize) ? runtimeWorld.mapSize / 2 : 200;
+    const playerRadius = Number.isFinite(config?.playerRadius) ? config.playerRadius : 0.45;
+    for (const player of players.values()) {
+      if (!player?.pos) continue;
+      let y = Number.isFinite(player.pos.y) ? player.pos.y : 0;
+      if (Number.isFinite(runtimeWorld?.mapYMin) && Number.isFinite(runtimeWorld?.mapYMax)) {
+        y = Math.max(runtimeWorld.mapYMin, Math.min(runtimeWorld.mapYMax, y));
+      }
+      const clamped = {
+        x: Math.max(-half, Math.min(half, Number(player.pos.x) || 0)),
+        y,
+        z: Math.max(-half, Math.min(half, Number(player.pos.z) || 0)),
+      };
+      player.pos = applyCollisions(clamped, world, playerRadius);
+      player.target = null;
+      if (persistence) {
+        persistence.markDirty(player);
+      }
+    }
+  }
+
+  async function applyLiveMapConfig(/** @type {any} */ nextMapConfig = null) {
+    if (useSimulatedWorld) {
+      return { liveApplied: false, worldVersion };
+    }
+    const liveMapConfig = nextMapConfig ?? loadMapConfigSync(mapConfigPath);
+    const nextWorld = createWorldFromConfig(liveMapConfig);
+    const runtimeWorld = /** @type {Record<string, any>} */ (world);
+    const nextWorldRecord = /** @type {Record<string, any>} */ (nextWorld);
+    for (const key of Object.keys(runtimeWorld)) {
+      if (!Object.prototype.hasOwnProperty.call(nextWorld, key)) {
+        delete runtimeWorld[key];
+      }
+    }
+    Object.assign(runtimeWorld, nextWorldRecord);
+    replaceArrayContents(resources, createResources(world.resourceNodes));
+    replaceArrayContents(mobs, createMobsFromSpawns(world.mobSpawns, world));
+    clampPlayersIntoWorld();
+    worldVersion += 1;
+    ws?.broadcastWorldRefresh?.(Date.now());
+    return {
+      liveApplied: true,
+      worldVersion,
+    };
+  }
 
   if (isE2eTest) {
     // Remove ambient map mobs for deterministic E2E runs.
@@ -119,10 +175,11 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
     spawner,
     mapConfigPath,
     designerStatePath,
+    onApplyMapConfig: applyLiveMapConfig,
   });
   const server = http.createServer(app);
 
-  const persistence = createPersistence({
+  persistence = createPersistence({
     players,
     savePlayer,
     serializePlayerState,
@@ -131,7 +188,7 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
     persistPosEps: config.persistPosEps,
   });
 
-  const ws = createWebSocketServer({
+  ws = createWebSocketServer({
     server,
     config,
     world,
@@ -189,6 +246,26 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
     );
   };
 
+  const onMobAttackTelegraph = (/** @type {any} */ player, /** @type {any} */ mob, /** @type {any} */ durationMs, /** @type {any} */ now) => {
+    const center = mob?.pos
+      ? { x: mob.pos.x, y: mob.pos.y ?? 0, z: mob.pos.z }
+      : Number.isFinite(mob?.x) && Number.isFinite(mob?.z)
+        ? { x: mob.x, y: Number.isFinite(mob?.y) ? mob.y : 0, z: mob.z }
+        : null;
+    if (!center) return;
+    ws?.broadcastCombatEvent?.(
+      {
+        event: 'mobAttackTelegraph',
+        mobId: mob?.id ?? null,
+        targetId: player?.id ?? null,
+        center,
+        startAt: now,
+        durationMs: Math.max(1, Math.floor(durationMs) || 450),
+      },
+      now
+    );
+  };
+
   const onCombatLog = (/** @type {any} */ playerId, /** @type {any} */ entries) => {
     ws.sendCombatLogToPlayer(playerId, entries);
   };
@@ -223,6 +300,7 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
     nextItemIdRef,
     markDirty: persistence.markDirty,
     onPlayerDamaged,
+    onMobAttackTelegraph,
     onCombatLog,
     onPlayerDeath,
     onCombatEvent,

@@ -191,6 +191,7 @@ function updateLocalUi() {
   }
   ui.updateLocalUi({ me, worldConfig: gameState.getWorldConfig(), serverNow });
   if (typeof updatePartyPanel === 'function') updatePartyPanel();
+  if (typeof updatePartyHud === 'function') updatePartyHud();
   if (typeof updateDuelPanel === 'function') updateDuelPanel();
 }
 
@@ -454,6 +455,49 @@ function updatePartyPanel() {
   }
   if (inviteBtn) {
     inviteBtn.style.display = hasPlayerTarget ? 'inline-block' : 'none';
+  }
+}
+
+function updatePartyHud() {
+  const hud = document.getElementById('party-hud');
+  if (!hud) return;
+  const me = ctx.currentMe;
+  const memberIds = Array.isArray(me?.partyMemberIds) ? me.partyMemberIds : [];
+  const visibleMemberIds = memberIds.filter((id) => id && id !== ctx.playerId);
+  if (!me?.partyId || visibleMemberIds.length === 0) {
+    hud.classList.add('hidden');
+    hud.innerHTML = '';
+    return;
+  }
+  const players = gameState.getLatestPlayers();
+  hud.classList.remove('hidden');
+  hud.innerHTML = '';
+  for (const memberId of visibleMemberIds.slice(0, 4)) {
+    const member = players?.[memberId];
+    if (!member) continue;
+    const row = document.createElement('div');
+    row.className = 'party-hud-row';
+    const name = document.createElement('div');
+    name.className = 'party-hud-name';
+    name.textContent = member.name ?? 'Party Member';
+    const distance = document.createElement('div');
+    distance.className = 'party-hud-distance';
+    const meters = Number.isFinite(me?.x) && Number.isFinite(me?.z)
+      ? Math.hypot((member.x ?? 0) - me.x, (member.z ?? 0) - me.z)
+      : null;
+    distance.textContent = meters != null ? `${meters.toFixed(1)}m` : '--';
+    const bar = document.createElement('div');
+    bar.className = 'party-hud-bar';
+    const fill = document.createElement('div');
+    fill.className = 'party-hud-fill';
+    const hp = Number.isFinite(member.hp) ? member.hp : 0;
+    const maxHp = Number.isFinite(member.maxHp) && member.maxHp > 0 ? member.maxHp : Math.max(1, hp);
+    fill.style.width = `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%`;
+    bar.appendChild(fill);
+    row.appendChild(name);
+    row.appendChild(distance);
+    row.appendChild(bar);
+    hud.appendChild(row);
   }
 }
 
@@ -909,6 +953,12 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
     ctx.selectedTarget = null;
   }
   if (resolvedTarget?.pos) {
+    if (localState && Number.isFinite(localState.x) && Number.isFinite(localState.z)) {
+      /** @type {any} */ (resolvedTarget).distance = Math.hypot(
+        (resolvedTarget.pos.x ?? 0) - localState.x,
+        (resolvedTarget.pos.z ?? 0) - localState.z
+      );
+    }
     renderSystem.setTargetRing({
       x: resolvedTarget.pos.x,
       y: resolvedTarget.pos.y ?? 0,
@@ -923,7 +973,8 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
     ui.updateAbilityBar(
       localState,
       serverNow,
-      gameState.getConfigSnapshot()?.combat?.globalCooldownMs ?? 900
+      gameState.getConfigSnapshot()?.combat?.globalCooldownMs ?? 900,
+      resolvedTarget
     );
     nextAbilityBarUpdateAt = now + ABILITY_BAR_UPDATE_MS;
   }

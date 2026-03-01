@@ -1,6 +1,7 @@
 // @ts-check
 import { isValidClassId } from '../../../shared/classes.js';
 import { respawnPlayer } from '../../logic/players.js';
+import { applyTutorialProgress } from '../../logic/tutorial.js';
 
 export function handleRespawn(/** @type {any} */ ctx) {
   const { player, spawner, persistence } = ctx;
@@ -10,13 +11,23 @@ export function handleRespawn(/** @type {any} */ ctx) {
 }
 
 export function handleInput(/** @type {any} */ ctx) {
-  const { player, msg } = ctx;
+  const { player, msg, persistence } = ctx;
   player.keys = msg.keys;
+  if (msg?.keys?.w || msg?.keys?.a || msg?.keys?.s || msg?.keys?.d) {
+    const result = applyTutorialProgress(player, 'move');
+    if (result.changed) {
+      persistence.markDirty(player);
+    }
+  }
 }
 
 export function handleMoveTarget(/** @type {any} */ ctx) {
-  const { player, msg } = ctx;
+  const { player, msg, persistence } = ctx;
   player.target = { x: msg.x, y: msg.y ?? 0, z: msg.z };
+  const result = applyTutorialProgress(player, 'move');
+  if (result.changed) {
+    persistence.markDirty(player);
+  }
 }
 
 export function handleTargetSelect(/** @type {any} */ ctx) {

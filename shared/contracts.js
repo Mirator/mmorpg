@@ -9,6 +9,9 @@ import {
 
 export { CONTRACT_ROTATION_MS, MAX_ACTIVE_CONTRACTS } from './professions.js';
 
+export const DAILY_COMMISSION_RESET_MS = 20 * 60 * 60 * 1000;
+export const CONTRACT_BONUS_DAILY = 'daily_commission';
+
 export const KNOWN_CONTRACT_VENDOR_IDS = [
   'vendor_c_01',
   'vendor_c_02',
@@ -147,6 +150,14 @@ const CONTRACT_TEMPLATE_BY_ID = new Map(
   CONTRACT_TEMPLATES.map((template) => [template.id, template])
 );
 
+function hashString(/** @type {string} */ value) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
 function clampProgress(/** @type {any} */ value) {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.floor(value));
@@ -173,6 +184,8 @@ export function createActiveContracts(/** @type {any} */ raw = []) {
       progress: clampProgress(entry?.progress),
       completed: !!entry?.completed,
       delivered: !!entry?.delivered,
+      ...(entry?.bonusType === CONTRACT_BONUS_DAILY ? { bonusType: CONTRACT_BONUS_DAILY } : {}),
+      ...(Number.isFinite(entry?.resetAt) ? { resetAt: Math.max(0, Math.floor(entry.resetAt)) } : {}),
     }))
     .filter((entry) => CONTRACT_TEMPLATE_BY_ID.has(entry.templateId));
 }
@@ -199,7 +212,7 @@ function pickRotatingTemplates(/** @type {any} */ templates, /** @type {any} */ 
   return picked;
 }
 
-export function buildContractOffer(/** @type {any} */ template) {
+export function buildContractOffer(/** @type {any} */ template, /** @type {any} */ options = {}) {
   return {
     id: template.id,
     title: template.title,
@@ -211,6 +224,8 @@ export function buildContractOffer(/** @type {any} */ template) {
     rewardXp: template.rewardXp,
     rewardCopper: template.rewardCopper,
     rewardMastery: normalizeRewardMastery(template.rewardMastery),
+    ...(options?.bonusType === CONTRACT_BONUS_DAILY ? { bonusType: CONTRACT_BONUS_DAILY } : {}),
+    ...(Number.isFinite(options?.resetAt) ? { resetAt: Math.max(0, Math.floor(options.resetAt)) } : {}),
   };
 }
 
@@ -237,6 +252,70 @@ export function getOffersByVendor(/** @type {any} */ playerLevel = 1, /** @type 
   return offersByVendor;
 }
 
+export function getDailyCommissionWindowStart(/** @type {any} */ now = Date.now()) {
+  const safeNow = Number.isFinite(now) ? Math.max(0, Math.floor(now)) : Date.now();
+  return Math.floor(safeNow / DAILY_COMMISSION_RESET_MS) * DAILY_COMMISSION_RESET_MS;
+}
+
+function hasClaimedDailyCommission(/** @type {any} */ player, /** @type {any} */ now = Date.now()) {
+  const claimedAt = Number.isFinite(player?.dailyCommissionClaimedAt)
+    ? Math.max(0, Math.floor(player.dailyCommissionClaimedAt))
+    : 0;
+  return claimedAt > 0 && claimedAt >= getDailyCommissionWindowStart(now);
+}
+
+function getDailyEligibleTemplates(/** @type {any} */ playerLevel = 1) {
+  const safeLevel = Math.max(1, Math.floor(Number(playerLevel) || 1));
+  const allowedKinds = new Set(['hunt', 'gather', 'craft']);
+  const matching = CONTRACT_TEMPLATES.filter((template) =>
+    allowedKinds.has(template.kind) &&
+    safeLevel >= template.levelMin &&
+    safeLevel <= template.levelMax
+  );
+  if (matching.length > 0) return matching;
+  return CONTRACT_TEMPLATES.filter((template) => allowedKinds.has(template.kind));
+}
+
+function resolveDailyCommissionVendorId(/** @type {any} */ template) {
+  const poolKey = Array.isArray(template?.vendorPools) && template.vendorPools.includes('outpost')
+    ? 'outpost'
+    : 'starter';
+  return (
+    KNOWN_CONTRACT_VENDOR_IDS.find((vendorId) => getVendorContractPoolKey(vendorId) === poolKey) ??
+    KNOWN_CONTRACT_VENDOR_IDS[0]
+  );
+}
+
+function getDailyCommissionOfferForPlayer(/** @type {any} */ player, /** @type {any} */ now = Date.now()) {
+  const activeContracts = createActiveContracts(player?.activeContracts);
+  if (activeContracts.some((entry) => entry.bonusType === CONTRACT_BONUS_DAILY && entry.delivered !== true)) {
+    return null;
+  }
+  if (hasClaimedDailyCommission(player, now)) {
+    return null;
+  }
+  const windowStart = getDailyCommissionWindowStart(now);
+  const eligible = getDailyEligibleTemplates(player?.level ?? 1);
+  if (eligible.length === 0) return null;
+  const seed = `${player?.id ?? 'player'}:${windowStart}`;
+  const template = eligible[hashString(seed) % eligible.length];
+  const resetAt = windowStart + DAILY_COMMISSION_RESET_MS;
+  return {
+    vendorId: resolveDailyCommissionVendorId(template),
+    offer: buildContractOffer(template, {
+      bonusType: CONTRACT_BONUS_DAILY,
+      resetAt,
+    }),
+  };
+}
+
+export function getContractOfferForPlayer(/** @type {any} */ player, /** @type {any} */ vendorId, /** @type {any} */ contractId, /** @type {any} */ now = Date.now()) {
+  if (typeof vendorId !== 'string' || typeof contractId !== 'string') return null;
+  const snapshot = getContractSnapshotForPlayer(player, now);
+  const offers = Array.isArray(snapshot.offersByVendor?.[vendorId]) ? snapshot.offersByVendor[vendorId] : [];
+  return offers.find((offer) => offer.id === contractId) ?? null;
+}
+
 export function enrichActiveContract(/** @type {any} */ activeContract) {
   const template = getContractTemplateById(activeContract?.templateId);
   if (!template) return null;
@@ -260,6 +339,8 @@ export function enrichActiveContract(/** @type {any} */ activeContract) {
     rewardXp: template.rewardXp,
     rewardCopper: template.rewardCopper,
     rewardMastery: normalizeRewardMastery(template.rewardMastery),
+    ...(activeContract?.bonusType === CONTRACT_BONUS_DAILY ? { bonusType: CONTRACT_BONUS_DAILY } : {}),
+    ...(Number.isFinite(activeContract?.resetAt) ? { resetAt: Math.max(0, Math.floor(activeContract.resetAt)) } : {}),
   };
 }
 
@@ -267,8 +348,26 @@ export function getContractSnapshotForPlayer(/** @type {any} */ player, /** @typ
   const activeContracts = createActiveContracts(player?.activeContracts)
     .map((entry) => enrichActiveContract(entry))
     .filter(Boolean);
+  const offersByVendor = getOffersByVendor(player?.level ?? 1, now);
+  const dailyCommission = getDailyCommissionOfferForPlayer(player, now);
+  if (dailyCommission?.vendorId && dailyCommission.offer) {
+    const existing = Array.isArray(offersByVendor[dailyCommission.vendorId])
+      ? [...offersByVendor[dailyCommission.vendorId]]
+      : [];
+    const duplicateIndex = existing.findIndex((offer) => offer.id === dailyCommission.offer.id);
+    if (duplicateIndex >= 0) {
+      existing[duplicateIndex] = {
+        ...existing[duplicateIndex],
+        bonusType: CONTRACT_BONUS_DAILY,
+        resetAt: dailyCommission.offer.resetAt,
+      };
+    } else {
+      existing.unshift(dailyCommission.offer);
+    }
+    offersByVendor[dailyCommission.vendorId] = existing;
+  }
   return {
-    offersByVendor: getOffersByVendor(player?.level ?? 1, now),
+    offersByVendor,
     activeContracts,
   };
 }

@@ -184,7 +184,7 @@ describe('client combat impact readability', () => {
 
     expect(renderSystem.spawnCombatText).toHaveBeenCalledTimes(1);
     expect(renderSystem.spawnCombatText.mock.calls[0][1]).toMatchObject({
-      kind: 'damage',
+      kind: 'damage_dealt',
       amount: 99,
       isCrit: true,
     });

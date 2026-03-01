@@ -3,6 +3,7 @@ import { tryUseAbility } from '../../logic/combat.js';
 import { sendCombatLog } from '../../logic/combatLog.js';
 import { buildCombatLogDispatch } from '../../logic/combatLogEntries.js';
 import { clearHarvest } from '../../logic/resources.js';
+import { applyTutorialProgress } from '../../logic/tutorial.js';
 
 export function handleAbility(/** @type {any} */ ctx) {
   const {
@@ -34,6 +35,15 @@ export function handleAbility(/** @type {any} */ ctx) {
   }
   if (result.event) {
     broadcastCombatEvent(result.event, now);
+  }
+  if (result.success) {
+    const tutorialResult = applyTutorialProgress(player, 'attack', {
+      now,
+      nextItemIdRef: ctx.nextItemIdRef,
+    });
+    if (tutorialResult.changed || tutorialResult.rewarded) {
+      persistence.markDirty(player);
+    }
   }
   if (result.combatLog) {
     const { actorEntries, xpEntriesByPlayer } = buildCombatLogDispatch(result.combatLog, now);

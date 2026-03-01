@@ -639,6 +639,11 @@
   cursor: default;
 }
 
+.ability-slot.unusable:not(.empty) {
+  filter: saturate(0.55) brightness(0.85);
+  border-color: rgba(255, 107, 107, 0.32);
+}
+
 .ability-slot::after {
   content: '';
   position: absolute;
@@ -652,6 +657,15 @@
 
 .ability-slot.empty::after {
   display: none;
+}
+
+.ability-slot.unusable:not(.empty)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 96, 96, 0.1), rgba(0, 0, 0, 0));
+  pointer-events: none;
 }
 
 .ability-icon {

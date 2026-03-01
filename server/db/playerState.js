@@ -6,8 +6,9 @@ import { computeDerivedStats } from '../../shared/attributes.js';
 import { createActiveContracts } from '../../shared/contracts.js';
 import { createProfessionMasteries } from '../../shared/professions.js';
 import { getDefaultKnownRecipeIds } from '../../shared/recipes.js';
+import { createTutorialState, normalizeTutorialState } from '../../shared/tutorial.js';
 
-export const PLAYER_STATE_VERSION = 3;
+export const PLAYER_STATE_VERSION = 5;
 
 /** @typedef {{ id: string, kind: string, name: string, count: number }} InventoryItem */
 
@@ -84,6 +85,8 @@ export function serializePlayerState(/** @type {any} */ player) {
     knownRecipes: Array.isArray(player?.knownRecipes)
       ? player.knownRecipes.filter((/** @type {any} */ id) => typeof id === 'string')
       : getDefaultKnownRecipeIds(),
+    tutorial: normalizeTutorialState(player?.tutorial),
+    dailyCommissionClaimedAt: toNumber(player?.dailyCommissionClaimedAt, 0),
   };
 }
 
@@ -136,6 +139,24 @@ export function migratePlayerState(/** @type {any} */ rawState, /** @type {any} 
     didUpgrade = true;
   }
 
+  if (currentVersion < 4) {
+    state = {
+      ...state,
+      tutorial: normalizeTutorialState(state?.tutorial),
+    };
+    didUpgrade = true;
+  }
+
+  if (currentVersion < 5) {
+    state = {
+      ...state,
+      dailyCommissionClaimedAt: Number.isFinite(state?.dailyCommissionClaimedAt)
+        ? state.dailyCommissionClaimedAt
+        : 0,
+    };
+    didUpgrade = true;
+  }
+
   return { state, version: PLAYER_STATE_VERSION, didUpgrade };
 }
 
@@ -161,6 +182,8 @@ export function hydratePlayerState(/** @type {any} */ rawState, /** @type {any} 
   const knownRecipes = Array.isArray(rawState?.knownRecipes)
     ? Array.from(new Set(rawState.knownRecipes.filter((/** @type {any} */ id) => typeof id === 'string')))
     : getDefaultKnownRecipeIds();
+  const tutorial = normalizeTutorialState(rawState?.tutorial);
+  const dailyCommissionClaimedAt = Math.max(0, Math.floor(toNumber(rawState?.dailyCommissionClaimedAt, 0)));
 
   const derived = computeDerivedStats({ classId, level, equipment });
   const maxHp = derived.maxHp;
@@ -188,5 +211,7 @@ export function hydratePlayerState(/** @type {any} */ rawState, /** @type {any} 
     activeContracts,
     professionMasteries,
     knownRecipes,
+    tutorial,
+    dailyCommissionClaimedAt,
   };
 }

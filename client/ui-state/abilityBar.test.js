@@ -96,6 +96,48 @@ describe('ability bar rendering', () => {
     expect(emptySlot.style.values['--ability-primary-rgb']).toBeUndefined();
   });
 
+  it('marks abilities unusable when a required target or resource is missing', () => {
+    const abilityBarEl = new FakeElement('div');
+    const abilityBar = createAbilityBar(abilityBarEl, () => {});
+    const me = {
+      classId: 'mage',
+      level: 3,
+      equipment: {},
+      globalCooldownUntil: 0,
+      attackCooldownUntil: 0,
+      abilityCooldowns: {},
+      resource: 10,
+      x: 0,
+      z: 0,
+    };
+
+    abilityBar.buildAbilityBar();
+    const weaponDef = getEquippedWeapon(me.equipment, me.classId);
+    const abilities = getAbilitiesForClass(me.classId, me.level, weaponDef);
+    const slottedAbilities = Array.from({ length: 10 }, () => null);
+    slottedAbilities[0] = abilities.find((ability) => ability.id === 'basic_attack') ?? null;
+    slottedAbilities[1] = abilities.find((ability) => ability.id === 'frost_nova') ?? null;
+
+    abilityBar.updateAbilityBar(me, 1000, { classId: me.classId, weaponDef, slottedAbilities }, 900, null);
+
+    expect(abilityBarEl.children[0].classList.contains('unusable')).toBe(true);
+    expect(abilityBarEl.children[1].classList.contains('unusable')).toBe(true);
+
+    abilityBar.updateAbilityBar(
+      { ...me, resource: 100 },
+      1000,
+      { classId: me.classId, weaponDef, slottedAbilities },
+      900,
+      {
+        kind: 'mob',
+        pos: { x: 2, z: 1 },
+      }
+    );
+
+    expect(abilityBarEl.children[0].classList.contains('unusable')).toBe(false);
+    expect(abilityBarEl.children[1].classList.contains('unusable')).toBe(false);
+  });
+
   it('skips DOM writes on repeated identical updates', () => {
     const abilityBarEl = new FakeElement('div');
     const abilityBar = createAbilityBar(abilityBarEl, () => {});

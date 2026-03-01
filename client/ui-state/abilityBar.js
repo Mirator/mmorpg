@@ -71,6 +71,12 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
     slotRef.isEmpty = isEmpty;
   }
 
+  function setSlotClassState(/** @type {any} */ slotRef, /** @type {string} */ className, /** @type {string} */ stateKey, /** @type {boolean} */ enabled) {
+    if (slotRef[stateKey] === enabled) return;
+    slotRef.root.classList.toggle(className, enabled);
+    slotRef[stateKey] = enabled;
+  }
+
   function buildAbilityBar() {
     if (!abilityBarEl) return;
     abilityBarEl.innerHTML = '';
@@ -135,6 +141,7 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
         lastPrimaryRgb: null,
         lastSecondaryRgb: null,
         isEmpty: true,
+        isUnusable: false,
       });
     }
   }
@@ -143,7 +150,8 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
     /** @type {any} */ me,
     /** @type {any} */ serverNow,
     /** @type {any} */ loadoutState,
-    /** @type {any} */ globalCooldownMs = 900
+    /** @type {any} */ globalCooldownMs = 900,
+    /** @type {any} */ target = null
   ) {
     if (!abilityBarEl || abilitySlots.length === 0) return;
     const keybinds = getKeybinds();
@@ -177,6 +185,7 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       } else {
         slotRef.lastAbilityId = null;
         setSlotEmptyState(slotRef, true);
+        setSlotClassState(slotRef, 'unusable', 'isUnusable', false);
         setSlotText(slotRef, 'lastKeyText', slotRef.keyEl, '');
         setSlotStyleVar(slotRef, '--ability-primary-rgb', 'lastPrimaryRgb', null);
         setSlotStyleVar(slotRef, '--ability-secondary-rgb', 'lastSecondaryRgb', null);
@@ -215,6 +224,24 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
           ? `${(remaining / 1000).toFixed(1)}s`
           : ''
       );
+      const targetKind = target?.kind ?? null;
+      const targetMatches =
+        ability.targetType !== 'targeted'
+          ? true
+          : ability.targetKind === 'player'
+            ? targetKind === 'player'
+            : targetKind === 'mob';
+      const targetOutOfRange =
+        targetMatches &&
+        Number.isFinite(ability.range) &&
+        target?.pos &&
+        Number.isFinite(me?.x) &&
+        Number.isFinite(me?.z)
+          ? Math.hypot((target.pos.x ?? 0) - me.x, (target.pos.z ?? 0) - me.z) > ability.range
+          : false;
+      const lacksResource = (ability.resourceCost ?? 0) > (me?.resource ?? 0);
+      const unusable = !!ability && (lacksResource || !targetMatches || targetOutOfRange);
+      setSlotClassState(slotRef, 'unusable', 'isUnusable', unusable);
     }
   }
 

@@ -86,6 +86,7 @@ export function createMobs(/** @type {any} */ count, /** @type {any} */ world, /
       nextDecisionAt: 0,
       dir: randomDirection(rand),
       attackCooldownUntil: 0,
+      pendingAttackAt: 0,
       level,
       hp: maxHp,
       maxHp,
@@ -154,6 +155,7 @@ export function createMobsFromSpawns(/** @type {any} */ spawns, /** @type {any} 
       nextDecisionAt: 0,
       dir: randomDirection(rand),
       attackCooldownUntil: 0,
+      pendingAttackAt: 0,
       level,
       hp: maxHp,
       maxHp,
@@ -182,6 +184,9 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
   const leashRadius = config.leashRadius ?? 18;
   const attackRange = config.attackRange ?? 1.4;
   const attackCooldownMs = config.attackCooldownMs ?? 900;
+  const attackTelegraphMs = typeof config.onAttackTelegraph === 'function'
+    ? (config.attackTelegraphMs ?? 450)
+    : 0;
   const idleDuration = config.idleDurationMs ?? [1200, 2800];
   const wanderDuration = config.wanderDurationMs ?? [1500, 3200];
   const idleMin = idleDuration[0] ?? 1200;
@@ -240,6 +245,7 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
           mob.weakenedUntil = 0;
           mob.weakenedMultiplier = 1;
           mob.attackCooldownUntil = 0;
+          mob.pendingAttackAt = 0;
           mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
           mob.damageBy = {};
           mob.supportBy = {};
@@ -277,6 +283,7 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
         mob.weakenedUntil = 0;
         mob.weakenedMultiplier = 1;
         mob.attackCooldownUntil = 0;
+        mob.pendingAttackAt = 0;
         mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
         mob.damageBy = {};
         mob.supportBy = {};
@@ -389,6 +396,7 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
     } else if (mob.state === 'chase') {
       mob.state = 'idle';
       mob.targetId = null;
+      mob.pendingAttackAt = 0;
       mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
     }
 
@@ -414,6 +422,7 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
       if (dist > leashRadius) {
         mob.state = 'idle';
         mob.targetId = null;
+        mob.pendingAttackAt = 0;
         mob.nextDecisionAt = now + randomRange(rand, idleMin, idleMax);
       } else if (dist > 0.01 && !rooted) {
         let stepScale = speed * slowMultiplier * moveBuffMultiplier;
@@ -448,7 +457,33 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
         mob.pos.y = target.pos.y ?? 0;
       }
 
-      if (dist <= attackRange && now >= mob.attackCooldownUntil) {
+      if (dist > attackRange && (mob.pendingAttackAt ?? 0) > 0) {
+        mob.pendingAttackAt = 0;
+      }
+
+      if (
+        attackTelegraphMs > 0 &&
+        dist <= attackRange &&
+        now >= mob.attackCooldownUntil &&
+        (mob.pendingAttackAt ?? 0) === 0
+      ) {
+        mob.pendingAttackAt = now + attackTelegraphMs;
+        const onAttackTelegraph = config.onAttackTelegraph;
+        if (typeof onAttackTelegraph === 'function') {
+          onAttackTelegraph(target, mob, attackTelegraphMs, now);
+        }
+        continue;
+      }
+
+      if (dist <= attackRange && (mob.pendingAttackAt ?? 0) > now) {
+        continue;
+      }
+
+      if (
+        dist <= attackRange &&
+        now >= mob.attackCooldownUntil &&
+        (attackTelegraphMs <= 0 || (mob.pendingAttackAt ?? 0) > 0)
+      ) {
         let rawDamage =
           attackDamageBase + attackDamagePerLevel * (mob.level ?? 1);
         rawDamage *= damageBuffMultiplier;
@@ -486,6 +521,7 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
             onPlayerDamaged(target, mob, finalDamage, now);
           }
         }
+        mob.pendingAttackAt = 0;
         mob.attackCooldownUntil = now + attackCooldownMs;
       }
     }

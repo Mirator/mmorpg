@@ -1,6 +1,7 @@
 // @ts-check
 import { formatCurrency } from '/shared/economy.js';
 import { xpToNext } from '/shared/progression.js';
+import { getActiveTutorialStep, TUTORIAL_STEPS } from '/shared/tutorial.js';
 
 const statusEl = document.getElementById('status');
 const levelEl = document.getElementById('hud-level');
@@ -69,10 +70,10 @@ function writeControlsCardSeen() {
   }
 }
 
-export function showToast(/** @type {any} */ message) {
+export function showToast(/** @type {any} */ message, /** @type {'default' | 'warning'} */ tone = 'default') {
   if (!message || !toastContainer) return;
   const toast = document.createElement('div');
-  toast.className = 'toast';
+  toast.className = tone === 'warning' ? 'toast toast-warning' : 'toast';
   toast.textContent = message;
   toast.setAttribute('role', 'status');
   toast.setAttribute('aria-live', 'polite');
@@ -230,6 +231,7 @@ export function updateTargetHud(/** @type {any} */ target) {
   if (target.kind === 'player') metaParts.push('Player');
   if (target.kind === 'mob') metaParts.push('Enemy');
   if (Number.isFinite(target.level)) metaParts.push(`Lvl ${target.level}`);
+  if (Number.isFinite(target.distance)) metaParts.push(`${target.distance.toFixed(1)}m`);
   const metaText = metaParts.join(' · ');
   const hasHp = Number.isFinite(target.hp) && Number.isFinite(target.maxHp);
   const targetKey = [
@@ -259,12 +261,32 @@ export function updateObjectives(/** @type {any} */ player) {
   if (!objectivesEl) return;
   objectivesEl.innerHTML = '';
   const activeContracts = Array.isArray(player?.activeContracts) ? player.activeContracts : [];
-  if (activeContracts.length === 0) {
+  const tutorialState = player?.tutorial ?? null;
+  const activeTutorialStep = getActiveTutorialStep(tutorialState);
+  if (activeContracts.length === 0 && !activeTutorialStep) {
     objectivesEl.classList.add('hidden');
     return;
   }
   objectivesEl.classList.remove('hidden');
-  const visible = activeContracts.slice(0, 2);
+  let remainingSlots = 2;
+  if (activeTutorialStep) {
+    const row = document.createElement('div');
+    row.className = 'objective-row';
+    const title = document.createElement('div');
+    title.className = 'objective-title';
+    title.textContent = `Guide: ${activeTutorialStep.title}`;
+    const progress = document.createElement('div');
+    progress.className = 'objective-progress';
+    const completedCount = Array.isArray(tutorialState?.completedStepIds)
+      ? tutorialState.completedStepIds.length
+      : 0;
+    progress.textContent = `${completedCount}/${TUTORIAL_STEPS.length}`;
+    row.appendChild(title);
+    row.appendChild(progress);
+    objectivesEl.appendChild(row);
+    remainingSlots -= 1;
+  }
+  const visible = activeContracts.slice(0, Math.max(0, remainingSlots));
   for (const contract of visible) {
     const row = document.createElement('div');
     row.className = 'objective-row';
@@ -282,10 +304,10 @@ export function updateObjectives(/** @type {any} */ player) {
     row.appendChild(progress);
     objectivesEl.appendChild(row);
   }
-  if (activeContracts.length > 2) {
+  if (activeContracts.length > visible.length) {
     const more = document.createElement('div');
     more.className = 'objective-more';
-    more.textContent = `+${activeContracts.length - 2} more`;
+    more.textContent = `+${activeContracts.length - visible.length} more`;
     objectivesEl.appendChild(more);
   }
 }

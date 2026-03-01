@@ -60,6 +60,10 @@ export function buildDebugTextState(/** @type {any} */ {
     players: gameState.getLatestPlayers(),
     vendors: worldConfig?.vendors ?? [],
   });
+  const latestPlayerMap = gameState.getLatestPlayers?.() ?? {};
+  const latestPlayers = Object.values(latestPlayerMap).filter(
+    (/** @type {any} */ player) => player?.id && player.id !== ctx.playerId
+  );
 
   return {
     mode: ui.isMenuOpen() ? 'menu' : 'play',
@@ -137,6 +141,9 @@ export function buildDebugTextState(/** @type {any} */ {
           currency: splitCurrency(currencyCopper),
           dead: me.dead,
           respawnAt: me.respawnAt ?? 0,
+          duelOpponentId: me.duelOpponentId ?? null,
+          tutorial: me.tutorial ?? null,
+          partyMemberIds: Array.isArray(me.partyMemberIds) ? me.partyMemberIds : [],
           activeContracts: Array.isArray(me.activeContracts) ? me.activeContracts : [],
           contractOffersByVendor: me.contractOffersByVendor ?? {},
           professionMasteries: me.professionMasteries ?? {},
@@ -259,6 +266,17 @@ export function buildDebugTextState(/** @type {any} */ {
       dead: !!m.dead,
       respawnAt: m.respawnAt ?? 0,
     })),
+    players: latestPlayers.map((/** @type {any} */ player) => ({
+      id: player.id,
+      name: player.name ?? player.persistName ?? 'Unknown',
+      x: player.x ?? player.pos?.x ?? 0,
+      z: player.z ?? player.pos?.z ?? 0,
+      hp: player.hp ?? 0,
+      maxHp: player.maxHp ?? 0,
+      level: player.level ?? 1,
+      dead: !!player.dead,
+      duelOpponentId: player.duelOpponentId ?? null,
+    })),
   };
 }
 
@@ -320,6 +338,39 @@ export function installDebugSurface(/** @type {any} */ {
     },
     salvageItem: (/** @type {any} */ slot) => {
       sendWithSeq({ type: 'salvageItem', slot });
+    },
+    duelRequest: (/** @type {any} */ targetId) => {
+      connection.sendDuelRequest(targetId);
+    },
+    duelAccept: (/** @type {any} */ challengerId) => {
+      connection.sendDuelAccept(challengerId);
+    },
+    duelDecline: (/** @type {any} */ challengerId) => {
+      connection.sendDuelDecline(challengerId);
+    },
+    duelForfeit: () => {
+      connection.sendDuelForfeit();
+    },
+    tradeRequest: (/** @type {any} */ targetId) => {
+      connection.sendTradeRequest(targetId);
+    },
+    tradeAccept: (/** @type {any} */ traderId) => {
+      connection.sendTradeAccept(traderId);
+    },
+    tradeDecline: (/** @type {any} */ traderId) => {
+      connection.sendTradeDecline(traderId);
+    },
+    tradeOfferAddSlot: (/** @type {any} */ slot) => {
+      connection.sendTradeOfferAddSlot(slot);
+    },
+    tradeOfferAddCopper: (/** @type {any} */ amount) => {
+      connection.sendTradeOfferAddCopper(amount);
+    },
+    tradeConfirm: () => {
+      connection.sendTradeConfirm();
+    },
+    tradeCancel: () => {
+      connection.sendTradeCancel();
     },
     forceAbility: (/** @type {any} */ slot) => {
       const payload = ui.getAbilityActionPayload?.(ctx.currentMe, slot);

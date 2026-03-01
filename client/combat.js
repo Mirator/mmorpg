@@ -200,7 +200,14 @@ export function createCombat(/** @type {any} */ {
       const incoming =
         impact.targetKind === 'player' && sameEntityId(impact.targetId, localId);
       if (!outgoing && !incoming) continue;
-      relevant.push(impact);
+      relevant.push({
+        ...impact,
+        textKind: impact.kind === 'heal'
+          ? 'heal'
+          : incoming
+            ? 'damage_taken'
+            : 'damage_dealt',
+      });
     }
     return relevant;
   }
@@ -216,6 +223,16 @@ export function createCombat(/** @type {any} */ {
     if (!event) return;
     const timestamp = Number.isFinite(serverTime) ? serverTime : gameState.getServerNow();
     recordCombatEvent(event, timestamp);
+    if (event.event === 'mobAttackTelegraph') {
+      const mob = getAliveTargetById(event.mobId);
+      const center = mob?.pos
+        ? { x: mob.pos.x ?? mob.x ?? 0, y: mob.pos.y ?? mob.y ?? 0, z: mob.pos.z ?? mob.z ?? 0 }
+        : null;
+      if (center) {
+        renderSystem?.spawnNova?.(center, 1.15, 0xff7755, event.durationMs ?? 450, now);
+      }
+      return;
+    }
     const relevantImpacts = getRelevantImpacts(event);
     for (const impact of relevantImpacts) {
       const anchor = resolveImpactAnchor(impact, event);
@@ -223,7 +240,7 @@ export function createCombat(/** @type {any} */ {
       renderSystem?.spawnCombatText?.(
         anchor,
         {
-          kind: impact.kind === 'heal' ? 'heal' : 'damage',
+          kind: impact.textKind,
           amount: Math.floor(impact.amount),
           isCrit: !!impact.isCrit,
         },
@@ -232,7 +249,7 @@ export function createCombat(/** @type {any} */ {
       renderSystem?.spawnHitConfirm?.(
         anchor,
         {
-          kind: impact.kind === 'heal' ? 'heal' : 'damage',
+          kind: impact.textKind,
           isCrit: !!impact.isCrit,
         },
         now

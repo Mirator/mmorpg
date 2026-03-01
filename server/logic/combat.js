@@ -45,6 +45,7 @@ import {
 } from './combat/primitives.js';
 import { rollAndGrantLoot } from './loot.js';
 import { applyContractProgress } from './contracts.js';
+import { createActiveContracts, getContractTemplateById } from '../../shared/contracts.js';
 
 // Ownership boundary: this module is the server-authoritative combat rules engine.
 // Transport/session concerns belong in WS/HTTP layers, not in combat logic.
@@ -100,6 +101,8 @@ function getAbilityDirection(/** @type {any} */ player, /** @type {any} */ mobs)
 
 const XP_RANGE_METERS = 35;
 const XP_RANGE2 = XP_RANGE_METERS * XP_RANGE_METERS;
+const PARTY_HUNT_SHARE_RANGE_METERS = 20;
+const PARTY_HUNT_SHARE_RANGE2 = PARTY_HUNT_SHARE_RANGE_METERS * PARTY_HUNT_SHARE_RANGE_METERS;
 const DAMAGE_ELIGIBILITY_PCT = 0.10;
 const ANTI_BOOST_GAP = 3;
 const ANTI_BOOST_RATE = 0.08;
@@ -108,6 +111,51 @@ let /** @type {any} */ _lootContext = null;
 
 export function setLootContext(/** @type {any} */ ctx) {
   _lootContext = ctx ?? null;
+}
+
+function hasMatchingHuntContract(/** @type {any} */ player, /** @type {any} */ mobType) {
+  const activeContracts = createActiveContracts(player?.activeContracts);
+  return activeContracts.some((entry) => {
+    if (entry.delivered) return false;
+    const template = getContractTemplateById(entry.templateId);
+    return template?.kind === 'hunt' && template.target === mobType;
+  });
+}
+
+function grantHuntContractCredit(/** @type {any} */ { attacker, players, mob }) {
+  if (!attacker) return;
+  const progressEvent = {
+    kind: 'hunt',
+    target: mob?.mobType ?? 'orc',
+    count: 1,
+  };
+  const creditedPlayerIds = new Set();
+  const party = players?.get ? getPartyForPlayer(attacker.id, players) : null;
+  const mobPos = mob?.pos ?? mob;
+
+  if (party && players && mobPos) {
+    for (const memberId of party.memberIds) {
+      const member = players.get(memberId);
+      if (!member || member.dead || !member.pos) continue;
+      const dx = (member.pos.x ?? 0) - (mobPos.x ?? 0);
+      const dz = (member.pos.z ?? 0) - (mobPos.z ?? 0);
+      if (dx * dx + dz * dz > PARTY_HUNT_SHARE_RANGE2) continue;
+      const dealtDamage = ((mob?.damageBy ?? {})[memberId] ?? 0) > 0;
+      if (!dealtDamage && !hasMatchingHuntContract(member, progressEvent.target)) continue;
+      const contractProgress = applyContractProgress(member, progressEvent);
+      if (contractProgress.changed) {
+        member.pendingProgressDirty = true;
+      }
+      creditedPlayerIds.add(memberId);
+    }
+  }
+
+  if (!creditedPlayerIds.has(attacker.id)) {
+    const contractProgress = applyContractProgress(attacker, progressEvent);
+    if (contractProgress.changed) {
+      attacker.pendingProgressDirty = true;
+    }
+  }
 }
 
 function applyDamageToMob(/** @type {any} */ { mob, damage, attacker, now, respawnMs, players }) {
@@ -241,14 +289,7 @@ function applyDamageToMob(/** @type {any} */ { mob, damage, attacker, now, respa
       if (applyDurabilityLoss(attacker.equipment?.weapon, 1)) {
         attacker.pendingProgressDirty = true;
       }
-      const contractProgress = applyContractProgress(attacker, {
-        kind: 'hunt',
-        target: mob.mobType ?? 'orc',
-        count: 1,
-      });
-      if (contractProgress.changed) {
-        attacker.pendingProgressDirty = true;
-      }
+      grantHuntContractCredit({ attacker, players, mob });
     }
   }
 

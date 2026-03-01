@@ -15,7 +15,7 @@ import { applyE2eTestBoosts, createBasePlayerState, seedGuestStarterInventory } 
 import { getSessionWithAccount, touchSession } from './db/sessionRepo.js';
 import { updateAccountLastSeen } from './db/accountRepo.js';
 import { sendCombatLog } from './logic/combatLog.js';
-import { leaveParty } from './logic/party.js';
+import { getPartyForPlayer, leaveParty } from './logic/party.js';
 import { endDuel } from './logic/duel.js';
 import { endTradeSession, getTradePartner } from './logic/trade.js';
 import { validateAndConsumeTicket } from './wsTicket.js';
@@ -277,10 +277,15 @@ export function createWebSocketServer({
    * @param {number} now
    */
   function sendPrivateState(ws, player, now) {
+    const privateState = serializePlayerPrivate(player) ?? {};
+    const party = getPartyForPlayer(player?.id, players);
     safeSend(ws, {
       type: 'me',
       t: now,
-      data: serializePlayerPrivate(player),
+      data: {
+        ...privateState,
+        partyMemberIds: party ? party.memberIds : [],
+      },
       id: player.id,
     });
   }
@@ -742,6 +747,22 @@ export function createWebSocketServer({
     }
   }
 
+  function broadcastWorldRefresh(now = Date.now()) {
+    for (const player of players.values()) {
+      if (!player?.ws) continue;
+      const fullState = buildPublicStateForPlayer(player, now);
+      lastSentByPlayer.set(player.id, fullState);
+      safeSend(player.ws, {
+        ...fullState,
+        type: 'state',
+        t: now,
+        full: true,
+        world: worldSnapshot(world),
+      });
+      sendPrivateState(player.ws, player, now);
+    }
+  }
+
   return {
     wss,
     startHeartbeat,
@@ -751,6 +772,7 @@ export function createWebSocketServer({
     closeAll,
     sendCombatLogToPlayer,
     broadcastCombatEvent,
+    broadcastWorldRefresh,
     notifyDuelEnded,
   };
 }

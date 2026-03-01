@@ -360,11 +360,17 @@ export function createEffectsSystem(/** @type {any} */ scene) {
   function spawnCombatText(/** @type {any} */ { pos, payload, now = performance.now() }) {
     const amount = Number(payload?.amount);
     if (!pos || !Number.isFinite(amount) || amount <= 0) return;
-    const kind = payload?.kind === 'heal' ? 'heal' : 'damage';
-    const isCrit = !!payload?.isCrit && kind === 'damage';
+    const kind = payload?.kind === 'heal'
+      ? 'heal'
+      : payload?.kind === 'damage_taken'
+        ? 'damage_taken'
+        : 'damage_dealt';
+    const isCrit = !!payload?.isCrit && kind !== 'heal';
     const text = `${kind === 'heal' ? '+' : '-'}${Math.floor(amount)}`;
     const style = kind === 'heal'
       ? { fill: '#9af8b9', stroke: '#0f4d2f', scale: 0.95 }
+      : kind === 'damage_taken'
+        ? { fill: '#ff6f61', stroke: '#4a0909', scale: isCrit ? 1.15 : 1.0 }
       : isCrit
         ? { fill: '#ffd66a', stroke: '#7a3f00', scale: 1.2 }
         : { fill: '#ff9b7a', stroke: '#5f1b16', scale: 1.0 };
@@ -398,8 +404,16 @@ export function createEffectsSystem(/** @type {any} */ scene) {
   function spawnHitConfirm(/** @type {any} */ { pos, payload, now = performance.now() }) {
     if (!pos) return;
     const isCrit = !!payload?.isCrit;
-    const kind = payload?.kind === 'heal' ? 'heal' : 'damage';
-    const color = kind === 'heal' ? 0x66e0a0 : (isCrit ? 0xffd166 : 0xff7b57);
+    const kind = payload?.kind === 'heal'
+      ? 'heal'
+      : payload?.kind === 'damage_taken'
+        ? 'damage_taken'
+        : 'damage_dealt';
+    const color = kind === 'heal'
+      ? 0x66e0a0
+      : kind === 'damage_taken'
+        ? 0xff5d73
+        : (isCrit ? 0xffd166 : 0xff7b57);
     const group = createHitConfirmGroup({ color, isCrit });
     group.position.set(pos.x, (pos.y ?? 0) + 0.2, pos.z);
     addEffect({

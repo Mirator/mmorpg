@@ -14,6 +14,7 @@ import {
   applyProfessionReward,
   refreshDeliveryContractProgress,
 } from './logic/contracts.js';
+import { applyTutorialProgress } from './logic/tutorial.js';
 import { applyDurabilityLoss } from '../shared/equipment.js';
 
 /** @typedef {import('./types/domain.d.ts').PlayerMap} PlayerMap */
@@ -39,6 +40,7 @@ import { applyDurabilityLoss } from '../shared/equipment.js';
  *     attackDamageBase: number,
  *     attackDamagePerLevel: number,
  *     onPlayerDamaged?: (...args: any[]) => void,
+ *     onAttackTelegraph?: (...args: any[]) => void,
  *   },
  * }} GameLoopRuntime
  */
@@ -82,9 +84,10 @@ import { applyDurabilityLoss } from '../shared/equipment.js';
 /**
  * @param {any} config
  * @param {((...args: any[]) => void) | undefined} onPlayerDamaged
+ * @param {((...args: any[]) => void) | undefined} onMobAttackTelegraph
  * @returns {GameLoopRuntime}
  */
-export function buildGameLoopRuntime(config, onPlayerDamaged) {
+export function buildGameLoopRuntime(config, onPlayerDamaged, onMobAttackTelegraph) {
   const tickHz = config.tickHz;
   const dt = 1 / tickHz;
   return {
@@ -105,6 +108,7 @@ export function buildGameLoopRuntime(config, onPlayerDamaged) {
       attackDamageBase: config.mob.attackDamageBase,
       attackDamagePerLevel: config.mob.attackDamagePerLevel,
       onPlayerDamaged,
+      onAttackTelegraph: onMobAttackTelegraph,
     },
   };
 }
@@ -273,6 +277,7 @@ export function stepPlayerActionPhase({
         target: resourceType,
         count: 1,
       });
+      applyTutorialProgress(player, 'harvest');
       refreshDeliveryContractProgress(player);
       markDirty(player);
     }

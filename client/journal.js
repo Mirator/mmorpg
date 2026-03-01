@@ -7,6 +7,7 @@ import {
   isDurabilityTrackedItem,
 } from '/shared/equipment.js';
 import { PROFESSION_TRACKS, professionXpToNext } from '/shared/professions.js';
+import { TUTORIAL_STEPS, getActiveTutorialStep } from '/shared/tutorial.js';
 
 function formatTrackName(/** @type {string} */ track) {
   return track.charAt(0).toUpperCase() + track.slice(1);
@@ -29,6 +30,50 @@ export function createJournalUI(/** @type {any} */ {
   onSalvageItem,
 }) {
   let /** @type {any} */ currentMe = null;
+
+  function renderTutorial() {
+    const section = document.createElement('section');
+    section.className = 'journal-section';
+    const title = document.createElement('h3');
+    title.className = 'journal-title';
+    title.textContent = 'First Journey';
+    section.appendChild(title);
+
+    const tutorial = currentMe?.tutorial ?? null;
+    const activeStep = getActiveTutorialStep(tutorial);
+    const completed = new Set(
+      Array.isArray(tutorial?.completedStepIds) ? tutorial.completedStepIds : []
+    );
+
+    for (const step of TUTORIAL_STEPS) {
+      const row = document.createElement('div');
+      row.className = 'journal-row stacked';
+      const label = document.createElement('div');
+      label.className = 'journal-label';
+      if (completed.has(step.id)) {
+        label.textContent = `Completed: ${step.title}`;
+      } else if (activeStep?.id === step.id) {
+        label.textContent = `Current: ${step.title}`;
+      } else {
+        label.textContent = step.title;
+      }
+      const meta = document.createElement('div');
+      meta.className = 'journal-subtle';
+      meta.textContent = step.journalText;
+      row.appendChild(label);
+      row.appendChild(meta);
+      section.appendChild(row);
+    }
+
+    if (tutorial?.completed) {
+      const complete = document.createElement('div');
+      complete.className = 'journal-empty';
+      complete.textContent = 'Tutorial complete. Your first journey reward has been claimed.';
+      section.appendChild(complete);
+    }
+
+    return section;
+  }
 
   function renderContracts() {
     const section = document.createElement('section');
@@ -54,7 +99,9 @@ export function createJournalUI(/** @type {any} */ {
       meta.className = 'journal-meta';
       const label = document.createElement('div');
       label.className = 'journal-label';
-      label.textContent = contract.title ?? contract.contractId ?? 'Contract';
+      label.textContent = contract.bonusType === 'daily_commission'
+        ? `${contract.title ?? contract.contractId ?? 'Contract'} · Daily`
+        : (contract.title ?? contract.contractId ?? 'Contract');
       const progress = document.createElement('div');
       progress.className = 'journal-subtle';
       progress.textContent = renderProgressText(contract);
@@ -237,6 +284,7 @@ export function createJournalUI(/** @type {any} */ {
   function render() {
     if (!journalRootEl) return;
     journalRootEl.innerHTML = '';
+    journalRootEl.appendChild(renderTutorial());
     journalRootEl.appendChild(renderContracts());
     journalRootEl.appendChild(renderMasteries());
     journalRootEl.appendChild(renderKnownRecipes());

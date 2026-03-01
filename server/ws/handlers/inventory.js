@@ -14,6 +14,7 @@ import {
 } from '../../../shared/professions.js';
 import { getItemDisplayName } from '../../../shared/economy.js';
 import { refreshDeliveryContractProgress } from '../../logic/contracts.js';
+import { applyTutorialProgress } from '../../logic/tutorial.js';
 
 export function handleInventorySwap(/** @type {any} */ ctx) {
   const { player, msg, persistence } = ctx;
@@ -35,6 +36,13 @@ export function handleEquipSwap(/** @type {any} */ ctx) {
   });
   if (swapped) {
     player.inv = countInventory(player.inventory);
+    if (msg.fromType === 'equipment' || msg.toType === 'equipment') {
+      const tutorialResult = applyTutorialProgress(player, 'equip');
+      if (tutorialResult.changed) {
+        persistence.markDirty(player);
+        return;
+      }
+    }
     persistence.markDirty(player);
   }
 }

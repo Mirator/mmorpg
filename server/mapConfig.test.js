@@ -136,4 +136,34 @@ describe('map config handlers', () => {
     const saved = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     expect(saved.mapSize).toBe(90);
   });
+
+  it('returns hot-apply metadata when the live apply callback succeeds', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mapcfg-'));
+    const filePath = path.join(tmpDir, 'world-map.json');
+    fs.writeFileSync(filePath, JSON.stringify(buildConfig()), 'utf8');
+
+    const handlers = createMapConfigHandlers({
+      mapConfigPath: filePath,
+      isAuthorized: (req) => req.get?.('x-admin-session') === 'session-ok',
+      onAfterSave: async () => ({ liveApplied: true, worldVersion: 4 }),
+    });
+
+    const res = createResponse();
+    await handlers.putHandler(
+      createRequest({
+        adminSessionHeader: 'session-ok',
+        body: buildConfig({ mapSize: 91 }),
+      }),
+      res
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        ok: true,
+        liveApplied: true,
+        worldVersion: 4,
+      })
+    );
+  });
 });

@@ -6,6 +6,7 @@ import {
   getContractSyncPayload,
   turnInContract,
 } from '../../logic/contracts.js';
+import { applyTutorialProgress } from '../../logic/tutorial.js';
 
 function findVendorInRange(/** @type {any} */ world, /** @type {any} */ player, /** @type {any} */ vendorId) {
   const vendor = world?.vendors?.find?.((/** @type {any} */ entry) => entry.id === vendorId) ?? null;
@@ -36,6 +37,10 @@ export function handleContractAccept(/** @type {any} */ ctx) {
   }
   const result = acceptContract(player, msg.vendorId, msg.contractId, Date.now());
   if (result.ok) {
+    const tutorialResult = applyTutorialProgress(player, 'accept_contract');
+    if (tutorialResult.changed) {
+      persistence.markDirty(player);
+    }
     persistence.markDirty(player);
     syncContracts(ctx);
   } else {
@@ -55,7 +60,7 @@ export function handleContractAbandon(/** @type {any} */ ctx) {
 }
 
 export function handleContractTurnIn(/** @type {any} */ ctx) {
-  const { player, msg, safeSend, ws, persistence } = ctx;
+  const { player, msg, safeSend, ws, persistence, sendPrivateState } = ctx;
   if (!findVendorInRange(ctx.world, player, msg.vendorId)) {
     safeSend(ws, { type: 'contractResult', action: 'turn_in', contractId: msg.contractId, ok: false, error: 'out_of_range' });
     return;
@@ -65,6 +70,10 @@ export function handleContractTurnIn(/** @type {any} */ ctx) {
     safeSend(ws, { type: 'contractResult', action: 'turn_in', contractId: msg.contractId, ok: false, error: result.error });
     return;
   }
+  const tutorialResult = applyTutorialProgress(player, 'turn_in_contract', {
+    now: Date.now(),
+    nextItemIdRef: ctx.nextItemIdRef,
+  });
   persistence.markDirty(player);
   if (result.rewards?.professionMasteries) {
     safeSend(ws, {
@@ -80,6 +89,9 @@ export function handleContractTurnIn(/** @type {any} */ ctx) {
     ok: true,
     rewards: result.rewards,
   });
+  if (tutorialResult.changed || tutorialResult.rewarded) {
+    sendPrivateState?.(ws, player, Date.now());
+  }
   syncContracts(ctx);
 }
 

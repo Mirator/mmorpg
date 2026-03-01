@@ -8,6 +8,7 @@ import {
 import { addItem } from '../../logic/inventory.js';
 import { countInventory } from '../../logic/inventory.js';
 import { refreshDeliveryContractProgress } from '../../logic/contracts.js';
+import { applyTutorialProgress } from '../../logic/tutorial.js';
 
 export function handleVendorSell(/** @type {any} */ ctx) {
   const { player, world, msg, persistence } = ctx;
@@ -28,6 +29,7 @@ export function handleVendorSell(/** @type {any} */ ctx) {
   player.inv = countInventory(player.inventory);
   player.currencyCopper = (player.currencyCopper ?? 0) + total;
   refreshDeliveryContractProgress(player);
+  applyTutorialProgress(player, 'sell');
   persistence.markDirty(player);
 }
 

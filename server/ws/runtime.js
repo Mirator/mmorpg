@@ -146,6 +146,8 @@ export function createRuntimePlayer({
     activeContracts: Array.isArray(state.activeContracts) ? state.activeContracts : [],
     professionMasteries: state.professionMasteries ?? null,
     knownRecipes: Array.isArray(state.knownRecipes) ? state.knownRecipes : [],
+    tutorial: state.tutorial ?? null,
+    dailyCommissionClaimedAt: Number.isFinite(state.dailyCommissionClaimedAt) ? state.dailyCommissionClaimedAt : 0,
     dead: false,
     respawnAt: 0,
     targetId: null,

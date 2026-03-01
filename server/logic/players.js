@@ -6,6 +6,7 @@ import { getItemDisplayName } from '../../shared/economy.js';
 import { computeDerivedStats } from '../../shared/attributes.js';
 import { createProfessionMasteries } from '../../shared/professions.js';
 import { getDefaultKnownRecipeIds, getUnlockedRecipeIdsForMasteries } from '../../shared/recipes.js';
+import { createTutorialState } from '../../shared/tutorial.js';
 
 export const GUEST_STARTER_ITEMS = Object.freeze([
   { kind: 'crystal', count: 3 },
@@ -104,6 +105,8 @@ export function createBasePlayerState(/** @type {any} */ { world, spawn, classId
     activeContracts: [],
     professionMasteries: createProfessionMasteries(),
     knownRecipes: getDefaultKnownRecipeIds(),
+    tutorial: createTutorialState(),
+    dailyCommissionClaimedAt: 0,
   };
 }
 

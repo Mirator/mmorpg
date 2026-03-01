@@ -7,8 +7,8 @@ import {
   stepWorldSystemsPhase,
 } from './gameLoopPhases.js';
 
-export function createGameLoop(/** @type {any} */ { players, world, resources, mobs, corpses, config, spawner, nextItemIdRef, markDirty, onPlayerDamaged, onCombatLog, onPlayerDeath, onCombatEvent, onDuelEnded }) {
-  const runtime = buildGameLoopRuntime(config, onPlayerDamaged);
+export function createGameLoop(/** @type {any} */ { players, world, resources, mobs, corpses, config, spawner, nextItemIdRef, markDirty, onPlayerDamaged, onMobAttackTelegraph, onCombatLog, onPlayerDeath, onCombatEvent, onDuelEnded }) {
+  const runtime = buildGameLoopRuntime(config, onPlayerDamaged, onMobAttackTelegraph);
 
   let /** @type {any} */ timeoutId = null;
   let nextTickAt = 0;
