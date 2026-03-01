@@ -1,6 +1,7 @@
 // @ts-check
 
 const UI_AUDIO_ENABLED_KEY = 'mmorpg_ui_audio_enabled';
+const UI_AUDIO_VOLUME_KEY = 'mmorpg_ui_audio_volume';
 
 /**
  * @param {string} type
@@ -34,10 +35,19 @@ function toneProfile(type) {
  */
 export function createUiAudio({ enabledByDefault = true } = {}) {
   let enabled = enabledByDefault;
+  let volume = 1;
   try {
     const stored = localStorage.getItem(UI_AUDIO_ENABLED_KEY);
     if (stored === '0') enabled = false;
     if (stored === '1') enabled = true;
+    const volStored = localStorage.getItem(UI_AUDIO_VOLUME_KEY);
+    if (volStored != null) {
+      const parsed = Number.parseFloat(volStored);
+      if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 1) {
+        volume = parsed;
+        if (volume === 0) enabled = false;
+      }
+    }
   } catch {
     // ignore localStorage errors
   }
@@ -71,19 +81,34 @@ export function createUiAudio({ enabledByDefault = true } = {}) {
     }
   }
 
+  function setVolume(/** @type {number} */ value) {
+    volume = Math.max(0, Math.min(1, Number(value)));
+    try {
+      localStorage.setItem(UI_AUDIO_VOLUME_KEY, String(volume));
+    } catch {
+      // ignore localStorage errors
+    }
+  }
+
+  function getVolume() {
+    return volume;
+  }
+
   function play(type = 'confirm') {
-    if (!enabled || reduceMotion) return;
+    if (!enabled || reduceMotion || volume <= 0) return;
     const audio = ensureContext();
     if (!audio) return;
     const now = audio.currentTime;
     let offset = 0;
+    const effectiveVolume = volume;
     for (const tone of toneProfile(type)) {
       const osc = audio.createOscillator();
       const gain = audio.createGain();
       osc.type = type === 'error' ? 'sawtooth' : 'triangle';
       osc.frequency.setValueAtTime(tone.frequency, now + offset);
+      const toneGain = tone.gain * effectiveVolume;
       gain.gain.setValueAtTime(0.0001, now + offset);
-      gain.gain.exponentialRampToValueAtTime(tone.gain, now + offset + 0.015);
+      gain.gain.exponentialRampToValueAtTime(toneGain, now + offset + 0.015);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + tone.duration);
       osc.connect(gain);
       gain.connect(audio.destination);
@@ -96,6 +121,8 @@ export function createUiAudio({ enabledByDefault = true } = {}) {
   return {
     play,
     setEnabled,
+    setVolume,
+    getVolume,
     isEnabled: () => enabled,
   };
 }

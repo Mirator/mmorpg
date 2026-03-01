@@ -1,4 +1,6 @@
 // @ts-check
+import { escapeHtml } from '../shared/utils.js';
+
 const WRITABLE_CHANNELS = new Set(['global', 'area', 'trade']);
 const GENERAL_SENDS_TO = 'area';
 const MAX_COMBAT_ENTRIES = 50;
@@ -123,23 +125,16 @@ export function createChat(/** @type {any} */ { onSend, isInParty = () => false 
     const time = formatTime(data.timestamp ?? Date.now());
     const displayChannel = data.sourceChannel ?? channel;
     if (data.kind === 'combat') {
-      div.innerHTML = `<span class="chat-time">[${time}]</span><span class="chat-channel">[combat]</span><span class="chat-text">${escapeHtml(data.text)}</span>`;
+      div.innerHTML = `<span class="chat-time">[${escapeHtml(time)}]</span><span class="chat-channel">[combat]</span><span class="chat-text">${escapeHtml(data.text)}</span>`;
     } else if (data.kind === 'system') {
-      div.innerHTML = `<span class="chat-time">[${time}]</span><span class="chat-channel">[system]</span><span class="chat-text">${escapeHtml(data.text)}</span>`;
+      div.innerHTML = `<span class="chat-time">[${escapeHtml(time)}]</span><span class="chat-channel">[system]</span><span class="chat-text">${escapeHtml(data.text)}</span>`;
     } else {
-      const channelLabel = displayChannel ? `[${displayChannel}]` : '';
+      const channelLabel = displayChannel ? `[${escapeHtml(displayChannel)}]` : '';
       const author = data.author ? `${escapeHtml(data.author)}:` : '';
-      div.innerHTML = `<span class="chat-time">[${time}]</span><span class="chat-channel">${channelLabel}</span><span class="chat-author">${author}</span><span class="chat-text">${escapeHtml(data.text)}</span>`;
+      div.innerHTML = `<span class="chat-time">[${escapeHtml(time)}]</span><span class="chat-channel">${channelLabel}</span><span class="chat-author">${author}</span><span class="chat-text">${escapeHtml(data.text)}</span>`;
     }
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-
-  function escapeHtml(/** @type {any} */ str) {
-    if (typeof str !== 'string') return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
   }
 
   function switchChannel(/** @type {any} */ channel) {

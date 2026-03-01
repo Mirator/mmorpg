@@ -204,10 +204,13 @@ const combatRef = { current: null };
 const uiAudio = createUiAudio();
 const pauseVolumeEl = /** @type {HTMLInputElement | null} */ (document.getElementById('pause-volume'));
 if (pauseVolumeEl) {
-  pauseVolumeEl.value = uiAudio.isEnabled() ? '100' : '0';
+  pauseVolumeEl.value = String(Math.round(uiAudio.getVolume() * 100));
   pauseVolumeEl.addEventListener('input', () => {
-    const value = Number.parseInt(pauseVolumeEl.value ?? '0', 10);
-    uiAudio.setEnabled(Number.isFinite(value) && value > 0);
+    const value = Number(pauseVolumeEl.value ?? '100');
+    const normalized = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 100));
+    const volume = normalized / 100;
+    uiAudio.setVolume(volume);
+    uiAudio.setEnabled(volume > 0);
   });
 }
 

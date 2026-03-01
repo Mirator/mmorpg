@@ -865,11 +865,15 @@ export function createHttpApp({
       res.status(413).json({ error: 'Payload too large' });
       return;
     }
-    console.error('Unhandled error:', err);
     if (res.headersSent) {
       next(err);
       return;
     }
+    const dbResponse = typeof err === 'object' && err !== null
+      ? sendDbError(res, /** @type {any} */ (err))
+      : false;
+    if (dbResponse) return;
+    console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
   });
 

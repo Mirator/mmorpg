@@ -26,9 +26,36 @@ describe('http db error helpers', () => {
     });
   });
 
-  it('returns null for unrelated errors', () => {
+  it('maps P2002 to conflict response', () => {
     const err = new Error('unique constraint');
     err.code = 'P2002';
+    expect(getDbErrorResponse(err)).toEqual({
+      status: 409,
+      message: 'A record with this value already exists.',
+    });
+  });
+
+  it('maps P2003 to conflict response', () => {
+    const err = new Error('foreign key failed');
+    err.code = 'P2003';
+    expect(getDbErrorResponse(err)).toEqual({
+      status: 409,
+      message: 'Referenced record does not exist.',
+    });
+  });
+
+  it('maps P2025 to not found response', () => {
+    const err = new Error('record not found');
+    err.code = 'P2025';
+    expect(getDbErrorResponse(err)).toEqual({
+      status: 404,
+      message: 'Record not found.',
+    });
+  });
+
+  it('returns null for unknown error codes', () => {
+    const err = new Error('unknown');
+    err.code = 'P9999';
     expect(getDbErrorResponse(err)).toBeNull();
   });
 
@@ -45,7 +72,7 @@ describe('http db error helpers', () => {
   it('sendDbError returns false when no db error match', () => {
     const res = createResponse();
     const err = new Error('no match');
-    err.code = 'P2002';
+    err.code = 'P9999';
 
     expect(sendDbError(res, err)).toBe(false);
     expect(res.statusCode).toBeNull();

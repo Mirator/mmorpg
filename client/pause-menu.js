@@ -7,6 +7,7 @@ import {
   normalizeKeyString,
 } from './keybinds.js';
 import { GAME_ICON_CREDITS, formatGameIconLabel } from './gameIcons.js';
+import { escapeHtml } from '../shared/utils.js';
 
 const /** @type {any} */ CONTROLS = [
   { key: 'W A S D', action: 'Move' },
@@ -100,7 +101,7 @@ export function createPauseMenu(/** @type {any} */ {
     for (const { key, action } of CONTROLS) {
       const row = document.createElement('div');
       row.className = 'controls-row';
-      row.innerHTML = `<span>${action}</span><kbd>${key}</kbd>`;
+      row.innerHTML = `<span>${escapeHtml(action)}</span><kbd>${escapeHtml(key)}</kbd>`;
       controlsList.appendChild(row);
     }
   }
