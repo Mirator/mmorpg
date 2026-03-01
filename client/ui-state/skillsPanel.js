@@ -52,6 +52,7 @@ export function createSkillsPanelUpdater(/** @type {any} */ elements) {
     setAbilityInSlot,
     swapAbilitySlots,
     clearAbilitySlot,
+    onLoadoutChanged,
   } = elements;
   let skillsRenderKey = '';
   let /** @type {any} */ lastPlayer = null;
@@ -119,9 +120,13 @@ export function createSkillsPanelUpdater(/** @type {any} */ elements) {
       typeof document.elementFromPoint === 'function'
         ? document.elementFromPoint(x, y)
         : null;
-    const slotTarget = /** @type {any} */ (target?.closest?.('.skills-loadout-slot'));
-    if (slotTarget?.dataset?.slot) {
-      return { kind: 'slot', el: slotTarget, slot: Number(slotTarget.dataset.slot) };
+    const loadoutSlotTarget = /** @type {any} */ (target?.closest?.('.skills-loadout-slot'));
+    if (loadoutSlotTarget?.dataset?.slot) {
+      return { kind: 'slot', el: loadoutSlotTarget, slot: Number(loadoutSlotTarget.dataset.slot) };
+    }
+    const abilityBarSlotTarget = /** @type {any} */ (target?.closest?.('.ability-slot'));
+    if (abilityBarSlotTarget?.dataset?.slot) {
+      return { kind: 'slot', el: abilityBarSlotTarget, slot: Number(abilityBarSlotTarget.dataset.slot) };
     }
     const removeTarget = /** @type {any} */ (target?.closest?.('.skills-loadout-remove'));
     if (removeTarget) {
@@ -176,6 +181,7 @@ export function createSkillsPanelUpdater(/** @type {any} */ elements) {
     if (changed) {
       skillsRenderKey = '';
       rerender(true);
+      onLoadoutChanged?.(lastPlayer);
     }
   }
 
@@ -392,7 +398,39 @@ export function createSkillsPanelUpdater(/** @type {any} */ elements) {
     }
   }
 
-  return function updateSkillsPanel(/** @type {any} */ me) {
-    renderPanel(me, false);
+  function startBarSlotDrag(
+    /** @type {any} */ me,
+    /** @type {any} */ slot,
+    /** @type {any} */ sourceEl,
+    /** @type {any} */ event
+  ) {
+    const normalizedSlot = Number(slot);
+    if (!Number.isInteger(normalizedSlot) || normalizedSlot < 1 || normalizedSlot > ABILITY_SLOTS) {
+      return false;
+    }
+    const panelState = getAbilityPanelState?.(me);
+    const ability = panelState?.slottedAbilities?.[normalizedSlot - 1] ?? null;
+    if (!ability) return false;
+    lastPlayer = me ?? lastPlayer;
+    const presentation = getAbilityPresentation(ability, {
+      classId: panelState?.classId,
+      weaponDef: panelState?.weaponDef,
+    });
+    startDrag(
+      { type: 'slot', slot: normalizedSlot, abilityId: ability.id },
+      ability,
+      presentation,
+      panelState?.weaponDef ?? null,
+      event,
+      sourceEl
+    );
+    return true;
+  }
+
+  return {
+    update(/** @type {any} */ me) {
+      renderPanel(me, false);
+    },
+    startBarSlotDrag,
   };
 }

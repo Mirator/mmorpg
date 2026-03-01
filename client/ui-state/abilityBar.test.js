@@ -64,6 +64,53 @@ describe('ability bar rendering', () => {
     expect(slotTwo.style.values['--ability-primary-rgb']).toBe(slotTwoPresentation.primaryRgb);
   });
 
+  it('starts layout dragging instead of casting while the skills tab is in layout edit mode', () => {
+    const abilityBarEl = new FakeElement('div');
+    let clickedSlot = null;
+    const dragStarts = [];
+    const abilityBar = createAbilityBar(abilityBarEl, (slot) => {
+      clickedSlot = slot;
+    }, {
+      isLayoutEditMode: () => true,
+      onStartSlotLayoutDrag: (slot, sourceEl, event) => {
+        dragStarts.push({ slot, sourceEl, event });
+      },
+    });
+    const me = {
+      classId: 'fighter',
+      level: 1,
+      equipment: {},
+      globalCooldownUntil: 0,
+      attackCooldownUntil: 0,
+      abilityCooldowns: {},
+    };
+    const weaponDef = getEquippedWeapon(me.equipment, me.classId);
+    const abilities = getAbilitiesForClass(me.classId, me.level, weaponDef);
+    const slottedAbilities = Array.from({ length: 10 }, () => null);
+    slottedAbilities[0] = abilities[0] ?? null;
+
+    abilityBar.buildAbilityBar();
+    abilityBar.updateAbilityBar(me, 1000, { classId: me.classId, weaponDef, slottedAbilities }, 900);
+
+    const slotOne = abilityBarEl.children[0];
+    let prevented = false;
+    const event = {
+      preventDefault() {
+        prevented = true;
+      },
+      clientX: 18,
+      clientY: 22,
+    };
+
+    slotOne.listeners.pointerdown(event);
+    slotOne.listeners.click();
+
+    expect(prevented).toBe(true);
+    expect(clickedSlot).toBeNull();
+    expect(dragStarts).toHaveLength(1);
+    expect(dragStarts[0]).toEqual({ slot: 1, sourceEl: slotOne, event });
+  });
+
   it('keeps empty slots visually blank while preserving the fixed layout', () => {
     const abilityBarEl = new FakeElement('div');
     const abilityBar = createAbilityBar(abilityBarEl, () => {});
@@ -136,6 +183,46 @@ describe('ability bar rendering', () => {
 
     expect(abilityBarEl.children[0].classList.contains('unusable')).toBe(false);
     expect(abilityBarEl.children[1].classList.contains('unusable')).toBe(false);
+  });
+
+  it('keeps ability clicks active outside layout edit mode', () => {
+    const abilityBarEl = new FakeElement('div');
+    const clickedSlots = [];
+    let dragStarts = 0;
+    const abilityBar = createAbilityBar(abilityBarEl, (slot) => {
+      clickedSlots.push(slot);
+    }, {
+      isLayoutEditMode: () => false,
+      onStartSlotLayoutDrag: () => {
+        dragStarts += 1;
+      },
+    });
+    const me = {
+      classId: 'fighter',
+      level: 1,
+      equipment: {},
+      globalCooldownUntil: 0,
+      attackCooldownUntil: 0,
+      abilityCooldowns: {},
+    };
+    const weaponDef = getEquippedWeapon(me.equipment, me.classId);
+    const abilities = getAbilitiesForClass(me.classId, me.level, weaponDef);
+    const slottedAbilities = Array.from({ length: 10 }, () => null);
+    slottedAbilities[0] = abilities[0] ?? null;
+
+    abilityBar.buildAbilityBar();
+    abilityBar.updateAbilityBar(me, 1000, { classId: me.classId, weaponDef, slottedAbilities }, 900);
+
+    const slotOne = abilityBarEl.children[0];
+    slotOne.listeners.pointerdown({
+      preventDefault() {
+        throw new Error('pointerdown should not be prevented outside layout edit mode');
+      },
+    });
+    slotOne.listeners.click();
+
+    expect(dragStarts).toBe(0);
+    expect(clickedSlots).toEqual([1]);
   });
 
   it('skips DOM writes on repeated identical updates', () => {

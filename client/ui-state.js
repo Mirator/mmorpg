@@ -172,7 +172,18 @@ export function createUiState(/** @type {any} */ {
   let menuOpen = true;
   let pauseMenuOpen = false;
   let deadOpen = false;
-  const abilityBarModule = createAbilityBar(abilityBar, onAbilityClick);
+  let /** @type {any} */ lastUiPlayer = null;
+  let /** @type {any} */ lastAbilityBarRenderArgs = null;
+  let /** @type {any} */ skillsPanelModule = null;
+  const abilityBarModule = createAbilityBar(abilityBar, onAbilityClick, {
+    isLayoutEditMode: () => characterOpen && characterTab === 'skills',
+    onStartSlotLayoutDrag: (
+      /** @type {any} */ slot,
+      /** @type {any} */ sourceEl,
+      /** @type {any} */ event
+    ) =>
+      skillsPanelModule?.startBarSlotDrag?.(lastUiPlayer, slot, sourceEl, event),
+  });
   const abilityLoadout = createAbilityLoadoutController({
     storage: globalThis?.localStorage ?? null,
   });
@@ -246,7 +257,33 @@ export function createUiState(/** @type {any} */ {
     return buildAbilityPanelState(me);
   }
 
-  const updateSkillsPanel = createSkillsPanelUpdater({
+  function refreshAbilityBarNow() {
+    if (!lastAbilityBarRenderArgs) return;
+    abilityBarModule.updateAbilityBar(
+      lastAbilityBarRenderArgs.me,
+      lastAbilityBarRenderArgs.serverNow,
+      buildAbilityPanelState(lastAbilityBarRenderArgs.me),
+      lastAbilityBarRenderArgs.globalCooldownMs,
+      lastAbilityBarRenderArgs.target
+    );
+  }
+
+  function updateAbilityBar(
+    /** @type {any} */ me,
+    /** @type {any} */ serverNow,
+    /** @type {any} */ globalCooldownMs,
+    /** @type {any} */ target = null
+  ) {
+    lastAbilityBarRenderArgs = {
+      me,
+      serverNow,
+      globalCooldownMs,
+      target,
+    };
+    refreshAbilityBarNow();
+  }
+
+  skillsPanelModule = createSkillsPanelUpdater({
     skillsListEl,
     skillsClassEl,
     skillsLevelEl,
@@ -255,6 +292,15 @@ export function createUiState(/** @type {any} */ {
     setAbilityInSlot,
     swapAbilitySlots,
     clearAbilitySlot,
+    onLoadoutChanged: (/** @type {any} */ me) => {
+      if (lastAbilityBarRenderArgs) {
+        lastAbilityBarRenderArgs = {
+          ...lastAbilityBarRenderArgs,
+          me: me ?? lastAbilityBarRenderArgs.me,
+        };
+      }
+      refreshAbilityBarNow();
+    },
   });
   const characterPreview = createCharacterPreview(characterModelPreviewEl);
   let wasDead = false;
@@ -314,6 +360,7 @@ export function createUiState(/** @type {any} */ {
     characterOpen = !!next;
     characterSheetPanel?.classList.toggle('open', characterOpen);
     document.body.classList.toggle('character-open', characterOpen);
+    syncAbilityBarLayoutEditState();
     characterPreview?.setOpen?.(characterOpen);
     if (characterOpen) {
       clearPrompt();
@@ -324,6 +371,7 @@ export function createUiState(/** @type {any} */ {
   function setCharacterTab(/** @type {any} */ tab) {
     if (!['character', 'skills'].includes(tab)) return;
     characterTab = tab;
+    syncAbilityBarLayoutEditState();
     characterView?.classList.toggle('active', tab === 'character');
     skillsView?.classList.toggle('active', tab === 'skills');
     characterPreview?.setVisible?.(tab === 'character');
@@ -351,6 +399,10 @@ export function createUiState(/** @type {any} */ {
   function setDeathOpen(/** @type {any} */ open) {
     deadOpen = !!open;
     deathScreen?.classList.toggle('open', deadOpen);
+  }
+
+  function syncAbilityBarLayoutEditState() {
+    abilityBar?.classList?.toggle?.('layout-edit', characterOpen && characterTab === 'skills');
   }
 
   function formatAbilityNameFromId(/** @type {any} */ id) {
@@ -795,6 +847,7 @@ export function createUiState(/** @type {any} */ {
   }
 
   function updateLocalUi(/** @type {any} */ { me, worldConfig, serverNow }) {
+    lastUiPlayer = me ?? null;
     if (me) {
       const isDead = !!me.dead;
       if (isDead && !wasDead) {
@@ -1016,8 +1069,8 @@ export function createUiState(/** @type {any} */ {
     updateLocalUi,
     updateTargetHud,
     updateAbilityBar: (/** @type {any} */ me, /** @type {any} */ serverNow, /** @type {any} */ globalCooldownMs, /** @type {any} */ target = null) =>
-      abilityBarModule.updateAbilityBar(me, serverNow, buildAbilityPanelState(me), globalCooldownMs, target),
-    updateSkillsPanel: (/** @type {any} */ me) => updateSkillsPanel(me),
+      updateAbilityBar(me, serverNow, globalCooldownMs, target),
+    updateSkillsPanel: (/** @type {any} */ me) => skillsPanelModule.update(me),
     setInventoryOpen,
     toggleInventory,
     toggleCharacter,

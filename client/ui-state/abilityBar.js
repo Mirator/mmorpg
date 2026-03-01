@@ -15,7 +15,11 @@ export function buildAbilityTooltip(/** @type {any} */ ability, /** @type {any} 
   return getAbilityPresentation(ability, opts).metaLabel;
 }
 
-export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any} */ onAbilityClick) {
+export function createAbilityBar(
+  /** @type {any} */ abilityBarEl,
+  /** @type {any} */ onAbilityClick,
+  /** @type {any} */ opts = {}
+) {
   const /** @type {any} */ abilitySlots = [];
   const localCooldowns = new Map();
 
@@ -114,11 +118,7 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
       el.appendChild(name);
       el.appendChild(cooldownNum);
       el.appendChild(tooltip);
-      el.addEventListener('click', () => {
-        onAbilityClick?.(slot);
-      });
-      abilityBarEl.appendChild(el);
-      abilitySlots.push({
+      const slotRef = {
         root: el,
         keyEl: key,
         iconEl: icon,
@@ -142,7 +142,18 @@ export function createAbilityBar(/** @type {any} */ abilityBarEl, /** @type {any
         lastSecondaryRgb: null,
         isEmpty: true,
         isUnusable: false,
+      };
+      el.addEventListener('pointerdown', (event) => {
+        if (!opts?.isLayoutEditMode?.() || slotRef.isEmpty) return;
+        event?.preventDefault?.();
+        opts?.onStartSlotLayoutDrag?.(slot, el, event);
       });
+      el.addEventListener('click', () => {
+        if (opts?.isLayoutEditMode?.()) return;
+        onAbilityClick?.(slot);
+      });
+      abilityBarEl.appendChild(el);
+      abilitySlots.push(slotRef);
     }
   }
 

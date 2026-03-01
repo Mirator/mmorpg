@@ -335,6 +335,80 @@ async function dragPanelBy(/** @type {any} */ page, /** @type {any} */ handleSel
   await sleep(80);
 }
 
+async function dragSelectorToSelectorCenter(
+  /** @type {any} */ page,
+  /** @type {any} */ sourceSelector,
+  /** @type {any} */ targetSelector
+) {
+  await page.waitForSelector(sourceSelector, { state: 'visible' });
+  await page.waitForSelector(targetSelector, { state: 'visible' });
+  await page.evaluate(
+    (/** @type {any} */ payload) => {
+      const source = document.querySelector(payload.sourceSelector);
+      const target = document.querySelector(payload.targetSelector);
+      if (!(source instanceof HTMLElement)) {
+        throw new Error(`Drag source not visible: ${payload.sourceSelector}`);
+      }
+      if (!(target instanceof HTMLElement)) {
+        throw new Error(`Drag target not visible: ${payload.targetSelector}`);
+      }
+      const sourceRect = source.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const startX = sourceRect.left + sourceRect.width / 2;
+      const startY = sourceRect.top + sourceRect.height / 2;
+      const endX = targetRect.left + targetRect.width / 2;
+      const endY = targetRect.top + targetRect.height / 2;
+      const pointerId = 1;
+      const steps = 12;
+      source.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          cancelable: true,
+          pointerId,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          buttons: 1,
+          clientX: startX,
+          clientY: startY,
+        })
+      );
+      for (let i = 1; i <= steps; i += 1) {
+        const nextX = startX + ((endX - startX) * i) / steps;
+        const nextY = startY + ((endY - startY) * i) / steps;
+        window.dispatchEvent(
+          new PointerEvent('pointermove', {
+            bubbles: true,
+            cancelable: true,
+            pointerId,
+            pointerType: 'mouse',
+            isPrimary: true,
+            button: 0,
+            buttons: 1,
+            clientX: nextX,
+            clientY: nextY,
+          })
+        );
+      }
+      window.dispatchEvent(
+        new PointerEvent('pointerup', {
+          bubbles: true,
+          cancelable: true,
+          pointerId,
+          pointerType: 'mouse',
+          isPrimary: true,
+          button: 0,
+          buttons: 0,
+          clientX: endX,
+          clientY: endY,
+        })
+      );
+    },
+    { sourceSelector, targetSelector }
+  );
+  await sleep(80);
+}
+
 function assertRectNear(
   /** @type {any} */ a,
   /** @type {any} */ b,
@@ -830,13 +904,114 @@ async function run() {
     await page.waitForFunction(() =>
       document.querySelector('#skills-list')?.textContent?.includes('Slash')
     );
+    await page.waitForFunction(() =>
+      document.querySelector('#ability-bar')?.classList.contains('layout-edit')
+    );
     const skillsText = await page.locator('#skills-list').innerText();
     if (!skillsText.includes('Slash')) {
       throw new Error('Skills panel missing Slash');
     }
+    const abilityBarState = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('#ability-bar .ability-slot'))
+        .filter((/** @type {any} */ el) => el instanceof HTMLElement)
+        .map((/** @type {any} */ el) => ({
+          slot: Number(el.dataset.slot ?? 0),
+          name: el.querySelector('.ability-name')?.textContent?.trim() ?? '',
+          empty: el.classList.contains('empty'),
+        }))
+    );
+    const occupiedSlots = abilityBarState.filter((/** @type {any} */ slot) => !slot.empty);
+    const emptySlots = abilityBarState.filter((/** @type {any} */ slot) => slot.empty);
+    if (occupiedSlots.length === 0) {
+      throw new Error('Need at least one occupied ability bar slot for drag regression');
+    }
+    const dragSource =
+      occupiedSlots.find((/** @type {any} */ slot) => slot.slot !== 1) ??
+      occupiedSlots[0];
+    const preferredNonPrimaryTargets = abilityBarState.filter(
+      (/** @type {any} */ slot) => slot.slot !== dragSource.slot && slot.slot !== 1
+    );
+    const dragTarget =
+      dragSource.slot === 1
+        ? preferredNonPrimaryTargets.find((/** @type {any} */ slot) => slot.empty) ??
+          preferredNonPrimaryTargets.find((/** @type {any} */ slot) => !slot.empty) ??
+          null
+        : preferredNonPrimaryTargets.find((/** @type {any} */ slot) => !slot.empty) ??
+          preferredNonPrimaryTargets.find((/** @type {any} */ slot) => slot.empty) ??
+          null;
+    if (!dragSource?.slot || !dragSource.name || !dragTarget?.slot) {
+      throw new Error('Ability bar drag regression could not resolve valid slot targets');
+    }
+    const dragSourceSelector = `#ability-bar .ability-slot[data-slot="${dragSource.slot}"]`;
+    const dragTargetSelector = `#ability-bar .ability-slot[data-slot="${dragTarget.slot}"]`;
+    await dragSelectorToSelectorCenter(page, dragSourceSelector, dragTargetSelector);
+    await page.waitForFunction(
+      (/** @type {any} */ payload) => {
+        const source = document.querySelector(payload.sourceSelector);
+        const target = document.querySelector(payload.targetSelector);
+        if (!(source instanceof HTMLElement) || !(target instanceof HTMLElement)) return false;
+        const sourceName = source?.querySelector('.ability-name')?.textContent?.trim() ?? '';
+        const targetName = target?.querySelector('.ability-name')?.textContent?.trim() ?? '';
+        if (sourceName !== payload.expectedSourceName || targetName !== payload.expectedTargetName) {
+          return false;
+        }
+        return payload.expectSourceEmpty
+          ? source.classList.contains('empty')
+          : !source.classList.contains('empty');
+      },
+      {
+        sourceSelector: dragSourceSelector,
+        targetSelector: dragTargetSelector,
+        expectedSourceName: occupiedSlots[1]?.name ?? '',
+        expectedTargetName: dragSource.name,
+        expectSourceEmpty: occupiedSlots.length < 2,
+      }
+    );
+    await dragSelectorToSelectorCenter(page, dragTargetSelector, '#skills-list .skills-loadout-remove');
+    await page.waitForFunction(
+      (/** @type {any} */ selector) => {
+        const slot = document.querySelector(selector);
+        if (!(slot instanceof HTMLElement)) return false;
+        return slot.classList.contains('empty');
+      },
+      dragTargetSelector
+    );
+    if (dragSource.slot === 1) {
+      const restoreAbilityId = await page.evaluate(
+        (/** @type {any} */ abilityName) => {
+          const row = Array.from(document.querySelectorAll('#skills-list .skill-row')).find(
+            (/** @type {any} */ entry) =>
+              entry instanceof HTMLElement &&
+              entry.querySelector('.skill-name')?.textContent?.trim() === abilityName
+          );
+          return row instanceof HTMLElement ? String(row.dataset.abilityId ?? '') : '';
+        },
+        dragSource.name
+      );
+      if (!restoreAbilityId) {
+        throw new Error(`Could not restore slot 1 after drag regression for ${dragSource.name}`);
+      }
+      await dragSelectorToSelectorCenter(
+        page,
+        `#skills-list .skill-row[data-ability-id="${restoreAbilityId}"]`,
+        '#ability-bar .ability-slot[data-slot="1"]'
+      );
+      await page.waitForFunction(
+        (/** @type {any} */ abilityName) => {
+          const slot = document.querySelector('#ability-bar .ability-slot[data-slot="1"]');
+          if (!(slot instanceof HTMLElement)) return false;
+          const currentName = slot.querySelector('.ability-name')?.textContent?.trim() ?? '';
+          return !slot.classList.contains('empty') && currentName === abilityName;
+        },
+        dragSource.name
+      );
+    }
     await page.keyboard.press('k');
     await page.waitForFunction(
       () => !document.querySelector('#character-sheet-panel')?.classList.contains('open')
+    );
+    await page.waitForFunction(() =>
+      !document.querySelector('#ability-bar')?.classList.contains('layout-edit')
     );
 
     await page.keyboard.press('Escape');

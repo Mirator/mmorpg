@@ -541,6 +541,10 @@
   z-index: 15;
 }
 
+.ability-bar.layout-edit .ability-slot:not(.empty) {
+  cursor: grab;
+}
+
 .xp-bar {
   --progress: 0;
   position: fixed;
@@ -637,6 +641,18 @@
   background: transparent;
   box-shadow: none;
   cursor: default;
+}
+
+.ability-slot.active {
+  border-color: rgba(var(--ability-secondary-rgb), 0.58);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(var(--ability-secondary-rgb), 0.22),
+    0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.ability-slot.dragging {
+  opacity: 0.42;
 }
 
 .ability-slot.unusable:not(.empty) {
