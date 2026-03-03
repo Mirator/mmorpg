@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { getAbilitiesForClass } from '/shared/classes.js';
-import { getEquippedWeapon } from '/shared/equipment.js';
 import { createSkillsPanelUpdater } from './skillsPanel.js';
-import { createFakeDocument } from '../test/fakeDom.js';
+import { buildAbilityPanelState, buildPlayer } from '../test/factories.js';
+import {
+  completePointerDrag,
+  getLoadoutSlot,
+  installUiTestGlobals,
+} from '../test/uiHarness.js';
 
 function findSkillRow(/** @type {any} */ root, /** @type {string} */ name) {
   return (
@@ -14,30 +17,27 @@ function findSkillRow(/** @type {any} */ root, /** @type {string} */ name) {
   );
 }
 
-function createPanelHarness() {
+function createPanelHarness(ui, options = {}) {
   const skillsListEl = global.document.createElement('div');
   const skillsClassEl = global.document.createElement('div');
   const skillsLevelEl = global.document.createElement('div');
   const skillsXpEl = global.document.createElement('div');
-  const me = {
+  const me = buildPlayer({
     classId: 'mage',
     level: 3,
-    equipment: {},
     xp: 12,
     xpToNext: 25,
-  };
-  const classId = me.classId;
-  const weaponDef = getEquippedWeapon(me.equipment, classId);
-  const abilities = getAbilitiesForClass(classId, me.level, weaponDef);
-  const basicAttack = abilities.find((ability) => ability.id === 'basic_attack') ?? null;
-  const frostNova = abilities.find((ability) => ability.id === 'frost_nova') ?? null;
-  let panelState = {
-    classId,
-    weaponDef,
-    abilities,
-    slottedAbilities: [basicAttack, frostNova, null, null, null, null, null, null, null, null],
-    loadoutSignature: 'basic_attack|frost_nova|-|-|-|-|-|-|-|-',
-  };
+  });
+  const baseState = buildAbilityPanelState({
+    classId: me.classId,
+    level: me.level,
+    equipment: me.equipment,
+    slottedIds: options.slottedIds ?? ['basic_attack', 'frost_nova'],
+  });
+  const abilities = baseState.abilities;
+  const basicAttack = baseState.slottedAbilities[0];
+  const frostNova = baseState.slottedAbilities[1];
+  let panelState = baseState;
   let loadoutChangedCount = 0;
 
   function syncSignature() {
@@ -100,34 +100,24 @@ function createPanelHarness() {
     frostNova,
     getPanelState: () => panelState,
     getLoadoutChangedCount: () => loadoutChangedCount,
+    completeDrop(payload) {
+      completePointerDrag(ui.window, payload);
+    },
   };
 }
 
 describe('skills panel rendering', () => {
-  const originalDocument = global.document;
-  const originalWindow = global.window;
+  let ui;
 
   beforeEach(() => {
-    const { document } = createFakeDocument();
-    global.document = document;
-    const listeners = {};
-    global.window = {
-      addEventListener(type, handler) {
-        listeners[type] = handler;
-      },
-      removeEventListener(type, handler) {
-        if (listeners[type] === handler) delete listeners[type];
-      },
-      listeners,
-    };
+    ui = installUiTestGlobals();
   });
 
   afterEach(() => {
-    global.document = originalDocument;
-    global.window = originalWindow;
+    ui.restore();
   });
 
-  it('renders a loadout editor and supports dragging a skill onto the bar', () => {
+  it('renders loadout editor with class and xp summary', () => {
     const {
       skillsListEl,
       skillsClassEl,
@@ -135,45 +125,59 @@ describe('skills panel rendering', () => {
       skillsXpEl,
       skillsPanelModule,
       me,
-      getLoadoutChangedCount,
-    } = createPanelHarness();
+    } = createPanelHarness(ui);
 
     skillsPanelModule.update(me);
 
     const loadout = skillsListEl.querySelector('.skills-loadout');
-    const loadoutSlots = skillsListEl.querySelectorAll('.skills-loadout-slot');
+    const thirdSlot = getLoadoutSlot(skillsListEl, 3);
     const fireboltRow = findSkillRow(skillsListEl, 'Firebolt');
 
     expect(skillsClassEl.textContent).toBe('Mage');
     expect(skillsLevelEl.textContent).toBe('3');
     expect(skillsXpEl.textContent).toBe('12/25');
     expect(loadout).toBeTruthy();
-    expect(loadoutSlots).toHaveLength(10);
-    expect(loadoutSlots[2].classList.contains('empty')).toBe(true);
+    expect(skillsListEl.querySelectorAll('.skills-loadout-slot')).toHaveLength(10);
+    expect(thirdSlot.classList.contains('empty')).toBe(true);
     expect(fireboltRow?.querySelector('.skill-meta')?.textContent).toContain('Off bar');
     expect(fireboltRow?.querySelector('.skill-tooltip-meta')?.textContent).toContain('40 Mana');
     expect(typeof fireboltRow?.listeners?.pointerdown).toBe('function');
+  });
 
-    global.document.elementFromPoint = () => loadoutSlots[2];
-    fireboltRow.listeners.pointerdown({
+  it('drags a skill row onto an empty loadout slot', () => {
+    const {
+      skillsListEl,
+      skillsPanelModule,
+      me,
+      getLoadoutChangedCount,
+      completeDrop,
+    } = createPanelHarness(ui);
+
+    skillsPanelModule.update(me);
+
+    const targetSlot = getLoadoutSlot(skillsListEl, 3);
+    const fireboltRow = findSkillRow(skillsListEl, 'Firebolt');
+
+    global.document.elementFromPoint = () => targetSlot;
+    fireboltRow?.listeners?.pointerdown({
       preventDefault() {},
       clientX: 24,
       clientY: 24,
     });
-    global.window.listeners.pointerup({
+    completeDrop({
       clientX: 24,
       clientY: 24,
     });
 
-    const updatedSlots = skillsListEl.querySelectorAll('.skills-loadout-slot');
+    const updatedSlot = getLoadoutSlot(skillsListEl, 3);
     const updatedFireboltRow = findSkillRow(skillsListEl, 'Firebolt');
-    expect(updatedSlots[2].classList.contains('empty')).toBe(false);
-    expect(updatedSlots[2].querySelector('.skills-loadout-name')?.textContent).toBe('Firebolt');
+    expect(updatedSlot.classList.contains('empty')).toBe(false);
+    expect(updatedSlot.querySelector('.skills-loadout-name')?.textContent).toBe('Firebolt');
     expect(updatedFireboltRow?.querySelector('.skill-meta')?.textContent).toContain('Bar 3');
     expect(getLoadoutChangedCount()).toBe(1);
   });
 
-  it('supports dragging a live ability-bar slot onto another HUD slot', () => {
+  it('moves a live HUD slot onto another HUD slot', () => {
     const {
       skillsListEl,
       skillsPanelModule,
@@ -181,7 +185,8 @@ describe('skills panel rendering', () => {
       frostNova,
       getPanelState,
       getLoadoutChangedCount,
-    } = createPanelHarness();
+      completeDrop,
+    } = createPanelHarness(ui);
 
     skillsPanelModule.update(me);
 
@@ -198,23 +203,23 @@ describe('skills panel rendering', () => {
       clientX: 36,
       clientY: 18,
     });
-    global.window.listeners.pointerup({
+    completeDrop({
       clientX: 36,
       clientY: 18,
     });
 
-    const updatedSlots = skillsListEl.querySelectorAll('.skills-loadout-slot');
+    const updatedSlot = getLoadoutSlot(skillsListEl, 3);
     const updatedFrostNovaRow = findSkillRow(skillsListEl, 'Frost Nova');
 
     expect(started).toBe(true);
     expect(getPanelState().slottedAbilities[1]).toBeNull();
     expect(getPanelState().slottedAbilities[2]?.id).toBe(frostNova?.id ?? null);
-    expect(updatedSlots[2].querySelector('.skills-loadout-name')?.textContent).toBe('Frost Nova');
+    expect(updatedSlot.querySelector('.skills-loadout-name')?.textContent).toBe('Frost Nova');
     expect(updatedFrostNovaRow?.querySelector('.skill-meta')?.textContent).toContain('Bar 3');
     expect(getLoadoutChangedCount()).toBe(1);
   });
 
-  it('supports dragging a live ability-bar slot to the remove dropzone', () => {
+  it('drops a live HUD slot into the remove zone', () => {
     const {
       skillsListEl,
       skillsPanelModule,
@@ -222,7 +227,8 @@ describe('skills panel rendering', () => {
       basicAttack,
       getPanelState,
       getLoadoutChangedCount,
-    } = createPanelHarness();
+      completeDrop,
+    } = createPanelHarness(ui);
 
     skillsPanelModule.update(me);
 
@@ -237,19 +243,76 @@ describe('skills panel rendering', () => {
       clientX: 28,
       clientY: 44,
     });
-    global.window.listeners.pointerup({
+    completeDrop({
       clientX: 28,
       clientY: 44,
     });
 
-    const updatedSlots = skillsListEl.querySelectorAll('.skills-loadout-slot');
     const updatedBasicAttackRow = findSkillRow(skillsListEl, basicAttack?.name ?? 'Basic Attack');
 
     expect(started).toBe(true);
     expect(getPanelState().slottedAbilities[0]).toBeNull();
     expect(getPanelState().slottedAbilities[1]?.id).toBe('frost_nova');
-    expect(updatedSlots[0].classList.contains('empty')).toBe(true);
+    expect(getLoadoutSlot(skillsListEl, 1).classList.contains('empty')).toBe(true);
     expect(updatedBasicAttackRow?.querySelector('.skill-meta')?.textContent).toContain('Off bar');
+    expect(getLoadoutChangedCount()).toBe(1);
+  });
+
+  it('ignores pointer release on invalid drop targets', () => {
+    const {
+      skillsListEl,
+      skillsPanelModule,
+      me,
+      getPanelState,
+      getLoadoutChangedCount,
+      completeDrop,
+    } = createPanelHarness(ui);
+
+    skillsPanelModule.update(me);
+
+    const beforeSignature = getPanelState().loadoutSignature;
+    const fireboltRow = findSkillRow(skillsListEl, 'Firebolt');
+    global.document.elementFromPoint = () => global.document.createElement('div');
+
+    fireboltRow?.listeners?.pointerdown({
+      preventDefault() {},
+      clientX: 12,
+      clientY: 18,
+    });
+    completeDrop({
+      clientX: 12,
+      clientY: 18,
+    });
+
+    expect(getPanelState().loadoutSignature).toBe(beforeSignature);
+    expect(getLoadoutChangedCount()).toBe(0);
+  });
+
+  it('emits loadout changed exactly once per successful drop', () => {
+    const {
+      skillsListEl,
+      skillsPanelModule,
+      me,
+      getLoadoutChangedCount,
+      completeDrop,
+    } = createPanelHarness(ui);
+
+    skillsPanelModule.update(me);
+
+    const targetSlot = getLoadoutSlot(skillsListEl, 4);
+    const fireboltRow = findSkillRow(skillsListEl, 'Firebolt');
+    global.document.elementFromPoint = () => targetSlot;
+
+    fireboltRow?.listeners?.pointerdown({
+      preventDefault() {},
+      clientX: 20,
+      clientY: 20,
+    });
+    completeDrop({
+      clientX: 20,
+      clientY: 20,
+    });
+
     expect(getLoadoutChangedCount()).toBe(1);
   });
 });

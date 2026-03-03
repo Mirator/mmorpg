@@ -198,9 +198,13 @@ export function hasLineOfSight(/** @type {any} */ from, /** @type {any} */ to, /
 export async function waitForCondition(/** @type {any} */ page, /** @type {any} */ condition, /** @type {any} */ timeoutMs, /** @type {any} */ label) {
   const start = Date.now();
   let /** @type {any} */ lastState = null;
+  let /** @type {boolean | null} */ lastMenuOpen = null;
   while (Date.now() - start < timeoutMs) {
     const state = await getState(page);
     lastState = state;
+    lastMenuOpen = await page
+      .evaluate(() => document.querySelector('#menu')?.classList?.contains('open') ?? null)
+      .catch(() => null);
     if (condition(state)) return state;
     await advance(page, 1000 / 30);
     await sleep(50);
@@ -216,6 +220,9 @@ export async function waitForCondition(/** @type {any} */ page, /** @type {any} 
       }
     : null;
   throw new Error(
-    `Timed out waiting for ${label}. Last player state: ${JSON.stringify(lastPlayer)}`
+    `Timed out waiting for ${label}. ` +
+      `Last mode: ${JSON.stringify(lastState?.mode ?? null)}. ` +
+      `Menu open: ${JSON.stringify(lastMenuOpen)}. ` +
+      `Last player state: ${JSON.stringify(lastPlayer)}`
   );
 }

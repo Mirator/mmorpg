@@ -14,7 +14,7 @@ if (!dbUrl) {
 const env = { ...process.env, DATABASE_URL: dbUrl };
 const result = spawnSync(
   'npx',
-  ['prisma', 'migrate', 'reset', '--force', '--skip-seed'],
+  ['prisma', 'migrate', 'reset', '--force', '--skip-seed', '--skip-generate'],
   { stdio: 'inherit', env }
 );
 

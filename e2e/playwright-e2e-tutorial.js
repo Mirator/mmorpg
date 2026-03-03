@@ -1,5 +1,7 @@
 // @ts-check
 
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getContractOffersForVendor } from '../shared/contracts.js';
 import { getRecipeById } from '../shared/recipes.js';
 import { distance, waitForCondition, TEST_TIMEOUT_MS } from './helpers.js';
@@ -11,6 +13,10 @@ import {
   runScenario,
   signUpAndCreateCharacter,
 } from './scenario-runtime.js';
+
+const isEntryPoint = process.argv[1]
+  ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  : false;
 
 function getNearestVendor(/** @type {any} */ state) {
   const player = state?.player ?? null;
@@ -371,9 +377,10 @@ async function completeTutorialAttack(
   throw new Error('Tutorial attack did not advance after repeated attempts');
 }
 
-runScenario({
+export const scenario = {
   name: 'tutorial-scenario',
-  async run({ createPage, setStage }) {
+  async run(/** @type {any} */ ctx) {
+    const { createPage, setStage } = ctx;
     setStage('open-page');
     const { page } = await createPage();
     const token = createUniqueToken('tutorial');
@@ -555,7 +562,11 @@ runScenario({
       throw new Error('Tutorial completed but not all seven steps were recorded');
     }
   },
-}).catch((/** @type {any} */ error) => {
-  console.error(error);
-  process.exit(1);
-});
+};
+
+if (isEntryPoint) {
+  runScenario(scenario).catch((/** @type {any} */ error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}
