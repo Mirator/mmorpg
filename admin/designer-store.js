@@ -1,7 +1,6 @@
 // @ts-check
-// @ts-nocheck
 
-function deepClone(value) {
+function deepClone(/** @type {unknown} */ value) {
   if (typeof structuredClone === 'function') {
     return structuredClone(value);
   }
@@ -18,7 +17,7 @@ function deepClone(value) {
  */
 export function createDesignerStore(api) {
   let revision = -1;
-  let zoneState = null;
+  let /** @type {any} */ zoneState = null;
 
   function hasLoaded() {
     return revision >= 0 && zoneState !== null;

@@ -1,5 +1,4 @@
 // @ts-check
-// @ts-nocheck
 
 /** @typedef {Error & { status?: number, details?: string[], revision?: number }} ApiError */
 
@@ -91,7 +90,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
   }
 
   return {
-    unlockAdminSession(password) {
+    unlockAdminSession(/** @type {string} */ password) {
       return request('/admin/auth/unlock', {
         method: 'POST',
         zoneScoped: false,
@@ -128,7 +127,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       return request('/admin/map-config', { zoneScoped: false });
     },
 
-    putMapConfig(config) {
+    putMapConfig(/** @type {unknown} */ config) {
       return request('/admin/map-config', {
         method: 'PUT',
         mutating: true,
@@ -141,7 +140,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       return request('/admin/designer-state');
     },
 
-    putDesignerState(expectedRevision, zoneState) {
+    putDesignerState(/** @type {number} */ expectedRevision, /** @type {unknown} */ zoneState) {
       return request('/admin/designer-state', {
         method: 'PUT',
         mutating: true,
@@ -156,7 +155,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       return request('/admin/prefabs');
     },
 
-    createPrefab(payload) {
+    createPrefab(/** @type {unknown} */ payload) {
       return request('/admin/prefabs', {
         method: 'POST',
         mutating: true,
@@ -164,7 +163,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       });
     },
 
-    updatePrefab(prefabId, payload) {
+    updatePrefab(/** @type {string} */ prefabId, /** @type {unknown} */ payload) {
       return request(`/admin/prefabs/${encodeURIComponent(prefabId)}`, {
         method: 'PUT',
         mutating: true,
@@ -172,7 +171,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       });
     },
 
-    deletePrefab(prefabId) {
+    deletePrefab(/** @type {string} */ prefabId) {
       return request(`/admin/prefabs/${encodeURIComponent(prefabId)}`, {
         method: 'DELETE',
         mutating: true,
@@ -183,7 +182,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       return request('/admin/patches');
     },
 
-    createPatch(payload) {
+    createPatch(/** @type {unknown} */ payload) {
       return request('/admin/patches', {
         method: 'POST',
         mutating: true,
@@ -191,28 +190,28 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       });
     },
 
-    requestPatchApproval(patchId) {
+    requestPatchApproval(/** @type {string} */ patchId) {
       return request(`/admin/patches/${encodeURIComponent(patchId)}/request-approval`, {
         method: 'POST',
         mutating: true,
       });
     },
 
-    approvePatch(patchId) {
+    approvePatch(/** @type {string} */ patchId) {
       return request(`/admin/patches/${encodeURIComponent(patchId)}/approve`, {
         method: 'POST',
         mutating: true,
       });
     },
 
-    publishPatch(patchId) {
+    publishPatch(/** @type {string} */ patchId) {
       return request(`/admin/patches/${encodeURIComponent(patchId)}/publish`, {
         method: 'POST',
         mutating: true,
       });
     },
 
-    rollbackPatch(patchId) {
+    rollbackPatch(/** @type {string} */ patchId) {
       return request(`/admin/patches/${encodeURIComponent(patchId)}/rollback`, {
         method: 'POST',
         mutating: true,
@@ -223,7 +222,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       return request('/admin/comments');
     },
 
-    createComment(payload) {
+    createComment(/** @type {unknown} */ payload) {
       return request('/admin/comments', {
         method: 'POST',
         mutating: true,
@@ -231,7 +230,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       });
     },
 
-    resolveComment(commentId, payload = undefined) {
+    resolveComment(/** @type {string} */ commentId, /** @type {unknown} */ payload = undefined) {
       return request(`/admin/comments/${encodeURIComponent(commentId)}/resolve`, {
         method: 'POST',
         mutating: true,
@@ -243,7 +242,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       return request('/admin/locks');
     },
 
-    setZoneLock(payload) {
+    setZoneLock(/** @type {unknown} */ payload) {
       return request('/admin/locks/zone', {
         method: 'POST',
         mutating: true,
@@ -251,7 +250,7 @@ export function createDesignerApi({ getAlias, getZoneKey }) {
       });
     },
 
-    setLayerLock(layerId, payload) {
+    setLayerLock(/** @type {string} */ layerId, /** @type {unknown} */ payload) {
       return request(`/admin/locks/layer/${encodeURIComponent(layerId)}`, {
         method: 'POST',
         mutating: true,

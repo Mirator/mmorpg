@@ -14,6 +14,18 @@ import {
 import { canRedo, canUndo, createHistory, pushHistory, redo, undo } from './map-v2/history.js';
 import { TEMPLATE_DEFINITIONS, filterTemplates, instantiateTemplate } from './map-v2/templates.js';
 import {
+  BRUSH_SPACING,
+  COLORS,
+  DRAFT_KEY,
+  FIELD_DEFS,
+  MAP_ENTITY_MODES,
+  MODE_FUNCTIONAL,
+  OVERLAY_COLLECTION_BY_MODE,
+  OVERLAY_FIELD_DEFS,
+  PLAYTEST_POLL_MS,
+  ZONE_KEY,
+} from './map-v2/config.js';
+import {
   canvasToWorld,
   clampWorldPosition,
   createViewMetrics,
@@ -22,25 +34,10 @@ import {
   snapWorldPosition,
   worldToCanvas,
 } from './map-v2/canvas.js';
-import { MOB_TYPES, RESOURCE_TYPE_LIST } from '/shared/entityTypes.js';
-import { STRUCTURE_KIND_LIST } from '/shared/mapConfig.js';
 import { createDefaultZoneDesignerState } from '/shared/mapDesignerState.js';
 import { createDesignerApi } from './designer-api.js';
 import { createDesignerStore } from './designer-store.js';
 import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
-
-const ZONE_KEY = 'world-map';
-const DRAFT_KEY = 'ra.admin.mapv2.phase2.draft';
-const BRUSH_SPACING = 4;
-const PLAYTEST_POLL_MS = 1000;
-
-const MAP_ENTITY_MODES = new Set(['Edit', 'Spawn']);
-const MODE_FUNCTIONAL = new Set(['Edit', 'Spawn', 'Nav', 'Trigger', 'Path', 'Lighting', 'Playtest']);
-const OVERLAY_COLLECTION_BY_MODE = {
-  Nav: 'navAreas',
-  Trigger: 'triggers',
-  Lighting: 'lightingRegions',
-};
 
 const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
 const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
@@ -92,107 +89,7 @@ const playtestSpawns = /** @type {HTMLElement} */ (document.getElementById('play
 const playtestMobs = /** @type {HTMLElement} */ (document.getElementById('playtest-mobs'));
 const playtestResources = /** @type {HTMLElement} */ (document.getElementById('playtest-resources'));
 
-/** @type {Record<string, Array<{ key: string, label: string, type: string, step?: string, options?: Array<string | number | boolean> }>>} */
-const FIELD_DEFS = {
-  base: [
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-    { key: 'radius', label: 'Radius', type: 'number', step: '0.1' },
-  ],
-  spawnPoints: [
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-  ],
-  obstacles: [
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-    { key: 'radius', label: 'R', type: 'number', step: '0.1' },
-  ],
-  structures: [
-    { key: 'id', label: 'ID', type: 'text' },
-    { key: 'kind', label: 'Kind', type: 'select', options: STRUCTURE_KIND_LIST },
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-    { key: 'rotation', label: 'Rotation', type: 'number', step: '0.01' },
-    { key: 'colliderRadius', label: 'Collider R', type: 'number', step: '0.1' },
-    { key: 'collides', label: 'Collides', type: 'select', options: [true, false] },
-  ],
-  resourceNodes: [
-    { key: 'id', label: 'ID', type: 'text' },
-    { key: 'type', label: 'Type', type: 'select', options: RESOURCE_TYPE_LIST },
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-    { key: 'respawnMs', label: 'Respawn (ms)', type: 'number', step: '1000' },
-  ],
-  vendors: [
-    { key: 'id', label: 'ID', type: 'text' },
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-  ],
-  mobSpawns: [
-    { key: 'id', label: 'ID', type: 'text' },
-    { key: 'mobType', label: 'Mob', type: 'select', options: MOB_TYPES },
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-    { key: 'aggressive', label: 'Aggressive', type: 'select', options: [true, false] },
-    { key: 'level', label: 'Level', type: 'number', step: '1' },
-    { key: 'levelVariance', label: 'Level ±', type: 'number', step: '1' },
-  ],
-};
-
-/** @type {Record<string, Array<{ key: string, label: string, type: string, step?: string }>>} */
-const OVERLAY_FIELD_DEFS = {
-  navAreas: [
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-    { key: 'radius', label: 'Radius', type: 'number', step: '0.1' },
-    { key: 'walkCost', label: 'Walk Cost', type: 'number', step: '0.1' },
-    { key: 'runCost', label: 'Run Cost', type: 'number', step: '0.1' },
-  ],
-  triggers: [
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-    { key: 'radius', label: 'Radius', type: 'number', step: '0.1' },
-    { key: 'delayMs', label: 'Delay', type: 'number', step: '1' },
-  ],
-  lightingRegions: [
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'x', label: 'X', type: 'number', step: '0.1' },
-    { key: 'y', label: 'Y', type: 'number', step: '0.1' },
-    { key: 'z', label: 'Z', type: 'number', step: '0.1' },
-    { key: 'radius', label: 'Radius', type: 'number', step: '0.1' },
-    { key: 'intensity', label: 'Intensity', type: 'number', step: '0.1' },
-  ],
-};
-
-const COLORS = {
-  terrain: '#5a472f',
-  grid: 'rgba(185, 170, 146, 0.2)',
-  base: '#c89b3c',
-  spawnPoints: '#d8b46b',
-  obstacles: '#514535',
-  structures: '#8f6b32',
-  resourceNodes: '#6f9f62',
-  vendors: '#d8b46b',
-  mobSpawns: '#c8614f',
-  navAreas: '#88bf73',
-  triggers: '#d8b46b',
-  lightingRegions: '#e7d08f',
-  path: '#c89b3c',
-  selected: '#f2eadc',
-};
+const ADMIN_SESSION_HINT_KEY = 'ra.admin.mapv2.session';
 
 const state = {
   adminAlias: '',
@@ -268,6 +165,26 @@ function setControlsEnabled(enabled) {
   mapSizeInput.disabled = !enabled;
 }
 
+function hasSessionRestoreHint() {
+  try {
+    return sessionStorage.getItem(ADMIN_SESSION_HINT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function setSessionRestoreHint(enabled) {
+  try {
+    if (enabled) {
+      sessionStorage.setItem(ADMIN_SESSION_HINT_KEY, '1');
+    } else {
+      sessionStorage.removeItem(ADMIN_SESSION_HINT_KEY);
+    }
+  } catch {
+    // Ignore private-mode storage failures.
+  }
+}
+
 function readAlias() {
   return state.adminAlias;
 }
@@ -306,6 +223,7 @@ function setLockedState(message = 'Status: locked') {
 function handleUnauthorized(err) {
   const error = /** @type {Error & { status?: number }} */ (err);
   if (error.status !== 401) return false;
+  setSessionRestoreHint(false);
   setLockedState('Status: session expired. Unlock again.');
   return true;
 }
@@ -2220,6 +2138,7 @@ async function unlockAndLoad({ password = '', useExistingSession = false } = {})
 
     syncLayerLocksFromZone();
     setControlsEnabled(true);
+    setSessionRestoreHint(true);
     setErrors([]);
     setStatus('Status: connected', 'ok');
     if (!saveStatusEl.textContent || saveStatusEl.textContent === 'No map loaded.') {
@@ -2233,6 +2152,7 @@ async function unlockAndLoad({ password = '', useExistingSession = false } = {})
       if (!useExistingSession) {
         setStatus('Status: invalid password', 'error');
       } else {
+        setSessionRestoreHint(false);
         setLockedState('Status: locked');
       }
       return;
@@ -2656,6 +2576,7 @@ lockBtn.addEventListener('click', async () => {
   } catch {
     // ignore and force local lock state
   }
+  setSessionRestoreHint(false);
   setLockedState('Status: locked');
 });
 
@@ -2746,9 +2667,14 @@ window.__MAP_EDITOR_V2__ = {
 
 state.adminAlias = getStoredAdminAlias();
 renderAdminAlias(aliasLabel, state.adminAlias ? `Alias: ${state.adminAlias}` : 'Alias: --');
-setControlsEnabled(false);
-setStatus('Status: checking session...', 'neutral');
-setModeNotice('Unlock with admin password to start editing.');
-renderAll();
-resizeCanvas();
-unlockAndLoad({ useExistingSession: true }).catch(() => {});
+if (hasSessionRestoreHint()) {
+  setControlsEnabled(false);
+  setStatus('Status: checking session...', 'neutral');
+  setModeNotice('Unlock with admin password to start editing.');
+  renderAll();
+  resizeCanvas();
+  unlockAndLoad({ useExistingSession: true }).catch(() => {});
+} else {
+  setLockedState('Status: locked');
+  resizeCanvas();
+}

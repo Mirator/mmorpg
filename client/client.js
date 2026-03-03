@@ -19,6 +19,7 @@ import { createPauseMenu } from './pause-menu.js';
 import { showEntryBanner, hideEntryBanner, showControlsCard, hideControlsCard } from './ui.js';
 import { createUiAudio } from './ui-audio.js';
 import { buildDebugTextState, installDebugSurface } from './debugSurface.js';
+import { createSocialUi } from './social-ui.js';
 
 // Ownership boundary: this file composes subsystems; domain logic should stay in focused modules
 // (connection/auth/ui-state/combat/input) rather than growing orchestration complexity here.
@@ -163,6 +164,7 @@ const ctx = {
 let /** @type {any} */ nearestVendor = null;
 let inVendorRange = false;
 let /** @type {any} */ inputHandler = null;
+let /** @type {ReturnType<typeof createSocialUi> | null} */ socialUi = null;
 
 function sendWithSeq(/** @type {any} */ msg) {
   ctx.seq += 1;
@@ -190,9 +192,7 @@ function updateLocalUi() {
     ctx.selectedTarget = null;
   }
   ui.updateLocalUi({ me, worldConfig: gameState.getWorldConfig(), serverNow });
-  if (typeof updatePartyPanel === 'function') updatePartyPanel();
-  if (typeof updatePartyHud === 'function') updatePartyHud();
-  if (typeof updateDuelPanel === 'function') updateDuelPanel();
+  socialUi?.updateUi();
 }
 
 /** @type {{ current: any | null }} */
@@ -270,6 +270,12 @@ const ui = createUiState({
   onTradeCancel: () => connectionRef.current?.sendTradeCancel?.(),
   getPlayerId: () => ctx.playerId,
 });
+socialUi = createSocialUi({
+  ctx,
+  gameState,
+  ui,
+  getConnection: () => connectionRef.current,
+});
 
 const menu = createMenu({
   onSignIn: (/** @type {any} */ data) => authRef.current?.signIn(data),
@@ -297,13 +303,6 @@ const combat = createCombat({
   ctx,
 });
 combatRef.current = combat;
-
-/** @type {{ inviterId: string | number, inviterName: string } | null} */
-let pendingPartyInvite = null;
-/** @type {{ challengerId: string | number, challengerName: string } | null} */
-let pendingDuelRequest = null;
-/** @type {{ traderId: string | number, traderName: string } | null} */
-let pendingTradeRequest = null;
 
 function updateLoadingFromNetworkStage(/** @type {any} */ stage) {
   if (stage === 'socket_open') {
@@ -348,82 +347,20 @@ const connection = createConnection({
     chat.addSystemMessage('Connected to game');
     uiAudio.play('success');
   },
-  onPartyInvite: (/** @type {any} */ invite) => {
-    pendingPartyInvite = invite;
-    const panel = document.getElementById('party-panel');
-    const toast = document.getElementById('party-invite-toast');
-    const textEl = document.getElementById('party-invite-text');
-    if (panel && toast && textEl) {
-      panel.classList.remove('hidden');
-      toast.classList.remove('hidden');
-      textEl.textContent = `${invite.inviterName} invited you to party`;
-    }
-  },
-  onDuelRequest: (/** @type {any} */ req) => {
-    pendingDuelRequest = req;
-    const panel = document.getElementById('duel-panel');
-    const toast = document.getElementById('duel-request-toast');
-    const textEl = document.getElementById('duel-request-text');
-    if (panel && toast && textEl) {
-      panel.classList.remove('hidden');
-      toast.classList.remove('hidden');
-      textEl.textContent = `${req.challengerName} challenges you to a duel`;
-    }
-  },
-  onDuelActive: () => {
-    pendingDuelRequest = null;
-    const toast = document.getElementById('duel-request-toast');
-    if (toast) toast.classList.add('hidden');
-  },
-  onDuelEnded: (/** @type {any} */ reason) => {
-    pendingDuelRequest = null;
-    const toast = document.getElementById('duel-request-toast');
-    if (toast) toast.classList.add('hidden');
-    ui.showToast?.(reason === 'forfeit' ? 'Duel forfeited' : reason === 'death' ? 'Duel ended' : 'Duel ended');
-  },
+  onPartyInvite: (/** @type {any} */ invite) => socialUi?.onPartyInvite(invite),
+  onDuelRequest: (/** @type {any} */ req) => socialUi?.onDuelRequest(req),
+  onDuelActive: () => socialUi?.onDuelActive(),
+  onDuelEnded: (/** @type {any} */ reason) => socialUi?.onDuelEnded(reason),
   onDuelDeclined: (/** @type {any} */ data) => {
     ui.showToast?.(`${data.targetName} declined your duel`);
   },
-  onTradeRequest: (/** @type {any} */ req) => {
-    pendingTradeRequest = req;
-    const toast = document.getElementById('trade-request-toast');
-    const textEl = document.getElementById('trade-request-text');
-    if (toast && textEl) {
-      toast.classList.remove('hidden');
-      textEl.textContent = `${req.traderName} wants to trade`;
-    }
-  },
-  onTradeOpened: (/** @type {any} */ data) => {
-    pendingTradeRequest = null;
-    const toast = document.getElementById('trade-request-toast');
-    if (toast) toast.classList.add('hidden');
-    ui.playerTradeUI?.setOpen?.(true);
-    ui.playerTradeUI?.setPartnerName?.(data.partnerName);
-    ui.playerTradeUI?.setOffers?.({
-      myOffer: data.myOffer,
-      theirOffer: data.theirOffer,
-      confirmed: false,
-      theirConfirmed: false,
-    });
-    ui.setInventoryOpen?.(true);
-  },
-  onTradeOfferUpdate: (/** @type {any} */ data) => {
-    ui.playerTradeUI?.setOffers?.(data);
-  },
-  onTradeCompleted: () => {
-    ui.playerTradeUI?.close?.();
-    ui.showToast?.('Trade completed');
-  },
-  onTradeCancelled: () => {
-    ui.playerTradeUI?.close?.();
-    ui.showToast?.('Trade cancelled');
-  },
-  onTradeDeclined: () => {
-    ui.showToast?.('Trade declined');
-  },
-  onTradeError: (/** @type {any} */ err) => {
-    ui.showToast?.(`Trade error: ${err ?? 'unknown'}`);
-  },
+  onTradeRequest: (/** @type {any} */ req) => socialUi?.onTradeRequest(req),
+  onTradeOpened: (/** @type {any} */ data) => socialUi?.onTradeOpened(data),
+  onTradeOfferUpdate: (/** @type {any} */ data) => socialUi?.onTradeOfferUpdate(data),
+  onTradeCompleted: () => socialUi?.onTradeCompleted(),
+  onTradeCancelled: () => socialUi?.onTradeCancelled(),
+  onTradeDeclined: () => socialUi?.onTradeDeclined(),
+  onTradeError: (/** @type {any} */ err) => socialUi?.onTradeError(err),
   updateLocalUi,
   setWorld,
   loadCharacters: () => auth.loadCharacters(),
@@ -434,239 +371,6 @@ const connection = createConnection({
   onStageChange: updateLoadingFromNetworkStage,
 });
 connectionRef.current = connection;
-
-function updatePartyPanel() {
-  const panel = document.getElementById('party-panel');
-  const toast = document.getElementById('party-invite-toast');
-  const statusEl = panel?.querySelector('.party-status');
-  const leaveBtn = document.getElementById('party-leave-btn');
-  const inviteBtn = document.getElementById('party-invite-btn');
-  const inParty = !!ctx.currentMe?.partyId;
-  const hasPlayerTarget = ctx.currentMe?.targetKind === 'player' && ctx.currentMe?.targetId;
-  const showPanel = inParty || !!pendingPartyInvite || hasPlayerTarget;
-  if (panel) {
-    panel.classList.toggle('hidden', !showPanel);
-  }
-  if (toast) {
-    toast.classList.toggle('hidden', !pendingPartyInvite);
-  }
-  if (statusEl instanceof HTMLElement) {
-    statusEl.style.display = inParty ? 'block' : 'none';
-  }
-  if (leaveBtn) {
-    leaveBtn.style.display = inParty ? 'inline-block' : 'none';
-  }
-  if (inviteBtn) {
-    inviteBtn.style.display = hasPlayerTarget ? 'inline-block' : 'none';
-  }
-}
-
-function updatePartyHud() {
-  const hud = document.getElementById('party-hud');
-  if (!hud) return;
-  const me = ctx.currentMe;
-  const memberIds = Array.isArray(me?.partyMemberIds) ? me.partyMemberIds : [];
-  const visibleMemberIds = memberIds.filter((id) => id && id !== ctx.playerId);
-  if (!me?.partyId || visibleMemberIds.length === 0) {
-    hud.classList.add('hidden');
-    hud.innerHTML = '';
-    return;
-  }
-  const players = gameState.getLatestPlayers();
-  hud.classList.remove('hidden');
-  hud.innerHTML = '';
-  for (const memberId of visibleMemberIds.slice(0, 4)) {
-    const member = players?.[memberId];
-    if (!member) continue;
-    const row = document.createElement('div');
-    row.className = 'party-hud-row';
-    const name = document.createElement('div');
-    name.className = 'party-hud-name';
-    name.textContent = member.name ?? 'Party Member';
-    const distance = document.createElement('div');
-    distance.className = 'party-hud-distance';
-    const meters = Number.isFinite(me?.x) && Number.isFinite(me?.z)
-      ? Math.hypot((member.x ?? 0) - me.x, (member.z ?? 0) - me.z)
-      : null;
-    distance.textContent = meters != null ? `${meters.toFixed(1)}m` : '--';
-    const bar = document.createElement('div');
-    bar.className = 'party-hud-bar';
-    const fill = document.createElement('div');
-    fill.className = 'party-hud-fill';
-    const hp = Number.isFinite(member.hp) ? member.hp : 0;
-    const maxHp = Number.isFinite(member.maxHp) && member.maxHp > 0 ? member.maxHp : Math.max(1, hp);
-    fill.style.width = `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%`;
-    bar.appendChild(fill);
-    row.appendChild(name);
-    row.appendChild(distance);
-    row.appendChild(bar);
-    hud.appendChild(row);
-  }
-}
-
-function updateDuelPanel() {
-  const panel = document.getElementById('duel-panel');
-  const toast = document.getElementById('duel-request-toast');
-  const statusEl = panel?.querySelector('.duel-status');
-  const forfeitBtn = document.getElementById('duel-forfeit-btn');
-  const requestBtn = document.getElementById('duel-request-btn');
-  const inDuel = !!ctx.currentMe?.duelOpponentId;
-  const hasPlayerTarget = ctx.currentMe?.targetKind === 'player' && ctx.currentMe?.targetId;
-  const showPanel = inDuel || !!pendingDuelRequest || hasPlayerTarget;
-  if (panel) {
-    panel.classList.toggle('hidden', !showPanel);
-  }
-  if (toast) {
-    toast.classList.toggle('hidden', !pendingDuelRequest);
-  }
-  if (statusEl instanceof HTMLElement) {
-    statusEl.style.display = inDuel ? 'block' : 'none';
-  }
-  if (forfeitBtn) {
-    forfeitBtn.style.display = inDuel ? 'inline-block' : 'none';
-  }
-  if (requestBtn) {
-    requestBtn.style.display = hasPlayerTarget && !inDuel ? 'inline-block' : 'none';
-  }
-  const tradeRequestBtn = document.getElementById('trade-request-btn');
-  if (tradeRequestBtn) {
-    tradeRequestBtn.style.display = hasPlayerTarget && !inDuel ? 'inline-block' : 'none';
-  }
-}
-
-function initPartyButtons() {
-  const leaveBtn = document.getElementById('party-leave-btn');
-  const inviteBtn = document.getElementById('party-invite-btn');
-  const acceptBtn = document.getElementById('party-accept-btn');
-  const declineBtn = document.getElementById('party-decline-btn');
-  if (leaveBtn) {
-    leaveBtn.addEventListener('click', () => {
-      connection.sendPartyLeave();
-    });
-  }
-  if (inviteBtn) {
-    inviteBtn.addEventListener('click', () => {
-      const targetId = ctx.currentMe?.targetId;
-      if (targetId && ctx.currentMe?.targetKind === 'player') {
-        connection.sendPartyInvite(targetId);
-        const target = resolveTarget({ kind: 'player', id: targetId }, {
-          players: gameState.getLatestPlayers(),
-          mobs: {},
-          vendors: [],
-        });
-        ui.showToast?.(`Party invite sent to ${target?.name ?? 'player'}`);
-      }
-    });
-  }
-  if (acceptBtn) {
-    acceptBtn.addEventListener('click', () => {
-      if (pendingPartyInvite) {
-        connection.sendPartyAccept(pendingPartyInvite.inviterId);
-        pendingPartyInvite = null;
-        const toast = document.getElementById('party-invite-toast');
-        if (toast) toast.classList.add('hidden');
-      }
-    });
-  }
-  if (declineBtn) {
-    declineBtn.addEventListener('click', () => {
-      pendingPartyInvite = null;
-      const toast = document.getElementById('party-invite-toast');
-      if (toast) toast.classList.add('hidden');
-      const panel = document.getElementById('party-panel');
-      if (panel && !ctx.currentMe?.partyId) panel.classList.add('hidden');
-    });
-  }
-}
-initPartyButtons();
-
-function initDuelButtons() {
-  const forfeitBtn = document.getElementById('duel-forfeit-btn');
-  const requestBtn = document.getElementById('duel-request-btn');
-  const acceptBtn = document.getElementById('duel-accept-btn');
-  const declineBtn = document.getElementById('duel-decline-btn');
-  if (forfeitBtn) {
-    forfeitBtn.addEventListener('click', () => connection.sendDuelForfeit());
-  }
-  if (requestBtn) {
-    requestBtn.addEventListener('click', () => {
-      const targetId = ctx.currentMe?.targetId;
-      if (targetId && ctx.currentMe?.targetKind === 'player') {
-        connection.sendDuelRequest(targetId);
-        const target = resolveTarget({ kind: 'player', id: targetId }, {
-          players: gameState.getLatestPlayers(),
-          mobs: {},
-          vendors: [],
-        });
-        ui.showToast?.(`Duel challenge sent to ${target?.name ?? 'player'}`);
-      }
-    });
-  }
-  if (acceptBtn) {
-    acceptBtn.addEventListener('click', () => {
-      if (pendingDuelRequest) {
-        connection.sendDuelAccept(pendingDuelRequest.challengerId);
-        pendingDuelRequest = null;
-        const toast = document.getElementById('duel-request-toast');
-        if (toast) toast.classList.add('hidden');
-      }
-    });
-  }
-  if (declineBtn) {
-    declineBtn.addEventListener('click', () => {
-      if (pendingDuelRequest) {
-        connection.sendDuelDecline(pendingDuelRequest.challengerId);
-        pendingDuelRequest = null;
-        const toast = document.getElementById('duel-request-toast');
-        if (toast) toast.classList.add('hidden');
-        const panel = document.getElementById('duel-panel');
-        if (panel && !ctx.currentMe?.duelOpponentId) panel.classList.add('hidden');
-      }
-    });
-  }
-}
-initDuelButtons();
-
-function initTradeButtons() {
-  const tradeRequestBtn = document.getElementById('trade-request-btn');
-  const acceptBtn = document.getElementById('trade-request-accept');
-  const declineBtn = document.getElementById('trade-request-decline');
-  if (tradeRequestBtn) {
-    tradeRequestBtn.addEventListener('click', () => {
-      const targetId = ctx.currentMe?.targetId;
-      if (targetId && ctx.currentMe?.targetKind === 'player') {
-        connection.sendTradeRequest(targetId);
-        const target = resolveTarget({ kind: 'player', id: targetId }, {
-          players: gameState.getLatestPlayers(),
-          mobs: {},
-          vendors: [],
-        });
-        ui.showToast?.(`Trade request sent to ${target?.name ?? 'player'}`);
-      }
-    });
-  }
-  if (acceptBtn) {
-    acceptBtn.addEventListener('click', () => {
-      if (pendingTradeRequest) {
-        connection.sendTradeAccept(pendingTradeRequest.traderId);
-        pendingTradeRequest = null;
-        const toast = document.getElementById('trade-request-toast');
-        if (toast) toast.classList.add('hidden');
-      }
-    });
-  }
-  if (declineBtn) {
-    declineBtn.addEventListener('click', () => {
-      if (pendingTradeRequest) {
-        connection.sendTradeDecline(pendingTradeRequest.traderId);
-        pendingTradeRequest = null;
-        const toast = document.getElementById('trade-request-toast');
-        if (toast) toast.classList.add('hidden');
-      }
-    });
-  }
-}
-initTradeButtons();
 
 auth.setOnConnectCharacter(async (/** @type {any} */ character) => {
   showLoadingScreen({

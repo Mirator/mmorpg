@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.checkjs.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "/shared/*": [
+        "shared/*"
+      ]
+    },
+    "types": []
+  },
+  "include": [
+    "admin/**/*.js",
+    "client/types/**/*.d.ts",
+    "shared/**/*.js"
+  ],
+  "exclude": [
+    "**/*.test.js",
+    "client/**",
+    "server/**",
+    "e2e/**",
+    "scripts/**",
+    "node_modules/**"
+  ]
+}

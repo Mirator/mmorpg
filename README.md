@@ -147,8 +147,8 @@ Type checks are JS-only and incremental: files participate when they opt in with
 
 Useful test commands:
 
-- `npm test` - `@ts-check` coverage guard + typecheck (server + client + tools) + unit/integration tests.
-- `npm run typecheck` - static typecheck only (server + client + tools).
+- `npm test` - `@ts-check` coverage guard + typecheck (server + client + admin + tools) + unit/integration tests.
+- `npm run typecheck` - static typecheck only (server + client + admin + tools).
 - `npm run check:tscheck:coverage` - enforce `// @ts-check` headers on first-party non-test JS.
 - `npm run test:unit` - unit/integration tests only (Vitest).
 - `npm run test:e2e` - Playwright E2E only.
