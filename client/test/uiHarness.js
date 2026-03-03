@@ -1,23 +1,49 @@
+// @ts-check
 import { FakeElement, createFakeDocument } from './fakeDom.js';
 
+/**
+ * @param {any} root
+ * @param {string} className
+ */
 function findByClass(root, className) {
   return root?.querySelector?.(`.${className}`) ?? null;
 }
 
+/**
+ * @param {{
+ *   localStorage?: {
+ *     getItem?: (key: string) => string | null;
+ *     setItem?: (key: string, value: string) => void;
+ *     removeItem?: (key: string) => void;
+ *   };
+ * }} [options]
+ */
 export function installUiTestGlobals(options = {}) {
-  const originalDocument = global.document;
-  const originalWindow = global.window;
-  const originalLocalStorage = global.localStorage;
+  const globalObj = /** @type {any} */ (globalThis);
+  const originalDocument = globalObj.document;
+  const originalWindow = globalObj.window;
+  const originalLocalStorage = globalObj.localStorage;
 
   const { document } = createFakeDocument();
-  const listeners = {};
+  const listeners = /** @type {Record<string, ((payload?: any) => void) | undefined>} */ ({});
   const window = {
+    /**
+     * @param {string} type
+     * @param {(payload?: any) => void} handler
+     */
     addEventListener(type, handler) {
       listeners[type] = handler;
     },
+    /**
+     * @param {string} type
+     * @param {(payload?: any) => void} handler
+     */
     removeEventListener(type, handler) {
       if (listeners[type] === handler) delete listeners[type];
     },
+    /**
+     * @param {any} payload
+     */
     dispatchPointerUp(payload) {
       listeners.pointerup?.(payload);
     },
@@ -29,17 +55,17 @@ export function installUiTestGlobals(options = {}) {
     removeItem: options.localStorage?.removeItem ?? (() => {}),
   };
 
-  global.document = document;
-  global.window = window;
-  global.localStorage = localStorage;
+  globalObj.document = document;
+  globalObj.window = window;
+  globalObj.localStorage = localStorage;
 
   return {
     document,
     window,
     restore() {
-      global.document = originalDocument;
-      global.window = originalWindow;
-      global.localStorage = originalLocalStorage;
+      globalObj.document = originalDocument;
+      globalObj.window = originalWindow;
+      globalObj.localStorage = originalLocalStorage;
     },
   };
 }
@@ -48,9 +74,13 @@ export function buildAbilityBarRoot() {
   return new FakeElement('div');
 }
 
+/**
+ * @param {any} root
+ * @param {number} slotNumber
+ */
 export function getAbilitySlot(root, slotNumber) {
   const slot = (root?.querySelectorAll?.('.ability-slot') ?? []).find(
-    (entry) => entry?.dataset?.slot === String(slotNumber)
+    (/** @type {any} */ entry) => entry?.dataset?.slot === String(slotNumber)
   );
   if (!slot) {
     throw new Error(`Missing ability slot ${slotNumber}`);
@@ -58,6 +88,10 @@ export function getAbilitySlot(root, slotNumber) {
   return slot;
 }
 
+/**
+ * @param {any} root
+ * @param {number} slotNumber
+ */
 export function getAbilitySlotParts(root, slotNumber) {
   const slot = getAbilitySlot(root, slotNumber);
   return {
@@ -70,6 +104,10 @@ export function getAbilitySlotParts(root, slotNumber) {
   };
 }
 
+/**
+ * @param {any} root
+ * @param {number} slotNumber
+ */
 export function getTooltipParts(root, slotNumber) {
   const { tooltip } = getAbilitySlotParts(root, slotNumber);
   return {
@@ -80,9 +118,13 @@ export function getTooltipParts(root, slotNumber) {
   };
 }
 
+/**
+ * @param {any} root
+ * @param {number} slotNumber
+ */
 export function getLoadoutSlot(root, slotNumber) {
   const slot = (root?.querySelectorAll?.('.skills-loadout-slot') ?? []).find(
-    (entry) => entry?.dataset?.slot === String(slotNumber)
+    (/** @type {any} */ entry) => entry?.dataset?.slot === String(slotNumber)
   );
   if (!slot) {
     throw new Error(`Missing loadout slot ${slotNumber}`);
@@ -90,6 +132,10 @@ export function getLoadoutSlot(root, slotNumber) {
   return slot;
 }
 
+/**
+ * @param {any} windowObj
+ * @param {any} payload
+ */
 export function completePointerDrag(windowObj, payload) {
   windowObj?.dispatchPointerUp?.(payload);
 }

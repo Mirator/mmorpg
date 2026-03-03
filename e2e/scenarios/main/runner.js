@@ -1932,7 +1932,7 @@ export async function runMainFlow(/** @type {any} */ ctx) {
     await advance(page, 1000 / 30);
     await sleep(50);
     await page.waitForFunction(
-      (expectedName) =>
+      (/** @type {string} */ expectedName) =>
         document.querySelector('#target-name')?.textContent?.trim() === expectedName,
       vendorClickTarget.name
     );
@@ -1988,7 +1988,7 @@ export async function runMainFlow(/** @type {any} */ ctx) {
       throw new Error('Target HUD state not available after selection');
     }
     await page.waitForFunction(
-      (expectedName) =>
+      (/** @type {string} */ expectedName) =>
         document.querySelector('#target-name')?.textContent?.trim() === expectedName,
       targetState.name
     );

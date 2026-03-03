@@ -1,6 +1,10 @@
+// @ts-check
 import { getAbilitiesForClass } from '/shared/classes.js';
 import { getEquippedWeapon } from '/shared/equipment.js';
 
+/**
+ * @param {Record<string, any>} [overrides]
+ */
 export function buildPlayer(overrides = {}) {
   return {
     classId: 'fighter',
@@ -18,14 +22,30 @@ export function buildPlayer(overrides = {}) {
   };
 }
 
+/**
+ * @param {any[]} abilities
+ * @param {string | null | undefined} id
+ */
 export function findAbilityById(abilities, id) {
-  return abilities.find((ability) => ability.id === id) ?? null;
+  return abilities.find((/** @type {any} */ ability) => ability.id === id) ?? null;
 }
 
+/**
+ * @param {any[]} abilities
+ * @param {(string | null | undefined)[]} [slottedIds]
+ */
 export function resolveSlottedAbilities(abilities, slottedIds = []) {
   return slottedIds.map((id) => (id ? findAbilityById(abilities, id) : null));
 }
 
+/**
+ * @param {{
+ *   classId?: string;
+ *   level?: number;
+ *   equipment?: Record<string, any>;
+ *   slottedIds?: (string | null | undefined)[];
+ * }} [options]
+ */
 export function buildAbilityPanelState({
   classId = 'fighter',
   level = 1,

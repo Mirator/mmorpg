@@ -1,3 +1,4 @@
+// @ts-check
 import { chromium } from 'playwright';
 import { TEST_TIMEOUT_MS } from '../helpers.js';
 
@@ -12,12 +13,18 @@ const IGNORED_ERROR_SNIPPETS = [
   'WebGL unavailable.',
 ];
 
+/**
+ * @param {string} text
+ */
 function shouldIgnoreError(text) {
   return IGNORED_ERROR_SNIPPETS.some((snippet) => text.includes(snippet));
 }
 
+/**
+ * @param {any} page
+ */
 export function getPageRuntime(page) {
-  return page?.[PAGE_RUNTIME_KEY] ?? null;
+  return /** @type {any} */ (page)?.[PAGE_RUNTIME_KEY] ?? null;
 }
 
 export async function createBrowser() {
@@ -27,8 +34,17 @@ export async function createBrowser() {
   });
 }
 
+/**
+ * @param {any} browser
+ * @param {{ contexts: any[]; pages: any[] }} trackers
+ */
 export function createPageFactory(browser, trackers) {
-  return async function createPage(options = {}) {
+  return async function createPage(
+    /**
+     * @type {{ viewport?: { width: number; height: number } }}
+     */
+    options = {}
+  ) {
     const context = await browser.newContext({
       viewport: options.viewport ?? DESKTOP_VIEWPORT,
     });
@@ -42,26 +58,26 @@ export function createPageFactory(browser, trackers) {
       }
     });
 
-    const runtime = {
+    const runtime = /** @type {{ consoleErrors: string[]; pageErrors: string[]; requestFailures: string[] }} */ ({
       consoleErrors: [],
       pageErrors: [],
       requestFailures: [],
-    };
-    page[PAGE_RUNTIME_KEY] = runtime;
-    page.on('pageerror', (err) => {
+    });
+    /** @type {any} */ (page)[PAGE_RUNTIME_KEY] = runtime;
+    page.on('pageerror', (/** @type {any} */ err) => {
       const text = String(err);
       if (!shouldIgnoreError(text)) {
         runtime.pageErrors.push(text);
       }
     });
-    page.on('console', (msg) => {
+    page.on('console', (/** @type {any} */ msg) => {
       if (msg.type() !== 'error') return;
       const text = msg.text();
       if (!shouldIgnoreError(text)) {
         runtime.consoleErrors.push(text);
       }
     });
-    page.on('requestfailed', (request) => {
+    page.on('requestfailed', (/** @type {any} */ request) => {
       const failure = request.failure()?.errorText ?? 'unknown request failure';
       runtime.requestFailures.push(`${request.method()} ${request.url()} :: ${failure}`);
     });

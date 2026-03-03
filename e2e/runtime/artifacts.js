@@ -1,3 +1,4 @@
+// @ts-check
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,6 +7,9 @@ import { getPageRuntime } from './browser.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const E2E_ARTIFACT_DIR = path.resolve(__dirname, '../../output/e2e');
 
+/**
+ * @param {any} value
+ */
 function sanitizeToken(value) {
   const normalized = String(value ?? '')
     .toLowerCase()
@@ -15,6 +19,9 @@ function sanitizeToken(value) {
   return normalized || 'run';
 }
 
+/**
+ * @param {any} page
+ */
 async function getRenderStateText(page) {
   return page
     .evaluate(() => {
@@ -26,6 +33,15 @@ async function getRenderStateText(page) {
     .catch(() => null);
 }
 
+/**
+ * @param {{
+ *   scenarioName: string;
+ *   stage: string;
+ *   error: unknown;
+ *   pages: any[];
+ *   runId: string;
+ * }} params
+ */
 export async function writeFailureArtifacts({ scenarioName, stage, error, pages, runId }) {
   fs.mkdirSync(E2E_ARTIFACT_DIR, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -46,7 +62,7 @@ export async function writeFailureArtifacts({ scenarioName, stage, error, pages,
     'utf8'
   );
 
-  const logChunks = [];
+  const logChunks = /** @type {string[]} */ ([]);
   for (let index = 0; index < pages.length; index += 1) {
     const page = pages[index];
     if (!page || page.isClosed()) continue;

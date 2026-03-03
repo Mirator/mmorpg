@@ -168,7 +168,8 @@ function clearAdminSessionCookie(res, config) {
  *   spawner: SpawnerLike,
  *   mapConfigPath: string,
  *   designerStatePath: string,
- *   onApplyMapConfig?: ((config?: unknown) => Promise<unknown>) | null
+ *   onApplyMapConfig?: ((config?: unknown) => Promise<unknown>) | null,
+ *   now?: () => number
  * }} deps
  */
 export function createHttpApp({
@@ -181,6 +182,7 @@ export function createHttpApp({
   mapConfigPath,
   designerStatePath,
   onApplyMapConfig = null,
+  now = Date.now,
 }) {
   const app = express();
   app.disable('x-powered-by');
@@ -266,6 +268,7 @@ export function createHttpApp({
     password: config.adminPassword,
     cookieName: config.adminSessionCookieName,
     idleTimeoutMs: config.adminSessionIdleTimeoutMs,
+    now,
   });
   const csrfGuard = createCsrfGuard({
     allowedOrigins: config.allowedOrigins,

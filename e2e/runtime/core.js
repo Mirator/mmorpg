@@ -1,3 +1,4 @@
+// @ts-check
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
@@ -13,11 +14,15 @@ import { writeFailureArtifacts } from './artifacts.js';
 
 const TEST_ADMIN_PASSWORD = '1234';
 
+/**
+ * @param {{ name?: string; run: (ctx: any) => Promise<unknown> }} scenario
+ * @param {{ adminPassword?: string }} [options]
+ */
 export async function runScenario(scenario, options = {}) {
-  const trackers = { contexts: [], pages: [] };
+  const trackers = /** @type {{ contexts: any[]; pages: any[] }} */ ({ contexts: [], pages: [] });
   const runId = createRunId(scenario?.name ?? 'scenario');
   let stage = 'boot';
-  let browser = null;
+  let browser = /** @type {any} */ (null);
 
   resetE2eDatabase();
   const server = spawn('node', ['server/index.js'], {
@@ -43,6 +48,9 @@ export async function runScenario(scenario, options = {}) {
     await scenario.run({
       browser,
       createPage,
+      /**
+       * @param {string} nextStage
+       */
       setStage(nextStage) {
         stage = nextStage;
       },
@@ -52,7 +60,10 @@ export async function runScenario(scenario, options = {}) {
         safeClick,
         signUpAndCreateCharacter,
         moveToPoint,
-        createUniqueToken: (prefix, suffix) => createUniqueToken(prefix, runId, suffix),
+        createUniqueToken: (
+          /** @type {any} */ prefix,
+          /** @type {any} */ suffix
+        ) => createUniqueToken(prefix, runId, suffix),
       },
     });
   } catch (error) {

@@ -1,3 +1,4 @@
+// @ts-check
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -307,6 +308,7 @@ export async function buildHttpApp({
   spawner = { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
   mapConfigPath,
   designerStatePath,
+  now,
 } = {}) {
   const { createHttpApp } = await import('../http.js');
   return createHttpApp({
@@ -318,6 +320,7 @@ export async function buildHttpApp({
     spawner,
     mapConfigPath,
     designerStatePath,
+    now,
   });
 }
 

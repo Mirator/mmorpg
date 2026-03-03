@@ -1,3 +1,4 @@
+// @ts-check
 import {
   BASE_URL,
   TEST_TIMEOUT_MS,
@@ -7,6 +8,9 @@ import {
   waitForMenuStepOrError,
 } from '../helpers.js';
 
+/**
+ * @param {any} value
+ */
 function sanitizeToken(value) {
   const normalized = String(value ?? '')
     .toLowerCase()
@@ -16,11 +20,19 @@ function sanitizeToken(value) {
   return normalized || 'run';
 }
 
+/**
+ * @param {any} prefix
+ */
 export function createRunId(prefix) {
   const safePrefix = sanitizeToken(prefix).replace(/-/g, '_');
   return `${safePrefix}_${Date.now().toString(36)}`;
 }
 
+/**
+ * @param {any} prefix
+ * @param {any} [runId]
+ * @param {any} [suffix]
+ */
 export function createUniqueToken(prefix, runId, suffix) {
   const safePrefix = sanitizeToken(prefix).replace(/-/g, '_');
   if (runId == null && suffix == null) {
@@ -31,12 +43,17 @@ export function createUniqueToken(prefix, runId, suffix) {
   return `${safePrefix}_${String(runId ?? '').slice(-6)}_${suffix}`;
 }
 
+/**
+ * @param {any} page
+ * @param {string} selector
+ * @param {number} [timeout]
+ */
 export async function safeClick(page, selector, timeout = TEST_TIMEOUT_MS) {
   await page.waitForSelector(selector, { state: 'visible', timeout });
   try {
     await page.click(selector, { timeout });
   } catch {
-    await page.evaluate((sel) => {
+    await page.evaluate((/** @type {string} */ sel) => {
       const el = document.querySelector(sel);
       if (!(el instanceof HTMLElement)) {
         throw new Error(`safeClick target missing: ${sel}`);
@@ -46,6 +63,15 @@ export async function safeClick(page, selector, timeout = TEST_TIMEOUT_MS) {
   }
 }
 
+/**
+ * @param {any} page
+ * @param {{
+ *   username: string;
+ *   password: string;
+ *   characterName: string;
+ *   classId?: string;
+ * }} options
+ */
 export async function signUpAndCreateCharacter(page, options) {
   const { username, password, characterName, classId = 'fighter' } = options;
 
@@ -92,18 +118,24 @@ export async function signUpAndCreateCharacter(page, options) {
     .catch(() => {});
   return waitForCondition(
     page,
-    (state) => !!state.player && state.mode === 'play',
+    (/** @type {any} */ state) => !!state.player && state.mode === 'play',
     TEST_TIMEOUT_MS + 10000,
     'enter world'
   );
 }
 
+/**
+ * @param {any} page
+ * @param {{ x: number; z: number }} point
+ * @param {(state: any) => boolean} condition
+ * @param {string} label
+ */
 export async function moveToPoint(page, point, condition, label) {
   const start = Date.now();
   let lastError = null;
   while (Date.now() - start < TEST_TIMEOUT_MS) {
     await page.evaluate(
-      (nextPoint) => window.__game?.moveTo(nextPoint.x, nextPoint.z),
+      (/** @type {{ x: number; z: number }} */ nextPoint) => window.__game?.moveTo(nextPoint.x, nextPoint.z),
       point
     );
     const remainingMs = TEST_TIMEOUT_MS - (Date.now() - start);

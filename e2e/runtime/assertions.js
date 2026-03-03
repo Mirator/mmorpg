@@ -1,10 +1,40 @@
+// @ts-check
 import { TEST_TIMEOUT_MS, sleep } from '../helpers.js';
 
+/**
+ * @typedef {{
+ *   left: number;
+ *   top: number;
+ *   right: number;
+ *   bottom: number;
+ *   width: number;
+ *   height: number;
+ *   visible?: boolean;
+ *   selector?: string;
+ *   tab?: string | null;
+ * }} RectLike
+ */
+
+/**
+ * @typedef {{
+ *   width: number;
+ *   height: number;
+ * }} ViewportSize
+ */
+
+/**
+ * @param {RectLike | null | undefined} a
+ * @param {RectLike | null | undefined} b
+ */
 function rectanglesOverlap(a, b) {
   if (!a || !b) return false;
   return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
 }
 
+/**
+ * @param {RectLike | null | undefined} rect
+ * @param {ViewportSize | null | undefined} viewport
+ */
 function isClickableInViewport(rect, viewport) {
   if (!rect || !viewport) return false;
   if (rect.width < 2 || rect.height < 2) return false;
@@ -13,6 +43,11 @@ function isClickableInViewport(rect, viewport) {
   return true;
 }
 
+/**
+ * @param {RectLike | null | undefined} rect
+ * @param {ViewportSize | null | undefined} viewport
+ * @param {number} [tolerance]
+ */
 function isWithinViewport(rect, viewport, tolerance = 0) {
   if (!rect || !viewport) return false;
   return (
@@ -23,8 +58,15 @@ function isWithinViewport(rect, viewport, tolerance = 0) {
   );
 }
 
+/**
+ * @param {any} page
+ */
 async function readVendorMetrics(page) {
   return page.evaluate(() => {
+    /**
+     * @param {string} selector
+     * @returns {RectLike | null}
+     */
     function readBounds(selector) {
       const el = document.querySelector(selector);
       if (!el) return null;
@@ -62,8 +104,15 @@ async function readVendorMetrics(page) {
   });
 }
 
+/**
+ * @param {any} page
+ */
 async function readHudProgressMetrics(page) {
   return page.evaluate(() => {
+    /**
+     * @param {string} selector
+     * @returns {(RectLike & { visible: boolean }) | null}
+     */
     function readBounds(selector) {
       const el = document.querySelector(selector);
       if (!(el instanceof HTMLElement)) return null;
@@ -98,6 +147,10 @@ async function readHudProgressMetrics(page) {
   });
 }
 
+/**
+ * @param {any} page
+ * @param {string} label
+ */
 export async function assertHarvestProgressHudPlacement(page, label) {
   const metrics = await readHudProgressMetrics(page);
   const castBar = metrics.castBar;
@@ -132,10 +185,14 @@ export async function assertHarvestProgressHudPlacement(page, label) {
   }
 }
 
+/**
+ * @param {any} page
+ * @param {string} label
+ */
 export async function assertVendorControlsInViewport(page, label) {
   const metrics = await readVendorMetrics(page);
-  const buyTab = metrics.tabs.find((tab) => tab.tab === 'buy') ?? null;
-  const sellTab = metrics.tabs.find((tab) => tab.tab === 'sell') ?? null;
+  const buyTab = metrics.tabs.find((/** @type {RectLike} */ tab) => tab.tab === 'buy') ?? null;
+  const sellTab = metrics.tabs.find((/** @type {RectLike} */ tab) => tab.tab === 'sell') ?? null;
 
   for (const [name, rect] of [
     ['vendor panel', metrics.panel],
@@ -149,6 +206,10 @@ export async function assertVendorControlsInViewport(page, label) {
   }
 }
 
+/**
+ * @param {any} page
+ * @param {string} label
+ */
 export async function assertVendorTradePanelsSeparated(page, label) {
   const vendorRect = await readPanelRect(page, '#vendor-panel');
   const inventoryRect = await readPanelRect(page, '#inventory-panel');
@@ -170,8 +231,15 @@ export async function assertVendorTradePanelsSeparated(page, label) {
   }
 }
 
+/**
+ * @param {any} page
+ */
 export async function waitForVendorTradeLayoutStable(page) {
   await page.waitForFunction(() => {
+    /**
+     * @param {string} selector
+     * @returns {RectLike | null}
+     */
     const readRect = (selector) => {
       const el = document.querySelector(selector);
       if (!(el instanceof HTMLElement)) return null;
@@ -188,7 +256,7 @@ export async function waitForVendorTradeLayoutStable(page) {
     const vendor = readRect('#vendor-panel');
     const inventory = readRect('#inventory-panel');
     if (!vendor || !inventory) return false;
-    const insideViewport = (rect) =>
+    const insideViewport = (/** @type {RectLike} */ rect) =>
       rect.width > 2 &&
       rect.height > 2 &&
       rect.left >= 0 &&
@@ -204,8 +272,12 @@ export async function waitForVendorTradeLayoutStable(page) {
   }, null, { timeout: TEST_TIMEOUT_MS });
 }
 
+/**
+ * @param {any} page
+ * @param {string} selector
+ */
 export async function readPanelRect(page, selector) {
-  return page.evaluate((sel) => {
+  return page.evaluate((/** @type {string} */ sel) => {
     const el = document.querySelector(sel);
     if (!(el instanceof HTMLElement)) return null;
     const rect = el.getBoundingClientRect();
@@ -220,10 +292,16 @@ export async function readPanelRect(page, selector) {
   }, selector);
 }
 
+/**
+ * @param {any} page
+ * @param {string} handleSelector
+ * @param {number} dx
+ * @param {number} dy
+ */
 export async function dragPanelBy(page, handleSelector, dx, dy) {
   await page.waitForSelector(handleSelector, { state: 'visible' });
   await page.evaluate(
-    (payload) => {
+    (/** @type {{ selector: string; moveX: number; moveY: number }} */ payload) => {
       const { selector, moveX, moveY } = payload;
       const handle = document.querySelector(selector);
       if (!(handle instanceof HTMLElement)) {
@@ -283,11 +361,16 @@ export async function dragPanelBy(page, handleSelector, dx, dy) {
   await sleep(80);
 }
 
+/**
+ * @param {any} page
+ * @param {string} sourceSelector
+ * @param {string} targetSelector
+ */
 export async function dragSelectorToSelectorCenter(page, sourceSelector, targetSelector) {
   await page.waitForSelector(sourceSelector, { state: 'visible' });
   await page.waitForSelector(targetSelector, { state: 'visible' });
   await page.evaluate(
-    (payload) => {
+    (/** @type {{ sourceSelector: string; targetSelector: string }} */ payload) => {
       const source = document.querySelector(payload.sourceSelector);
       const target = document.querySelector(payload.targetSelector);
       if (!(source instanceof HTMLElement)) {
@@ -353,6 +436,12 @@ export async function dragSelectorToSelectorCenter(page, sourceSelector, targetS
   await sleep(80);
 }
 
+/**
+ * @param {RectLike | null | undefined} a
+ * @param {RectLike | null | undefined} b
+ * @param {number} tolerancePx
+ * @param {string} label
+ */
 export function assertRectNear(a, b, tolerancePx, label) {
   if (!a || !b) {
     throw new Error(`${label}: missing rectangle metrics`);
@@ -368,11 +457,15 @@ export function assertRectNear(a, b, tolerancePx, label) {
   }
 }
 
+/**
+ * @param {any} page
+ * @param {ViewportSize} viewport
+ */
 export async function safeSetViewport(page, viewport) {
   try {
     await page.setViewportSize(viewport);
     return;
-  } catch (err) {
+  } catch (/** @type {any} */ err) {
     const message = String(err?.message ?? err);
     if (!message.includes('setWindowBounds')) {
       throw err;

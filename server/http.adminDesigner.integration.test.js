@@ -332,11 +332,13 @@ describe('admin designer APIs', () => {
       ADMIN_SESSION_IDLE_TIMEOUT_MS: '20',
     });
     const world = createWorldFixture();
+    let nowMs = 0;
     const app = await buildHttpApp({
       config,
       world,
       mapConfigPath: files.mapPath,
       designerStatePath: files.designerStatePath,
+      now: () => nowMs,
     });
 
     const { server, baseUrl } = await startHttpTestServer(app);
@@ -348,7 +350,7 @@ describe('admin designer APIs', () => {
       const initialState = await requestJson(baseUrl, '/admin/state', { cookie });
       expect(initialState.res.status).toBe(200);
 
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      nowMs = 50;
 
       const afterIdle = await requestJson(baseUrl, '/admin/state', { cookie });
       expect(afterIdle.res.status).toBe(401);
