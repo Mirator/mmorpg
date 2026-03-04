@@ -73,6 +73,7 @@ describe('HTTP auth lifecycle integration', () => {
       });
       expect(signup.res.status).toBe(200);
       expect(signup.payload?.account?.username).toBe('alpha_user');
+      expect(signup.payload).not.toHaveProperty('token');
       const signupSetCookie = signup.res.headers.get('set-cookie') ?? '';
       const signupCookie = extractSetCookie(signup.res);
       expect(signupCookie).toContain(`${config.sessionCookieName}=`);
@@ -189,6 +190,7 @@ describe('HTTP auth lifecycle integration', () => {
         body: { username: 'alpha_user', password: 'password123' },
       });
       expect(login.res.status).toBe(200);
+      expect(login.payload).not.toHaveProperty('token');
       const loginSetCookie = login.res.headers.get('set-cookie') ?? '';
       const loginCookie = extractSetCookie(login.res);
       expect(loginCookie).toContain(`${config.sessionCookieName}=`);
@@ -200,6 +202,44 @@ describe('HTTP auth lifecycle integration', () => {
       });
       expect(listAfterLogin.res.status).toBe(200);
       expect(listAfterLogin.payload).toEqual({ characters: [] });
+    } finally {
+      await stopHttpTestServer(server);
+      files.cleanup();
+    }
+  });
+
+  it('includes auth token in signup and login responses when EXPOSE_AUTH_TOKEN is enabled', async () => {
+    const files = createAdminFiles();
+    const config = buildServerConfig({
+      EXPOSE_AUTH_TOKEN: 'true',
+    });
+    const world = createWorldFixture();
+    const app = await buildHttpApp({
+      config,
+      world,
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+    });
+
+    const { server, baseUrl } = await startHttpTestServer(app);
+    try {
+      const signup = await requestJson(baseUrl, '/api/auth/signup', {
+        method: 'POST',
+        body: { username: 'token_user', password: 'password123' },
+      });
+      expect(signup.res.status).toBe(200);
+      expect(signup.payload?.account).toMatchObject({ username: 'token_user' });
+      expect(typeof signup.payload?.token).toBe('string');
+      expect(signup.payload?.token?.length ?? 0).toBeGreaterThan(0);
+
+      const login = await requestJson(baseUrl, '/api/auth/login', {
+        method: 'POST',
+        body: { username: 'token_user', password: 'password123' },
+      });
+      expect(login.res.status).toBe(200);
+      expect(login.payload?.account).toMatchObject({ username: 'token_user' });
+      expect(typeof login.payload?.token).toBe('string');
+      expect(login.payload?.token?.length ?? 0).toBeGreaterThan(0);
     } finally {
       await stopHttpTestServer(server);
       files.cleanup();

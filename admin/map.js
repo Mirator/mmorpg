@@ -35,59 +35,37 @@ import {
   worldToCanvas,
 } from './map-v2/canvas.js';
 import { createDefaultZoneDesignerState } from '/shared/mapDesignerState.js';
+import { bindElementRefs } from '/shared/domRefs.js';
 import { createDesignerApi } from './designer-api.js';
 import { createDesignerStore } from './designer-store.js';
 import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 
-const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
-const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
-const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
-const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
-const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
-const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
-const workspacePanel = /** @type {HTMLElement} */ (document.getElementById('workspace-panel'));
-const saveStatusEl = /** @type {HTMLElement} */ (document.getElementById('save-status'));
-const errorsEl = /** @type {HTMLElement} */ (document.getElementById('errors'));
-const modeNoticeEl = /** @type {HTMLElement} */ (document.getElementById('mode-notice'));
-
-const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById('map-canvas'));
+const {
+  form, passInput, statusEl, aliasLabel, aliasBtn, lockBtn, workspacePanel, saveStatusEl, errorsEl,
+  modeNoticeEl, canvas, miniCanvas, selectionBox, toolGroup, modeGroup, undoBtn, redoBtn,
+  saveDraftBtn, reloadBtn, saveBtn, assetSearch, assetList, zoomReadout, coordReadout,
+  measureReadout, selectionSummary, inspectorFields, bulkFields, layerList, mapSizeInput,
+  gridSizeInput, playtestPanel, playtestLaunchBtn, playtestRefreshBtn, playtestFrame, playtestNote,
+  playtestPlayers, playtestSpawns, playtestMobs, playtestResources,
+} = /** @type {any} */ (bindElementRefs(document, {
+  form: 'auth-form', passInput: 'admin-pass', statusEl: 'status', aliasLabel: 'alias-label',
+  aliasBtn: 'alias-btn', lockBtn: 'lock-btn', workspacePanel: 'workspace-panel',
+  saveStatusEl: 'save-status', errorsEl: 'errors', modeNoticeEl: 'mode-notice',
+  canvas: 'map-canvas', miniCanvas: 'mini-map', selectionBox: 'selection-box',
+  toolGroup: 'tool-group', modeGroup: 'mode-group', undoBtn: 'undo-btn', redoBtn: 'redo-btn',
+  saveDraftBtn: 'save-draft-btn', reloadBtn: 'reload-btn', saveBtn: 'save-btn',
+  assetSearch: 'asset-search', assetList: 'asset-list', zoomReadout: 'zoom-readout',
+  coordReadout: 'coord-readout', measureReadout: 'measure-readout',
+  selectionSummary: 'selection-summary', inspectorFields: 'inspector-fields',
+  bulkFields: 'bulk-fields', layerList: 'layer-list', mapSizeInput: 'map-size-input',
+  gridSizeInput: 'grid-size-input', playtestPanel: 'playtest-panel',
+  playtestLaunchBtn: 'playtest-launch-btn', playtestRefreshBtn: 'playtest-refresh-btn',
+  playtestFrame: 'playtest-frame', playtestNote: 'playtest-note',
+  playtestPlayers: 'playtest-players', playtestSpawns: 'playtest-spawns',
+  playtestMobs: 'playtest-mobs', playtestResources: 'playtest-resources',
+}));
 const ctx = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
-const miniCanvas = /** @type {HTMLCanvasElement} */ (document.getElementById('mini-map'));
 const miniCtx = /** @type {CanvasRenderingContext2D} */ (miniCanvas.getContext('2d'));
-const selectionBox = /** @type {HTMLElement} */ (document.getElementById('selection-box'));
-
-const toolGroup = /** @type {HTMLElement} */ (document.getElementById('tool-group'));
-const modeGroup = /** @type {HTMLElement} */ (document.getElementById('mode-group'));
-const undoBtn = /** @type {HTMLButtonElement} */ (document.getElementById('undo-btn'));
-const redoBtn = /** @type {HTMLButtonElement} */ (document.getElementById('redo-btn'));
-const saveDraftBtn = /** @type {HTMLButtonElement} */ (document.getElementById('save-draft-btn'));
-const reloadBtn = /** @type {HTMLButtonElement} */ (document.getElementById('reload-btn'));
-const saveBtn = /** @type {HTMLButtonElement} */ (document.getElementById('save-btn'));
-
-const assetSearch = /** @type {HTMLInputElement} */ (document.getElementById('asset-search'));
-const assetList = /** @type {HTMLElement} */ (document.getElementById('asset-list'));
-
-const zoomReadout = /** @type {HTMLElement} */ (document.getElementById('zoom-readout'));
-const coordReadout = /** @type {HTMLElement} */ (document.getElementById('coord-readout'));
-const measureReadout = /** @type {HTMLElement} */ (document.getElementById('measure-readout'));
-
-const selectionSummary = /** @type {HTMLElement} */ (document.getElementById('selection-summary'));
-const inspectorFields = /** @type {HTMLElement} */ (document.getElementById('inspector-fields'));
-const bulkFields = /** @type {HTMLElement} */ (document.getElementById('bulk-fields'));
-const layerList = /** @type {HTMLElement} */ (document.getElementById('layer-list'));
-
-const mapSizeInput = /** @type {HTMLInputElement} */ (document.getElementById('map-size-input'));
-const gridSizeInput = /** @type {HTMLInputElement} */ (document.getElementById('grid-size-input'));
-
-const playtestPanel = /** @type {HTMLElement} */ (document.getElementById('playtest-panel'));
-const playtestLaunchBtn = /** @type {HTMLButtonElement} */ (document.getElementById('playtest-launch-btn'));
-const playtestRefreshBtn = /** @type {HTMLButtonElement} */ (document.getElementById('playtest-refresh-btn'));
-const playtestFrame = /** @type {HTMLIFrameElement} */ (document.getElementById('playtest-frame'));
-const playtestNote = /** @type {HTMLElement} */ (document.getElementById('playtest-note'));
-const playtestPlayers = /** @type {HTMLElement} */ (document.getElementById('playtest-players'));
-const playtestSpawns = /** @type {HTMLElement} */ (document.getElementById('playtest-spawns'));
-const playtestMobs = /** @type {HTMLElement} */ (document.getElementById('playtest-mobs'));
-const playtestResources = /** @type {HTMLElement} */ (document.getElementById('playtest-resources'));
 
 const ADMIN_SESSION_HINT_KEY = 'ra.admin.mapv2.session';
 

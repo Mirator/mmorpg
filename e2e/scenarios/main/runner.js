@@ -27,6 +27,12 @@ import { run as runStationCraftingModule } from './station-crafting.js';
 import { run as runVendorTradeSmallViewportModule } from './vendor-trade-small-viewport.js';
 import { run as runTargetingAndCombatModule } from './targeting-and-combat.js';
 import { run as runRepairAndSalvageModule } from './repair-and-salvage.js';
+import {
+  isClickableInViewport,
+  isWithinViewport,
+  rectanglesOverlap,
+  sanitizeToken,
+} from './layout.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const E2E_ARTIFACT_DIR = path.resolve(__dirname, '../output/e2e');
@@ -34,15 +40,6 @@ const /** @type {any} */ DESKTOP_VIEWPORT = { width: 1280, height: 720 };
 const /** @type {any} */ SMALL_VIEWPORT = { width: 560, height: 840 };
 const TEST_ADMIN_PASSWORD = '1234';
 const E2E_ATTEMPTS = Math.max(1, Number.parseInt(process.env.E2E_ATTEMPTS ?? '', 10) || 1);
-
-function sanitizeToken(/** @type {any} */ value) {
-  const normalized = String(value ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60);
-  return normalized || 'run';
-}
 
 async function readVendorMetrics(/** @type {any} */ page) {
   return page.evaluate(() => {
@@ -120,11 +117,6 @@ async function readHudProgressMetrics(/** @type {any} */ page) {
   });
 }
 
-function rectanglesOverlap(/** @type {any} */ a, /** @type {any} */ b) {
-  if (!a || !b) return false;
-  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
-}
-
 async function assertHarvestProgressHudPlacement(/** @type {any} */ page, /** @type {any} */ label) {
   const metrics = await readHudProgressMetrics(page);
   const castBar = metrics.castBar;
@@ -157,28 +149,6 @@ async function assertHarvestProgressHudPlacement(/** @type {any} */ page, /** @t
   if (prompt?.visible && rectanglesOverlap(castBar, prompt)) {
     throw new Error(`${label}: prompt overlaps cast bar while harvest is active`);
   }
-}
-
-function isClickableInViewport(/** @type {any} */ rect, /** @type {any} */ viewport) {
-  if (!rect || !viewport) return false;
-  if (rect.width < 2 || rect.height < 2) return false;
-  if (rect.left < 0 || rect.top < 0) return false;
-  if (rect.right > viewport.width || rect.bottom > viewport.height) return false;
-  return true;
-}
-
-function isWithinViewport(
-  /** @type {any} */ rect,
-  /** @type {any} */ viewport,
-  /** @type {any} */ tolerance = 0
-) {
-  if (!rect || !viewport) return false;
-  return (
-    rect.left >= -tolerance &&
-    rect.top >= -tolerance &&
-    rect.right <= viewport.width + tolerance &&
-    rect.bottom <= viewport.height + tolerance
-  );
 }
 
 async function assertVendorControlsInViewport(/** @type {any} */ page, /** @type {any} */ label) {
@@ -2262,30 +2232,26 @@ export async function runMainFlow(/** @type {any} */ ctx) {
     );
   };
 
-  ctx.mainFlows = {
-    authFlow: runAuthFlowStage,
-    vendorTradeDesktop: runVendorTradeDesktopStage,
-    vendorContractFlow: runVendorContractFlowStage,
-    stationCrafting: runStationCraftingStage,
-    vendorTradeSmallViewport: runVendorTradeSmallViewportStage,
-    targetingAndCombat: runTargetingAndCombatStage,
-    repairAndSalvage: runRepairAndSalvageStage,
-  };
+  const /** @type {Array<[string, string, (ctx: any) => Promise<void>, (ctx: any) => Promise<void>]>} */ mainFlows = [
+    ['authFlow', 'auth-flow', runAuthFlowStage, runAuthFlowModule],
+    ['vendorTradeDesktop', 'vendor-trade-desktop', runVendorTradeDesktopStage, runVendorTradeDesktopModule],
+    ['vendorContractFlow', 'vendor-contract-flow', runVendorContractFlowStage, runVendorContractFlowModule],
+    ['stationCrafting', 'station-crafting', runStationCraftingStage, runStationCraftingModule],
+    [
+      'vendorTradeSmallViewport',
+      'vendor-trade-small-viewport',
+      runVendorTradeSmallViewportStage,
+      runVendorTradeSmallViewportModule,
+    ],
+    ['targetingAndCombat', 'targeting-and-combat', runTargetingAndCombatStage, runTargetingAndCombatModule],
+    ['repairAndSalvage', 'repair-and-salvage', runRepairAndSalvageStage, runRepairAndSalvageModule],
+  ];
 
-  setStage('auth-flow');
-  await runAuthFlowModule(ctx);
-  setStage('vendor-trade-desktop');
-  await runVendorTradeDesktopModule(ctx);
-  setStage('vendor-contract-flow');
-  await runVendorContractFlowModule(ctx);
-  setStage('station-crafting');
-  await runStationCraftingModule(ctx);
-  setStage('vendor-trade-small-viewport');
-  await runVendorTradeSmallViewportModule(ctx);
-  setStage('targeting-and-combat');
-  await runTargetingAndCombatModule(ctx);
-  setStage('repair-and-salvage');
-  await runRepairAndSalvageModule(ctx);
+  ctx.mainFlows = /** @type {any} */ (Object.fromEntries(mainFlows.map(([key, , runStage]) => [key, runStage])));
+  for (const [, stageName, , runModule] of mainFlows) {
+    setStage(stageName);
+    await runModule(ctx);
+  }
 
   if (consoleErrors.length) {
     throw new Error(`Console errors: ${consoleErrors.join('\n')}`);

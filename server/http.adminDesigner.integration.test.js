@@ -608,4 +608,81 @@ describe('admin designer APIs', () => {
       files.cleanup();
     }
   });
+
+  it('merges live-apply metadata into publish responses', async () => {
+    const files = createAdminFiles();
+    const config = buildServerConfig();
+    const world = createWorldFixture();
+    const app = await buildHttpApp({
+      config,
+      world,
+      mapConfigPath: files.mapPath,
+      designerStatePath: files.designerStatePath,
+      onApplyMapConfig: async () => ({ liveApplied: true, worldVersion: 7 }),
+    });
+
+    const { server, baseUrl } = await startHttpTestServer(app);
+    try {
+      const { cookie } = await unlockAdmin(baseUrl);
+      const headers = { 'x-admin-alias': 'alice', 'x-admin-api': '1' };
+      const state = await requestJson(baseUrl, '/admin/designer-state?zone=world-map', { cookie, headers });
+      expect(state.res.status).toBe(200);
+
+      const createPatch = await requestJson(baseUrl, '/admin/patches?zone=world-map', {
+        method: 'POST',
+        cookie,
+        headers,
+        body: {
+          title: 'Live apply publish',
+          description: 'test',
+          dependencyIds: [],
+          sourceSnapshot: {
+            mapConfig: {
+              version: 2,
+              mapSize: 90,
+              base: { x: 0, z: 0, radius: 4 },
+              spawnPoints: [{ x: 0, z: 0 }],
+              obstacles: [],
+              structures: [],
+              resourceNodes: [],
+              vendors: [],
+              mobSpawns: [],
+            },
+            zoneState: {
+              ...state.payload.zoneState,
+            },
+          },
+        },
+      });
+      expect(createPatch.res.status).toBe(201);
+
+      const patchId = createPatch.payload?.patch?.id;
+      await requestJson(baseUrl, `/admin/patches/${patchId}/request-approval?zone=world-map`, {
+        method: 'POST',
+        cookie,
+        headers,
+      });
+      await requestJson(baseUrl, `/admin/patches/${patchId}/approve?zone=world-map`, {
+        method: 'POST',
+        cookie,
+        headers,
+      });
+
+      const publish = await requestJson(baseUrl, `/admin/patches/${patchId}/publish?zone=world-map`, {
+        method: 'POST',
+        cookie,
+        headers,
+      });
+      expect(publish.res.status).toBe(200);
+      expect(publish.payload).toEqual({
+        ok: true,
+        restartRequired: false,
+        liveApplied: true,
+        worldVersion: 7,
+      });
+    } finally {
+      await stopHttpTestServer(server);
+      files.cleanup();
+    }
+  });
 });

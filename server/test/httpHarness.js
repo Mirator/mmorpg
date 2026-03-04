@@ -308,6 +308,7 @@ export async function buildHttpApp({
   spawner = { getSpawnPoint: () => ({ x: 0, y: 0, z: 0 }) },
   mapConfigPath,
   designerStatePath,
+  onApplyMapConfig,
   now,
 } = {}) {
   const { createHttpApp } = await import('../http.js');
@@ -320,6 +321,7 @@ export async function buildHttpApp({
     spawner,
     mapConfigPath,
     designerStatePath,
+    onApplyMapConfig,
     now,
   });
 }

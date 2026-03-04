@@ -1111,7 +1111,9 @@ export function createMapDesignerStateStore({ designerStatePath, mapConfigPath }
  * @param {{
  *   isAuthorized: (req: any) => boolean,
  *   mapConfigPath: string,
- *   designerStatePath: string
+ *   designerStatePath: string,
+ *   onAfterPublish?: (() => Promise<unknown>) | null,
+ *   onAfterRollback?: (() => Promise<unknown>) | null
  * }} params
  */
 export function createMapDesignerHandlers({
@@ -1125,6 +1127,36 @@ export function createMapDesignerHandlers({
     mapConfigPath,
     designerStatePath,
   });
+
+  /**
+   * @param {any} req
+   */
+  const zoneOf = (req) => normalizeZoneKey(req?.query?.zone ?? DESIGNER_ZONE_KEY_DEFAULT);
+  /**
+   * @param {any} req
+   */
+  const aliasOf = (req) => getProvidedAdminAlias(req);
+  /**
+   * @param {any} req
+   */
+  const idOf = (req) => String(req.params?.id ?? '');
+  /**
+   * @param {any} req
+   */
+  const layerIdOf = (req) => String(req.params?.layerId ?? '');
+
+  /**
+   * @param {any} res
+   * @param {unknown} payload
+   * @param {number} [status]
+   */
+  function sendPayload(res, payload, status = 200) {
+    if (status === 200) {
+      res.json(payload);
+      return;
+    }
+    res.status(status).json(payload);
+  }
 
   /**
    * @param {any} res
@@ -1162,278 +1194,102 @@ export function createMapDesignerHandlers({
 
   /**
    * @param {any} req
+   * @param {any} res
+   * @param {(req: any) => unknown} action
+   * @param {number} [status]
    */
-  function resolveZone(req) {
-    return normalizeZoneKey(req?.query?.zone ?? DESIGNER_ZONE_KEY_DEFAULT);
+  function run(req, res, action, status = 200) {
+    if (!guard(req, res)) return;
+    try {
+      sendPayload(res, action(req), status);
+    } catch (err) {
+      sendError(res, err);
+    }
+  }
+
+  /**
+   * @param {any} req
+   * @param {any} res
+   * @param {(req: any) => Promise<unknown>} action
+   * @param {number} [status]
+   */
+  async function runAsync(req, res, action, status = 200) {
+    if (!guard(req, res)) return;
+    try {
+      sendPayload(res, await action(req), status);
+    } catch (err) {
+      sendError(res, err);
+    }
+  }
+
+  /**
+   * @param {{ restartRequired: boolean }} payload
+   * @param {unknown} liveResult
+   */
+  function mergeLivePayload(payload, liveResult) {
+    if (!liveResult || typeof liveResult !== 'object') return payload;
+    return {
+      ...payload,
+      restartRequired: liveResult.liveApplied ? false : payload.restartRequired,
+      ...liveResult,
+    };
   }
 
   return {
-    getDesignerState(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const payload = store.getState(resolveZone(req));
-        res.json(payload);
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    putDesignerState(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const expectedRevision = toInt(req?.body?.expectedRevision, -1);
-        const payload = store.putState(
-          resolveZone(req),
-          expectedRevision,
-          req?.body?.zoneState,
-          getProvidedAdminAlias(req)
-        );
-        res.json(payload);
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    getPrefabs(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const prefabs = store.getPrefabs(resolveZone(req));
-        res.json({ prefabs });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    postPrefab(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const prefab = store.createPrefab(resolveZone(req), req.body, getProvidedAdminAlias(req));
-        res.status(201).json({ prefab });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    putPrefab(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const prefab = store.updatePrefab(
-          resolveZone(req),
-          String(req.params?.id ?? ''),
-          req.body,
-          getProvidedAdminAlias(req)
-        );
-        res.json({ prefab });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    deletePrefab(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const payload = store.deletePrefab(
-          resolveZone(req),
-          String(req.params?.id ?? ''),
-          getProvidedAdminAlias(req)
-        );
-        res.json(payload);
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    getPatches(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const patches = store.listPatches(resolveZone(req));
-        res.json({ patches });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    postPatch(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const patch = store.createPatch(resolveZone(req), req.body, getProvidedAdminAlias(req));
-        res.status(201).json({ patch });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    postPatchRequestApproval(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const patch = store.transitionPatch(
-          resolveZone(req),
-          String(req.params?.id ?? ''),
+    getDesignerState: (req, res) => run(req, res, (req) => store.getState(zoneOf(req))),
+    putDesignerState: (req, res) =>
+      run(req, res, (req) =>
+        store.putState(zoneOf(req), toInt(req?.body?.expectedRevision, -1), req?.body?.zoneState, aliasOf(req))
+      ),
+    getPrefabs: (req, res) => run(req, res, (req) => ({ prefabs: store.getPrefabs(zoneOf(req)) })),
+    postPrefab: (req, res) =>
+      run(req, res, (req) => ({ prefab: store.createPrefab(zoneOf(req), req.body, aliasOf(req)) }), 201),
+    putPrefab: (req, res) =>
+      run(req, res, (req) => ({
+        prefab: store.updatePrefab(zoneOf(req), idOf(req), req.body, aliasOf(req)),
+      })),
+    deletePrefab: (req, res) => run(req, res, (req) => store.deletePrefab(zoneOf(req), idOf(req), aliasOf(req))),
+    getPatches: (req, res) => run(req, res, (req) => ({ patches: store.listPatches(zoneOf(req)) })),
+    postPatch: (req, res) =>
+      run(req, res, (req) => ({ patch: store.createPatch(zoneOf(req), req.body, aliasOf(req)) }), 201),
+    postPatchRequestApproval: (req, res) =>
+      run(req, res, (req) => ({
+        patch: store.transitionPatch(
+          zoneOf(req),
+          idOf(req),
           PATCH_STATUS.REVIEW_REQUESTED,
-          getProvidedAdminAlias(req),
+          aliasOf(req),
           'patch.request-approval'
-        );
-        res.json({ patch });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    postPatchApprove(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const patch = store.transitionPatch(
-          resolveZone(req),
-          String(req.params?.id ?? ''),
-          PATCH_STATUS.APPROVED,
-          getProvidedAdminAlias(req),
-          'patch.approve'
-        );
-        res.json({ patch });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    async postPatchPublish(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const payload = await store.publishPatch(
-          resolveZone(req),
-          String(req.params?.id ?? ''),
-          getProvidedAdminAlias(req)
-        );
-        if (typeof onAfterPublish === 'function') {
-          const liveResult = await onAfterPublish();
-          if (liveResult && typeof liveResult === 'object') {
-            res.json({
-              ...payload,
-              restartRequired: liveResult.liveApplied ? false : payload.restartRequired,
-              ...liveResult,
-            });
-            return;
-          }
-        }
-        res.json(payload);
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    async postPatchRollback(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const payload = await store.rollbackPatch(
-          resolveZone(req),
-          String(req.params?.id ?? ''),
-          getProvidedAdminAlias(req)
-        );
-        if (typeof onAfterRollback === 'function') {
-          const liveResult = await onAfterRollback();
-          if (liveResult && typeof liveResult === 'object') {
-            res.json({
-              ...payload,
-              restartRequired: liveResult.liveApplied ? false : payload.restartRequired,
-              ...liveResult,
-            });
-            return;
-          }
-        }
-        res.json(payload);
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    getComments(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const comments = store.listComments(resolveZone(req));
-        res.json({ comments });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    postComment(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const comment = store.createComment(resolveZone(req), req.body, getProvidedAdminAlias(req));
-        res.status(201).json({ comment });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    postCommentResolve(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const comment = store.resolveComment(
-          resolveZone(req),
-          String(req.params?.id ?? ''),
-          req.body,
-          getProvidedAdminAlias(req)
-        );
-        res.json({ comment });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    getLocks(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const locks = store.getLocks(resolveZone(req));
-        res.json({ locks });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    postZoneLock(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const locks = store.setZoneLock(resolveZone(req), req.body, getProvidedAdminAlias(req));
-        res.json({ locks });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    postLayerLock(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const locks = store.setLayerLock(
-          resolveZone(req),
-          String(req.params?.layerId ?? ''),
-          req.body,
-          getProvidedAdminAlias(req)
-        );
-        res.json({ locks });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    getAudit(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const limit = toInt(req?.query?.limit, 200);
-        const audit = store.getAudit(resolveZone(req), limit);
-        res.json({ audit });
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
-
-    postPlaytestSession(req, res) {
-      if (!guard(req, res)) return;
-      try {
-        const payload = store.createPlaytestSession(resolveZone(req));
-        res.json(payload);
-      } catch (err) {
-        sendError(res, err);
-      }
-    },
+        ),
+      })),
+    postPatchApprove: (req, res) =>
+      run(req, res, (req) => ({
+        patch: store.transitionPatch(zoneOf(req), idOf(req), PATCH_STATUS.APPROVED, aliasOf(req), 'patch.approve'),
+      })),
+    postPatchPublish: (req, res) =>
+      runAsync(req, res, async (req) =>
+        mergeLivePayload(await store.publishPatch(zoneOf(req), idOf(req), aliasOf(req)), typeof onAfterPublish === 'function' ? await onAfterPublish() : null)
+      ),
+    postPatchRollback: (req, res) =>
+      runAsync(req, res, async (req) =>
+        mergeLivePayload(await store.rollbackPatch(zoneOf(req), idOf(req), aliasOf(req)), typeof onAfterRollback === 'function' ? await onAfterRollback() : null)
+      ),
+    getComments: (req, res) => run(req, res, (req) => ({ comments: store.listComments(zoneOf(req)) })),
+    postComment: (req, res) =>
+      run(req, res, (req) => ({ comment: store.createComment(zoneOf(req), req.body, aliasOf(req)) }), 201),
+    postCommentResolve: (req, res) =>
+      run(req, res, (req) => ({
+        comment: store.resolveComment(zoneOf(req), idOf(req), req.body, aliasOf(req)),
+      })),
+    getLocks: (req, res) => run(req, res, (req) => ({ locks: store.getLocks(zoneOf(req)) })),
+    postZoneLock: (req, res) =>
+      run(req, res, (req) => ({ locks: store.setZoneLock(zoneOf(req), req.body, aliasOf(req)) })),
+    postLayerLock: (req, res) =>
+      run(req, res, (req) => ({
+        locks: store.setLayerLock(zoneOf(req), layerIdOf(req), req.body, aliasOf(req)),
+      })),
+    getAudit: (req, res) =>
+      run(req, res, (req) => ({ audit: store.getAudit(zoneOf(req), toInt(req?.query?.limit, 200)) })),
+    postPlaytestSession: (req, res) => run(req, res, (req) => store.createPlaytestSession(zoneOf(req))),
   };
 }

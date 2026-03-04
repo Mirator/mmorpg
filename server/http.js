@@ -104,61 +104,6 @@ function getBearerToken(req) {
 }
 
 /**
- * @param {HttpResponseLike} res
- * @param {string} token
- * @param {HttpConfig} config
- */
-function setSessionCookie(res, token, config) {
-  res.cookie(config.sessionCookieName, token, {
-    httpOnly: true,
-    sameSite: config.sessionCookieSameSite,
-    secure: config.sessionCookieSecure,
-    maxAge: SESSION_TTL_MS,
-    path: '/',
-  });
-}
-
-/**
- * @param {HttpResponseLike} res
- * @param {HttpConfig} config
- */
-function clearSessionCookie(res, config) {
-  res.clearCookie(config.sessionCookieName, {
-    httpOnly: true,
-    sameSite: config.sessionCookieSameSite,
-    secure: config.sessionCookieSecure,
-    path: '/',
-  });
-}
-
-/**
- * @param {HttpResponseLike} res
- * @param {string} token
- * @param {HttpConfig} config
- */
-function setAdminSessionCookie(res, token, config) {
-  res.cookie(config.adminSessionCookieName, token, {
-    httpOnly: true,
-    sameSite: config.adminSessionCookieSameSite,
-    secure: config.adminSessionCookieSecure,
-    path: '/admin',
-  });
-}
-
-/**
- * @param {HttpResponseLike} res
- * @param {HttpConfig} config
- */
-function clearAdminSessionCookie(res, config) {
-  res.clearCookie(config.adminSessionCookieName, {
-    httpOnly: true,
-    sameSite: config.adminSessionCookieSameSite,
-    secure: config.adminSessionCookieSecure,
-    path: '/admin',
-  });
-}
-
-/**
  * @param {{
  *   config: HttpConfig,
  *   world: unknown,
@@ -274,6 +219,36 @@ export function createHttpApp({
     allowedOrigins: config.allowedOrigins,
   });
 
+  const createCookieController = (
+    /** @type {string} */ name,
+    /** @type {Parameters<HttpResponseLike['cookie']>[2]} */ baseOptions,
+    /** @type {number | undefined} */ maxAge
+  ) => {
+    const setOptions = maxAge === undefined ? baseOptions : { ...baseOptions, maxAge };
+    return {
+      set: (/** @type {HttpResponseLike} */ res, /** @type {string} */ token) =>
+        res.cookie(name, token, setOptions),
+      clear: (/** @type {HttpResponseLike} */ res) => res.clearCookie(name, baseOptions),
+    };
+  };
+
+  const sessionCookie = createCookieController(
+    config.sessionCookieName,
+    {
+      httpOnly: true,
+      sameSite: config.sessionCookieSameSite,
+      secure: config.sessionCookieSecure,
+      path: '/',
+    },
+    SESSION_TTL_MS
+  );
+  const adminSessionCookie = createCookieController(config.adminSessionCookieName, {
+    httpOnly: true,
+    sameSite: config.adminSessionCookieSameSite,
+    secure: config.adminSessionCookieSecure,
+    path: '/admin',
+  }, undefined);
+
   /**
    * @param {HttpRequestLike} req
    */
@@ -289,16 +264,79 @@ export function createHttpApp({
     return req.get('x-admin-api') === '1';
   }
 
+  const sendAdminPage = (/** @type {string} */ fileName) =>
+    (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+      void req;
+      res.sendFile(path.join(ADMIN_DIR, fileName));
+    };
+
+  /**
+   * @param {{
+   *   method: 'get' | 'post' | 'put' | 'delete',
+   *   path: string,
+   *   handler: any,
+   *   useCsrf?: boolean
+   * }[]} specs
+   */
+  function registerRouteSpecs(specs) {
+    for (const { method, path: routePath, handler, useCsrf = false } of specs) {
+      const route = /** @type {any} */ (app)[method];
+      route.call(app, routePath, ...(useCsrf ? [csrfGuard, handler] : [handler]));
+    }
+  }
+
+  const getRequiredAccount = (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    if (req.account) return req.account;
+    sendError(res, 401, 'Unauthorized');
+    return null;
+  };
+
+  const sendAuthSuccess = (
+    /** @type {HttpResponseLike} */ res,
+    /** @type {{ id: string, username: string }} */ account,
+    /** @type {string} */ token
+  ) => {
+    sessionCookie.set(res, token);
+    if (config.exposeAuthToken) {
+      res.json({ account, token });
+      return;
+    }
+    res.json({ account });
+  };
+
+  const handleRouteFailure = (
+    /** @type {HttpResponseLike} */ res,
+    /** @type {unknown} */ err,
+    /** @type {string} */ logLabel,
+    /** @type {string} */ clientMessage
+  ) => {
+    if (sendDbError(res, err)) return;
+    console.error(logLabel, err);
+    sendError(res, 500, clientMessage);
+  };
+
+  const createSessionRecord = async (/** @type {string} */ accountId, /** @type {Date} */ now) => {
+    const token = generateSessionToken();
+    await createSession({
+      id: token,
+      accountId,
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      lastSeenAt: now,
+    });
+    return token;
+  };
+
   app.get('/favicon.ico', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    void req;
     res.redirect(302, '/favicon.svg');
   });
 
-  app.get('/admin', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    res.sendFile(path.join(ADMIN_DIR, 'index.html'));
-  });
-  app.get('/admin/map', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    res.sendFile(path.join(ADMIN_DIR, 'map.html'));
-  });
+  const adminPageSpecs = [['/admin', 'index.html'], ['/admin/map', 'map.html'], ['/admin/assets', 'assets.html'], ['/admin/events', 'events.html'], ['/admin/nav', 'nav.html'], ['/admin/collab', 'collab.html'], ['/admin/playtest', 'playtest.html']];
+  for (const [routePath, fileName] of adminPageSpecs) {
+    app.get(routePath, sendAdminPage(fileName));
+  }
+
+  const sendPatchesPage = sendAdminPage('patches.html');
   app.get(
     '/admin/patches',
     (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res, /** @type {NextFunctionLike} */ next) => {
@@ -306,24 +344,9 @@ export function createHttpApp({
         next();
         return;
       }
-      res.sendFile(path.join(ADMIN_DIR, 'patches.html'));
+      sendPatchesPage(req, res);
     }
   );
-  app.get('/admin/assets', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    res.sendFile(path.join(ADMIN_DIR, 'assets.html'));
-  });
-  app.get('/admin/events', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    res.sendFile(path.join(ADMIN_DIR, 'events.html'));
-  });
-  app.get('/admin/nav', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    res.sendFile(path.join(ADMIN_DIR, 'nav.html'));
-  });
-  app.get('/admin/collab', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    res.sendFile(path.join(ADMIN_DIR, 'collab.html'));
-  });
-  app.get('/admin/playtest', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    res.sendFile(path.join(ADMIN_DIR, 'playtest.html'));
-  });
   app.use('/admin', express.static(ADMIN_DIR));
   app.use('/shared', express.static(SHARED_DIR));
   app.use(express.static(CLIENT_DIR));
@@ -339,14 +362,14 @@ export function createHttpApp({
         sendError(res, 401, 'Unauthorized');
         return;
       }
-      setAdminSessionCookie(res, token, config);
+      adminSessionCookie.set(res, token);
       res.json({ ok: true });
     }
   );
 
   app.get('/admin/auth/session', (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     if (!isAdminAuthorizedRequest(req)) {
-      clearAdminSessionCookie(res, config);
+      adminSessionCookie.clear(res);
       sendError(res, 401, 'Unauthorized');
       return;
     }
@@ -355,7 +378,7 @@ export function createHttpApp({
 
   app.post('/admin/auth/logout', csrfGuard, (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     adminSessions.revokeSessionFromRequest(req);
-    clearAdminSessionCookie(res, config);
+    adminSessionCookie.clear(res);
     res.json({ ok: true });
   });
 
@@ -431,9 +454,7 @@ export function createHttpApp({
         accounts: serializedAccounts,
       });
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('Admin accounts overview error:', err);
-      sendError(res, 500, 'Unable to load accounts overview.');
+      handleRouteFailure(res, err, 'Admin accounts overview error:', 'Unable to load accounts overview.');
     }
   });
 
@@ -442,41 +463,39 @@ export function createHttpApp({
     isAuthorized: isAdminAuthorizedRequest,
     onAfterSave: onApplyMapConfig,
   });
-  app.get('/admin/map-config', mapHandlers.getHandler);
-  app.put('/admin/map-config', csrfGuard, mapHandlers.putHandler);
+  const applyMapConfig = onApplyMapConfig ? () => onApplyMapConfig() : null;
 
   const designerHandlers = createMapDesignerHandlers(/** @type {any} */ ({
     isAuthorized: isAdminAuthorizedRequest,
     mapConfigPath,
     designerStatePath,
-    onAfterPublish: onApplyMapConfig ? () => onApplyMapConfig() : null,
-    onAfterRollback: onApplyMapConfig ? () => onApplyMapConfig() : null,
+    onAfterPublish: applyMapConfig,
+    onAfterRollback: applyMapConfig,
   }));
-  app.get('/admin/designer-state', designerHandlers.getDesignerState);
-  app.put('/admin/designer-state', csrfGuard, designerHandlers.putDesignerState);
-
-  app.get('/admin/prefabs', designerHandlers.getPrefabs);
-  app.post('/admin/prefabs', csrfGuard, designerHandlers.postPrefab);
-  app.put('/admin/prefabs/:id', csrfGuard, designerHandlers.putPrefab);
-  app.delete('/admin/prefabs/:id', csrfGuard, designerHandlers.deletePrefab);
-
-  app.get('/admin/patches', designerHandlers.getPatches);
-  app.post('/admin/patches', csrfGuard, designerHandlers.postPatch);
-  app.post('/admin/patches/:id/request-approval', csrfGuard, designerHandlers.postPatchRequestApproval);
-  app.post('/admin/patches/:id/approve', csrfGuard, designerHandlers.postPatchApprove);
-  app.post('/admin/patches/:id/publish', csrfGuard, designerHandlers.postPatchPublish);
-  app.post('/admin/patches/:id/rollback', csrfGuard, designerHandlers.postPatchRollback);
-
-  app.get('/admin/comments', designerHandlers.getComments);
-  app.post('/admin/comments', csrfGuard, designerHandlers.postComment);
-  app.post('/admin/comments/:id/resolve', csrfGuard, designerHandlers.postCommentResolve);
-
-  app.get('/admin/locks', designerHandlers.getLocks);
-  app.post('/admin/locks/zone', csrfGuard, designerHandlers.postZoneLock);
-  app.post('/admin/locks/layer/:layerId', csrfGuard, designerHandlers.postLayerLock);
-
-  app.get('/admin/audit', designerHandlers.getAudit);
-  app.post('/admin/playtest/session', csrfGuard, designerHandlers.postPlaytestSession);
+  registerRouteSpecs([
+    { method: 'get', path: '/admin/map-config', handler: mapHandlers.getHandler },
+    { method: 'put', path: '/admin/map-config', handler: mapHandlers.putHandler, useCsrf: true },
+    { method: 'get', path: '/admin/designer-state', handler: designerHandlers.getDesignerState },
+    { method: 'put', path: '/admin/designer-state', handler: designerHandlers.putDesignerState, useCsrf: true },
+    { method: 'get', path: '/admin/prefabs', handler: designerHandlers.getPrefabs },
+    { method: 'post', path: '/admin/prefabs', handler: designerHandlers.postPrefab, useCsrf: true },
+    { method: 'put', path: '/admin/prefabs/:id', handler: designerHandlers.putPrefab, useCsrf: true },
+    { method: 'delete', path: '/admin/prefabs/:id', handler: designerHandlers.deletePrefab, useCsrf: true },
+    { method: 'get', path: '/admin/patches', handler: designerHandlers.getPatches },
+    { method: 'post', path: '/admin/patches', handler: designerHandlers.postPatch, useCsrf: true },
+    { method: 'post', path: '/admin/patches/:id/request-approval', handler: designerHandlers.postPatchRequestApproval, useCsrf: true },
+    { method: 'post', path: '/admin/patches/:id/approve', handler: designerHandlers.postPatchApprove, useCsrf: true },
+    { method: 'post', path: '/admin/patches/:id/publish', handler: designerHandlers.postPatchPublish, useCsrf: true },
+    { method: 'post', path: '/admin/patches/:id/rollback', handler: designerHandlers.postPatchRollback, useCsrf: true },
+    { method: 'get', path: '/admin/comments', handler: designerHandlers.getComments },
+    { method: 'post', path: '/admin/comments', handler: designerHandlers.postComment, useCsrf: true },
+    { method: 'post', path: '/admin/comments/:id/resolve', handler: designerHandlers.postCommentResolve, useCsrf: true },
+    { method: 'get', path: '/admin/locks', handler: designerHandlers.getLocks },
+    { method: 'post', path: '/admin/locks/zone', handler: designerHandlers.postZoneLock, useCsrf: true },
+    { method: 'post', path: '/admin/locks/layer/:layerId', handler: designerHandlers.postLayerLock, useCsrf: true },
+    { method: 'get', path: '/admin/audit', handler: designerHandlers.getAudit },
+    { method: 'post', path: '/admin/playtest/session', handler: designerHandlers.postPlaytestSession, useCsrf: true },
+  ]);
 
   app.post('/api/auth/signup', authLimiter, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
     const normalized = normalizeUsername(req.body?.username);
@@ -494,9 +513,7 @@ export function createHttpApp({
     try {
       existing = await findAccountByUsernameLower(normalized.lower);
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('Signup lookup error:', err);
-      sendError(res, 500, 'Unable to create account.');
+      handleRouteFailure(res, err, 'Signup lookup error:', 'Unable to create account.');
       return;
     }
     if (existing) {
@@ -519,39 +536,21 @@ export function createHttpApp({
         lastSeenAt: now,
       });
     } catch (err) {
-      if (sendDbError(res, err)) return;
       if (isUniqueConstraintError(err)) {
         sendError(res, 409, 'Username already taken.');
         return;
       }
-      console.error('Signup error:', err);
-      sendError(res, 500, 'Unable to create account.');
+      handleRouteFailure(res, err, 'Signup error:', 'Unable to create account.');
       return;
     }
 
-    const token = generateSessionToken();
-    const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
     try {
-      await createSession({
-        id: token,
-        accountId,
-        expiresAt,
-        lastSeenAt: now,
-      });
+      const token = await createSessionRecord(accountId, now);
+      sendAuthSuccess(res, { id: accountId, username: normalized.name }, token);
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('Session create error:', err);
-      sendError(res, 500, 'Unable to create session.');
+      handleRouteFailure(res, err, 'Session create error:', 'Unable to create session.');
       return;
     }
-
-    setSessionCookie(res, token, config);
-
-    if (config.exposeAuthToken) {
-      res.json({ account: { id: accountId, username: normalized.name }, token });
-      return;
-    }
-    res.json({ account: { id: accountId, username: normalized.name } });
   });
 
   app.post('/api/auth/login', authLimiter, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
@@ -570,9 +569,7 @@ export function createHttpApp({
     try {
       account = await findAccountByUsernameLower(normalized.lower);
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('Login lookup error:', err);
-      sendError(res, 500, 'Unable to sign in.');
+      handleRouteFailure(res, err, 'Login lookup error:', 'Unable to sign in.');
       return;
     }
     if (!account) {
@@ -586,32 +583,16 @@ export function createHttpApp({
       return;
     }
 
-    const token = generateSessionToken();
     const now = new Date();
-    const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
     try {
-      await createSession({
-        id: token,
-        accountId: account.id,
-        expiresAt,
-        lastSeenAt: now,
-      });
+      const token = await createSessionRecord(account.id, now);
       await markAccountSignedIn(account.id, now);
+      sendAuthSuccess(res, { id: account.id, username: account.username }, token);
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('Login session error:', err);
-      sendError(res, 500, 'Unable to create session.');
+      handleRouteFailure(res, err, 'Login session error:', 'Unable to create session.');
       return;
     }
-
-    setSessionCookie(res, token, config);
-
-    if (config.exposeAuthToken) {
-      res.json({ account: { id: account.id, username: account.username }, token });
-      return;
-    }
-    res.json({ account: { id: account.id, username: account.username } });
   });
 
   async function requireAuth(/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res, /** @type {NextFunctionLike} */ next) {
@@ -627,14 +608,12 @@ export function createHttpApp({
     try {
       session = await getSessionWithAccount(token);
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('Session lookup error:', err);
-      sendError(res, 500, 'Unable to validate session.');
+      handleRouteFailure(res, err, 'Session lookup error:', 'Unable to validate session.');
       return;
     }
 
     if (!session || !session.account) {
-      clearSessionCookie(res, config);
+      sessionCookie.clear(res);
       sendError(res, 401, 'Unauthorized');
       return;
     }
@@ -642,7 +621,7 @@ export function createHttpApp({
     const now = new Date();
     if (session.expiresAt && session.expiresAt <= now) {
       deleteSession(token).catch(() => {});
-      clearSessionCookie(res, config);
+      sessionCookie.clear(res);
       sendError(res, 401, 'Session expired');
       return;
     }
@@ -658,6 +637,9 @@ export function createHttpApp({
   }
 
   app.post('/api/auth/logout', requireAuth, csrfGuard, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
+    if (!getRequiredAccount(req, res)) {
+      return;
+    }
     if (!req.authToken) {
       sendError(res, 401, 'Unauthorized');
       return;
@@ -667,16 +649,13 @@ export function createHttpApp({
     } catch (err) {
       // Ignore if already deleted.
     }
-    clearSessionCookie(res, config);
+    sessionCookie.clear(res);
     res.json({ ok: true });
   });
 
   app.post('/api/ws-ticket', requireAuth, csrfGuard, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    const account = req.account;
-    if (!account) {
-      sendError(res, 401, 'Unauthorized');
-      return;
-    }
+    const account = getRequiredAccount(req, res);
+    if (!account) return;
     const characterId = normalizeId(req.body?.characterId);
     if (!characterId) {
       sendError(res, 400, 'Invalid character.');
@@ -687,9 +666,7 @@ export function createHttpApp({
     try {
       character = await findCharacterById(characterId);
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('WS ticket character lookup error:', err);
-      sendError(res, 500, 'Unable to create ticket.');
+      handleRouteFailure(res, err, 'WS ticket character lookup error:', 'Unable to create ticket.');
       return;
     }
 
@@ -710,27 +687,19 @@ export function createHttpApp({
   });
 
   app.get('/api/characters', requireAuth, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    const account = req.account;
-    if (!account) {
-      sendError(res, 401, 'Unauthorized');
-      return;
-    }
+    const account = getRequiredAccount(req, res);
+    if (!account) return;
     try {
       const characters = await listCharacters(account.id);
       res.json({ characters });
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('List characters error:', err);
-      sendError(res, 500, 'Unable to load characters.');
+      handleRouteFailure(res, err, 'List characters error:', 'Unable to load characters.');
     }
   });
 
   app.post('/api/characters', requireAuth, csrfGuard, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    const account = req.account;
-    if (!account) {
-      sendError(res, 401, 'Unauthorized');
-      return;
-    }
+    const account = getRequiredAccount(req, res);
+    if (!account) return;
     const normalized = normalizeCharacterName(req.body?.name);
     const classId = typeof req.body?.classId === 'string' ? req.body.classId : '';
     if (!normalized) {
@@ -746,9 +715,7 @@ export function createHttpApp({
     try {
       existing = await findCharacterByNameLower(normalized.lower);
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('Character lookup error:', err);
-      sendError(res, 500, 'Unable to create character.');
+      handleRouteFailure(res, err, 'Character lookup error:', 'Unable to create character.');
       return;
     }
     if (existing) {
@@ -776,13 +743,11 @@ export function createHttpApp({
         lastSeenAt: now,
       });
     } catch (err) {
-      if (sendDbError(res, err)) return;
       if (isUniqueConstraintError(err)) {
         sendError(res, 409, 'Character name already taken.');
         return;
       }
-      console.error('Create character error:', err);
-      sendError(res, 500, 'Unable to create character.');
+      handleRouteFailure(res, err, 'Create character error:', 'Unable to create character.');
       return;
     }
 
@@ -797,11 +762,8 @@ export function createHttpApp({
   });
 
   app.delete('/api/characters/:id', requireAuth, csrfGuard, async (/** @type {HttpRequestLike} */ req, /** @type {HttpResponseLike} */ res) => {
-    const account = req.account;
-    if (!account) {
-      sendError(res, 401, 'Unauthorized');
-      return;
-    }
+    const account = getRequiredAccount(req, res);
+    if (!account) return;
     const characterId = typeof req.params?.id === 'string' ? req.params.id.trim() : '';
     if (!characterId) {
       sendError(res, 400, 'Invalid character.');
@@ -812,9 +774,7 @@ export function createHttpApp({
     try {
       existing = await findCharacterById(characterId);
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('Find character error:', err);
-      sendError(res, 500, 'Unable to delete character.');
+      handleRouteFailure(res, err, 'Find character error:', 'Unable to delete character.');
       return;
     }
 
@@ -840,9 +800,7 @@ export function createHttpApp({
         return;
       }
     } catch (err) {
-      if (sendDbError(res, err)) return;
-      console.error('Delete character error:', err);
-      sendError(res, 500, 'Unable to delete character.');
+      handleRouteFailure(res, err, 'Delete character error:', 'Unable to delete character.');
       return;
     }
 

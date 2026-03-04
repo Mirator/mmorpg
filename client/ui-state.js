@@ -39,6 +39,7 @@ import { createWindowDragController } from './window-drag.js';
 import { getItemIconFile } from './gameIcons.js';
 import { createGlyphElement } from './uiGlyphs.js';
 import { createJournalUI } from './journal.js';
+import { bindElementRefs, bindQueryRefs } from '/shared/domRefs.js';
 
 function formatItemName(/** @type {any} */ kind) {
   if (!kind) return 'Item';
@@ -93,68 +94,46 @@ export function createUiState(/** @type {any} */ {
   onTradeCancel,
   getPlayerId,
 }) {
-  const inventoryPanel = document.getElementById('inventory-panel');
-  const characterSheetPanel = document.getElementById('character-sheet-panel');
-  const characterSheetClose = document.getElementById('character-sheet-close');
-  const characterModelPreviewEl = /** @type {HTMLElement | null} */ (
-    document.getElementById('character-model-preview')
-  );
-  const characterView = document.getElementById('character-view');
-  const skillsView = document.getElementById('skills-view');
-  const sheetTabBtns = /** @type {NodeListOf<HTMLElement>} */ (
-    document.querySelectorAll('#sheet-bottom-tabs .sheet-tab-btn')
-  );
-  const skillsClassEl = document.getElementById('skills-class');
-  const skillsLevelEl = document.getElementById('skills-level');
-  const skillsXpEl = document.getElementById('skills-xp');
-  const skillsListEl = document.getElementById('skills-list');
-  const inventoryGrid = document.getElementById('inventory-grid');
-  const inventoryView = document.getElementById('inventory-view');
-  const craftView = document.getElementById('craft-view');
-  const journalView = document.getElementById('journal-view');
-  const craftRecipeListEl = document.getElementById('craft-recipe-list');
-  const journalRootEl = document.getElementById('journal-root');
-  const inventoryTabBtns = /** @type {NodeListOf<HTMLElement>} */ (
-    document.querySelectorAll('.inventory-tab')
-  );
-  const equipmentGrid = document.getElementById('equipment-grid');
-  const charStatHp = document.getElementById('char-stat-hp');
-  const charStatResource = document.getElementById('char-stat-resource');
-  const charStatStr = document.getElementById('char-stat-str');
-  const charStatDex = document.getElementById('char-stat-dex');
-  const charStatInt = document.getElementById('char-stat-int');
-  const charStatVit = document.getElementById('char-stat-vit');
-  const charStatSpi = document.getElementById('char-stat-spi');
-  const charStatPhysPower = document.getElementById('char-stat-phys-power');
-  const charStatRangedPower = document.getElementById('char-stat-ranged-power');
-  const charStatMagicPower = document.getElementById('char-stat-magic-power');
-  const charStatHealingPower = document.getElementById('char-stat-healing-power');
-  const charStatCrit = document.getElementById('char-stat-crit');
-  const charStatAccuracy = document.getElementById('char-stat-accuracy');
-  const charStatEvasion = document.getElementById('char-stat-evasion');
-  const charStatPhysDef = document.getElementById('char-stat-phys-def');
-  const charStatMagicResist = document.getElementById('char-stat-magic-resist');
-  const charStatLevel = document.getElementById('char-stat-level');
-  const charStatClass = document.getElementById('char-stat-class');
-  const charSheetCharMeta = document.getElementById('character-sheet-char-meta');
-  const vendorDialog = document.getElementById('vendor-dialog');
-  const vendorPanel = document.getElementById('vendor-panel');
-  const vendorDialogName = document.getElementById('vendor-dialog-name');
-  const vendorPanelName = document.getElementById('vendor-panel-name');
-  const vendorTradeBtn = document.getElementById('vendor-trade-btn');
-  const vendorCloseBtn = document.getElementById('vendor-close-btn');
-  const vendorPanelCloseBtn = document.getElementById('vendor-panel-close');
-  const vendorPricesEl = document.getElementById('vendor-sell-prices');
-  const vendorBuyItemsEl = document.getElementById('vendor-buy-items');
-  const vendorContractsEl = document.getElementById('vendor-contract-list');
-  const inventoryCoinsEl = document.getElementById('inventory-coins');
-  const abilityBar = document.getElementById('ability-bar');
-  const deathScreen = document.getElementById('death-screen');
-  const deathTimerEl = document.getElementById('death-timer');
-  const deathRespawnBtn = document.getElementById('death-respawn-btn');
-  const castBarWrap = document.getElementById('cast-bar-wrap');
-  const castBarFill = document.getElementById('cast-bar-fill');
-  const castBarName = document.getElementById('cast-bar-name');
+  const {
+    inventoryPanel, characterSheetPanel, characterSheetClose, characterModelPreviewEl, characterView,
+    skillsView, skillsClassEl, skillsLevelEl, skillsXpEl, skillsListEl, inventoryGrid, inventoryView,
+    craftView, journalView, craftRecipeListEl, journalRootEl, equipmentGrid, charStatHp,
+    charStatResource, charStatStr, charStatDex, charStatInt, charStatVit, charStatSpi,
+    charStatPhysPower, charStatRangedPower, charStatMagicPower, charStatHealingPower, charStatCrit,
+    charStatAccuracy, charStatEvasion, charStatPhysDef, charStatMagicResist, charStatLevel,
+    charStatClass, charSheetCharMeta, vendorDialog, vendorPanel, vendorDialogName, vendorPanelName,
+    vendorTradeBtn, vendorCloseBtn, vendorPanelCloseBtn, vendorPricesEl, vendorBuyItemsEl,
+    vendorContractsEl, inventoryCoinsEl, abilityBar, deathScreen, deathTimerEl, deathRespawnBtn,
+    castBarWrap, castBarFill, castBarName,
+  } = /** @type {any} */ (bindElementRefs(document, {
+    inventoryPanel: 'inventory-panel', characterSheetPanel: 'character-sheet-panel',
+    characterSheetClose: 'character-sheet-close', characterModelPreviewEl: 'character-model-preview',
+    characterView: 'character-view', skillsView: 'skills-view', skillsClassEl: 'skills-class',
+    skillsLevelEl: 'skills-level', skillsXpEl: 'skills-xp', skillsListEl: 'skills-list',
+    inventoryGrid: 'inventory-grid', inventoryView: 'inventory-view', craftView: 'craft-view',
+    journalView: 'journal-view', craftRecipeListEl: 'craft-recipe-list', journalRootEl: 'journal-root',
+    equipmentGrid: 'equipment-grid', charStatHp: 'char-stat-hp', charStatResource: 'char-stat-resource',
+    charStatStr: 'char-stat-str', charStatDex: 'char-stat-dex', charStatInt: 'char-stat-int',
+    charStatVit: 'char-stat-vit', charStatSpi: 'char-stat-spi', charStatPhysPower: 'char-stat-phys-power',
+    charStatRangedPower: 'char-stat-ranged-power', charStatMagicPower: 'char-stat-magic-power',
+    charStatHealingPower: 'char-stat-healing-power', charStatCrit: 'char-stat-crit',
+    charStatAccuracy: 'char-stat-accuracy', charStatEvasion: 'char-stat-evasion',
+    charStatPhysDef: 'char-stat-phys-def', charStatMagicResist: 'char-stat-magic-resist',
+    charStatLevel: 'char-stat-level', charStatClass: 'char-stat-class',
+    charSheetCharMeta: 'character-sheet-char-meta', vendorDialog: 'vendor-dialog',
+    vendorPanel: 'vendor-panel', vendorDialogName: 'vendor-dialog-name',
+    vendorPanelName: 'vendor-panel-name', vendorTradeBtn: 'vendor-trade-btn',
+    vendorCloseBtn: 'vendor-close-btn', vendorPanelCloseBtn: 'vendor-panel-close',
+    vendorPricesEl: 'vendor-sell-prices', vendorBuyItemsEl: 'vendor-buy-items',
+    vendorContractsEl: 'vendor-contract-list', inventoryCoinsEl: 'inventory-coins',
+    abilityBar: 'ability-bar', deathScreen: 'death-screen', deathTimerEl: 'death-timer',
+    deathRespawnBtn: 'death-respawn-btn', castBarWrap: 'cast-bar-wrap', castBarFill: 'cast-bar-fill',
+    castBarName: 'cast-bar-name',
+  }));
+  const { sheetTabBtns, inventoryTabBtns } = /** @type {any} */ (bindQueryRefs(document, {
+    sheetTabBtns: '#sheet-bottom-tabs .sheet-tab-btn',
+    inventoryTabBtns: '.inventory-tab',
+  }));
 
   let /** @type {any} */ inventoryUI = null;
   let /** @type {any} */ equipmentUI = null;
@@ -694,18 +673,18 @@ export function createUiState(/** @type {any} */ {
     });
   }
 
-  const tradePanel = document.getElementById('trade-panel');
-  const tradePartnerNameEl = document.getElementById('trade-partner-name');
-  const tradeMyOfferEl = document.getElementById('trade-my-offer');
-  const tradeTheirOfferEl = document.getElementById('trade-their-offer');
-  const tradeMyCopperEl = document.getElementById('trade-my-copper');
-  const tradeTheirCopperEl = document.getElementById('trade-their-copper');
-  const tradeAddCopperInput = document.getElementById('trade-add-copper');
-  const tradeAddCopperBtn = document.getElementById('trade-add-copper-btn');
-  const tradeRemoveCopperBtn = document.getElementById('trade-remove-copper-btn');
-  const tradeConfirmBtn = document.getElementById('trade-confirm-btn');
-  const tradeCancelBtn = document.getElementById('trade-cancel-btn');
-  const tradeStatusEl = document.getElementById('trade-status');
+  const {
+    tradePanel, tradePartnerNameEl, tradeMyOfferEl, tradeTheirOfferEl, tradeMyCopperEl,
+    tradeTheirCopperEl, tradeAddCopperInput, tradeAddCopperBtn, tradeRemoveCopperBtn,
+    tradeConfirmBtn, tradeCancelBtn, tradeStatusEl,
+  } = /** @type {any} */ (bindElementRefs(document, {
+    tradePanel: 'trade-panel', tradePartnerNameEl: 'trade-partner-name',
+    tradeMyOfferEl: 'trade-my-offer', tradeTheirOfferEl: 'trade-their-offer',
+    tradeMyCopperEl: 'trade-my-copper', tradeTheirCopperEl: 'trade-their-copper',
+    tradeAddCopperInput: 'trade-add-copper', tradeAddCopperBtn: 'trade-add-copper-btn',
+    tradeRemoveCopperBtn: 'trade-remove-copper-btn', tradeConfirmBtn: 'trade-confirm-btn',
+    tradeCancelBtn: 'trade-cancel-btn', tradeStatusEl: 'trade-status',
+  }));
 
   if (tradePanel) {
     playerTradeUI = createPlayerTradeUI({

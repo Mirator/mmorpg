@@ -3,41 +3,25 @@
 
 import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
+import { bindElementRefs } from '/shared/domRefs.js';
 
-const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
-const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
-const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
-const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
-const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
-const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
-
-const patchListEl = /** @type {HTMLElement} */ (document.getElementById('patch-list'));
-const patchCountEl = /** @type {HTMLElement} */ (document.getElementById('patch-count'));
-const filterSelect = /** @type {HTMLSelectElement} */ (document.getElementById('patch-filter'));
-
-const createForm = /** @type {HTMLFormElement} */ (document.getElementById('create-patch-form'));
-const titleInput = /** @type {HTMLInputElement} */ (document.getElementById('create-title'));
-const descriptionInput = /** @type {HTMLTextAreaElement} */ (document.getElementById('create-description'));
-const dependenciesInput = /** @type {HTMLInputElement} */ (document.getElementById('create-dependencies'));
-
-const detailEmpty = /** @type {HTMLElement} */ (document.getElementById('detail-empty'));
-const detailPanel = /** @type {HTMLElement} */ (document.getElementById('detail-panel'));
-const detailTitle = /** @type {HTMLElement} */ (document.getElementById('detail-title'));
-const detailStatus = /** @type {HTMLElement} */ (document.getElementById('detail-status'));
-const detailMeta = /** @type {HTMLElement} */ (document.getElementById('detail-meta'));
-const detailDeps = /** @type {HTMLElement} */ (document.getElementById('detail-dependencies'));
-const requestApprovalBtn = /** @type {HTMLButtonElement} */ (document.getElementById('request-approval-btn'));
-const approveBtn = /** @type {HTMLButtonElement} */ (document.getElementById('approve-btn'));
-const publishBtn = /** @type {HTMLButtonElement} */ (document.getElementById('publish-btn'));
-const rollbackBtn = /** @type {HTMLButtonElement} */ (document.getElementById('rollback-btn'));
-const restartNote = /** @type {HTMLElement} */ (document.getElementById('restart-note'));
-
-const diffModeSelect = /** @type {HTMLSelectElement} */ (document.getElementById('diff-mode'));
-const jsonDiffEl = /** @type {HTMLElement} */ (document.getElementById('json-diff'));
-const visualCanvas = /** @type {HTMLCanvasElement} */ (document.getElementById('visual-diff-canvas'));
+const {
+  form, passInput, statusEl, aliasLabel, aliasBtn, lockBtn, patchListEl, patchCountEl, filterSelect,
+  createForm, titleInput, descriptionInput, dependenciesInput, detailEmpty, detailPanel, detailTitle,
+  detailStatus, detailMeta, detailDeps, requestApprovalBtn, approveBtn, publishBtn, rollbackBtn,
+  restartNote, diffModeSelect, jsonDiffEl, visualCanvas, commentListEl,
+} = /** @type {any} */ (bindElementRefs(document, {
+  form: 'auth-form', passInput: 'admin-pass', statusEl: 'status', aliasLabel: 'alias-label',
+  aliasBtn: 'alias-btn', lockBtn: 'lock-btn', patchListEl: 'patch-list', patchCountEl: 'patch-count',
+  filterSelect: 'patch-filter', createForm: 'create-patch-form', titleInput: 'create-title',
+  descriptionInput: 'create-description', dependenciesInput: 'create-dependencies',
+  detailEmpty: 'detail-empty', detailPanel: 'detail-panel', detailTitle: 'detail-title',
+  detailStatus: 'detail-status', detailMeta: 'detail-meta', detailDeps: 'detail-dependencies',
+  requestApprovalBtn: 'request-approval-btn', approveBtn: 'approve-btn', publishBtn: 'publish-btn',
+  rollbackBtn: 'rollback-btn', restartNote: 'restart-note', diffModeSelect: 'diff-mode',
+  jsonDiffEl: 'json-diff', visualCanvas: 'visual-diff-canvas', commentListEl: 'comment-list',
+}));
 const visualCtx = /** @type {CanvasRenderingContext2D} */ (visualCanvas.getContext('2d'));
-
-const commentListEl = /** @type {HTMLElement} */ (document.getElementById('comment-list'));
 
 const state = {
   alias: '',
