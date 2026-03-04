@@ -1,64 +1,77 @@
 // @ts-check
-// @ts-nocheck
 
-import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
-import { createDesignerApi } from './designer-api.js';
+import { createSessionShell } from './session-shell.js';
 
-const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
-const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
-const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
-const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
-const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
-const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
+/** @typedef {{ id: string, name: string, entityType: string, assetPath: string, tags: string[], defaults: Record<string, unknown>, version: number, createdAt: string, updatedAt: string }} PrefabRecord */
 
-const listEl = /** @type {HTMLElement} */ (document.getElementById('prefab-list'));
-const countEl = /** @type {HTMLElement} */ (document.getElementById('prefab-count'));
+const form = /** @type {HTMLFormElement | null} */ (document.getElementById('auth-form'));
+const passInput = /** @type {HTMLInputElement | null} */ (document.getElementById('admin-pass'));
+const statusEl = /** @type {HTMLElement | null} */ (document.getElementById('status'));
+const aliasLabel = /** @type {HTMLElement | null} */ (document.getElementById('alias-label'));
+const aliasBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('lock-btn'));
 
-const createForm = /** @type {HTMLFormElement} */ (document.getElementById('create-prefab-form'));
-const createName = /** @type {HTMLInputElement} */ (document.getElementById('create-name'));
-const createType = /** @type {HTMLInputElement} */ (document.getElementById('create-type'));
-const createPath = /** @type {HTMLInputElement} */ (document.getElementById('create-path'));
-const createTags = /** @type {HTMLInputElement} */ (document.getElementById('create-tags'));
-const createDefaults = /** @type {HTMLTextAreaElement} */ (document.getElementById('create-defaults'));
+const listEl = /** @type {HTMLElement | null} */ (document.getElementById('prefab-list'));
+const countEl = /** @type {HTMLElement | null} */ (document.getElementById('prefab-count'));
 
-const detailsEmpty = /** @type {HTMLElement} */ (document.getElementById('details-empty'));
-const detailsPanel = /** @type {HTMLElement} */ (document.getElementById('details-panel'));
-const detailId = /** @type {HTMLElement} */ (document.getElementById('detail-id'));
-const detailVersion = /** @type {HTMLElement} */ (document.getElementById('detail-version'));
-const detailCreated = /** @type {HTMLElement} */ (document.getElementById('detail-created'));
-const detailUpdated = /** @type {HTMLElement} */ (document.getElementById('detail-updated'));
-const editName = /** @type {HTMLInputElement} */ (document.getElementById('edit-name'));
-const editType = /** @type {HTMLInputElement} */ (document.getElementById('edit-type'));
-const editPath = /** @type {HTMLInputElement} */ (document.getElementById('edit-path'));
-const editTags = /** @type {HTMLInputElement} */ (document.getElementById('edit-tags'));
-const editDefaults = /** @type {HTMLTextAreaElement} */ (document.getElementById('edit-defaults'));
-const saveEditBtn = /** @type {HTMLButtonElement} */ (document.getElementById('save-edit-btn'));
-const deleteBtn = /** @type {HTMLButtonElement} */ (document.getElementById('delete-prefab-btn'));
+const createForm = /** @type {HTMLFormElement | null} */ (document.getElementById('create-prefab-form'));
+const createName = /** @type {HTMLInputElement | null} */ (document.getElementById('create-name'));
+const createType = /** @type {HTMLInputElement | null} */ (document.getElementById('create-type'));
+const createPath = /** @type {HTMLInputElement | null} */ (document.getElementById('create-path'));
+const createTags = /** @type {HTMLInputElement | null} */ (document.getElementById('create-tags'));
+const createDefaults = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('create-defaults'));
+
+const detailsEmpty = /** @type {HTMLElement | null} */ (document.getElementById('details-empty'));
+const detailsPanel = /** @type {HTMLElement | null} */ (document.getElementById('details-panel'));
+const detailId = /** @type {HTMLElement | null} */ (document.getElementById('detail-id'));
+const detailVersion = /** @type {HTMLElement | null} */ (document.getElementById('detail-version'));
+const detailCreated = /** @type {HTMLElement | null} */ (document.getElementById('detail-created'));
+const detailUpdated = /** @type {HTMLElement | null} */ (document.getElementById('detail-updated'));
+const editName = /** @type {HTMLInputElement | null} */ (document.getElementById('edit-name'));
+const editType = /** @type {HTMLInputElement | null} */ (document.getElementById('edit-type'));
+const editPath = /** @type {HTMLInputElement | null} */ (document.getElementById('edit-path'));
+const editTags = /** @type {HTMLInputElement | null} */ (document.getElementById('edit-tags'));
+const editDefaults = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('edit-defaults'));
+const saveEditBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-edit-btn'));
+const deleteBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('delete-prefab-btn'));
 
 const state = {
-  alias: '',
-  prefabs: /** @type {any[]} */ ([]),
+  prefabs: /** @type {PrefabRecord[]} */ ([]),
   selectedId: /** @type {string | null} */ (null),
-  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
 };
 
-function setStatus(message, tone = 'neutral') {
-  statusEl.textContent = message;
-  statusEl.className = `status ${tone}`;
-}
+const session = createSessionShell(
+  {
+    form,
+    passInput,
+    statusEl,
+    aliasLabel,
+    aliasBtn,
+    lockBtn,
+  },
+  {
+    checkingMessage: 'Status: checking session...',
+    lockedMessage: 'Status: locked',
+    invalidPasswordMessage: 'Status: invalid password',
+    aliasRequiredMessage: 'Status: alias is required to unlock.',
+    sessionExpiredMessage: 'Status: session expired. Unlock again.',
+    readyMessage: 'Status: prefab registry loaded',
+    onLocked() {
+      state.prefabs = [];
+      state.selectedId = null;
+      renderList();
+      renderDetails();
+    },
+    async onRestore() {
+      await reloadPrefabs();
+    },
+  }
+);
 
-function getAlias() {
-  return state.alias;
-}
-
-function setLockedState(message = 'Status: locked') {
-  state.prefabs = [];
-  state.selectedId = null;
-  renderList();
-  renderDetails();
-  setStatus(message, 'warning');
-}
-
+/**
+ * @param {string} raw
+ * @returns {string[]}
+ */
 function parseTagInput(raw) {
   return raw
     .split(',')
@@ -66,6 +79,10 @@ function parseTagInput(raw) {
     .filter(Boolean);
 }
 
+/**
+ * @param {string} text
+ * @returns {Record<string, unknown>}
+ */
 function parseDefaults(text) {
   if (!text.trim()) return {};
   try {
@@ -73,18 +90,22 @@ function parseDefaults(text) {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new Error('Defaults must be a JSON object.');
     }
-    return parsed;
+    return /** @type {Record<string, unknown>} */ (parsed);
   } catch (err) {
     throw new Error(err instanceof Error ? err.message : 'Invalid defaults JSON.');
   }
 }
 
+/**
+ * @returns {PrefabRecord | null}
+ */
 function selectedPrefab() {
   if (!state.selectedId) return null;
   return state.prefabs.find((entry) => entry.id === state.selectedId) ?? null;
 }
 
 function renderList() {
+  if (!listEl || !countEl) return;
   listEl.textContent = '';
   countEl.textContent = `${state.prefabs.length}`;
 
@@ -104,9 +125,7 @@ function renderList() {
       item.classList.add('active');
     }
 
-    const tags = Array.isArray(prefab.tags) && prefab.tags.length > 0
-      ? prefab.tags.join(', ')
-      : 'no tags';
+    const tags = prefab.tags.length > 0 ? prefab.tags.join(', ') : 'no tags';
 
     item.innerHTML = [
       `<strong>${prefab.name}</strong>`,
@@ -127,29 +146,50 @@ function renderList() {
 function renderDetails() {
   const prefab = selectedPrefab();
   if (!prefab) {
-    detailsEmpty.hidden = false;
-    detailsPanel.hidden = true;
+    if (detailsEmpty) detailsEmpty.hidden = false;
+    if (detailsPanel) detailsPanel.hidden = true;
     return;
   }
 
-  detailsEmpty.hidden = true;
-  detailsPanel.hidden = false;
+  if (detailsEmpty) detailsEmpty.hidden = true;
+  if (detailsPanel) detailsPanel.hidden = false;
 
-  detailId.textContent = prefab.id;
-  detailVersion.textContent = String(prefab.version ?? 1);
-  detailCreated.textContent = prefab.createdAt || '--';
-  detailUpdated.textContent = prefab.updatedAt || '--';
+  if (detailId) detailId.textContent = prefab.id;
+  if (detailVersion) detailVersion.textContent = String(prefab.version || 1);
+  if (detailCreated) detailCreated.textContent = prefab.createdAt || '--';
+  if (detailUpdated) detailUpdated.textContent = prefab.updatedAt || '--';
 
-  editName.value = prefab.name ?? '';
-  editType.value = prefab.entityType ?? '';
-  editPath.value = prefab.assetPath ?? '';
-  editTags.value = Array.isArray(prefab.tags) ? prefab.tags.join(', ') : '';
-  editDefaults.value = JSON.stringify(prefab.defaults ?? {}, null, 2);
+  if (editName) editName.value = prefab.name;
+  if (editType) editType.value = prefab.entityType;
+  if (editPath) editPath.value = prefab.assetPath;
+  if (editTags) editTags.value = prefab.tags.join(', ');
+  if (editDefaults) editDefaults.value = JSON.stringify(prefab.defaults, null, 2);
 }
 
 async function reloadPrefabs() {
-  const payload = await state.api.getPrefabs();
-  state.prefabs = Array.isArray(payload.prefabs) ? payload.prefabs : [];
+  const payload = await session.api.getPrefabs();
+  const prefabs = Array.isArray(payload?.prefabs) ? payload.prefabs : [];
+  /** @type {PrefabRecord[]} */
+  const nextPrefabs = [];
+  for (const entryRaw of prefabs) {
+    const entry = /** @type {Record<string, unknown>} */ (entryRaw ?? {});
+    const tags = Array.isArray(entry.tags) ? entry.tags.map((tagRaw) => String(tagRaw)) : [];
+    nextPrefabs.push({
+      id: String(entry.id ?? ''),
+      name: String(entry.name ?? ''),
+      entityType: String(entry.entityType ?? ''),
+      assetPath: String(entry.assetPath ?? ''),
+      tags,
+      defaults:
+        entry.defaults && typeof entry.defaults === 'object' && !Array.isArray(entry.defaults)
+          ? /** @type {Record<string, unknown>} */ (entry.defaults)
+          : {},
+      version: Math.max(1, Number(entry.version ?? 1)),
+      createdAt: String(entry.createdAt ?? ''),
+      updatedAt: String(entry.updatedAt ?? ''),
+    });
+  }
+  state.prefabs = nextPrefabs;
   if (!selectedPrefab()) {
     state.selectedId = state.prefabs[0]?.id ?? null;
   }
@@ -157,110 +197,50 @@ async function reloadPrefabs() {
   renderDetails();
 }
 
-async function handleUnlock() {
-  const password = passInput.value.trim();
-  if (!password) return;
-
-  const alias = ensureAdminAlias();
-  if (!alias) {
-    setStatus('Status: alias is required to unlock.', 'warning');
-    return;
-  }
-
-  state.alias = alias;
-  renderAdminAlias(aliasLabel, `Alias: ${alias}`);
-
-  setStatus('Status: unlocking...', 'neutral');
-
-  try {
-    await state.api.unlockAdminSession(password);
-    passInput.value = '';
-    await reloadPrefabs();
-    setStatus('Status: prefab registry loaded', 'ok');
-  } catch (err) {
-    const error = /** @type {Error & { status?: number, details?: string[] }} */ (err);
-    if (error.status === 401) {
-      setStatus('Status: invalid password', 'error');
-      return;
-    }
-    setStatus(`Status: ${error.message}`, 'error');
-  }
-}
-
-async function restoreSession() {
-  try {
-    await state.api.getAdminSession();
-    await reloadPrefabs();
-    setStatus('Status: prefab registry loaded', 'ok');
-  } catch {
-    setLockedState('Status: locked');
-  }
-}
-
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  await handleUnlock();
-});
-
-aliasBtn.addEventListener('click', () => {
-  const alias = ensureAdminAlias({ forcePrompt: true });
-  if (!alias) return;
-  state.alias = alias;
-  renderAdminAlias(aliasLabel, `Alias: ${alias}`);
-});
-
-createForm.addEventListener('submit', async (event) => {
+createForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   try {
-    const payload = {
-      name: createName.value.trim(),
-      entityType: createType.value.trim(),
-      assetPath: createPath.value.trim(),
-      tags: parseTagInput(createTags.value),
-      defaults: parseDefaults(createDefaults.value),
-    };
-
-    await state.api.createPrefab(payload);
+    await session.api.createPrefab({
+      name: createName?.value.trim() ?? '',
+      entityType: createType?.value.trim() ?? '',
+      assetPath: createPath?.value.trim() ?? '',
+      tags: parseTagInput(createTags?.value ?? ''),
+      defaults: parseDefaults(createDefaults?.value ?? ''),
+    });
     await reloadPrefabs();
     createForm.reset();
-    createDefaults.value = '{}';
-    setStatus('Status: prefab created', 'ok');
+    if (createDefaults) createDefaults.value = '{}';
+    session.setStatus('Status: prefab created', 'ok');
   } catch (err) {
-    const error = /** @type {Error & { status?: number }} */ (err);
-    if (error.status === 401) {
-      setLockedState('Status: session expired. Unlock again.');
-      return;
-    }
-    setStatus(`Status: ${error.message}`, 'error');
+    if (session.handleUnauthorized(err)) return;
+    const error = /** @type {Error} */ (err);
+    session.setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
-saveEditBtn.addEventListener('click', async () => {
+saveEditBtn?.addEventListener('click', async () => {
   const prefab = selectedPrefab();
   if (!prefab) return;
 
   try {
-    await state.api.updatePrefab(prefab.id, {
-      name: editName.value.trim(),
-      entityType: editType.value.trim(),
-      assetPath: editPath.value.trim(),
-      tags: parseTagInput(editTags.value),
-      defaults: parseDefaults(editDefaults.value),
+    await session.api.updatePrefab(prefab.id, {
+      name: editName?.value.trim() ?? '',
+      entityType: editType?.value.trim() ?? '',
+      assetPath: editPath?.value.trim() ?? '',
+      tags: parseTagInput(editTags?.value ?? ''),
+      defaults: parseDefaults(editDefaults?.value ?? ''),
     });
     await reloadPrefabs();
-    setStatus('Status: prefab updated', 'ok');
+    session.setStatus('Status: prefab updated', 'ok');
   } catch (err) {
-    const error = /** @type {Error & { status?: number }} */ (err);
-    if (error.status === 401) {
-      setLockedState('Status: session expired. Unlock again.');
-      return;
-    }
-    setStatus(`Status: ${error.message}`, 'error');
+    if (session.handleUnauthorized(err)) return;
+    const error = /** @type {Error} */ (err);
+    session.setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
-deleteBtn.addEventListener('click', async () => {
+deleteBtn?.addEventListener('click', async () => {
   const prefab = selectedPrefab();
   if (!prefab) return;
 
@@ -268,30 +248,15 @@ deleteBtn.addEventListener('click', async () => {
   if (!confirmed) return;
 
   try {
-    await state.api.deletePrefab(prefab.id);
+    await session.api.deletePrefab(prefab.id);
     state.selectedId = null;
     await reloadPrefabs();
-    setStatus('Status: prefab deleted', 'ok');
+    session.setStatus('Status: prefab deleted', 'ok');
   } catch (err) {
-    const error = /** @type {Error & { status?: number }} */ (err);
-    if (error.status === 401) {
-      setLockedState('Status: session expired. Unlock again.');
-      return;
-    }
-    setStatus(`Status: ${error.message}`, 'error');
+    if (session.handleUnauthorized(err)) return;
+    const error = /** @type {Error} */ (err);
+    session.setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
-lockBtn.addEventListener('click', async () => {
-  try {
-    await state.api.logoutAdminSession();
-  } catch {
-    // ignore and force local lock state
-  }
-  setLockedState('Status: locked');
-});
-
-state.alias = getStoredAdminAlias();
-renderAdminAlias(aliasLabel, state.alias ? `Alias: ${state.alias}` : 'Alias: --');
-setStatus('Status: checking session...', 'neutral');
-restoreSession().catch(() => {});
+session.boot().catch(() => {});

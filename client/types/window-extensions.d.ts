@@ -40,5 +40,9 @@ declare global {
       getState: () => unknown;
       selectTarget: (selection: unknown) => void;
     };
+    __MAP_EDITOR_V2__?: {
+      getState: () => any;
+    };
+    __MAP_EDITOR_V2_LOAD_DRAFT__?: () => void;
   }
 }

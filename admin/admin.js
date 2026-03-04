@@ -1,5 +1,4 @@
 // @ts-check
-// @ts-nocheck
 
 import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
@@ -9,6 +8,7 @@ const MAP_REFRESH_EVERY_POLLS = 10;
 const ACCOUNTS_REFRESH_INTERVAL_MS = 30 * 1000;
 const ACCOUNTS_PAGE_SIZE = 50;
 const ERROR_WINDOW_MS = 60 * 60 * 1000;
+const MAP_SESSION_HINT_KEY = 'ra.admin.mapv2.session';
 
 const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
 const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
@@ -50,6 +50,10 @@ const state = {
   lastAccountsFetchedAt: 0,
 };
 
+/**
+ * @param {string} message
+ * @param {string} [tone]
+ */
 function setStatus(message, tone = 'neutral') {
   statusEl.textContent = message;
   statusEl.className = `status ${tone}`;
@@ -59,16 +63,38 @@ function getAlias() {
   return state.alias;
 }
 
+/**
+ * @param {boolean} enabled
+ */
+function setMapSessionHint(enabled) {
+  try {
+    if (enabled) {
+      sessionStorage.setItem(MAP_SESSION_HINT_KEY, '1');
+    } else {
+      sessionStorage.removeItem(MAP_SESSION_HINT_KEY);
+    }
+  } catch {
+    // Ignore private-mode storage failures.
+  }
+}
+
 function stopPolling() {
   if (!pollTimer) return;
   clearInterval(pollTimer);
   pollTimer = null;
 }
 
+/**
+ * @param {number} value
+ * @param {number} [digits]
+ */
 function formatNumber(value, digits = 2) {
   return Number.isFinite(value) ? Number(value).toFixed(digits) : '--';
 }
 
+/**
+ * @param {unknown} value
+ */
 function formatTime(value) {
   if (!value) return '--';
   const time = Number.isFinite(value)
@@ -78,6 +104,9 @@ function formatTime(value) {
   return new Date(time).toLocaleString();
 }
 
+/**
+ * @param {any} config
+ */
 function summarizeProps(config) {
   if (!config) return '--';
   const obstacles = Array.isArray(config.obstacles) ? config.obstacles.length : 0;
@@ -146,6 +175,9 @@ function renderMetrics() {
   lastDeployEl.textContent = latestDeploy ? formatTime(latestDeploy) : 'No publish yet';
 }
 
+/**
+ * @param {boolean} enabled
+ */
 function setControlsEnabled(enabled) {
   refreshBtn.disabled = !enabled;
   renderAccountsPagination();
@@ -167,6 +199,9 @@ function renderAccountsPagination() {
   accountsNextBtn.disabled = disabled || page >= totalPages;
 }
 
+/**
+ * @param {any[]} characters
+ */
 function renderCharacterList(characters) {
   const wrapper = document.createElement('div');
   wrapper.className = 'accounts-character-list';
@@ -199,14 +234,14 @@ function renderAccounts() {
   const payload = state.latestAccountsPayload;
   const accounts = Array.isArray(payload?.accounts) ? payload.accounts : [];
   const totalAccounts = Number(payload?.pagination?.totalAccounts ?? 0);
-  const totalCharacters = Number(
-    payload?.totals?.totalCharacters
-      ?? accounts.reduce((sum, account) => sum + Number(account?.characterCount ?? 0), 0)
-  );
-  const onlineCharacters = Number(
-    payload?.totals?.onlineCharacters
-      ?? accounts.reduce((sum, account) => sum + Number(account?.onlineCharacterCount ?? 0), 0)
-  );
+  let derivedTotalCharacters = 0;
+  let derivedOnlineCharacters = 0;
+  for (const account of accounts) {
+    derivedTotalCharacters += Number(account?.characterCount ?? 0);
+    derivedOnlineCharacters += Number(account?.onlineCharacterCount ?? 0);
+  }
+  const totalCharacters = Number(payload?.totals?.totalCharacters ?? derivedTotalCharacters);
+  const onlineCharacters = Number(payload?.totals?.onlineCharacters ?? derivedOnlineCharacters);
 
   accountsTotalEl.textContent = String(totalAccounts);
   charactersTotalEl.textContent = String(totalCharacters);
@@ -270,9 +305,13 @@ function renderAccounts() {
   renderAccountsPagination();
 }
 
+/**
+ * @param {unknown} err
+ */
 function handleOperationalError(err) {
   const error = /** @type {Error & { status?: number }} */ (err);
   if (error.status === 401) {
+    setMapSessionHint(false);
     setStatus('Status: session expired. Unlock again.', 'warning');
     setControlsEnabled(false);
     stopPolling();
@@ -297,6 +336,9 @@ async function loadAccountsOverview(forceRefresh = false) {
   renderAccounts();
 }
 
+/**
+ * @param {number} delta
+ */
 async function changeAccountsPage(delta) {
   if (refreshBtn.disabled) return;
   const page = Math.max(1, Number(state.latestAccountsPayload?.pagination?.page ?? state.accountsPage ?? 1));
@@ -364,6 +406,7 @@ async function unlock() {
   setStatus('Status: unlocking...', 'neutral');
   try {
     await state.api.unlockAdminSession(password);
+    setMapSessionHint(true);
     passInput.value = '';
     setControlsEnabled(true);
     startPolling();
@@ -380,10 +423,12 @@ async function unlock() {
 async function restoreSession() {
   try {
     await state.api.getAdminSession();
+    setMapSessionHint(true);
     setControlsEnabled(true);
     setStatus('Status: restoring session...', 'neutral');
     startPolling();
   } catch {
+    setMapSessionHint(false);
     setControlsEnabled(false);
     resetAccountsState();
     setStatus('Status: locked', 'warning');
@@ -421,6 +466,7 @@ lockBtn.addEventListener('click', async () => {
     // ignore and continue to local lock state
   }
   stopPolling();
+  setMapSessionHint(false);
   setControlsEnabled(false);
   resetAccountsState();
   setStatus('Status: locked', 'warning');

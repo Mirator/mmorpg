@@ -3,8 +3,10 @@ import {
   PATCH_STATUS,
   applyZoneSnapshot,
   captureZoneSnapshot,
+  cloneDesignerState,
   createDefaultDesignerStateRoot,
   createDefaultZoneDesignerState,
+  normalizeZoneDesignerState,
   isValidPatchTransition,
   normalizeDesignerStateRoot,
   validateDesignerStateRoot,
@@ -142,5 +144,51 @@ describe('mapDesignerState shared model', () => {
 
     const errors = validateDesignerStateRoot(root);
     expect(errors.some((entry) => entry.includes('sourceSnapshot.mapConfig is invalid.'))).toBe(false);
+  });
+
+  it('normalizes missing locks and invalid comment arrays to safe defaults', () => {
+    const zone = normalizeZoneDesignerState({
+      comments: [{ id: 'comment-1', text: 'Hello', status: 'bad-status' }],
+      locks: {
+        zone: { alias: '', reason: 'ignored' },
+        layers: {
+          terrain: { alias: 'builder', reason: 'editing', acquiredAt: 'now' },
+          invalid: { alias: 'bad' },
+        },
+      },
+    });
+
+    expect(zone.comments).toHaveLength(1);
+    expect(zone.comments[0].status).toBe('open');
+    expect(zone.locks.zone).toBeNull();
+    expect(zone.locks.layers.terrain?.alias).toBe('builder');
+    expect(zone.locks.layers.debug).toBeNull();
+    expect(zone.locks.layers.invalid).toBeUndefined();
+  });
+
+  it('clones and snapshots without sharing mutable references', () => {
+    const zone = createDefaultZoneDesignerState();
+    zone.prefabs.push({
+      id: 'prefab-1',
+      name: 'Mutable',
+      entityType: 'structures',
+      assetPath: '/assets/test.glb',
+      tags: ['one'],
+      defaults: { nested: { value: 1 } },
+      version: 1,
+      createdAt: '',
+      updatedAt: '',
+    });
+
+    const cloned = cloneDesignerState(zone);
+    const snapshot = captureZoneSnapshot(zone);
+
+    zone.prefabs[0].name = 'Changed';
+    zone.prefabs[0].defaults.nested.value = 2;
+
+    expect(cloned.prefabs[0].name).toBe('Mutable');
+    expect(cloned.prefabs[0].defaults.nested.value).toBe(1);
+    expect(snapshot.prefabs[0].name).toBe('Mutable');
+    expect(snapshot.prefabs[0].defaults.nested.value).toBe(1);
   });
 });

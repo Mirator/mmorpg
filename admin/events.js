@@ -1,5 +1,4 @@
 // @ts-check
-// @ts-nocheck
 
 import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
@@ -44,6 +43,10 @@ const state = {
   selectedTriggerId: /** @type {string | null} */ (null),
 };
 
+/**
+ * @param {string} message
+ * @param {string} [tone]
+ */
 function setStatus(message, tone = 'neutral') {
   statusEl.textContent = message;
   statusEl.className = `status ${tone}`;
@@ -69,6 +72,10 @@ function setLockedState(message = 'Status: locked') {
   setStatus(message, 'warning');
 }
 
+/**
+ * @param {string} value
+ * @returns {string[]}
+ */
 function parseCsv(value) {
   return value
     .split(',')
@@ -100,6 +107,9 @@ function triggerId() {
   return `trigger-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+/**
+ * @param {any[]} triggers
+ */
 function validateTriggers(triggers) {
   /** @type {string[]} */
   const errors = [];
@@ -195,6 +205,12 @@ function renderList() {
   }
 }
 
+/**
+ * @param {number} fromX
+ * @param {number} fromY
+ * @param {number} toX
+ * @param {number} toY
+ */
 function drawArrow(fromX, fromY, toX, toY) {
   graphCtx.beginPath();
   graphCtx.moveTo(fromX, fromY);
@@ -241,7 +257,7 @@ function renderGraph() {
     graphCtx.fillText(trigger.name || trigger.id, triggerX - 62, y - 2);
 
     const actionRefs = Array.isArray(trigger.actionRefs) ? trigger.actionRefs : [];
-    actionRefs.slice(0, 2).forEach((actionRef, actionIndex) => {
+    actionRefs.slice(0, 2).forEach((/** @type {string} */ actionRef, /** @type {number} */ actionIndex) => {
       const actionY = y + actionIndex * 18 - 9;
       graphCtx.fillStyle = '#31472a';
       graphCtx.fillRect(actionX - 70, actionY - 8, 140, 16);
@@ -255,6 +271,9 @@ function renderGraph() {
   });
 }
 
+/**
+ * @param {any} trigger
+ */
 function fillForm(trigger) {
   if (!trigger) {
     selectedMeta.textContent = 'No trigger selected. Creating a new trigger will append to the list.';
@@ -294,6 +313,9 @@ function renderAll() {
   renderGraph();
 }
 
+/**
+ * @param {(draft: any) => void} mutator
+ */
 async function persist(mutator) {
   if (!state.store) return;
   const draft = state.store.getSnapshot().zoneState;
@@ -387,11 +409,11 @@ createForm.addEventListener('submit', async (event) => {
   };
 
   try {
-    await persist((draft) => {
+    await persist(/** @param {any} draft */ function (draft) {
       if (!Array.isArray(draft.triggers)) {
         draft.triggers = [];
       }
-      const index = draft.triggers.findIndex((entry) => entry.id === targetId);
+      const index = draft.triggers.findIndex(/** @param {any} entry */ (entry) => entry.id === targetId);
       if (index >= 0) {
         draft.triggers[index] = nextTrigger;
       } else {
@@ -418,9 +440,9 @@ deleteBtn.addEventListener('click', async () => {
   if (!confirmed) return;
 
   try {
-    await persist((draft) => {
+    await persist(/** @param {any} draft */ function (draft) {
       draft.triggers = Array.isArray(draft.triggers)
-        ? draft.triggers.filter((entry) => entry.id !== trigger.id)
+        ? draft.triggers.filter(/** @param {any} entry */ (entry) => entry.id !== trigger.id)
         : [];
     });
     state.selectedTriggerId = null;

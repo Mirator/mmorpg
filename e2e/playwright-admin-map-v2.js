@@ -1,5 +1,4 @@
 // @ts-check
-// @ts-nocheck
 
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
@@ -7,168 +6,20 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  dispatchTemplateDrop,
+  ensure,
+  paintModeWithRetry,
+  setAlias,
+  unlockPage,
+  waitForRestoredSession,
+  writeFailureArtifacts,
+} from './admin-helpers.js';
 import { BASE_URL, PORT, sleep, waitForServer } from './helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HARD_TIMEOUT_MS = 180_000;
 const E2E_ADMIN_ARTIFACT_DIR = path.resolve(__dirname, '../output/e2e-admin');
-
-function ensure(condition, message) {
-  if (!condition) {
-    throw new Error(message);
-  }
-}
-
-function sanitizeToken(value) {
-  const normalized = String(value ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60);
-  return normalized || 'run';
-}
-
-async function dispatchTemplateDrop(page, templateId, targetPosition) {
-  await page.evaluate(
-    ({ templateId: id, target }) => {
-      const canvas = document.querySelector('#map-canvas');
-      if (!(canvas instanceof HTMLCanvasElement)) {
-        throw new Error('Map canvas not found');
-      }
-      const rect = canvas.getBoundingClientRect();
-      const dataTransfer = new DataTransfer();
-      dataTransfer.setData('text/plain', id);
-      const clientX = rect.left + target.x;
-      const clientY = rect.top + target.y;
-      canvas.dispatchEvent(
-        new DragEvent('dragover', {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-          clientX,
-          clientY,
-        })
-      );
-      canvas.dispatchEvent(
-        new DragEvent('drop', {
-          bubbles: true,
-          cancelable: true,
-          dataTransfer,
-          clientX,
-          clientY,
-        })
-      );
-    },
-    { templateId, target: targetPosition }
-  );
-}
-
-async function unlockPage(page) {
-  await page.fill('#admin-pass', '1234');
-  await page.click('#auth-form button[type="submit"]');
-  await page.waitForSelector('#status.ok', { timeout: 15_000 });
-}
-
-async function waitForRestoredSession(page) {
-  await page.waitForSelector('#status.ok', { timeout: 15_000 });
-  const passwordValue = await page.locator('#admin-pass').inputValue();
-  ensure(passwordValue === '', 'Admin password field should stay empty after session restore.');
-}
-
-async function setAlias(page, alias) {
-  await page.evaluate((nextAlias) => {
-    localStorage.setItem('ra.admin.alias', nextAlias);
-  }, alias);
-}
-
-async function readZoneCounts(page) {
-  return page.evaluate(() => {
-    const state = window.__MAP_EDITOR_V2__?.getState?.();
-    const zone = state?.zoneState ?? {};
-    return {
-      navAreas: Array.isArray(zone.navAreas) ? zone.navAreas.length : 0,
-      triggers: Array.isArray(zone.triggers) ? zone.triggers.length : 0,
-      paths: Array.isArray(zone.paths) ? zone.paths.length : 0,
-      lightingRegions: Array.isArray(zone.lightingRegions) ? zone.lightingRegions.length : 0,
-    };
-  });
-}
-
-async function waitForZoneCountAtLeast(page, key, min, timeoutMs = 2500) {
-  const start = Date.now();
-  let last = null;
-  while (Date.now() - start < timeoutMs) {
-    last = await readZoneCounts(page);
-    if ((last[key] ?? 0) >= min) {
-      return last;
-    }
-    await sleep(80);
-  }
-  throw new Error(`Timed out waiting for ${key} >= ${min}. Last counts: ${JSON.stringify(last)}`);
-}
-
-async function paintModeWithRetry(page, config) {
-  const { mode, key, clicks, label, attempts = 3 } = config;
-  const before = await readZoneCounts(page);
-  const targetCount = (before[key] ?? 0) + 1;
-  let lastError = null;
-
-  for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    await page.click(`button[data-mode="${mode}"]`);
-    await page.click('button[data-tool="paint"]');
-    for (const point of clicks) {
-      await page.mouse.click(point.x, point.y);
-    }
-
-    try {
-      return await waitForZoneCountAtLeast(page, key, targetCount, 3000);
-    } catch (err) {
-      lastError = err;
-    }
-  }
-
-  throw new Error(
-    `${label} did not change ${key} count after ${attempts} attempts. ` +
-      `Last error: ${lastError?.message ?? String(lastError)}`
-  );
-}
-
-async function writeFailureArtifacts({ page, stage, error }) {
-  fs.mkdirSync(E2E_ADMIN_ARTIFACT_DIR, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const prefix = `${stamp}-${sanitizeToken(stage)}`;
-  const errorPath = path.join(E2E_ADMIN_ARTIFACT_DIR, `${prefix}.error.txt`);
-
-  fs.writeFileSync(
-    errorPath,
-    [
-      `stage: ${stage}`,
-      `message: ${error?.message ?? String(error)}`,
-      '',
-      error?.stack ?? '',
-    ].join('\n'),
-    'utf8'
-  );
-
-  if (!page || page.isClosed()) return;
-
-  const screenshotPath = path.join(E2E_ADMIN_ARTIFACT_DIR, `${prefix}.screenshot.png`);
-  const metaPath = path.join(E2E_ADMIN_ARTIFACT_DIR, `${prefix}.meta.json`);
-
-  await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
-
-  const meta = await page
-    .evaluate(() => {
-      return {
-        url: window.location.href,
-        status: document.querySelector('#status')?.textContent?.trim() ?? null,
-        saveStatus: document.querySelector('#save-status')?.textContent?.trim() ?? null,
-      };
-    })
-    .catch(() => null);
-
-  fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2), 'utf8');
-}
 
 async function run() {
   let stage = 'init';
@@ -195,10 +46,10 @@ async function run() {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  let browser = null;
-  let context = null;
-  let page = null;
-  let hardTimeoutId = null;
+  let browser = /** @type {import('playwright').Browser | null} */ (null);
+  let context = /** @type {import('playwright').BrowserContext | null} */ (null);
+  let page = /** @type {import('playwright').Page | null} */ (null);
+  let hardTimeoutId = /** @type {ReturnType<typeof setTimeout> | null} */ (null);
 
   const hardTimeoutPromise = new Promise((_, reject) => {
     hardTimeoutId = setTimeout(() => {
@@ -263,7 +114,7 @@ async function run() {
       await waitForRestoredSession(page);
       await page.waitForFunction(() => Boolean(window.__MAP_EDITOR_V2__?.getState()?.mapConfig));
 
-      const before = await page.evaluate(() => window.__MAP_EDITOR_V2__.getState());
+      const before = /** @type {any} */ (await page.evaluate(() => window.__MAP_EDITOR_V2__?.getState?.()));
       const startStructureCount = before.mapConfig.structures.length;
 
       await page.fill('#asset-search', 'prefab');
@@ -273,17 +124,18 @@ async function run() {
         startStructureCount + 1
       );
 
-      const afterDrop = await page.evaluate(() => window.__MAP_EDITOR_V2__.getState());
+      const afterDrop = /** @type {any} */ (await page.evaluate(() => window.__MAP_EDITOR_V2__?.getState?.()));
       ensure(afterDrop.mapConfig.structures.length === startStructureCount + 1, 'Prefab template drop did not add structure.');
 
       const dropped = afterDrop.mapConfig.structures[afterDrop.mapConfig.structures.length - 1];
 
       const canvasBox = await page.locator('#map-canvas').boundingBox();
       ensure(canvasBox, 'Canvas bounding box unavailable.');
+      const mapCanvasBox = /** @type {{ x: number, y: number, width: number, height: number }} */ (canvasBox);
 
       const dragStart = {
-        x: canvasBox.x + 320,
-        y: canvasBox.y + 260,
+        x: mapCanvasBox.x + 320,
+        y: mapCanvasBox.y + 260,
       };
       await page.mouse.move(dragStart.x, dragStart.y);
       await page.mouse.down();
@@ -300,7 +152,7 @@ async function run() {
         { x: dropped.x, z: dropped.z }
       );
 
-      const afterMove = await page.evaluate(() => window.__MAP_EDITOR_V2__.getState());
+      const afterMove = /** @type {any} */ (await page.evaluate(() => window.__MAP_EDITOR_V2__?.getState?.()));
       const moved = afterMove.mapConfig.structures[afterMove.mapConfig.structures.length - 1];
       ensure(moved.x !== dropped.x || moved.z !== dropped.z, 'Move drag did not update structure position.');
 
@@ -315,7 +167,7 @@ async function run() {
         },
         { x: dropped.x, z: dropped.z }
       );
-      const afterUndo = await page.evaluate(() => window.__MAP_EDITOR_V2__.getState());
+      const afterUndo = /** @type {any} */ (await page.evaluate(() => window.__MAP_EDITOR_V2__?.getState?.()));
       const undoPos = afterUndo.mapConfig.structures[afterUndo.mapConfig.structures.length - 1];
       ensure(undoPos.x === dropped.x && undoPos.z === dropped.z, 'Undo failed for structure move.');
 
@@ -330,7 +182,7 @@ async function run() {
         },
         { x: moved.x, z: moved.z }
       );
-      const afterRedo = await page.evaluate(() => window.__MAP_EDITOR_V2__.getState());
+      const afterRedo = /** @type {any} */ (await page.evaluate(() => window.__MAP_EDITOR_V2__?.getState?.()));
       const redoPos = afterRedo.mapConfig.structures[afterRedo.mapConfig.structures.length - 1];
       ensure(redoPos.x === moved.x && redoPos.z === moved.z, 'Redo failed for structure move.');
 
@@ -338,32 +190,32 @@ async function run() {
       await paintModeWithRetry(page, {
         mode: 'Nav',
         key: 'navAreas',
-        clicks: [{ x: canvasBox.x + 360, y: canvasBox.y + 300 }],
+        clicks: [{ x: mapCanvasBox.x + 360, y: mapCanvasBox.y + 300 }],
         label: 'Nav mode paint',
       });
       await paintModeWithRetry(page, {
         mode: 'Trigger',
         key: 'triggers',
-        clicks: [{ x: canvasBox.x + 420, y: canvasBox.y + 320 }],
+        clicks: [{ x: mapCanvasBox.x + 420, y: mapCanvasBox.y + 320 }],
         label: 'Trigger mode paint',
       });
       await paintModeWithRetry(page, {
         mode: 'Path',
         key: 'paths',
         clicks: [
-          { x: canvasBox.x + 440, y: canvasBox.y + 280 },
-          { x: canvasBox.x + 500, y: canvasBox.y + 300 },
+          { x: mapCanvasBox.x + 440, y: mapCanvasBox.y + 280 },
+          { x: mapCanvasBox.x + 500, y: mapCanvasBox.y + 300 },
         ],
         label: 'Path mode paint',
       });
       await paintModeWithRetry(page, {
         mode: 'Lighting',
         key: 'lightingRegions',
-        clicks: [{ x: canvasBox.x + 390, y: canvasBox.y + 230 }],
+        clicks: [{ x: mapCanvasBox.x + 390, y: mapCanvasBox.y + 230 }],
         label: 'Lighting mode paint',
       });
 
-      const afterModeEdits = await page.evaluate(() => window.__MAP_EDITOR_V2__.getState());
+      const afterModeEdits = /** @type {any} */ (await page.evaluate(() => window.__MAP_EDITOR_V2__?.getState?.()));
       ensure(afterModeEdits.zoneState.navAreas.length >= 1, 'Nav mode did not add nav areas.');
       ensure(afterModeEdits.zoneState.triggers.length >= 1, 'Trigger mode did not add trigger regions.');
       ensure(afterModeEdits.zoneState.paths.length >= 1, 'Path mode did not add path graph.');
@@ -392,7 +244,8 @@ async function run() {
       const navCountBefore = Number(await page.locator('#nav-count').innerText());
       const navCanvasBox = await page.locator('#nav-canvas').boundingBox();
       ensure(navCanvasBox, 'Nav canvas not available.');
-      await page.mouse.click(navCanvasBox.x + 280, navCanvasBox.y + 180);
+      const stableNavCanvasBox = /** @type {{ x: number, y: number, width: number, height: number }} */ (navCanvasBox);
+      await page.mouse.click(stableNavCanvasBox.x + 280, stableNavCanvasBox.y + 180);
       await page.waitForFunction((expected) => {
         const text = document.querySelector('#nav-count')?.textContent?.trim() ?? '';
         return Number(text) === expected;
@@ -489,12 +342,18 @@ async function run() {
 
     await Promise.race([scenarioPromise, hardTimeoutPromise]);
   } catch (err) {
-    await writeFailureArtifacts({ page, stage, error: err });
+    await writeFailureArtifacts({ artifactDir: E2E_ADMIN_ARTIFACT_DIR, page, stage, error: err });
     throw err;
   } finally {
-    clearTimeout(hardTimeoutId);
-    await context?.close().catch(() => {});
-    await browser?.close().catch(() => {});
+    if (hardTimeoutId) {
+      clearTimeout(hardTimeoutId);
+    }
+    if (context) {
+      await context.close().catch(() => {});
+    }
+    if (browser) {
+      await browser.close().catch(() => {});
+    }
     server.kill('SIGTERM');
     await sleep(200);
     fs.rmSync(tmpDir, { recursive: true, force: true });

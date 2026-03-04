@@ -1,7 +1,27 @@
 // @ts-check
-// @ts-nocheck
 
 import { normalizeMapConfig } from './mapConfig.js';
+
+/**
+ * @typedef {{ alias: string, reason: string, acquiredAt: string }} LockRecord
+ * @typedef {{ zone: LockRecord | null, layers: Record<string, LockRecord | null> }} ZoneLockRecord
+ * @typedef {{ id: string, alias: string, text: string, t: string }} PatchComment
+ * @typedef {{ id: string, x: number, y: number, z: number, text: string, layerId: string, entityRef: string, status: string, createdAt: string, createdBy: string, resolvedAt: string, resolvedBy: string }} MapComment
+ * @typedef {{ id: string, name: string, entityType: string, assetPath: string, tags: string[], defaults: Record<string, unknown>, version: number, createdAt: string, updatedAt: string }} PrefabRecord
+ * @typedef {{ id: string, name: string, shape: string, x: number, y: number, z: number, radius: number, width: number, height: number, walkCost: number, runCost: number, tags: string[] }} NavAreaRecord
+ * @typedef {{ id: string, name: string, shape: string, x: number, y: number, z: number, radius: number, width: number, height: number, conditionRef: string, actionRefs: string[], delayMs: number, enabled: boolean, tags: string[] }} TriggerRecord
+ * @typedef {{ id: string, x: number, y: number, z: number, speed: number, dwellMs: number, tags: string[] }} PathNodeRecord
+ * @typedef {{ id: string, name: string, loop: boolean, behaviorTags: string[], nodes: PathNodeRecord[] }} PathRecord
+ * @typedef {{ id: string, name: string, shape: string, x: number, y: number, z: number, radius: number, width: number, height: number, fogPreset: string, musicCue: string, shaderRef: string, intensity: number, tags: string[] }} LightingRegionRecord
+ * @typedef {{ mapConfig: ReturnType<typeof normalizeMapConfig>, zoneState: ZoneSnapshot }} PatchSnapshot
+ * @typedef {{ mapConfig: ReturnType<typeof normalizeMapConfig>, zoneState: ZoneSnapshot, fromPatchId: string }} PatchPublishedBaseline
+ * @typedef {{ id: string, title: string, description: string, dependencyIds: string[], status: string, sourceSnapshot: PatchSnapshot, publishedBaseline: PatchPublishedBaseline | null, createdAt: string, updatedAt: string, createdBy: string, approvedAt: string, approvedBy: string, publishedAt: string, publishedBy: string, rolledBackAt: string, rolledBackBy: string, comments: PatchComment[] }} PatchRecord
+ * @typedef {{ id: string, t: string, alias: string, type: string, action: string, targetId: string, status: string, message: string, details: Record<string, unknown> }} AuditEntry
+ * @typedef {{ prefabs: PrefabRecord[], navAreas: NavAreaRecord[], triggers: TriggerRecord[], paths: PathRecord[], lightingRegions: LightingRegionRecord[], comments: MapComment[] }} ZoneSnapshot
+ * @typedef {{ prefabs: PrefabRecord[], navAreas: NavAreaRecord[], triggers: TriggerRecord[], paths: PathRecord[], lightingRegions: LightingRegionRecord[], comments: MapComment[], locks: ZoneLockRecord, patches: PatchRecord[], audit: AuditEntry[], lastPublishedPatchId: string }} ZoneDesignerState
+ * @typedef {{ version: number, revision: number, zones: Record<string, ZoneDesignerState> }} DesignerStateRoot
+ * @typedef {ZoneLockRecord} LayerLockRecord
+ */
 
 export const MAP_DESIGNER_STATE_VERSION = 1;
 export const DESIGNER_ZONE_KEY_DEFAULT = 'world-map';
@@ -34,6 +54,7 @@ export const PATCH_STATUS_LIST = [
   PATCH_STATUS.ROLLED_BACK,
 ];
 
+/** @type {Set<string>} */
 const PATCH_STATUS_SET = new Set(PATCH_STATUS_LIST);
 
 export const COMMENT_STATUS = Object.freeze({
@@ -41,6 +62,7 @@ export const COMMENT_STATUS = Object.freeze({
   RESOLVED: 'resolved',
 });
 
+/** @type {Set<string>} */
 const COMMENT_STATUS_SET = new Set([COMMENT_STATUS.OPEN, COMMENT_STATUS.RESOLVED]);
 
 /**
@@ -90,6 +112,7 @@ function normalizeStringList(value) {
 
 /**
  * @param {unknown} value
+ * @returns {Record<string, any>}
  */
 function normalizeObject(value) {
   return isObject(value) ? value : {};
@@ -492,12 +515,12 @@ function validateAssetPaths(errors, label, prefabs) {
 /**
  * @param {string[]} errors
  * @param {string} label
- * @param {Array<{ status?: string, sourceSnapshot?: { mapConfig?: unknown, zoneState?: unknown }, dependencyIds?: string[] }>} patches
+ * @param {Array<{ id?: string, status?: string, sourceSnapshot?: { mapConfig?: unknown, zoneState?: unknown }, dependencyIds?: string[] }>} patches
  */
 function validatePatches(errors, label, patches) {
   const idSet = new Set(patches.map((patch) => patch.id).filter(Boolean));
   patches.forEach((patch, index) => {
-    if (!PATCH_STATUS_SET.has(patch.status)) {
+    if (!PATCH_STATUS_SET.has(patch.status ?? '')) {
       errors.push(`${label}[${index}] status is invalid.`);
     }
 

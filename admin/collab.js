@@ -1,85 +1,82 @@
 // @ts-check
-// @ts-nocheck
 
-import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
-import { createDesignerApi } from './designer-api.js';
+import { createSessionShell } from './session-shell.js';
 
 const LAYERS = ['terrain', 'props', 'spawns', 'navmesh', 'triggers', 'lighting', 'debug'];
 
-const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
-const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
-const statusEl = /** @type {HTMLElement} */ (document.getElementById('status'));
-const aliasLabel = /** @type {HTMLElement} */ (document.getElementById('alias-label'));
-const aliasBtn = /** @type {HTMLButtonElement} */ (document.getElementById('alias-btn'));
-const lockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('lock-btn'));
+const form = /** @type {HTMLFormElement | null} */ (document.getElementById('auth-form'));
+const passInput = /** @type {HTMLInputElement | null} */ (document.getElementById('admin-pass'));
+const statusEl = /** @type {HTMLElement | null} */ (document.getElementById('status'));
+const aliasLabel = /** @type {HTMLElement | null} */ (document.getElementById('alias-label'));
+const aliasBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('alias-btn'));
+const lockBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('lock-btn'));
 
-const zoneLockBtn = /** @type {HTMLButtonElement} */ (document.getElementById('zone-lock-btn'));
-const zoneLockMeta = /** @type {HTMLElement} */ (document.getElementById('zone-lock-meta'));
-const layerLocksEl = /** @type {HTMLElement} */ (document.getElementById('layer-lock-list'));
+const zoneLockBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('zone-lock-btn'));
+const zoneLockMeta = /** @type {HTMLElement | null} */ (document.getElementById('zone-lock-meta'));
+const layerLocksEl = /** @type {HTMLElement | null} */ (document.getElementById('layer-lock-list'));
 
-const commentsEl = /** @type {HTMLElement} */ (document.getElementById('comment-list'));
-const commentCountEl = /** @type {HTMLElement} */ (document.getElementById('comment-count'));
-const commentForm = /** @type {HTMLFormElement} */ (document.getElementById('comment-form'));
-const commentX = /** @type {HTMLInputElement} */ (document.getElementById('comment-x'));
-const commentY = /** @type {HTMLInputElement} */ (document.getElementById('comment-y'));
-const commentZ = /** @type {HTMLInputElement} */ (document.getElementById('comment-z'));
-const commentLayer = /** @type {HTMLSelectElement} */ (document.getElementById('comment-layer'));
-const commentEntityRef = /** @type {HTMLInputElement} */ (document.getElementById('comment-entity-ref'));
-const commentText = /** @type {HTMLTextAreaElement} */ (document.getElementById('comment-text'));
-const commentCanvas = /** @type {HTMLCanvasElement} */ (document.getElementById('comment-canvas'));
-const commentCtx = /** @type {CanvasRenderingContext2D} */ (commentCanvas.getContext('2d'));
+const commentsEl = /** @type {HTMLElement | null} */ (document.getElementById('comment-list'));
+const commentCountEl = /** @type {HTMLElement | null} */ (document.getElementById('comment-count'));
+const commentForm = /** @type {HTMLFormElement | null} */ (document.getElementById('comment-form'));
+const commentX = /** @type {HTMLInputElement | null} */ (document.getElementById('comment-x'));
+const commentY = /** @type {HTMLInputElement | null} */ (document.getElementById('comment-y'));
+const commentZ = /** @type {HTMLInputElement | null} */ (document.getElementById('comment-z'));
+const commentLayer = /** @type {HTMLSelectElement | null} */ (document.getElementById('comment-layer'));
+const commentEntityRef = /** @type {HTMLInputElement | null} */ (document.getElementById('comment-entity-ref'));
+const commentText = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('comment-text'));
+const commentCanvas = /** @type {HTMLCanvasElement | null} */ (document.getElementById('comment-canvas'));
+const commentCtx = /** @type {CanvasRenderingContext2D | null} */ (commentCanvas?.getContext('2d') ?? null);
 
-const auditList = /** @type {HTMLElement} */ (document.getElementById('audit-list'));
-const auditAliasFilter = /** @type {HTMLInputElement} */ (document.getElementById('audit-alias-filter'));
-const auditTypeFilter = /** @type {HTMLInputElement} */ (document.getElementById('audit-type-filter'));
-const auditActionFilter = /** @type {HTMLInputElement} */ (document.getElementById('audit-action-filter'));
+const auditList = /** @type {HTMLElement | null} */ (document.getElementById('audit-list'));
+const auditAliasFilter = /** @type {HTMLInputElement | null} */ (document.getElementById('audit-alias-filter'));
+const auditTypeFilter = /** @type {HTMLInputElement | null} */ (document.getElementById('audit-type-filter'));
+const auditActionFilter = /** @type {HTMLInputElement | null} */ (document.getElementById('audit-action-filter'));
 
 const state = {
-  alias: '',
-  api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
   mapConfig: /** @type {any | null} */ (null),
   locks: /** @type {any | null} */ (null),
   comments: /** @type {any[]} */ ([]),
   audit: /** @type {any[]} */ ([]),
 };
 
-function setStatus(message, tone = 'neutral') {
-  statusEl.textContent = message;
-  statusEl.className = `status ${tone}`;
-}
-
-function getAlias() {
-  return state.alias;
-}
-
-function setLockedState(message = 'Status: locked') {
-  state.mapConfig = null;
-  state.locks = null;
-  state.comments = [];
-  state.audit = [];
-  renderZoneLock();
-  renderLayerLocks();
-  renderComments();
-  renderAudit();
-  setStatus(message, 'warning');
-}
-
-/**
- * @param {unknown} err
- * @returns {boolean}
- */
-function handleUnauthorized(err) {
-  const error = /** @type {Error & { status?: number }} */ (err);
-  if (error.status !== 401) return false;
-  setLockedState('Status: session expired. Unlock again.');
-  return true;
-}
+const session = createSessionShell(
+  {
+    form,
+    passInput,
+    statusEl,
+    aliasLabel,
+    aliasBtn,
+    lockBtn,
+  },
+  {
+    checkingMessage: 'Status: checking session...',
+    lockedMessage: 'Status: locked',
+    invalidPasswordMessage: 'Status: invalid password.',
+    aliasRequiredMessage: 'Status: alias required.',
+    sessionExpiredMessage: 'Status: session expired. Unlock again.',
+    readyMessage: 'Status: collaboration tools ready.',
+    onLocked() {
+      state.mapConfig = null;
+      state.locks = null;
+      state.comments = [];
+      state.audit = [];
+      renderZoneLock();
+      renderLayerLocks();
+      renderComments();
+      renderAudit();
+    },
+    async onRestore() {
+      await reloadAll();
+    },
+  }
+);
 
 function mapSize() {
   return Math.max(1, Number(state.mapConfig?.mapSize ?? 400));
 }
 
 function renderCommentCanvas() {
+  if (!commentCtx || !commentCanvas) return;
   commentCtx.clearRect(0, 0, commentCanvas.width, commentCanvas.height);
   commentCtx.fillStyle = '#120f0b';
   commentCtx.fillRect(0, 0, commentCanvas.width, commentCanvas.height);
@@ -88,6 +85,10 @@ function renderCommentCanvas() {
   const half = size / 2;
   const scale = Math.min(commentCanvas.width, commentCanvas.height) / size;
 
+  /**
+   * @param {number} x
+   * @param {number} z
+   */
   const toCanvas = (x, z) => ({
     x: (x + half) * scale,
     y: (z + half) * scale,
@@ -106,6 +107,7 @@ function renderCommentCanvas() {
 }
 
 function renderZoneLock() {
+  if (!zoneLockBtn || !zoneLockMeta) return;
   const zoneLock = state.locks?.zone ?? null;
   if (!zoneLock) {
     zoneLockBtn.textContent = 'Acquire Zone Lock';
@@ -114,7 +116,7 @@ function renderZoneLock() {
     return;
   }
 
-  const owned = zoneLock.alias === state.alias;
+  const owned = zoneLock.alias === session.getAlias();
   zoneLockBtn.textContent = owned ? 'Release Zone Lock' : `Held by ${zoneLock.alias}`;
   zoneLockBtn.dataset.action = owned ? 'release' : 'blocked';
   zoneLockMeta.textContent = zoneLock.reason
@@ -123,6 +125,7 @@ function renderZoneLock() {
 }
 
 function renderLayerLocks() {
+  if (!layerLocksEl) return;
   layerLocksEl.textContent = '';
 
   const locks = state.locks?.layers ?? {};
@@ -131,7 +134,7 @@ function renderLayerLocks() {
     const row = document.createElement('div');
     row.className = 'list-item';
 
-    const owned = lock?.alias === state.alias;
+    const owned = lock?.alias === session.getAlias();
     const action = lock ? (owned ? 'release' : 'blocked') : 'acquire';
     const label = lock ? (owned ? 'Release' : `Held by ${lock.alias}`) : 'Acquire';
 
@@ -155,6 +158,7 @@ function renderLayerLocks() {
 }
 
 function renderComments() {
+  if (!commentsEl || !commentCountEl) return;
   commentsEl.textContent = '';
   commentCountEl.textContent = String(state.comments.length);
 
@@ -210,11 +214,12 @@ function renderComments() {
 }
 
 function renderAudit() {
+  if (!auditList) return;
   auditList.textContent = '';
 
-  const aliasFilter = auditAliasFilter.value.trim().toLowerCase();
-  const typeFilter = auditTypeFilter.value.trim().toLowerCase();
-  const actionFilter = auditActionFilter.value.trim().toLowerCase();
+  const aliasFilter = auditAliasFilter?.value.trim().toLowerCase() ?? '';
+  const typeFilter = auditTypeFilter?.value.trim().toLowerCase() ?? '';
+  const actionFilter = auditActionFilter?.value.trim().toLowerCase() ?? '';
 
   const filtered = state.audit.filter((entry) => {
     const aliasPass = !aliasFilter || String(entry.alias || '').toLowerCase().includes(aliasFilter);
@@ -257,10 +262,10 @@ function renderAudit() {
 
 async function reloadAll() {
   const [mapConfig, locksPayload, commentsPayload, auditPayload] = await Promise.all([
-    state.api.getMapConfig(),
-    state.api.getLocks(),
-    state.api.getComments(),
-    state.api.getAudit(400),
+    session.api.getMapConfig(),
+    session.api.getLocks(),
+    session.api.getComments(),
+    session.api.getAudit(400),
   ]);
 
   state.mapConfig = mapConfig;
@@ -274,57 +279,7 @@ async function reloadAll() {
   renderAudit();
 }
 
-async function unlock() {
-  const password = passInput.value.trim();
-  if (!password) return;
-
-  const alias = ensureAdminAlias();
-  if (!alias) {
-    setStatus('Status: alias required.', 'warning');
-    return;
-  }
-
-  state.alias = alias;
-  renderAdminAlias(aliasLabel, `Alias: ${alias}`);
-
-  try {
-    await state.api.unlockAdminSession(password);
-    passInput.value = '';
-    await reloadAll();
-    setStatus('Status: collaboration tools ready.', 'ok');
-  } catch (err) {
-    const error = /** @type {Error & { status?: number }} */ (err);
-    if (error.status === 401) {
-      setStatus('Status: invalid password.', 'error');
-      return;
-    }
-    setStatus(`Status: ${error.message}`, 'error');
-  }
-}
-
-async function restoreSession() {
-  try {
-    await state.api.getAdminSession();
-    await reloadAll();
-    setStatus('Status: collaboration tools ready.', 'ok');
-  } catch {
-    setLockedState('Status: locked');
-  }
-}
-
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  await unlock();
-});
-
-aliasBtn.addEventListener('click', () => {
-  const alias = ensureAdminAlias({ forcePrompt: true });
-  if (!alias) return;
-  state.alias = alias;
-  renderAdminAlias(aliasLabel, `Alias: ${alias}`);
-});
-
-zoneLockBtn.addEventListener('click', async () => {
+zoneLockBtn?.addEventListener('click', async () => {
   const action = zoneLockBtn.dataset.action;
   if (action !== 'acquire' && action !== 'release') return;
 
@@ -332,17 +287,17 @@ zoneLockBtn.addEventListener('click', async () => {
     const reason = action === 'acquire'
       ? window.prompt('Reason for zone lock (optional):', '') ?? ''
       : '';
-    await state.api.setZoneLock({ action, reason: reason.trim() });
+    await session.api.setZoneLock({ action, reason: reason.trim() });
     await reloadAll();
-    setStatus(`Status: zone lock ${action}d.`, 'ok');
+    session.setStatus(`Status: zone lock ${action}d.`, 'ok');
   } catch (err) {
-    if (handleUnauthorized(err)) return;
+    if (session.handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
-    setStatus(`Status: ${error.message}`, 'error');
+    session.setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
-layerLocksEl.addEventListener('click', async (event) => {
+layerLocksEl?.addEventListener('click', async (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
   const button = target.closest('button[data-layer-id]');
@@ -356,17 +311,18 @@ layerLocksEl.addEventListener('click', async (event) => {
     const reason = action === 'acquire'
       ? window.prompt(`Reason for ${layerId} lock (optional):`, '') ?? ''
       : '';
-    await state.api.setLayerLock(layerId, { action, reason: reason.trim() });
+    await session.api.setLayerLock(layerId, { action, reason: reason.trim() });
     await reloadAll();
-    setStatus(`Status: ${layerId} lock ${action}d.`, 'ok');
+    session.setStatus(`Status: ${layerId} lock ${action}d.`, 'ok');
   } catch (err) {
-    if (handleUnauthorized(err)) return;
+    if (session.handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
-    setStatus(`Status: ${error.message}`, 'error');
+    session.setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
-commentCanvas.addEventListener('click', (event) => {
+commentCanvas?.addEventListener('click', (event) => {
+  if (!commentCanvas || !commentX || !commentZ) return;
   const rect = commentCanvas.getBoundingClientRect();
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
@@ -382,30 +338,30 @@ commentCanvas.addEventListener('click', (event) => {
   commentZ.value = worldZ.toFixed(1);
 });
 
-commentForm.addEventListener('submit', async (event) => {
+commentForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   try {
-    await state.api.createComment({
-      x: Number(commentX.value || 0),
-      y: Number(commentY.value || 0),
-      z: Number(commentZ.value || 0),
-      text: commentText.value.trim(),
-      layerId: commentLayer.value.trim() || undefined,
-      entityRef: commentEntityRef.value.trim() || undefined,
+    await session.api.createComment({
+      x: Number(commentX?.value || 0),
+      y: Number(commentY?.value || 0),
+      z: Number(commentZ?.value || 0),
+      text: commentText?.value.trim() ?? '',
+      layerId: commentLayer?.value.trim() || undefined,
+      entityRef: commentEntityRef?.value.trim() || undefined,
     });
     commentForm.reset();
-    commentY.value = '0';
+    if (commentY) commentY.value = '0';
     await reloadAll();
-    setStatus('Status: comment created.', 'ok');
+    session.setStatus('Status: comment created.', 'ok');
   } catch (err) {
-    if (handleUnauthorized(err)) return;
+    if (session.handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
-    setStatus(`Status: ${error.message}`, 'error');
+    session.setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
-commentsEl.addEventListener('click', async (event) => {
+commentsEl?.addEventListener('click', async (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
   const button = target.closest('button[data-comment-id]');
@@ -413,43 +369,31 @@ commentsEl.addEventListener('click', async (event) => {
 
   const commentId = button.dataset.commentId;
   const action = button.dataset.action;
-  if (!commentId || !action) return;
+    if (!commentId || !action) return;
 
   try {
     if (action === 'resolve') {
-      await state.api.resolveComment(commentId, { action: 'resolve' });
+      await session.api.resolveComment(commentId, { action: 'resolve' });
     } else if (action === 'reopen') {
-      await state.api.resolveComment(commentId, { action: 'reopen' });
+      await session.api.resolveComment(commentId, { action: 'reopen' });
     }
     await reloadAll();
-    setStatus(`Status: comment ${action}d.`, 'ok');
+    session.setStatus(`Status: comment ${action}d.`, 'ok');
   } catch (err) {
-    if (handleUnauthorized(err)) return;
+    if (session.handleUnauthorized(err)) return;
     const error = /** @type {Error} */ (err);
-    setStatus(`Status: ${error.message}`, 'error');
+    session.setStatus(`Status: ${error.message}`, 'error');
   }
 });
 
 for (const input of [auditAliasFilter, auditTypeFilter, auditActionFilter]) {
+  if (!input) continue;
   input.addEventListener('input', () => {
     renderAudit();
   });
 }
-
-lockBtn.addEventListener('click', async () => {
-  try {
-    await state.api.logoutAdminSession();
-  } catch {
-    // ignore and force local lock state
-  }
-  setLockedState('Status: locked');
-});
-
-state.alias = getStoredAdminAlias();
-renderAdminAlias(aliasLabel, state.alias ? `Alias: ${state.alias}` : 'Alias: --');
-setStatus('Status: checking session...', 'neutral');
 renderZoneLock();
 renderLayerLocks();
 renderComments();
 renderAudit();
-restoreSession().catch(() => {});
+session.boot().catch(() => {});

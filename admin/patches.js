@@ -1,5 +1,4 @@
 // @ts-check
-// @ts-nocheck
 
 import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
@@ -33,6 +32,10 @@ const state = {
   api: /** @type {ReturnType<typeof createDesignerApi>} */ (createDesignerApi({ getAlias })),
 };
 
+/**
+ * @param {string} message
+ * @param {string} [tone]
+ */
 function setStatus(message, tone = 'neutral') {
   statusEl.textContent = message;
   statusEl.className = `status ${tone}`;
@@ -66,6 +69,9 @@ function handleUnauthorized(err) {
   return true;
 }
 
+/**
+ * @param {unknown} status
+ */
 function statusClass(status) {
   const normalized = String(status || '')
     .toLowerCase()
@@ -79,6 +85,10 @@ function selectedPatch() {
   return state.patches.find((entry) => entry.id === state.selectedPatchId) ?? null;
 }
 
+/**
+ * @param {string} raw
+ * @returns {string[]}
+ */
 function parseDependencyInput(raw) {
   return [...new Set(raw.split(',').map((entry) => entry.trim()).filter(Boolean))];
 }
@@ -164,6 +174,9 @@ function renderComments() {
   }
 }
 
+/**
+ * @param {unknown} value
+ */
 function shortJson(value) {
   try {
     return JSON.stringify(value);
@@ -232,6 +245,7 @@ function renderJsonDiff() {
     return;
   }
 
+  /** @type {string[]} */
   const lines = [];
   diffValue(live, staged, mode === 'designer' ? 'zoneState' : 'mapConfig', lines);
   jsonDiffEl.textContent = lines.length > 0
@@ -247,6 +261,10 @@ function entitiesForDiff(mapConfig) {
   /** @type {Array<{ x: number, z: number, kind: string }>} */
   const out = [];
 
+  /**
+   * @param {any} list
+   * @param {string} kind
+   */
   const pushEntity = (list, kind) => {
     if (!Array.isArray(list)) return;
     for (const item of list) {
@@ -295,6 +313,10 @@ function renderVisualDiff() {
   const half = mapSize / 2;
   const scale = Math.min(visualCanvas.width, visualCanvas.height) / mapSize;
 
+  /**
+   * @param {number} x
+   * @param {number} z
+   */
   const toCanvas = (x, z) => ({
     x: (x + half) * scale,
     y: (z + half) * scale,
@@ -378,6 +400,9 @@ async function reloadData() {
   renderComments();
 }
 
+/**
+ * @param {'request' | 'approve' | 'publish' | 'rollback'} action
+ */
 async function runPatchAction(action) {
   const patch = selectedPatch();
   if (!patch) return;
@@ -459,7 +484,7 @@ async function restoreSession() {
   }
 }
 
-form.addEventListener('submit', async (event) => {
+form.addEventListener('submit', async (/** @type {SubmitEvent} */ event) => {
   event.preventDefault();
   await unlock();
 });
@@ -480,7 +505,7 @@ diffModeSelect.addEventListener('change', () => {
   renderJsonDiff();
 });
 
-createForm.addEventListener('submit', async (event) => {
+createForm.addEventListener('submit', async (/** @type {SubmitEvent} */ event) => {
   event.preventDefault();
 
   try {
