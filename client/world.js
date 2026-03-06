@@ -412,7 +412,7 @@ function buildCorpseMesh(/** @type {any} */ worldState, /** @type {any} */ corps
   return group;
 }
 
-function buildResourceMesh(/** @type {any} */ type = 'crystal') {
+function buildResourceMesh(/** @type {any} */ type = 'crystal', /** @type {any} */ resourceId = '') {
   const colors = RESOURCE_TYPE_COLORS[type] ?? RESOURCE_TYPE_COLORS.crystal;
   const group = new THREE.Group();
   const placeholder = new THREE.Mesh(
@@ -430,11 +430,33 @@ function buildResourceMesh(/** @type {any} */ type = 'crystal') {
   group.userData.placeholder = placeholder;
   group.userData.type = type;
 
-  hydrateResourceMesh(type, group).catch((/** @type {any} */ err) => {
+  hydrateResourceMesh(type, group, resourceId).catch((/** @type {any} */ err) => {
     console.warn('[world] Failed to load resource node model:', err);
   });
 
   return group;
+}
+
+function hashStableIndex(/** @type {any} */ value, /** @type {any} */ modulus) {
+  const size = Number(modulus);
+  if (!Number.isInteger(size) || size <= 0) return 0;
+  const text = String(value ?? '');
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+  return hash % size;
+}
+
+function getResourceNodeModelUrl(/** @type {any} */ type, /** @type {any} */ resourceId) {
+  const resourceNodePaths = /** @type {Record<string, string>} */ (ASSET_PATHS.resourceNodes ?? {});
+  if (type === 'crystal') {
+    const variants = /** @type {string[] | undefined} */ (ASSET_PATHS.resourceNodeVariants?.crystal);
+    if (Array.isArray(variants) && variants.length > 0) {
+      return variants[hashStableIndex(resourceId, variants.length)];
+    }
+  }
+  return resourceNodePaths[type] ?? resourceNodePaths.crystal;
 }
 
 function applyResourceMaterialColors(
@@ -461,9 +483,8 @@ function applyResourceMaterialColors(
   });
 }
 
-async function hydrateResourceMesh(/** @type {any} */ type, /** @type {any} */ group) {
-  const resourceNodePaths = /** @type {Record<string, string>} */ (ASSET_PATHS.resourceNodes ?? {});
-  const url = resourceNodePaths[type] ?? resourceNodePaths.crystal;
+async function hydrateResourceMesh(/** @type {any} */ type, /** @type {any} */ group, /** @type {any} */ resourceId = '') {
+  const url = getResourceNodeModelUrl(type, resourceId);
   if (!url) return;
   const gltf = await loadGltf(url);
   if (!gltf?.scene) return;
@@ -696,9 +717,10 @@ export function updateResources(/** @type {any} */ worldState, /** @type {any} *
     const colors = RESOURCE_TYPE_COLORS[resourceType] ?? RESOURCE_TYPE_COLORS.crystal;
     let mesh = worldState.resourceMeshes.get(resource.id);
     if (!mesh) {
-      mesh = buildResourceMesh(resourceType);
+      mesh = buildResourceMesh(resourceType, resource.id);
       worldState.resourceMeshes.set(resource.id, mesh);
       worldState.group.add(mesh);
+      mesh.userData.resourceId = resource.id;
     } else if (mesh.userData.type !== resourceType) {
       mesh.userData.type = resourceType;
       applyResourceMaterialColors(mesh.userData.crystal, colors, true, resourceType);

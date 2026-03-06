@@ -75,6 +75,17 @@ const /** @type {any} */ CONVERSIONS = [
     dest: join(ASSETS, 'weapons/Bow_Wooden.glb'),
   },
   {
+    src: join(
+      HIDDEN,
+      'Low Poly Weapon Pack with Image Texture - by Kickin It Studios/Weapons for Itch with image texture.fbx_Wizard_Staff.fbx'
+    ),
+    dest: join(ASSETS, 'weapons/Staff_Wizard.glb'),
+  },
+  {
+    src: join(HIDDEN, 'PP_FreeFantasyRPGWeapons_FBX_files/PP_Theme_08_Wand_001.fbx'),
+    dest: join(ASSETS, 'weapons/Wand_Apprentice.glb'),
+  },
+  {
     src: join(HIDDEN, 'Medieval Weapons Pack by @Quaternius/FBX/Axe.fbx'),
     dest: join(ASSETS, 'weapons/Axe.glb'),
   },

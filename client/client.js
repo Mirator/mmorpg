@@ -587,15 +587,18 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   const latestPlayers = gameState.getLatestPlayers();
   const latestResources = gameState.getLatestResources();
   const latestMobs = gameState.getLatestMobs();
+  const localState = gameState.getLocalPlayer();
   const serverNow = gameState.getServerNow();
+  renderSystem.syncPlayerVisuals(latestPlayers, {
+    localPlayerId: ctx.playerId ?? null,
+    localPlayerState: localState,
+  });
   const { positions, localPos: serverLocalPos } = gameState.renderInterpolatedPlayers(now);
   renderSystem.updatePlayerPositions(positions, {
     localPlayerId: ctx.playerId ?? null,
     inputKeys,
     playerStates: latestPlayers,
   });
-
-  const localState = gameState.getLocalPlayer();
   if (localState?.dead && serverLocalPos) {
     gameState.resetPrediction(serverLocalPos);
   }

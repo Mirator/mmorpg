@@ -8,11 +8,36 @@ import {
   normalizeToHeight,
   pickClips,
 } from './assets.js';
+import {
+  buildEquipmentVisualSignature,
+  buildEquipmentVisualState,
+  normalizeEquipmentVisualState,
+} from './playerVisual.js';
 
 function noop() {}
 
 function centerModelOnGroundXZ(/** @type {any} */ model) {
-  const box = new THREE.Box3().setFromObject(model);
+  const box = new THREE.Box3();
+  let hasCoreBounds = false;
+
+  model.traverse((/** @type {any} */ node) => {
+    const isRenderable = !!(node?.isMesh || node?.isSkinnedMesh);
+    if (!isRenderable) return;
+    const nodeName = String(node?.name ?? '');
+    if (nodeName === 'EquippedWeapon' || nodeName === 'EquippedOffhand') return;
+    const nodeBox = new THREE.Box3().setFromObject(node);
+    if (nodeBox.isEmpty()) return;
+    if (!hasCoreBounds) {
+      box.copy(nodeBox);
+      hasCoreBounds = true;
+    } else {
+      box.union(nodeBox);
+    }
+  });
+
+  if (!hasCoreBounds) {
+    box.setFromObject(model);
+  }
   const center = new THREE.Vector3();
   box.getCenter(center);
   model.position.x -= center.x;
@@ -161,7 +186,6 @@ export function createCharacterPreview(/** @type {HTMLElement | null} */ contain
     }
     const dt = Math.min(0.05, clock.getDelta());
     if (mixer) mixer.update(dt);
-    if (activeVisual) activeVisual.rotation.y += dt * 0.4;
     renderNow();
     rafId = requestAnimationFrame(tick);
   }
@@ -202,8 +226,12 @@ export function createCharacterPreview(/** @type {HTMLElement | null} */ contain
 
   async function setPlayer(/** @type {any} */ player) {
     if (disposed) return;
+    const visualState = player?.visual
+      ? normalizeEquipmentVisualState(player.visual)
+      : buildEquipmentVisualState(player?.equipment);
+    const visualSignature = buildEquipmentVisualSignature(visualState);
     const nextKey = player
-      ? `${String(player.id ?? 'local')}:${String(player.name ?? '')}:${String(player.classId ?? '')}`
+      ? `${String(player.id ?? 'local')}:${String(player.name ?? '')}:${String(player.classId ?? '')}:${visualSignature}`
       : '';
     if (nextKey === playerKey && (model || requestToken > 0)) return;
     playerKey = nextKey;
@@ -215,7 +243,7 @@ export function createCharacterPreview(/** @type {HTMLElement | null} */ contain
     }
 
     const [prototype, clips] = await Promise.all([
-      assemblePlayerModel(),
+      assemblePlayerModel(visualState),
       loadPlayerAnimations(),
     ]);
     if (disposed || token !== requestToken) return;
@@ -232,6 +260,8 @@ export function createCharacterPreview(/** @type {HTMLElement | null} */ contain
       return;
     }
     model = candidate;
+    // Keep preview front-facing inside the character sheet viewport.
+    model.rotation.y = 0;
     fallbackModel.visible = false;
     scene.add(model);
     activeVisual = model;

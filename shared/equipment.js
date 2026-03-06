@@ -70,6 +70,19 @@ export const /** @type {any} */ DURABILITY_BY_RARITY = {
   epic: 50,
 };
 
+const DEFAULT_OUTFIT_STYLE = 'cloth';
+
+export const /** @type {any} */ OUTFIT_STYLES = ['cloth', 'leather'];
+const OUTFIT_STYLE_SET = new Set(OUTFIT_STYLES);
+
+export const /** @type {any} */ ARMOR_KIND_TO_OUTFIT_STYLE = {
+  armor_head_cloth: 'cloth',
+  armor_chest_leather: 'leather',
+  armor_legs_cloth: 'cloth',
+  armor_feet_leather: 'leather',
+  armor_chest_crude_plate: 'leather',
+};
+
 function normalizeItemId(/** @type {any} */ item, /** @type {any} */ fallbackPrefix = 'eq') {
   if (typeof item?.id === 'string' && item.id.trim()) return item.id.trim();
   return `${fallbackPrefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -231,6 +244,73 @@ export function getEquippedWeapon(/** @type {any} */ equipment, /** @type {any} 
   if (byEquip) return byEquip;
   const fallbackKind = getDefaultWeaponKind(classId);
   return getWeaponDef(fallbackKind);
+}
+
+function normalizeItemKind(/** @type {any} */ value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
+function normalizeOutfitStyle(/** @type {any} */ value) {
+  if (typeof value !== 'string') return DEFAULT_OUTFIT_STYLE;
+  return OUTFIT_STYLE_SET.has(value) ? value : DEFAULT_OUTFIT_STYLE;
+}
+
+function resolveOutfitStyleForKind(/** @type {any} */ itemKind) {
+  const normalizedKind = normalizeItemKind(itemKind);
+  if (!normalizedKind) return null;
+  if (ARMOR_KIND_TO_OUTFIT_STYLE[normalizedKind]) {
+    return ARMOR_KIND_TO_OUTFIT_STYLE[normalizedKind];
+  }
+  if (normalizedKind.includes('leather') || normalizedKind.includes('plate')) return 'leather';
+  if (normalizedKind.includes('cloth')) return 'cloth';
+  return null;
+}
+
+export function resolveOutfitStyleFromEquipment(/** @type {any} */ equipment) {
+  const slotPriority = ['chest', 'legs', 'feet', 'head'];
+  for (const slot of slotPriority) {
+    const style = resolveOutfitStyleForKind(equipment?.[slot]?.kind);
+    if (style) return style;
+  }
+  return DEFAULT_OUTFIT_STYLE;
+}
+
+/**
+ * @param {any} equipment
+ * @returns {{ outfitStyle: string, headKind: string | null, weaponKind: string | null, offhandKind: string | null }}
+ */
+export function buildEquipmentVisualState(equipment) {
+  return {
+    outfitStyle: resolveOutfitStyleFromEquipment(equipment),
+    headKind: normalizeItemKind(equipment?.head?.kind),
+    weaponKind: normalizeItemKind(equipment?.weapon?.kind),
+    offhandKind: normalizeItemKind(equipment?.offhand?.kind),
+  };
+}
+
+/**
+ * @param {any} visual
+ * @returns {{ outfitStyle: string, headKind: string | null, weaponKind: string | null, offhandKind: string | null }}
+ */
+export function normalizeEquipmentVisualState(visual) {
+  return {
+    outfitStyle: normalizeOutfitStyle(visual?.outfitStyle),
+    headKind: normalizeItemKind(visual?.headKind),
+    weaponKind: normalizeItemKind(visual?.weaponKind),
+    offhandKind: normalizeItemKind(visual?.offhandKind),
+  };
+}
+
+export function buildEquipmentVisualSignature(/** @type {any} */ visual) {
+  const normalized = normalizeEquipmentVisualState(visual);
+  return [
+    `outfit:${normalized.outfitStyle}`,
+    `head:${normalized.headKind ?? '-'}`,
+    `weapon:${normalized.weaponKind ?? '-'}`,
+    `offhand:${normalized.offhandKind ?? '-'}`,
+  ].join('|');
 }
 
 /**

@@ -79,7 +79,7 @@ All client messages are JSON and validated by `parseClientMessage`.
 |---|---|---|
 | `welcome` | `{ type: 'welcome', id, snapshot, config }` | First post-auth payload. `snapshot` includes `world` and initial public state. |
 | `pong` | `{ type: 'pong', t }` | Sent in response to `ping`; echoes normalized timestamp used by server. |
-| `state` | `{ type: 'state', t, full?, players?, resources?, mobs?, corpses?, removedPlayers?, removedResources?, removedMobs?, removedCorpses? }` | Full or delta world state payload. |
+| `state` | `{ type: 'state', t, full?, players?, resources?, mobs?, corpses?, removedPlayers?, removedResources?, removedMobs?, removedCorpses? }` | Full or delta world state payload. `players[id]` may include `visual: { outfitStyle, headKind, weaponKind, offhandKind }` for appearance sync. |
 | `me` | `{ type: 'me', t, id, data }` | Private player state (`inventory`, `currency`, `equipment`, `resource`, `cooldowns`, `attributes`, `derivedStats`, `duelOpponentId`, `activeContracts`, `professionMasteries`, `knownRecipes`, etc.). |
 | `contracts` | `{ type: 'contracts', offersByVendor, activeContracts }` | Contract snapshot sent on connect and after explicit contract sync actions (`accept`, `abandon`, `turn_in`). |
 | `contractResult` | `{ type: 'contractResult', action, contractId, ok, error?, rewards? }` | Immediate result of accept/abandon/turn-in. |

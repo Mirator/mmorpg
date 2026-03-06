@@ -4,13 +4,17 @@ import { initWorld, updateResources, updateMobs, updateCorpses, animateWorld } f
 import {
   ASSET_PATHS,
   assemblePlayerModel,
-  cloneSkinned,
   loadPlayerAnimations,
   normalizeToHeight,
   pickClips,
 } from './assets.js';
 import { createEffectsSystem } from './effects.js';
 import { showErrorOverlay } from './error-overlay.js';
+import {
+  buildEquipmentVisualSignature,
+  buildEquipmentVisualState,
+  normalizeEquipmentVisualState,
+} from './playerVisual.js';
 
 const CAMERA_LERP_SPEED = 5;
 const FRUSTUM_SIZE = 24;
@@ -128,7 +132,6 @@ export function createRenderSystem(/** @type {any} */ { app }) {
 
   const playerMeshes = new Map();
   const playerControllers = new Map();
-  let /** @type {any} */ playerPrototypePromise = null;
   let /** @type {any} */ playerClipsPromise = null;
   let /** @type {any} */ myId = null;
   let /** @type {any} */ worldState = null;
@@ -203,6 +206,11 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     placeholder.position.y = 1;
     group.add(placeholder);
     group.userData.placeholder = placeholder;
+    group.userData.visualState = null;
+    group.userData.visualSignature = null;
+    group.userData.hydrationToken = 0;
+    group.userData.hydrating = false;
+    group.userData.needsRehydrate = false;
     return group;
   }
 
@@ -212,9 +220,6 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     mesh.userData.playerId = id;
     playerMeshes.set(id, mesh);
     scene.add(mesh);
-    hydratePlayerMesh(id, mesh).catch((/** @type {any} */ err) => {
-      console.warn('[render] Failed to load player model:', err);
-    });
     return mesh;
   }
 
@@ -245,6 +250,47 @@ export function createRenderSystem(/** @type {any} */ { app }) {
       const mesh = playerMeshes.get(myId);
       if (mesh?.userData?.placeholder?.material?.color) {
         mesh.userData.placeholder.material.color.set(0x4da3ff);
+      }
+    }
+  }
+
+  function resolveVisualStateForPlayer(
+    /** @type {string} */ id,
+    /** @type {Record<string, any> | null | undefined} */ playerStates,
+    /** @type {string | null | undefined} */ localPlayerId,
+    /** @type {any} */ localPlayerState
+  ) {
+    if (localPlayerId && id === localPlayerId && localPlayerState) {
+      return buildEquipmentVisualState(localPlayerState.equipment);
+    }
+    const source = playerStates?.[id];
+    if (source?.visual) return normalizeEquipmentVisualState(source.visual);
+    if (source?.equipment) return buildEquipmentVisualState(source.equipment);
+    return normalizeEquipmentVisualState(null);
+  }
+
+  function syncPlayerVisuals(
+    /** @type {Record<string, any> | null | undefined} */ playerStates,
+    /** @type {{ localPlayerId?: string | null, localPlayerState?: any }} */ options = {}
+  ) {
+    if (!playerStates || typeof playerStates !== 'object') return;
+    const localPlayerId = options.localPlayerId ?? null;
+    const localPlayerState = options.localPlayerState ?? null;
+    for (const id of Object.keys(playerStates)) {
+      const mesh = ensurePlayerMesh(id);
+      if (!mesh?.userData) continue;
+      const visualState = resolveVisualStateForPlayer(id, playerStates, localPlayerId, localPlayerState);
+      const visualSignature = buildEquipmentVisualSignature(visualState);
+      if (mesh.userData.visualSignature === visualSignature && !mesh.userData.needsRehydrate) continue;
+
+      mesh.userData.visualState = visualState;
+      mesh.userData.nextVisualSignature = visualSignature;
+      mesh.userData.needsRehydrate = true;
+
+      if (!mesh.userData.hydrating) {
+        hydratePlayerMesh(id, mesh).catch((/** @type {any} */ err) => {
+          console.warn('[render] Failed to load player model:', err);
+        });
       }
     }
   }
@@ -551,13 +597,6 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     renderer.render(scene, camera);
   }
 
-  function getPlayerPrototype() {
-    if (!playerPrototypePromise) {
-      playerPrototypePromise = assemblePlayerModel();
-    }
-    return playerPrototypePromise;
-  }
-
   function getPlayerClips() {
     if (!playerClipsPromise) {
       const overrides = ASSET_PATHS.playerModel
@@ -600,42 +639,66 @@ export function createRenderSystem(/** @type {any} */ { app }) {
   async function hydratePlayerMesh(/** @type {any} */ id, /** @type {any} */ mesh) {
     if (!mesh) return;
     if (!mesh.userData) mesh.userData = {};
-    if (mesh.userData.hydrating) return;
+
+    const token = Number(mesh.userData.hydrationToken ?? 0) + 1;
+    mesh.userData.hydrationToken = token;
     mesh.userData.hydrating = true;
+    mesh.userData.needsRehydrate = false;
 
-    const [prototype, clipSet] = await Promise.all([
-      getPlayerPrototype(),
-      getPlayerClips(),
-    ]);
-    if (!prototype || !clipSet) return;
-    if (!playerMeshes.has(id)) return;
+    const visualState = normalizeEquipmentVisualState(mesh.userData.visualState);
+    const requestedSignature =
+      typeof mesh.userData.nextVisualSignature === 'string'
+        ? mesh.userData.nextVisualSignature
+        : buildEquipmentVisualSignature(visualState);
 
-    const model = cloneSkinned(prototype);
-    normalizeToHeight(model, 2.0);
-    mesh.clear();
-    mesh.add(model);
+    try {
+      const [model, clipSet] = await Promise.all([
+        assemblePlayerModel(visualState),
+        getPlayerClips(),
+      ]);
+      if (!model || !clipSet) return;
+      if (!playerMeshes.has(id)) return;
+      if (mesh.userData.hydrationToken !== token) return;
 
-    if (clipSet.all.length) {
-      const mixer = new THREE.AnimationMixer(model);
-      const actions = createActions(mixer, clipSet);
-      const walkCycle = buildWalkCycle(model);
-      /** @type {{ mixer: any, actions: any, active: 'idle' | 'walk' | 'sprint' | 'attack' | 'interact' | 'death' | null, attackUntil: number, locomotionUntil: number, lastX: number, lastY: number, lastZ: number, walkCycle: any }} */
-      const controller = {
-        mixer,
-        actions,
-        active: null,
-        attackUntil: 0,
-        locomotionUntil: 0,
-        lastX: mesh.position.x,
-        lastY: mesh.position.y,
-        lastZ: mesh.position.z,
-        walkCycle,
-      };
-      if (actions.idle) {
-        actions.idle.play();
-        controller.active = 'idle';
+      normalizeToHeight(model, 2.0);
+      mesh.clear();
+      mesh.add(model);
+      mesh.userData.visualSignature = requestedSignature;
+
+      const previousController = playerControllers.get(id);
+      if (previousController?.mixer) previousController.mixer.stopAllAction();
+      playerControllers.delete(id);
+
+      if (clipSet.all.length) {
+        const mixer = new THREE.AnimationMixer(model);
+        const actions = createActions(mixer, clipSet);
+        const walkCycle = buildWalkCycle(model);
+        /** @type {{ mixer: any, actions: any, active: 'idle' | 'walk' | 'sprint' | 'attack' | 'interact' | 'death' | null, attackUntil: number, locomotionUntil: number, lastX: number, lastY: number, lastZ: number, walkCycle: any }} */
+        const controller = {
+          mixer,
+          actions,
+          active: null,
+          attackUntil: 0,
+          locomotionUntil: 0,
+          lastX: mesh.position.x,
+          lastY: mesh.position.y,
+          lastZ: mesh.position.z,
+          walkCycle,
+        };
+        if (actions.idle) {
+          actions.idle.play();
+          controller.active = 'idle';
+        }
+        playerControllers.set(id, controller);
       }
-      playerControllers.set(id, controller);
+    } finally {
+      if (!mesh.userData || mesh.userData.hydrationToken !== token) return;
+      mesh.userData.hydrating = false;
+      if (mesh.userData.needsRehydrate) {
+        hydratePlayerMesh(id, mesh).catch((/** @type {any} */ err) => {
+          console.warn('[render] Failed to refresh player model:', err);
+        });
+      }
     }
   }
 
@@ -871,6 +934,7 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     resize,
     setLocalPlayerId,
     syncPlayers,
+    syncPlayerVisuals,
     updatePlayerPositions,
     setTargetMarker,
     setTargetRing,

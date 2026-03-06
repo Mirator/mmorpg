@@ -270,6 +270,14 @@ export interface PublicPlayerState {
   harvesting?: boolean;
   harvestType?: string | null;
   duelOpponentId?: string | null;
+  visual?: PlayerVisualState;
+}
+
+export interface PlayerVisualState {
+  outfitStyle: string;
+  headKind: string | null;
+  weaponKind: string | null;
+  offhandKind: string | null;
 }
 
 export type PublicPlayersById = Record<string, PublicPlayerState>;

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { ASSET_PATHS, getPreloadAssetList } from './assetPaths.js';
+import {
+  ASSET_PATHS,
+  ARMOR_TO_OUTFIT,
+  EQUIPMENT_MODEL_PATHS,
+  OUTFIT_STYLE_MODEL_PATHS,
+  getPreloadAssetList,
+} from './assetPaths.js';
 
 describe('assetPaths', () => {
   it('has expected ASSET_PATHS structure', () => {
@@ -8,6 +14,8 @@ describe('assetPaths', () => {
     expect(ASSET_PATHS).toHaveProperty('villageCenterModel');
     expect(ASSET_PATHS).toHaveProperty('corpseMarker');
     expect(ASSET_PATHS).toHaveProperty('playerBase');
+    expect(ASSET_PATHS).toHaveProperty('playerHeadSource');
+    expect(ASSET_PATHS).toHaveProperty('playerHeadHoodSource');
     expect(ASSET_PATHS).toHaveProperty('playerOutfit');
     expect(ASSET_PATHS).toHaveProperty('playerAnimations');
     expect(ASSET_PATHS).toHaveProperty('monsters');
@@ -20,16 +28,32 @@ describe('assetPaths', () => {
     expect(ASSET_PATHS.environment).toHaveProperty('storage');
     expect(ASSET_PATHS.environment).toHaveProperty('trees');
     expect(ASSET_PATHS).toHaveProperty('resourceNodes');
+    expect(ASSET_PATHS).toHaveProperty('resourceNodeVariants');
+    expect(ASSET_PATHS.resourceNodeVariants.crystal).toEqual([
+      '/assets/resources/crystals/Crystal.glb',
+      '/assets/resources/crystals/Crystal-MlhTJAFuJY.glb',
+      '/assets/resources/crystals/Crystal-WzWPKHFMkL.glb',
+    ]);
     expect(ASSET_PATHS.resourceNodes.ore).toBe('/assets/resources/nodes/ore/Resource_Rock_1.gltf');
     expect(ASSET_PATHS.resourceNodes.tree).toBe('/assets/nature/CommonTree_1.gltf');
     expect(ASSET_PATHS.resourceNodes.herb).toBe('/assets/resources/nodes/herb/Plant_1.gltf');
     expect(ASSET_PATHS.resourceNodes.flower).toBe('/assets/resources/nodes/flower/Flower_3_Single.gltf');
+    expect(ARMOR_TO_OUTFIT.armor_chest_crude_plate).toBe('leather');
+    expect(OUTFIT_STYLE_MODEL_PATHS.cloth).toBe(ASSET_PATHS.armorOutfits.cloth);
+    expect(OUTFIT_STYLE_MODEL_PATHS.leather).toBe(ASSET_PATHS.armorOutfits.leather);
+    expect(EQUIPMENT_MODEL_PATHS.weapon_training_sword).toBe(ASSET_PATHS.weapons.sword);
+    expect(EQUIPMENT_MODEL_PATHS.weapon_training_bow).toBe(ASSET_PATHS.weapons.bow);
+    expect(EQUIPMENT_MODEL_PATHS.weapon_training_staff).toBe(ASSET_PATHS.weapons.staff);
+    expect(EQUIPMENT_MODEL_PATHS.weapon_apprentice_wand).toBe(ASSET_PATHS.weapons.wand);
+    expect(EQUIPMENT_MODEL_PATHS.offhand_wooden_focus).toBe(ASSET_PATHS.weapons.offhandFocus);
   });
 
   it('ASSET_PATHS uses /assets/ root for models and environment', () => {
     expect(ASSET_PATHS.playerModel).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.villageCenterModel).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.corpseMarker).toMatch(/^\/assets\//);
+    expect(ASSET_PATHS.playerHeadSource).toMatch(/^\/assets\//);
+    expect(ASSET_PATHS.playerHeadHoodSource).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.monsters.orc).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.environment.market).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.environment.trees).toMatch(/^\/assets\//);
@@ -70,5 +94,8 @@ describe('assetPaths', () => {
     expect(list.environment).toContain(ASSET_PATHS.environment.barracks);
     expect(list.environment).toContain(ASSET_PATHS.environment.storage);
     expect(list.environment).toContain(ASSET_PATHS.environment.trees);
+    expect(list.resourceNodes).toContain('/assets/resources/crystals/Crystal.glb');
+    expect(list.resourceNodes).toContain('/assets/resources/crystals/Crystal-MlhTJAFuJY.glb');
+    expect(list.resourceNodes).toContain('/assets/resources/crystals/Crystal-WzWPKHFMkL.glb');
   });
 });

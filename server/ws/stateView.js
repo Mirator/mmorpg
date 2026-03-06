@@ -5,6 +5,7 @@ import {
   serializeCorpses,
 } from '../admin.js';
 import { getPartyForPlayer } from '../logic/party.js';
+import { buildEquipmentVisualState } from '../../shared/equipment.js';
 
 /** @typedef {import('../types/domain.d.ts').Corpse} Corpse */
 /** @typedef {import('../types/domain.d.ts').MobEntity} MobEntity */
@@ -101,6 +102,7 @@ export function createPublicStateBuilder({
           level: p.level ?? 1,
           name: p.name ?? null,
           walking: !!p.keys?.walk,
+          visual: buildEquipmentVisualState(p.equipment),
         };
         const harvest = p.harvest;
         if (

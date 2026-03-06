@@ -104,13 +104,13 @@ Mineable resource visuals. Selected by `resource.type` in `buildResourceMesh` / 
 
 | resourceType | Path | Model |
 |--------------|------|-------|
-| crystal | `/assets/resources/Crystal1.glb` | Crystal 1 |
+| crystal | `/assets/resources/Crystal1.glb` (fallback), `/assets/resources/crystals/Crystal.glb`, `/assets/resources/crystals/Crystal-MlhTJAFuJY.glb`, `/assets/resources/crystals/Crystal-WzWPKHFMkL.glb` | Crystal Pack variants |
 | ore | `/assets/resources/nodes/ore/Resource_Rock_1.gltf` | Resource Rock |
 | herb | `/assets/resources/nodes/herb/Plant_1.gltf` | Plant 1 |
 | tree | `/assets/resources/nodes/tree/Resource_Tree_Group_Cut.gltf` | Tree Group Cut |
 | flower | `/assets/resources/nodes/flower/Flower_3_Single.gltf` | Flower 3 Single |
 
-**Source:** Ultimate RPG Items Pack (crystal), Ultimate Fantasy RTS (ore/tree), Stylized Nature MegaKit (herb/flower)
+**Source:** Poly Pizza Crystal Pack by iPoly3D (CC0, crystal variants), Ultimate RPG Items Pack (legacy crystal fallback), Ultimate Fantasy RTS (ore/tree), Stylized Nature MegaKit (herb/flower)
 
 ---
 
@@ -129,19 +129,31 @@ Item visuals for inventory/crafting UI. Mapped via `CONSUMABLE_MODEL_PATHS`.
 
 ## 6. Weapons
 
-Paths defined for future weapon visuals on characters (attach to hand/bone). Not yet wired to equipment.
+Paths used for weapon/offhand visuals on characters (attach to hand/bone).
 
 | weapon kind (logical) | Path | Model |
 |-----------------------|------|-------|
 | sword | `/assets/weapons/Sword.glb` | Sword |
 | bow | `/assets/weapons/Bow_Wooden.glb` | Bow Wooden |
+| staff | `/assets/weapons/Staff_Wizard.glb` | Wizard Staff |
+| wand | `/assets/weapons/Wand_Apprentice.glb` | Apprentice Wand |
+| offhand focus | `/assets/weapons/Offhand_Wooden_Focus.glb` | Wooden Focus |
 | axe | `/assets/weapons/Axe.glb` | Axe |
 | spear | `/assets/weapons/Spear.glb` | Spear |
 | dagger | `/assets/weapons/Dagger.glb` | Dagger |
 
-**Current weapon kinds:** `weapon_training_sword`, `weapon_training_bow`, `weapon_training_staff`, `weapon_apprentice_wand` — no model mapping yet.
+**Current mapped item kinds:** `weapon_training_sword`, `weapon_iron_blade`, `weapon_reinforced_training_sword`, `weapon_training_bow`, `weapon_reinforced_training_bow`, `weapon_training_staff`, `weapon_apprentice_wand`, `offhand_wooden_focus`
 
-**Source:** Medieval Weapons Pack
+**Source:** Medieval Weapons Pack, Low Poly Weapon Pack with Image Texture (Kickin It Studios), PP Free Fantasy RPG Weapons, Poly Pizza
+
+### 6.1 Avatar Placeholder Audit
+
+| Visual slot | Item kind | Current source | Status | Notes |
+|-------------|-----------|----------------|--------|-------|
+| weapon | `weapon_training_staff` | `/assets/weapons/Staff_Wizard.glb` | exact | Imported from new hidden-resource weapon pack |
+| weapon | `weapon_apprentice_wand` | `/assets/weapons/Wand_Apprentice.glb` | exact | Imported from new hidden-resource weapon pack |
+| offhand | `offhand_wooden_focus` | `/assets/weapons/Offhand_Wooden_Focus.glb` | exact | Imported from Poly Pizza model `2ZbaY1ZaW6e` |
+| head | `armor_head_cloth` | Current skinned overlay path | missing exact asset | No open-face cloth cap/hood asset was found in the reviewed hidden-resource folders |
 
 ---
 
@@ -198,5 +210,9 @@ The script skips files that already have a `.glb` equivalent. Source packs:
 
 - **Ultimate Food Pack** → consumables
 - **Medieval Village Pack** → environment
-- **Medieval Weapons Pack** → weapons
-- **Ultimate RPG Items Pack** → resources
+- **Medieval Weapons Pack** → sword/bow/axe/spear/dagger
+- **Low Poly Weapon Pack with Image Texture (Kickin It Studios)** → staff
+- **PP Free Fantasy RPG Weapons** → wand
+- **Poly Pizza (`2ZbaY1ZaW6e`)** → offhand wooden focus
+- **Poly Pizza Crystal Pack (`AywAG7aywi`)** → crystal resource variants
+- **Ultimate RPG Items Pack** → legacy crystal fallback

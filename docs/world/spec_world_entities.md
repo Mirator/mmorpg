@@ -138,7 +138,7 @@ Runtime behavior notes:
 
 | type | itemKind | itemName | Sell Price | Respawn (ms) | 3D Model |
 |------|----------|----------|------------|--------------|----------|
-| crystal | crystal | Crystal | 10c | 15,000 | `/assets/resources/Crystal1.glb` |
+| crystal | crystal | Crystal | 10c | 15,000 | Variant pool in `/assets/resources/crystals/*.glb` (fallback `/assets/resources/Crystal1.glb`) |
 | ore | ore | Iron Ore | 15c | 20,000 | `/assets/resources/nodes/ore/Resource_Rock_1.gltf` |
 | herb | herb | Healing Herb | 12c | 12,000 | `/assets/resources/nodes/herb/Plant_1.gltf` |
 | tree | wood | Wood | 8c | 25,000 | `/assets/resources/nodes/tree/Resource_Tree_Group_Cut.gltf` |
@@ -148,7 +148,7 @@ Runtime behavior notes:
 - Map config `resourceNodes[].type` selects harvest output, visual, and respawn time
 - Server: [server/logic/resources.js](../../server/logic/resources.js) — `tryHarvest` uses `getResourceConfig(type)` and `getResourceRespawnMs(type)` from economy
 - Client: [client/world.js](../../client/world.js) — resource mesh by type
-- Assets: [client/assetPaths.js](../../client/assetPaths.js) — `ASSET_PATHS.resourceNodes`
+- Assets: [client/assetPaths.js](../../client/assetPaths.js) — `ASSET_PATHS.resourceNodes` + `ASSET_PATHS.resourceNodeVariants`
 
 **Harvest config** (from `RESOURCE_CONFIG` and `RESOURCE_TYPES`):
 - harvestRadius: 2.2 (global)
