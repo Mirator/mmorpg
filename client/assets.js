@@ -725,6 +725,7 @@ export async function preloadAllAssets(onProgress) {
     ...(list.corpses ?? []).map((/** @type {any} */ url) => loadGltf(url)),
     ...list.mobs.map((/** @type {any} */ url) => loadGltf(url)),
     ...list.environment.map((/** @type {any} */ url) => loadGltf(url)),
+    ...(list.medievalParts ?? []).map((/** @type {any} */ url) => loadGltf(url)),
     ...(list.rocks ?? []).map((/** @type {any} */ url) => loadGltf(url)),
     ...(list.resourceNodes ?? []).map((/** @type {any} */ url) => loadGltf(url)),
     ...(list.textures ?? []).map((/** @type {any} */ url) => loadTexture(url)),

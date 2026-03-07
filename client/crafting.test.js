@@ -35,8 +35,9 @@ describe('crafting recipe rendering', () => {
     const row = recipeListEl.children[0];
     const header = row.querySelector('.craft-recipe-header');
     expect(header).toBeTruthy();
-    expect(header.children[0].className).toContain('craft-recipe-glyph');
-    expect(header.children[0].style.values['--ui-glyph-mask']).toContain('lorc/heart-bottle.svg');
+    const headerGlyph = header.querySelector('.craft-recipe-glyph');
+    expect(headerGlyph).toBeTruthy();
+    expect(headerGlyph.style.values['--ui-glyph-mask']).toContain('lorc/heart-bottle.svg');
 
     const ingredients = row.querySelector('.craft-ingredients');
     expect(ingredients).toBeTruthy();

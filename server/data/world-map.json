@@ -253,7 +253,8 @@
       "y": 0,
       "z": 0,
       "rotation": 0,
-      "collides": false
+      "colliderRadius": 2.8,
+      "collides": true
     },
     {
       "id": "s_c_02",

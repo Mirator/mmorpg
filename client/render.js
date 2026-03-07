@@ -434,8 +434,11 @@ export function createRenderSystem(/** @type {any} */ { app }) {
     updateCorpses(worldState, corpses);
   }
 
-  function animateWorldMeshes(/** @type {any} */ now) {
-    animateWorld(worldState, now);
+  function animateWorldMeshes(
+    /** @type {any} */ now,
+    /** @type {{ localViewPos?: { x?: number, z?: number } | null }} */ options = {}
+  ) {
+    animateWorld(worldState, now, options);
   }
 
   function updateAnimations(

@@ -1,7 +1,10 @@
 // @ts-check
+import { MEDIEVAL_BUILDING_KINDS } from '../shared/medievalBuildings.js';
+
 const ASSET_ROOT = '/assets/quaternius';
 const NATURE_ROOT = '/assets/nature';
 const MEDIEVAL_ROOT = '/assets/medieval';
+const MEDIEVAL_PARTS_ROOT = '/assets/medieval/parts';
 const ENV_ROOT = '/assets/environment';
 const RESOURCES_ROOT = '/assets/resources';
 const RESOURCES_CRYSTALS_ROOT = `${RESOURCES_ROOT}/crystals`;
@@ -46,6 +49,33 @@ export const ASSET_PATHS = {
   medieval: {
     floor: `${MEDIEVAL_ROOT}/Floor_Brick.gltf`,
     corner: `${MEDIEVAL_ROOT}/Corner_Exterior_Brick.gltf`,
+    parts: {
+      floorWoodLight: `${MEDIEVAL_PARTS_ROOT}/Floor_WoodLight.gltf`,
+      floorWoodDark: `${MEDIEVAL_PARTS_ROOT}/Floor_WoodDark.gltf`,
+      floorBrick: `${MEDIEVAL_PARTS_ROOT}/Floor_Brick.gltf`,
+      floorRedBrick: `${MEDIEVAL_PARTS_ROOT}/Floor_RedBrick.gltf`,
+      wallPlasterStraight: `${MEDIEVAL_PARTS_ROOT}/Wall_Plaster_Straight.gltf`,
+      wallUnevenStraight: `${MEDIEVAL_PARTS_ROOT}/Wall_UnevenBrick_Straight.gltf`,
+      wallPlasterDoorFlat: `${MEDIEVAL_PARTS_ROOT}/Wall_Plaster_Door_Flat.gltf`,
+      wallUnevenDoorFlat: `${MEDIEVAL_PARTS_ROOT}/Wall_UnevenBrick_Door_Flat.gltf`,
+      doorFrameFlatWoodDark: `${MEDIEVAL_PARTS_ROOT}/DoorFrame_Flat_WoodDark.gltf`,
+      doorFrameFlatBrick: `${MEDIEVAL_PARTS_ROOT}/DoorFrame_Flat_Brick.gltf`,
+      doorFlat: `${MEDIEVAL_PARTS_ROOT}/Door_2_Flat.gltf`,
+      wallArch: `${MEDIEVAL_PARTS_ROOT}/Wall_Arch.gltf`,
+      cornerWood: `${MEDIEVAL_PARTS_ROOT}/Corner_Exterior_Wood.gltf`,
+      cornerBrick: `${MEDIEVAL_PARTS_ROOT}/Corner_Exterior_Brick.gltf`,
+      roofWood: `${MEDIEVAL_PARTS_ROOT}/Roof_Wooden_2x1.gltf`,
+      roofRound: `${MEDIEVAL_PARTS_ROOT}/Roof_RoundTile_2x1.gltf`,
+      roofRound6x6: `${MEDIEVAL_PARTS_ROOT}/Roof_RoundTiles_6x6.gltf`,
+      roofRound6x8: `${MEDIEVAL_PARTS_ROOT}/Roof_RoundTiles_6x8.gltf`,
+      roofRound6x10: `${MEDIEVAL_PARTS_ROOT}/Roof_RoundTiles_6x10.gltf`,
+      roofRound8x8: `${MEDIEVAL_PARTS_ROOT}/Roof_RoundTiles_8x8.gltf`,
+      roofRound8x10: `${MEDIEVAL_PARTS_ROOT}/Roof_RoundTiles_8x10.gltf`,
+      roofRound8x12: `${MEDIEVAL_PARTS_ROOT}/Roof_RoundTiles_8x12.gltf`,
+      roofFrontBrick6: `${MEDIEVAL_PARTS_ROOT}/Roof_Front_Brick6.gltf`,
+      roofFrontBrick8: `${MEDIEVAL_PARTS_ROOT}/Roof_Front_Brick8.gltf`,
+      roofTower: `${MEDIEVAL_PARTS_ROOT}/Roof_Tower_RoundTiles.gltf`,
+    },
   },
   armorOutfits: {
     cloth: `${ASSET_ROOT}/outfits/Male_Peasant.gltf`,
@@ -127,13 +157,18 @@ export function getPreloadAssetList() {
   const resourceNodeVariants = Object.values(ASSET_PATHS.resourceNodeVariants ?? {}).flatMap((/** @type {any} */ list) =>
     Array.isArray(list) ? list : []
   );
+  const environment = Object.entries(ASSET_PATHS.environment ?? {})
+    .filter(([key]) => !MEDIEVAL_BUILDING_KINDS.has(key))
+    .map(([, value]) => value);
+  const medievalParts = Object.values(ASSET_PATHS.medieval?.parts ?? {});
   return {
     player: ['assemblePlayerModel', 'loadPlayerAnimations'],
     vendor: [ASSET_PATHS.vendorModel],
-    villageCenter: [ASSET_PATHS.villageCenterModel],
+    villageCenter: [],
     corpses: [ASSET_PATHS.corpseMarker],
     mobs: Object.values(ASSET_PATHS.monsters),
-    environment: Object.values(ASSET_PATHS.environment),
+    environment,
+    medievalParts,
     rocks: ASSET_PATHS.rocks ?? [],
     textures: [ASSET_PATHS.groundTexture],
     resourceNodes: [...new Set([...Object.values(ASSET_PATHS.resourceNodes), ...resourceNodeVariants])],

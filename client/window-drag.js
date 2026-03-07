@@ -44,7 +44,7 @@ function clampPosition(
  * @param {{ panels?: DraggablePanel[], viewportMargin?: number }} options
  */
 export function createWindowDragController({ panels = [], viewportMargin = 12 } = {}) {
-  /** @type {Array<{ key: string, panelEl: HTMLElement, handleEl: HTMLElement, isOpen: () => boolean, memory: { left: number, top: number } | null, wasOpen: boolean, onPointerDown: (event: PointerEvent) => void, observer: MutationObserver | null }>} */
+  /** @type {Array<{ key: string, panelEl: HTMLElement, handleEl: HTMLElement, isOpen: () => boolean, memory: { left: number, top: number } | null, wasOpen: boolean, onPointerDown: (event: PointerEvent) => void, observer: MutationObserver | null, resizeObserver: ResizeObserver | null }>} */
   const states = [];
   let /** @type {{ state: typeof states[number], pointerId: number, offsetX: number, offsetY: number, width: number, height: number } | null} */ active = null;
   let previousUserSelect = '';
@@ -91,10 +91,15 @@ export function createWindowDragController({ panels = [], viewportMargin = 12 } 
     event.preventDefault();
     const left = event.clientX - active.offsetX;
     const top = event.clientY - active.offsetY;
+    const rect = active.state.panelEl.getBoundingClientRect();
+    const width = rect.width || active.width;
+    const height = rect.height || active.height;
+    active.width = width;
+    active.height = height;
     applyPosition(active.state, left, top, {
       remember: true,
-      width: active.width,
-      height: active.height,
+      width,
+      height,
     });
   }
 
@@ -171,11 +176,19 @@ export function createWindowDragController({ panels = [], viewportMargin = 12 } 
         window.addEventListener('pointercancel', onPointerUp);
       },
       observer: null,
+      resizeObserver: null,
     };
     state.handleEl.addEventListener('pointerdown', state.onPointerDown);
     state.observer = new MutationObserver(() => syncPanel(state));
     if (state.observer) {
       state.observer.observe(state.panelEl, { attributes: true, attributeFilter: ['class'] });
+    }
+    if (typeof ResizeObserver === 'function') {
+      state.resizeObserver = new ResizeObserver(() => {
+        if (!state.isOpen() || !state.memory) return;
+        applyPosition(state, state.memory.left, state.memory.top, { remember: true });
+      });
+      state.resizeObserver.observe(state.panelEl);
     }
     states.push(state);
   }
@@ -196,6 +209,7 @@ export function createWindowDragController({ panels = [], viewportMargin = 12 } 
       for (const state of states) {
         state.handleEl.removeEventListener('pointerdown', state.onPointerDown);
         state.observer?.disconnect();
+        state.resizeObserver?.disconnect();
       }
       states.length = 0;
     },

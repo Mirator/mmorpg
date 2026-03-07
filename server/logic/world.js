@@ -8,6 +8,7 @@ import {
 } from '../../shared/config.js';
 import { validateMapConfig } from '../../shared/mapConfig.js';
 import { resolveVendorBuyItems } from '../../shared/economy.js';
+import { buildStructureCollisionRects, isMedievalBuildingKind } from '../../shared/medievalBuildings.js';
 
 const WORLD_SEED = WORLD_CONFIG.seed;
 
@@ -139,6 +140,7 @@ export function createSimulatedWorld() {
     base,
     obstacles,
     collisionObstacles,
+    collisionRects: [],
     structures: [],
     resourceNodes,
     spawnPoints,
@@ -187,11 +189,18 @@ export function createWorldFromConfig(/** @type {any} */ mapConfig) {
     colliderRadius: structure.colliderRadius,
     collides: structure.collides !== false,
   }));
+  const collisionRects = structures
+    .filter((/** @type {any} */ structure) =>
+      structure.collides !== false &&
+      isMedievalBuildingKind(structure.kind)
+    )
+    .flatMap((/** @type {any} */ structure) => buildStructureCollisionRects(structure));
   const collisionObstacles = [
     ...obstacles,
     ...structures
       .filter((/** @type {any} */ structure) =>
         structure.collides !== false &&
+        !isMedievalBuildingKind(structure.kind) &&
         Number.isFinite(structure.colliderRadius) &&
         structure.colliderRadius > 0
       )
@@ -244,6 +253,7 @@ export function createWorldFromConfig(/** @type {any} */ mapConfig) {
     base,
     obstacles,
     collisionObstacles,
+    collisionRects,
     structures,
     resourceNodes,
     spawnPoints,
@@ -276,6 +286,7 @@ export function worldSnapshot(/** @type {any} */ world) {
     base: world.base,
     obstacles: world.obstacles,
     collisionObstacles: world.collisionObstacles ?? world.obstacles,
+    collisionRects: world.collisionRects ?? [],
     structures: world.structures ?? [],
     harvestRadius: world.harvestRadius,
     harvestDurationMs: world.harvestDurationMs,

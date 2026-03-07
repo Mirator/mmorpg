@@ -48,11 +48,96 @@ export function resolveObstacles(/** @type {any} */ pos, /** @type {any} */ obst
   return out;
 }
 
+function rotateToLocal(
+  /** @type {number} */ dx,
+  /** @type {number} */ dz,
+  /** @type {number} */ rot
+) {
+  const c = Math.cos(rot);
+  const s = Math.sin(rot);
+  return {
+    x: dx * c + dz * s,
+    z: -dx * s + dz * c,
+  };
+}
+
+function rotateToWorld(
+  /** @type {number} */ dx,
+  /** @type {number} */ dz,
+  /** @type {number} */ rot
+) {
+  const c = Math.cos(rot);
+  const s = Math.sin(rot);
+  return {
+    x: dx * c - dz * s,
+    z: dx * s + dz * c,
+  };
+}
+
+function resolveRectObstacles(
+  /** @type {any} */ pos,
+  /** @type {any} */ rects,
+  /** @type {any} */ radius = 0
+) {
+  const list = Array.isArray(rects) ? rects : [];
+  let /** @type {any} */ out = { ...pos };
+  for (const rect of list) {
+    const halfX = Number(rect?.halfX ?? 0);
+    const halfZ = Number(rect?.halfZ ?? 0);
+    if (!(halfX > 0) || !(halfZ > 0)) continue;
+
+    const cx = Number(rect?.x ?? 0);
+    const cz = Number(rect?.z ?? 0);
+    const rot = Number(rect?.rotation ?? 0);
+    const dx = out.x - cx;
+    const dz = out.z - cz;
+    const local = rotateToLocal(dx, dz, rot);
+    const closestX = clamp(local.x, -halfX, halfX);
+    const closestZ = clamp(local.z, -halfZ, halfZ);
+    const offX = local.x - closestX;
+    const offZ = local.z - closestZ;
+    const distSq = offX * offX + offZ * offZ;
+
+    if (distSq >= radius * radius) continue;
+
+    let pushLocalX = 0;
+    let pushLocalZ = 0;
+    if (distSq > 0) {
+      const dist = Math.sqrt(distSq);
+      const push = radius - dist;
+      pushLocalX = (offX / dist) * push;
+      pushLocalZ = (offZ / dist) * push;
+    } else {
+      const toEdgeX = halfX - Math.abs(local.x);
+      const toEdgeZ = halfZ - Math.abs(local.z);
+      if (toEdgeX < toEdgeZ) {
+        const sign = local.x >= 0 ? 1 : -1;
+        pushLocalX = (toEdgeX + radius) * sign;
+      } else {
+        const sign = local.z >= 0 ? 1 : -1;
+        pushLocalZ = (toEdgeZ + radius) * sign;
+      }
+    }
+
+    const worldPush = rotateToWorld(pushLocalX, pushLocalZ, rot);
+    out.x += worldPush.x;
+    out.z += worldPush.z;
+  }
+
+  return out;
+}
+
 export function applyCollisions(/** @type {any} */ pos, /** @type {any} */ world, /** @type {any} */ radius = 0) {
-  const obstacles = Array.isArray(world?.collisionObstacles)
+  const circleObstacles = Array.isArray(world?.collisionObstacles)
     ? world.collisionObstacles
     : world?.obstacles;
+  const rectObstacles = Array.isArray(world?.collisionRects)
+    ? world.collisionRects
+    : [];
   const bounded = clampToBounds(pos, world.mapSize, radius, world);
-  const resolved = resolveObstacles(bounded, obstacles, radius);
-  return clampToBounds(resolved, world.mapSize, radius, world);
+  const withCircles = resolveObstacles(bounded, circleObstacles, radius);
+  const withRects = resolveRectObstacles(withCircles, rectObstacles, radius);
+  const withCirclesSecondPass = resolveObstacles(withRects, circleObstacles, radius);
+  const withRectsSecondPass = resolveRectObstacles(withCirclesSecondPass, rectObstacles, radius);
+  return clampToBounds(withRectsSecondPass, world.mapSize, radius, world);
 }

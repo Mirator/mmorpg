@@ -60,4 +60,48 @@ describe('collision', () => {
     expect(Math.hypot(resolved.x + 2, resolved.z)).toBeGreaterThanOrEqual(4);
     expect(Math.hypot(resolved.x - 2, resolved.z)).toBeGreaterThanOrEqual(4);
   });
+
+  it('pushes out of axis-aligned rectangle wall colliders', () => {
+    const world = {
+      mapSize: 80,
+      collisionObstacles: [],
+      collisionRects: [{ x: 0, z: 0, halfX: 2, halfZ: 0.2, rotation: 0 }],
+    };
+    const pos = { x: 0, y: 0, z: 0 };
+    const resolved = applyCollisions(pos, world, 0.6);
+    expect(Math.abs(resolved.z)).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('pushes out of rotated rectangle wall colliders', () => {
+    const world = {
+      mapSize: 80,
+      collisionObstacles: [],
+      collisionRects: [{ x: 0, z: 0, halfX: 2, halfZ: 0.2, rotation: Math.PI / 4 }],
+    };
+    const pos = { x: 0.1, y: 0, z: 0.1 };
+    const resolved = applyCollisions(pos, world, 0.5);
+    const localX = resolved.x * Math.cos(Math.PI / 4) + resolved.z * Math.sin(Math.PI / 4);
+    const localZ = -resolved.x * Math.sin(Math.PI / 4) + resolved.z * Math.cos(Math.PI / 4);
+    expect(Math.abs(localZ)).toBeGreaterThanOrEqual(0.7);
+    expect(Math.abs(localX)).toBeLessThanOrEqual(2.6);
+  });
+
+  it('handles mixed circle and rectangle collisions in one step', () => {
+    const world = {
+      mapSize: 100,
+      collisionObstacles: [{ x: -3, z: 0, r: 1.5 }],
+      collisionRects: [{ x: 2, z: 0, halfX: 1.8, halfZ: 0.2, rotation: 0 }],
+    };
+    const pos = { x: 0.4, y: 0, z: 0 };
+    const resolved = applyCollisions(pos, world, 0.6);
+    expect(Math.hypot(resolved.x + 3, resolved.z)).toBeGreaterThanOrEqual(2.1);
+    const rect = world.collisionRects[0];
+    const localX = resolved.x - rect.x;
+    const localZ = resolved.z - rect.z;
+    const closestX = Math.max(-rect.halfX, Math.min(rect.halfX, localX));
+    const closestZ = Math.max(-rect.halfZ, Math.min(rect.halfZ, localZ));
+    const offX = localX - closestX;
+    const offZ = localZ - closestZ;
+    expect(Math.hypot(offX, offZ)).toBeGreaterThanOrEqual(0.599);
+  });
 });

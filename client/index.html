@@ -200,6 +200,23 @@
           <div class="inventory-coins">Coins: <span id="inventory-coins">0g 0s 0c</span></div>
           <div class="inventory-hint">I to close · Drag to equipment to equip</div>
         </div>
+        <div class="inventory-controls">
+          <input id="inventory-search-input" class="inventory-control-input" type="search" placeholder="Search items..." />
+          <select id="inventory-filter-select" class="inventory-control-select" aria-label="Filter items">
+            <option value="all">All Types</option>
+            <option value="weapon">Weapons</option>
+            <option value="offhand">Offhands</option>
+            <option value="armor">Armor</option>
+            <option value="consumable">Consumables</option>
+            <option value="material">Materials</option>
+            <option value="misc">Misc</option>
+          </select>
+          <select id="inventory-sort-select" class="inventory-control-select" aria-label="Sort items">
+            <option value="type_name">Type -> Name</option>
+            <option value="name">Name</option>
+            <option value="count">Count</option>
+          </select>
+        </div>
         <div class="inventory-tabs">
           <button class="inventory-tab active" data-tab="inventory" type="button">Inventory</button>
           <button class="inventory-tab" data-tab="craft" type="button">Craft</button>
@@ -264,6 +281,10 @@
               <div class="stats-title">Combat</div>
               <div class="stats-row"><span>Level</span><span id="char-stat-level">--</span></div>
               <div class="stats-row"><span>Class</span><span id="char-stat-class">--</span></div>
+              <div class="stats-row"><span>Weapon</span><span id="char-stat-weapon">--</span></div>
+              <div class="stats-row"><span>Attack Type</span><span id="char-stat-weapon-type">--</span></div>
+              <div class="stats-row"><span>Range</span><span id="char-stat-weapon-range">--</span></div>
+              <div class="stats-row"><span>Speed Tier</span><span id="char-stat-weapon-speed">--</span></div>
             </div>
           </div>
         </div>

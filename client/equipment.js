@@ -1,7 +1,9 @@
 // @ts-check
 import { EQUIP_SLOTS } from '/shared/equipment.js';
-import { getEquipmentSlotIconFile, getItemIconFile } from './gameIcons.js';
-import { createGlyphElement, createVisuallyHiddenText } from './uiGlyphs.js';
+import { describeItemForTooltip, getItemDurabilityState } from './itemDetails.js';
+import { getEquipmentSlotIconFile } from './gameIcons.js';
+import { createGlyphElement } from './uiGlyphs.js';
+import { populateItemVisual } from './itemVisuals.js';
 
 const /** @type {any} */ SLOT_LABELS = {
   weapon: 'Weapon',
@@ -21,32 +23,51 @@ function cloneEquipment(/** @type {any} */ equipment) {
   return base;
 }
 
-function makeItemLabel(/** @type {any} */ item) {
-  const name = item?.name || item?.kind || 'Item';
-  return name.slice(0, 1).toUpperCase();
-}
-
-function populateItemVisual(/** @type {HTMLElement} */ container, /** @type {any} */ item) {
-  const iconFile = getItemIconFile(item?.kind);
-  const label = item?.name || item?.kind || 'Item';
-  if (!iconFile) {
-    container.textContent = makeItemLabel(item);
-    return;
+function createTooltipElement(/** @type {any} */ item) {
+  const details = describeItemForTooltip(item, { includeComparison: false });
+  const tooltip = document.createElement('div');
+  tooltip.className = 'item-tooltip';
+  const title = document.createElement('div');
+  title.className = 'item-tooltip-title';
+  title.textContent = details.title;
+  tooltip.appendChild(title);
+  for (const line of details.baseLines) {
+    const row = document.createElement('div');
+    row.className = 'item-tooltip-body';
+    row.textContent = line;
+    tooltip.appendChild(row);
   }
-  container.appendChild(
-    createGlyphElement(iconFile, {
-      className: 'ui-glyph ui-glyph-lg equipment-item-glyph',
-      label,
-    })
-  );
-  container.appendChild(createVisuallyHiddenText(label));
+  for (const line of details.weaponLines) {
+    const row = document.createElement('div');
+    row.className = 'item-tooltip-body';
+    row.textContent = line;
+    tooltip.appendChild(row);
+  }
+  if (details.flags.length > 0) {
+    const flags = document.createElement('div');
+    flags.className = 'item-tooltip-meta';
+    flags.textContent = details.flags.join(' · ');
+    tooltip.appendChild(flags);
+  }
+  return tooltip;
 }
 
-export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
+export function createEquipmentUI(/** @type {any} */ {
+  grid,
+  onSwap,
+  previewResolver,
+  onQuickUnequip,
+}) {
   let equipment = cloneEquipment(null);
+  let visible = true;
   let /** @type {any} */ drag = null;
   let /** @type {any} */ dragEl = null;
   const slotEls = new Map();
+
+  function prewarm() {
+    if (!visible || !previewResolver?.prewarm) return;
+    previewResolver.prewarm(Object.values(equipment).filter(Boolean));
+  }
 
   function buildGrid() {
     if (!grid) return;
@@ -61,6 +82,7 @@ export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
       label.textContent = SLOT_LABELS[slot] ?? slot;
       el.appendChild(label);
       el.addEventListener('pointerdown', onPointerDown);
+      el.addEventListener('dblclick', onDoubleClick);
       grid.appendChild(el);
       slotEls.set(slot, el);
     }
@@ -72,6 +94,7 @@ export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
       if (!el) continue;
       const item = equipment?.[slot];
       el.classList.toggle('empty', !item);
+      el.classList.remove('durability-worn', 'durability-broken', 'broken-weapon');
       const label = el.querySelector('.equipment-label');
       el.innerHTML = '';
       if (label) el.appendChild(label);
@@ -90,11 +113,26 @@ export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
         continue;
       }
       el.title = item.name ?? item.kind ?? 'Item';
+      const durabilityState = getItemDurabilityState(item);
+      if (durabilityState === 'worn') {
+        el.classList.add('durability-worn');
+      } else if (durabilityState === 'broken') {
+        el.classList.add('durability-broken');
+        if (slot === 'weapon') el.classList.add('broken-weapon');
+      }
       const icon = document.createElement('div');
       icon.className = 'equipment-item';
-      populateItemVisual(icon, item);
+      populateItemVisual(icon, {
+        item,
+        label: item.name ?? item.kind ?? 'Item',
+        glyphClassName: 'ui-glyph ui-glyph-lg equipment-item-glyph',
+        thumbClassName: 'equipment-item-thumb',
+        previewResolver,
+      });
       el.appendChild(icon);
+      el.appendChild(createTooltipElement(item));
     }
+    prewarm();
   }
 
   function setEquipment(/** @type {any} */ nextEquipment) {
@@ -105,12 +143,23 @@ export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
     render();
   }
 
+  function setVisible(/** @type {any} */ next) {
+    visible = !!next;
+    if (visible) prewarm();
+  }
+
   function buildDragElement(/** @type {any} */ item) {
     const el = document.createElement('div');
     el.className = 'inventory-drag';
     const icon = document.createElement('div');
     icon.className = 'equipment-item';
-    populateItemVisual(icon, item);
+    populateItemVisual(icon, {
+      item,
+      label: item.name ?? item.kind ?? 'Item',
+      glyphClassName: 'ui-glyph ui-glyph-lg equipment-item-glyph',
+      thumbClassName: 'equipment-item-thumb',
+      previewResolver,
+    });
     el.appendChild(icon);
     return el;
   }
@@ -148,6 +197,7 @@ export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
   }
 
   function onPointerDown(/** @type {any} */ event) {
+    if ((event.detail ?? 0) >= 2) return;
     const target =
       event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     const slot = target?.dataset?.slot;
@@ -156,6 +206,18 @@ export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
     if (!item) return;
     event.preventDefault();
     startDrag(slot, item, event);
+  }
+
+  function onDoubleClick(/** @type {any} */ event) {
+    if (typeof onQuickUnequip !== 'function') return;
+    const target = event?.currentTarget && typeof event.currentTarget === 'object'
+      ? event.currentTarget
+      : null;
+    const slot = target?.dataset?.slot;
+    if (!slot) return;
+    const item = equipment?.[slot];
+    if (!item) return;
+    onQuickUnequip(slot);
   }
 
   function onPointerMove(/** @type {any} */ event) {
@@ -205,5 +267,6 @@ export function createEquipmentUI(/** @type {any} */ { grid, onSwap }) {
 
   return {
     setEquipment,
+    setVisible,
   };
 }

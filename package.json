@@ -14,6 +14,7 @@
     "test:unit": "vitest run",
     "test": "npm run check:tscheck:coverage && npm run typecheck && npm run test:unit",
     "test:e2e": "node e2e/playwright-e2e.js",
+    "test:E2E": "npm run test:e2e",
     "test:e2e:tutorial": "node e2e/playwright-e2e-tutorial.js",
     "test:e2e:trade": "node e2e/playwright-e2e-trade.js",
     "test:e2e:duel": "node e2e/playwright-e2e-duel.js",

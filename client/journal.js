@@ -8,6 +8,7 @@ import {
 } from '/shared/equipment.js';
 import { PROFESSION_TRACKS, professionXpToNext } from '/shared/professions.js';
 import { TUTORIAL_STEPS, getActiveTutorialStep } from '/shared/tutorial.js';
+import { populateItemVisual } from './itemVisuals.js';
 
 function formatTrackName(/** @type {string} */ track) {
   return track.charAt(0).toUpperCase() + track.slice(1);
@@ -24,6 +25,7 @@ function renderProgressText(/** @type {any} */ contract) {
 
 export function createJournalUI(/** @type {any} */ {
   journalRootEl,
+  previewResolver,
   onContractAbandon,
   onContractTurnIn,
   onRepairItem,
@@ -194,7 +196,20 @@ export function createJournalUI(/** @type {any} */ {
       row.className = 'journal-row';
       const label = document.createElement('div');
       label.className = 'journal-label';
-      label.textContent = recipe.name ?? getItemDisplayName(recipe.output?.kind);
+      const outputLabel = recipe.name ?? getItemDisplayName(recipe.output?.kind);
+      const visual = document.createElement('span');
+      visual.className = 'journal-item-visual';
+      populateItemVisual(visual, {
+        item: { kind: recipe.output?.kind, name: outputLabel, count: recipe.output?.count ?? 1 },
+        label: outputLabel,
+        glyphClassName: 'ui-glyph ui-glyph-sm journal-item-glyph',
+        thumbClassName: 'journal-item-thumb',
+        previewResolver,
+      });
+      label.appendChild(visual);
+      const labelText = document.createElement('span');
+      labelText.textContent = outputLabel;
+      label.appendChild(labelText);
       const meta = document.createElement('div');
       meta.className = 'journal-subtle';
       meta.textContent = recipe.stationType
@@ -244,7 +259,20 @@ export function createJournalUI(/** @type {any} */ {
       meta.className = 'journal-meta';
       const label = document.createElement('div');
       label.className = 'journal-label';
-      label.textContent = entry.item.name ?? getItemDisplayName(entry.item.kind);
+      const labelText = entry.item.name ?? getItemDisplayName(entry.item.kind);
+      const visual = document.createElement('span');
+      visual.className = 'journal-item-visual';
+      populateItemVisual(visual, {
+        item: entry.item,
+        label: labelText,
+        glyphClassName: 'ui-glyph ui-glyph-sm journal-item-glyph',
+        thumbClassName: 'journal-item-thumb',
+        previewResolver,
+      });
+      label.appendChild(visual);
+      const text = document.createElement('span');
+      text.textContent = labelText;
+      label.appendChild(text);
       const detail = document.createElement('div');
       detail.className = 'journal-subtle';
       detail.textContent = `Durability ${entry.item.durability ?? 0}/${entry.item.maxDurability ?? 0}`;

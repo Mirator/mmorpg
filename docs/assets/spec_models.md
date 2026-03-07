@@ -41,31 +41,30 @@ Models are selected by `mobType` from spawn config. Used in `buildMobMesh` / `hy
 
 ## 3. Environment
 
-### 3.1 Village Buildings
+### 3.1 Village Buildings (Modular MegaKit)
 
-Environment structures are loaded by `loadEnvironmentModels` from map `structures[]` entries (`kind` -> `ASSET_PATHS.environment[key]`).
+All migrated building kinds are assembled at runtime from `ASSET_PATHS.medieval.parts` via shared templates in [shared/medievalBuildings.js](../../shared/medievalBuildings.js), not from single `.glb` structure files.
 
-| Key | Path | Model | Placement |
-|-----|------|-------|-----------|
-| market | `/assets/environment/Inn.glb` | Inn | Central gathering |
-| houseA | `/assets/environment/House_1.glb` | House 1 | South |
-| houseB | `/assets/environment/House_2.glb` | House 2 | NE diagonal |
-| barracks | `/assets/environment/Blacksmith.glb` | Blacksmith | West |
-| storage | `/assets/environment/Mill.glb` | Mill | North |
-| bellTower | `/assets/environment/Bell_Tower.glb` | Bell Tower | Landmark / tower placements |
+| Kind | Template footprint (tiles) | Doors/openings | Notes |
+|------|----------------------------|----------------|-------|
+| houseA | 3x3 | 1 south door | Wood light floor, plaster walls |
+| houseB | 4x3 | 1 south door | Wood dark floor, plaster walls |
+| market | 5x4 | South arch opening + rear door | Brick floor, plaster walls |
+| barracks | 5x3 | 1 south door | Wood dark floor, uneven-brick walls |
+| storage | 4x4 | 1 east door | Red-brick floor, uneven-brick walls |
+| bellTower | 2x2 | 1 south door | Tower roof variant |
+| villageCenter | 6x5 | South + north doors | Brick/wood mixed floor |
 
-**Source:** Medieval Village Pack (Buildings)
+### 3.2 Corpse Marker + Legacy Rollback Assets
 
-### 3.2 Base Center + Corpse Marker
+| Purpose | Path | Status |
+|---------|------|--------|
+| Corpse marker | `/assets/environment/graveyard/grave.glb` | Active |
+| Legacy village-center model | `/assets/environment/TownCenter_FirstAge_Level1.gltf` | Kept on disk for rollback; not used in migrated runtime path |
 
-| Purpose | Path | Model |
-|---------|------|-------|
-| Village center model | `/assets/environment/TownCenter_FirstAge_Level1.gltf` | Town Center (First Age) |
-| Corpse marker | `/assets/environment/graveyard/grave.glb` | Grave |
+**Source:** Kenney Graveyard Kit, Ultimate Fantasy RTS (legacy rollback asset)
 
-**Source:** Ultimate Fantasy RTS, Kenney Graveyard Kit
-
-### 3.3 Additional Environment (Unused in Placements)
+### 3.3 Additional Environment (Legacy / Unused in Current Placements)
 
 | Path | Model |
 |------|-------|
@@ -87,12 +86,27 @@ Randomly placed as obstacles. One of three variants per obstacle.
 
 **Source:** Stylized Nature MegaKit
 
-### 3.5 Medieval Structures (Unused)
+### 3.5 Medieval MegaKit Parts (Active Runtime Set)
+
+Synced into `client/assets/medieval/parts/` and loaded by key through `ASSET_PATHS.medieval.parts`.
 
 | Path | Model |
 |------|-------|
-| `/assets/medieval/Floor_Brick.gltf` | Floor Brick |
-| `/assets/medieval/Corner_Exterior_Brick.gltf` | Corner Exterior Brick |
+| `/assets/medieval/parts/Floor_WoodLight.gltf` | Wood light floor tile |
+| `/assets/medieval/parts/Floor_WoodDark.gltf` | Wood dark floor tile |
+| `/assets/medieval/parts/Floor_Brick.gltf` | Brick floor tile |
+| `/assets/medieval/parts/Floor_RedBrick.gltf` | Red-brick floor tile |
+| `/assets/medieval/parts/Wall_Plaster_Straight.gltf` | Plaster wall segment |
+| `/assets/medieval/parts/Wall_UnevenBrick_Straight.gltf` | Uneven-brick wall segment |
+| `/assets/medieval/parts/Door_2_Flat.gltf` | Door segment |
+| `/assets/medieval/parts/Wall_Arch.gltf` | Arch opening segment |
+| `/assets/medieval/parts/Corner_Exterior_Wood.gltf` | Wood corner |
+| `/assets/medieval/parts/Corner_Exterior_Brick.gltf` | Brick corner |
+| `/assets/medieval/parts/Roof_Wooden_2x1.gltf` | Wood roof segment |
+| `/assets/medieval/parts/Roof_RoundTile_2x1.gltf` | Round-tile roof segment |
+| `/assets/medieval/parts/Roof_Tower_RoundTiles.gltf` | Tower roof segment |
+
+Shared MegaKit textures (`22` PNGs) are copied into the same folder and reused by these parts.
 
 **Source:** Medieval Village MegaKit
 
@@ -188,10 +202,10 @@ Assets preloaded at game entry (see `getPreloadAssetList`):
 
 1. Player (assemble + animations)
 2. Vendor model
-3. Village center model
-4. Corpse marker model
-5. Mob models (all 9, including dummy)
-6. Environment models (7 total; includes reserved `trees` prototype)
+3. Corpse marker model
+4. Mob models (all 9, including dummy)
+5. Non-migrated environment models (currently reserved `trees`)
+6. Medieval MegaKit part set (`ASSET_PATHS.medieval.parts`)
 7. Rocks (3)
 8. Resource node models (crystal + ore/tree/herb/flower)
 9. Ground texture
@@ -206,7 +220,15 @@ FBX models from `hidden_resources` are converted to glTF/GLB via:
 node scripts/convert-fbx-to-gltf.js
 ```
 
-The script skips files that already have a `.glb` equivalent. Source packs:
+For Medieval Village MegaKit building migration, required modular parts and textures are synced via:
+
+```bash
+node scripts/sync-medieval-megakit-parts.js
+```
+
+That sync copies only the used building part subset (`.gltf` + `.bin`) plus the shared texture set into `client/assets/medieval/parts/`.
+
+The conversion script skips files that already have a `.glb` equivalent. Source packs:
 
 - **Ultimate Food Pack** → consumables
 - **Medieval Village Pack** → environment

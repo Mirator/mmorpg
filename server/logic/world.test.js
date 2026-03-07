@@ -35,8 +35,10 @@ describe('world from map config', () => {
     ]);
     expect(world.collisionObstacles).toEqual([
       { x: -10, y: 0, z: 8, r: 5 },
-      { x: 12, y: 0, z: 2, r: 3.2 },
     ]);
+    expect(world.collisionRects.length).toBeGreaterThan(0);
+    expect(world.collisionRects.every((rect) => rect.kind === 'market')).toBe(true);
+    expect(world.collisionRects.every((rect) => rect.structureId === 's1')).toBe(true);
     expect(world.resourceNodes).toEqual([{ id: 'r1', x: 12, y: 0, z: -6, type: 'crystal' }]);
     expect(world.vendors).toHaveLength(1);
     expect(world.vendors[0]).toMatchObject({ id: 'vendor-1', name: 'Vendor', x: 6, y: 0, z: -2 });

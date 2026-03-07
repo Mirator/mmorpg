@@ -16,6 +16,11 @@ import {
   ENV_SCALE_PROFILE,
   ENV_SCALE_TARGETS,
 } from './environmentScale.js';
+import {
+  buildMedievalStructureLayout,
+  isMedievalBuildingKind,
+  pointInOrientedRect,
+} from '../shared/medievalBuildings.js';
 
 const LOD_FAR_DISTANCE = 63; // 50 * 1.25
 
@@ -62,6 +67,7 @@ const mobPrototypeCache = new Map();
 let /** @type {any} */ vendorPrototypePromise = null;
 let /** @type {any} */ vendorClipsPromise = null;
 const environmentCache = new Map();
+const medievalPartCache = new Map();
 
 /**
  * @param {HTMLCanvasElement} canvas
@@ -151,6 +157,22 @@ function exposeEnvironmentScaleDebug(/** @type {any} */ worldState) {
   });
 }
 
+function exposeMedievalStructureDebug(/** @type {any} */ worldState) {
+  if (typeof window === 'undefined') return;
+  (/** @type {any} */ (window)).__debugMedievalStructures = () =>
+    (Array.isArray(worldState.medievalStructures) ? worldState.medievalStructures : []).map(
+      (/** @type {any} */ entry) => ({
+        id: entry.id,
+        kind: entry.kind,
+        roofHidden: !!entry.roofHidden,
+        roofNodeCount: Array.isArray(entry.roofNodes) ? entry.roofNodes.length : 0,
+        visibleRoofNodeCount: Array.isArray(entry.roofNodes)
+          ? entry.roofNodes.filter((/** @type {any} */ node) => node?.visible !== false).length
+          : 0,
+      })
+    );
+}
+
 function createLODModel(/** @type {any} */ fullModel, /** @type {any} */ impostorType = 'box') {
   const box = new THREE.Box3().setFromObject(fullModel);
   const size = new THREE.Vector3();
@@ -196,6 +218,15 @@ function getEnvironmentPrototype(/** @type {any} */ key) {
     environmentCache.set(key, loadGltf(url));
   }
   return environmentCache.get(key);
+}
+
+function getMedievalPartPrototype(/** @type {any} */ partKey) {
+  const partPaths = /** @type {Record<string, string>} */ (ASSET_PATHS.medieval?.parts ?? {});
+  if (!medievalPartCache.has(partKey)) {
+    const url = partPaths[partKey];
+    medievalPartCache.set(partKey, url ? loadGltf(url) : Promise.resolve(null));
+  }
+  return medievalPartCache.get(partKey);
 }
 
 function buildTileTexture() {
@@ -671,6 +702,7 @@ export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
     corpseMeshes: new Map(),
     vendorMeshes,
     vendorControllers: new Map(),
+    medievalStructures: [],
     environmentScaleDebug: new Map(),
     isActive: true,
     lastResources: [],
@@ -678,6 +710,7 @@ export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
     lastCorpses: [],
   };
   exposeEnvironmentScaleDebug(worldState);
+  exposeMedievalStructureDebug(worldState);
 
   for (const vendor of world?.vendors ?? []) {
     const vendorMesh = buildVendorMesh(vendor, worldState);
@@ -687,15 +720,6 @@ export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
 
   group.add(ground, baseMesh, envGroup, ...obstacleMeshes);
   scene.add(group);
-
-  const villageCenterPlacement =
-    worldState.structures.find((/** @type {any} */ structure) => structure?.kind === 'villageCenter') ??
-    null;
-  if (villageCenterPlacement) {
-    hydrateVillageCenter(worldState, baseMesh, villageCenterPlacement).catch((/** @type {any} */ err) => {
-      console.warn('[world] Failed to load village center model:', err);
-    });
-  }
 
   loadEnvironmentModels(worldState, envGroup).catch(
     (/** @type {any} */ err) => {
@@ -856,10 +880,100 @@ async function hydrateMobMesh(/** @type {any} */ worldState, /** @type {any} */ 
   }
 }
 
+async function addMedievalStructureModel(
+  /** @type {any} */ worldState,
+  /** @type {any} */ envGroup,
+  /** @type {any} */ key,
+  /** @type {any} */ placement
+) {
+  const layout = buildMedievalStructureLayout({
+    id: placement.id ?? key,
+    kind: key,
+    x: placement.x ?? 0,
+    y: placement.y ?? 0,
+    z: placement.z ?? 0,
+    rotation: placement.rotation ?? 0,
+  });
+  if (!layout) return false;
+
+  const uniquePartKeys = [...new Set(layout.parts.map((/** @type {any} */ part) => part.partKey))];
+  const loaded = await Promise.all(
+    uniquePartKeys.map(async (/** @type {string} */ partKey) =>
+      /** @type {[string, any]} */ ([partKey, await getMedievalPartPrototype(partKey)])
+    )
+  );
+  if (!worldState.isActive) return false;
+
+  const partMap = new Map(loaded);
+  const model = new THREE.Group();
+  model.name = `medieval-${key}`;
+  /** @type {any[]} */
+  const roofNodes = [];
+
+  for (const part of layout.parts) {
+    const gltf = partMap.get(part.partKey);
+    if (!gltf?.scene) continue;
+    const piece = cloneStatic(gltf.scene);
+    piece.position.set(part.x, part.y ?? 0, part.z);
+    piece.rotation.y = part.rotation ?? 0;
+    piece.userData.role = part.role;
+    piece.userData.partKey = part.partKey;
+    if (part.role === 'roof') roofNodes.push(piece);
+    model.add(piece);
+  }
+
+  const bounds = getModelBounds(model);
+  const scaleInfo = {
+    key,
+    category: placement.category ?? 'house',
+    profile: ENV_SCALE_PROFILE,
+    baseRadius: worldState.base?.radius ?? 8,
+    rawBounds: bounds,
+    targetHeight: bounds.y,
+    uniformScale: 1,
+    yScaleMultiplier: 1,
+    scale: { x: 1, y: 1, z: 1 },
+    effectiveHeight: bounds.y,
+    valid: true,
+  };
+  recordEnvironmentScale(worldState, placement.id ?? key, {
+    ...scaleInfo,
+    id: placement.id ?? key,
+    key,
+    category: placement.category ?? 'house',
+    placement: {
+      x: placement.x,
+      y: placement.y ?? 0,
+      z: placement.z,
+      rotation: placement.rotation ?? 0,
+    },
+  });
+
+  const lod = createLODModel(model, 'box');
+  lod.position.set(placement.x, placement.y ?? 0, placement.z);
+  lod.rotation.y = placement.rotation ?? 0;
+  envGroup.add(lod);
+
+  worldState.medievalStructures.push({
+    id: placement.id ?? key,
+    kind: key,
+    interiorBounds: layout.interiorBounds,
+    roofNodes,
+    roofHidden: false,
+  });
+  return true;
+}
+
 async function addEnvironmentModel(/** @type {any} */ worldState, /** @type {any} */ envGroup, /** @type {any} */ key, /** @type {any} */ placement) {
   if (!worldState?.isActive) return;
+  if (isMedievalBuildingKind(key)) {
+    await addMedievalStructureModel(worldState, envGroup, key, placement);
+    return;
+  }
+
   const gltf = await getEnvironmentPrototype(key);
   if (!worldState.isActive) return;
+  if (!gltf?.scene) return;
 
   const model = cloneStatic(gltf.scene);
   const scaleInfo = applyEnvironmentScaleToModel(model, {
@@ -892,6 +1006,7 @@ function getStructureCategory(/** @type {any} */ kind) {
   if (kind === 'storage') return 'mill';
   if (kind === 'houseA' || kind === 'houseB') return 'house';
   if (kind === 'bellTower') return 'tower';
+  if (kind === 'villageCenter') return 'villageCenter';
   return 'house';
 }
 
@@ -929,8 +1044,10 @@ async function loadEnvironmentModels(/** @type {any} */ worldState, /** @type {a
   const placements = structures
     .filter((/** @type {any} */ structure) =>
       structure?.kind &&
-      structure.kind !== 'villageCenter' &&
-      typeof environmentPaths[structure.kind] === 'string'
+      (
+        isMedievalBuildingKind(structure.kind) ||
+        typeof environmentPaths[structure.kind] === 'string'
+      )
     )
     .map((/** @type {any} */ structure) => ({
       id: structure.id ?? structure.kind,
@@ -952,6 +1069,27 @@ async function loadEnvironmentModels(/** @type {any} */ worldState, /** @type {a
   if (worldState.isActive) worldState.envReady = true;
 }
 
-export function animateWorld(/** @type {any} */ worldState, /** @type {any} */ now) {
+export function animateWorld(
+  /** @type {any} */ worldState,
+  /** @type {any} */ now,
+  /** @type {{ localViewPos?: { x?: number, z?: number } | null }} */ options = {}
+) {
   if (!worldState) return;
+
+  const localViewPos = options.localViewPos ?? null;
+  const structures = Array.isArray(worldState.medievalStructures)
+    ? worldState.medievalStructures
+    : [];
+
+  for (const entry of structures) {
+    const shouldHide = localViewPos
+      ? pointInOrientedRect(localViewPos, entry.interiorBounds)
+      : false;
+    if (!!entry.roofHidden === shouldHide) continue;
+
+    entry.roofHidden = shouldHide;
+    for (const roofNode of entry.roofNodes ?? []) {
+      if (roofNode) roofNode.visible = !shouldHide;
+    }
+  }
 }

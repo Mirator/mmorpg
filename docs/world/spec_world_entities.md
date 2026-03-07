@@ -49,7 +49,7 @@ The current contracts + professions slice does **not** add new world-schema obje
 | structures[].x, .y?, .z | number | yes | Position |
 | structures[].rotation | number | no | Y-axis rotation (default: 0) |
 | structures[].collides | boolean | no | If false, structure does not contribute collision (default: true) |
-| structures[].colliderRadius | number | no | Required when `collides=true`; optional otherwise |
+| structures[].colliderRadius | number | no | Compatibility field. Used by non-migrated circle-collider structures (e.g. fence); ignored for migrated MegaKit kinds which use generated wall rectangles |
 | resourceNodes | array | yes | Harvestable nodes |
 | resourceNodes[].id | string | yes | Unique ID (e.g. r1, r2) |
 | resourceNodes[].x, .y?, .z | number | yes | Position |
@@ -172,7 +172,12 @@ Vendors also act as **contract issuers**:
 
 At runtime, `resolveVendorBuyItems(vendor)` in [shared/economy.js](../../shared/economy.js) resolves the full catalog; world vendors include `buyItems` in the snapshot for the client.
 
-Corpse markers use `/assets/environment/graveyard/grave.glb` (`ASSET_PATHS.corpseMarker`) and the village center uses `/assets/environment/TownCenter_FirstAge_Level1.gltf` (`ASSET_PATHS.villageCenterModel`) in [client/world.js](../../client/world.js).
+Corpse markers use `/assets/environment/graveyard/grave.glb` (`ASSET_PATHS.corpseMarker`) in [client/world.js](../../client/world.js).  
+Migrated structure kinds (`market`, `barracks`, `storage`, `houseA`, `houseB`, `bellTower`, `villageCenter`) are assembled from Medieval MegaKit parts (`ASSET_PATHS.medieval.parts`) using shared templates in [shared/medievalBuildings.js](../../shared/medievalBuildings.js).
+
+Runtime interior behavior for migrated structures:
+- seamless walk-in interiors (no teleport), driven by wall-segment collision rectangles with doorway gaps
+- roof auto-hide while local view/player position is within the generated interior bounds
 
 ---
 
@@ -186,7 +191,8 @@ Corpse markers use `/assets/environment/graveyard/grave.glb` (`ASSET_PATHS.corps
 | Contracts | shared/contracts.js | Rotating vendor offers and contract templates |
 | Professions | shared/professions.js | Station mapping and profession constants |
 | Runtime defaults | shared/config.js | WORLD_CONFIG, MOB_CONFIG, RESOURCE_CONFIG, VENDOR_CONFIG |
-| 3D model paths | client/assetPaths.js | ASSET_PATHS.monsters, ASSET_PATHS.resourceNodes, ASSET_PATHS.villageCenterModel, ASSET_PATHS.corpseMarker |
+| 3D model paths | client/assetPaths.js | ASSET_PATHS.monsters, ASSET_PATHS.resourceNodes, ASSET_PATHS.medieval.parts, ASSET_PATHS.corpseMarker |
+| Building template/collider generation | shared/medievalBuildings.js | getMedievalBuildingTemplate, buildStructureCollisionRects, buildStructureInteriorBounds |
 
 ---
 
@@ -197,14 +203,17 @@ world-map.json
     → loadMapConfigSync (server/mapConfig.js)
     → validateMapConfig (shared/mapConfig.js) — uses VALID_MOB_TYPES and VALID_RESOURCE_TYPES from entityTypes
     → createWorldFromConfig (server/logic/world.js)
-    → world { base, obstacles, structures, collisionObstacles, resourceNodes, mobSpawns, vendors }
+    → world { base, obstacles, structures, collisionObstacles, collisionRects, resourceNodes, mobSpawns, vendors }
     → createMobsFromSpawns(world.mobSpawns) — server/logic/mobs.js
     → createResources(world.resourceNodes) — server/logic/resources.js
 ```
 
 `createWorldFromConfig` composes `collisionObstacles` from:
 - all map `obstacles`
-- collidable `structures` (`collides !== false` and valid `colliderRadius`)
+- collidable non-migrated structures (`collides !== false` and valid `colliderRadius`)
+
+`createWorldFromConfig` composes `collisionRects` from:
+- collidable migrated structures (`market`, `barracks`, `storage`, `houseA`, `houseB`, `bellTower`, `villageCenter`) via shared templates
 
 ---
 
@@ -222,6 +231,7 @@ The map editor supports:
 
 Options for type and mobType come from [shared/entityTypes.js](../../shared/entityTypes.js).
 Structure kind options come from `STRUCTURE_KIND_LIST` in [shared/mapConfig.js](../../shared/mapConfig.js).
+For migrated MegaKit structure kinds, `colliderRadius` remains visible for compatibility but runtime collision comes from generated wall rectangles.
 
 ---
 

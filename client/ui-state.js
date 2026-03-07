@@ -36,6 +36,8 @@ import { createSkillsPanelUpdater } from './ui-state/skillsPanel.js';
 import { createAbilityLoadoutController } from './abilityLoadout.js';
 import { createCharacterPreview } from './character-preview.js';
 import { createWindowDragController } from './window-drag.js';
+import { createItemPreviewResolver } from './itemPreview.js';
+import { resolvePrimaryEquipSlotForItem } from './itemMeta.js';
 import { getItemIconFile } from './gameIcons.js';
 import { createGlyphElement } from './uiGlyphs.js';
 import { createJournalUI } from './journal.js';
@@ -101,9 +103,11 @@ export function createUiState(/** @type {any} */ {
     charStatResource, charStatStr, charStatDex, charStatInt, charStatVit, charStatSpi,
     charStatPhysPower, charStatRangedPower, charStatMagicPower, charStatHealingPower, charStatCrit,
     charStatAccuracy, charStatEvasion, charStatPhysDef, charStatMagicResist, charStatLevel,
-    charStatClass, charSheetCharMeta, vendorDialog, vendorPanel, vendorDialogName, vendorPanelName,
+    charStatClass, charStatWeapon, charStatWeaponType, charStatWeaponRange, charStatWeaponSpeed,
+    charSheetCharMeta, vendorDialog, vendorPanel, vendorDialogName, vendorPanelName,
     vendorTradeBtn, vendorCloseBtn, vendorPanelCloseBtn, vendorPricesEl, vendorBuyItemsEl,
-    vendorContractsEl, inventoryCoinsEl, abilityBar, deathScreen, deathTimerEl, deathRespawnBtn,
+    vendorContractsEl, inventoryCoinsEl, inventorySearchInput, inventoryFilterSelect, inventorySortSelect,
+    abilityBar, deathScreen, deathTimerEl, deathRespawnBtn,
     castBarWrap, castBarFill, castBarName,
   } = /** @type {any} */ (bindElementRefs(document, {
     inventoryPanel: 'inventory-panel', characterSheetPanel: 'character-sheet-panel',
@@ -120,12 +124,17 @@ export function createUiState(/** @type {any} */ {
     charStatAccuracy: 'char-stat-accuracy', charStatEvasion: 'char-stat-evasion',
     charStatPhysDef: 'char-stat-phys-def', charStatMagicResist: 'char-stat-magic-resist',
     charStatLevel: 'char-stat-level', charStatClass: 'char-stat-class',
+    charStatWeapon: 'char-stat-weapon', charStatWeaponType: 'char-stat-weapon-type',
+    charStatWeaponRange: 'char-stat-weapon-range', charStatWeaponSpeed: 'char-stat-weapon-speed',
     charSheetCharMeta: 'character-sheet-char-meta', vendorDialog: 'vendor-dialog',
     vendorPanel: 'vendor-panel', vendorDialogName: 'vendor-dialog-name',
     vendorPanelName: 'vendor-panel-name', vendorTradeBtn: 'vendor-trade-btn',
     vendorCloseBtn: 'vendor-close-btn', vendorPanelCloseBtn: 'vendor-panel-close',
     vendorPricesEl: 'vendor-sell-prices', vendorBuyItemsEl: 'vendor-buy-items',
     vendorContractsEl: 'vendor-contract-list', inventoryCoinsEl: 'inventory-coins',
+    inventorySearchInput: 'inventory-search-input',
+    inventoryFilterSelect: 'inventory-filter-select',
+    inventorySortSelect: 'inventory-sort-select',
     abilityBar: 'ability-bar', deathScreen: 'death-screen', deathTimerEl: 'death-timer',
     deathRespawnBtn: 'death-respawn-btn', castBarWrap: 'cast-bar-wrap', castBarFill: 'cast-bar-fill',
     castBarName: 'cast-bar-name',
@@ -142,6 +151,7 @@ export function createUiState(/** @type {any} */ {
   let /** @type {any} */ craftingUI = null;
   let /** @type {any} */ journalUI = null;
   let /** @type {any} */ windowDragController = null;
+  const itemPreviewResolver = createItemPreviewResolver();
 
   let inventoryOpen = false;
   let inventoryOpenBeforeVendorTrade = false;
@@ -341,6 +351,7 @@ export function createUiState(/** @type {any} */ {
     document.body.classList.toggle('character-open', characterOpen);
     syncAbilityBarLayoutEditState();
     characterPreview?.setOpen?.(characterOpen);
+    equipmentUI?.setVisible?.(characterOpen && characterTab === 'character');
     if (characterOpen) {
       clearPrompt();
       onUiOpen?.();
@@ -354,9 +365,42 @@ export function createUiState(/** @type {any} */ {
     characterView?.classList.toggle('active', tab === 'character');
     skillsView?.classList.toggle('active', tab === 'skills');
     characterPreview?.setVisible?.(tab === 'character');
+    equipmentUI?.setVisible?.(characterOpen && tab === 'character');
     for (const btn of sheetTabBtns ?? []) {
       btn.classList.toggle('active', btn.dataset.tab === tab);
     }
+  }
+
+  function findFirstEmptyInventorySlot(/** @type {any} */ inventory) {
+    if (!Array.isArray(inventory)) return -1;
+    for (let i = 0; i < inventory.length; i += 1) {
+      if (!inventory[i]) return i;
+    }
+    return -1;
+  }
+
+  function quickEquipInventorySlot(/** @type {any} */ fromSlot) {
+    const item = lastUiPlayer?.inventory?.[fromSlot];
+    if (!item) return;
+    const equipSlot = resolvePrimaryEquipSlotForItem(item);
+    if (!equipSlot) return;
+    onEquipmentSwap?.({
+      fromType: 'inventory',
+      fromSlot,
+      toType: 'equipment',
+      toSlot: equipSlot,
+    });
+  }
+
+  function quickUnequipSlot(/** @type {any} */ fromSlot) {
+    const emptySlot = findFirstEmptyInventorySlot(lastUiPlayer?.inventory);
+    if (emptySlot < 0) return;
+    onEquipmentSwap?.({
+      fromType: 'equipment',
+      fromSlot,
+      toType: 'inventory',
+      toSlot: emptySlot,
+    });
   }
 
   function setInventoryTab(/** @type {any} */ tab) {
@@ -609,6 +653,12 @@ export function createUiState(/** @type {any} */ {
       panel: inventoryPanel,
       grid: inventoryGrid,
       cols: 5,
+      previewResolver: itemPreviewResolver,
+      getEquipmentState: () => lastUiPlayer?.equipment ?? {},
+      onQuickEquip: quickEquipInventorySlot,
+      searchInput: inventorySearchInput,
+      filterSelect: inventoryFilterSelect,
+      sortSelect: inventorySortSelect,
       onSwap: (/** @type {any} */ from, /** @type {any} */ to) => {
         onInventorySwap?.(from, to);
       },
@@ -645,6 +695,8 @@ export function createUiState(/** @type {any} */ {
   if (equipmentGrid) {
     equipmentUI = createEquipmentUI({
       grid: equipmentGrid,
+      previewResolver: itemPreviewResolver,
+      onQuickUnequip: quickUnequipSlot,
       onSwap: (/** @type {any} */ { fromType, fromSlot, toType, toSlot }) => {
         onEquipmentSwap?.({ fromType, fromSlot, toType, toSlot });
       },
@@ -654,6 +706,7 @@ export function createUiState(/** @type {any} */ {
   if (craftRecipeListEl) {
     craftingUI = createCraftingUI({
       recipeListEl: craftRecipeListEl,
+      previewResolver: itemPreviewResolver,
       onCraft: (/** @type {any} */ recipeId, /** @type {any} */ count) => {
         onCraft?.(recipeId, count);
         const recipe = getRecipeById(recipeId);
@@ -666,6 +719,7 @@ export function createUiState(/** @type {any} */ {
   if (journalRootEl) {
     journalUI = createJournalUI({
       journalRootEl,
+      previewResolver: itemPreviewResolver,
       onContractAbandon,
       onContractTurnIn,
       onRepairItem,
@@ -876,6 +930,7 @@ export function createUiState(/** @type {any} */ {
         inventoryCoinsEl.textContent = formatCurrency(me.currencyCopper ?? 0);
       }
       const klass = getClassById(getCurrentClassId(me));
+      const weaponDef = getEquippedWeapon(me?.equipment, getCurrentClassId(me));
       const resourceLabel = (me?.resourceType ?? 'stamina').replace(/^./, (/** @type {any} */ c) => c.toUpperCase());
       if (charStatHp) charStatHp.textContent = `${me.hp ?? 0} / ${me.maxHp ?? 0}`;
       if (charStatResource) charStatResource.textContent = `${me.resource ?? 0} / ${me.resourceMax ?? 0} (${resourceLabel})`;
@@ -897,6 +952,21 @@ export function createUiState(/** @type {any} */ {
       if (charStatMagicResist) charStatMagicResist.textContent = String(derived.magicResistance ?? 0);
       if (charStatLevel) charStatLevel.textContent = String(me.level ?? 1);
       if (charStatClass) charStatClass.textContent = klass?.name ?? me?.classId ?? '--';
+      if (charStatWeapon) charStatWeapon.textContent = weaponDef?.name ?? me?.equipment?.weapon?.name ?? '--';
+      if (charStatWeaponType) {
+        const attackType = weaponDef?.attackType;
+        charStatWeaponType.textContent = attackType ? String(attackType).replace(/^./, (c) => c.toUpperCase()) : '--';
+      }
+      if (charStatWeaponRange) {
+        charStatWeaponRange.textContent = Number.isFinite(weaponDef?.range)
+          ? `${Number(weaponDef.range).toFixed(1)}m`
+          : '--';
+      }
+      if (charStatWeaponSpeed) {
+        charStatWeaponSpeed.textContent = weaponDef?.speedTier
+          ? String(weaponDef.speedTier).replace(/^./, (c) => c.toUpperCase())
+          : '--';
+      }
       if (charSheetCharMeta) charSheetCharMeta.textContent = `Level ${me.level ?? 1} ${klass?.name ?? me?.classId ?? '--'}`;
       characterPreview?.setPlayer?.(me);
       if (lastStats.hp !== null && me.hp < lastStats.hp) {
@@ -979,6 +1049,10 @@ export function createUiState(/** @type {any} */ {
       if (charStatMagicResist) charStatMagicResist.textContent = '--';
       if (charStatLevel) charStatLevel.textContent = '--';
       if (charStatClass) charStatClass.textContent = '--';
+      if (charStatWeapon) charStatWeapon.textContent = '--';
+      if (charStatWeaponType) charStatWeaponType.textContent = '--';
+      if (charStatWeaponRange) charStatWeaponRange.textContent = '--';
+      if (charStatWeaponSpeed) charStatWeaponSpeed.textContent = '--';
       if (charSheetCharMeta) charSheetCharMeta.textContent = 'Level 1 --';
       characterPreview?.setPlayer?.(null);
       lastStats.hp = null;

@@ -27,6 +27,17 @@ describe('assetPaths', () => {
     expect(ASSET_PATHS.environment).toHaveProperty('barracks');
     expect(ASSET_PATHS.environment).toHaveProperty('storage');
     expect(ASSET_PATHS.environment).toHaveProperty('trees');
+    expect(ASSET_PATHS).toHaveProperty('medieval');
+    expect(ASSET_PATHS.medieval).toHaveProperty('parts');
+    expect(ASSET_PATHS.medieval.parts).toHaveProperty('wallPlasterStraight');
+    expect(ASSET_PATHS.medieval.parts).toHaveProperty('wallPlasterDoorFlat');
+    expect(ASSET_PATHS.medieval.parts).toHaveProperty('wallUnevenDoorFlat');
+    expect(ASSET_PATHS.medieval.parts).toHaveProperty('doorFrameFlatWoodDark');
+    expect(ASSET_PATHS.medieval.parts).toHaveProperty('doorFrameFlatBrick');
+    expect(ASSET_PATHS.medieval.parts).toHaveProperty('roofFrontBrick6');
+    expect(ASSET_PATHS.medieval.parts).toHaveProperty('roofFrontBrick8');
+    expect(ASSET_PATHS.medieval.parts).toHaveProperty('roofTower');
+    expect(ASSET_PATHS.medieval.parts).toHaveProperty('roofRound8x12');
     expect(ASSET_PATHS).toHaveProperty('resourceNodes');
     expect(ASSET_PATHS).toHaveProperty('resourceNodeVariants');
     expect(ASSET_PATHS.resourceNodeVariants.crystal).toEqual([
@@ -57,6 +68,7 @@ describe('assetPaths', () => {
     expect(ASSET_PATHS.monsters.orc).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.environment.market).toMatch(/^\/assets\//);
     expect(ASSET_PATHS.environment.trees).toMatch(/^\/assets\//);
+    expect(ASSET_PATHS.medieval.parts.floorBrick).toMatch(/^\/assets\//);
   });
 
   it('getPreloadAssetList returns player, mobs, and environment', () => {
@@ -73,7 +85,7 @@ describe('assetPaths', () => {
 
     expect(list).toHaveProperty('villageCenter');
     expect(Array.isArray(list.villageCenter)).toBe(true);
-    expect(list.villageCenter).toContain(ASSET_PATHS.villageCenterModel);
+    expect(list.villageCenter).toEqual([]);
 
     expect(list).toHaveProperty('corpses');
     expect(Array.isArray(list.corpses)).toBe(true);
@@ -86,14 +98,15 @@ describe('assetPaths', () => {
 
     expect(list).toHaveProperty('environment');
     expect(Array.isArray(list.environment)).toBe(true);
-    expect(list.environment).toHaveLength(7);
-    expect(list.environment).toContain(ASSET_PATHS.environment.bellTower);
-    expect(list.environment).toContain(ASSET_PATHS.environment.market);
-    expect(list.environment).toContain(ASSET_PATHS.environment.houseA);
-    expect(list.environment).toContain(ASSET_PATHS.environment.houseB);
-    expect(list.environment).toContain(ASSET_PATHS.environment.barracks);
-    expect(list.environment).toContain(ASSET_PATHS.environment.storage);
+    expect(list.environment).toHaveLength(1);
     expect(list.environment).toContain(ASSET_PATHS.environment.trees);
+
+    expect(list).toHaveProperty('medievalParts');
+    expect(Array.isArray(list.medievalParts)).toBe(true);
+    expect(list.medievalParts).toContain(ASSET_PATHS.medieval.parts.floorBrick);
+    expect(list.medievalParts).toContain(ASSET_PATHS.medieval.parts.roofTower);
+    expect(list.medievalParts).toContain(ASSET_PATHS.medieval.parts.roofRound6x6);
+    expect(list.medievalParts).toContain(ASSET_PATHS.medieval.parts.roofRound8x12);
     expect(list.resourceNodes).toContain('/assets/resources/crystals/Crystal.glb');
     expect(list.resourceNodes).toContain('/assets/resources/crystals/Crystal-MlhTJAFuJY.glb');
     expect(list.resourceNodes).toContain('/assets/resources/crystals/Crystal-WzWPKHFMkL.glb');

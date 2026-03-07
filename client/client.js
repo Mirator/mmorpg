@@ -634,7 +634,7 @@ function stepFrame(/** @type {any} */ dt, /** @type {any} */ now) {
   const interpolatedMobs = gameState.renderInterpolatedMobs(now);
   renderSystem.updateWorldMobs(interpolatedMobs);
 
-  renderSystem.animateWorldMeshes(now);
+  renderSystem.animateWorldMeshes(now, { localViewPos: viewPos ?? null });
   deadPlayerIds.clear();
   harvestingById.clear();
   if (latestPlayers && typeof latestPlayers === 'object') {

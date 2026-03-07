@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { normalizeMapConfig, validateMapConfig } from '../../shared/mapConfig.js';
+import { isMedievalBuildingKind } from '../../shared/medievalBuildings.js';
 
 const MAP_PATH = path.resolve(process.cwd(), 'server', 'data', 'world-map.json');
 const TILE_SPLIT = 400 / 6; // 66.666...
@@ -106,7 +107,7 @@ describe('starter world full-map layout', () => {
     const colliders = [
       ...map.obstacles.map((obs) => ({ x: obs.x, z: obs.z, r: obs.radius ?? obs.r ?? 0 })),
       ...map.structures
-        .filter((structure) => structure.collides !== false)
+        .filter((structure) => structure.collides !== false && !isMedievalBuildingKind(structure.kind))
         .map((structure) => ({ x: structure.x, z: structure.z, r: structure.colliderRadius ?? 0 })),
     ];
 

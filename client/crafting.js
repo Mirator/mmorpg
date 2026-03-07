@@ -6,7 +6,7 @@ import {
   STATION_INTERACT_RADIUS,
 } from '/shared/professions.js';
 import { getItemIconFile } from './gameIcons.js';
-import { createGlyphElement } from './uiGlyphs.js';
+import { populateItemVisual } from './itemVisuals.js';
 
 /** @typedef {import('/shared/recipes.js').Recipe} Recipe */
 
@@ -27,16 +27,24 @@ function appendKindGlyph(
   /** @type {HTMLElement} */ parent,
   /** @type {any} */ kind,
   /** @type {any} */ label,
-  /** @type {string} */ className
+  /** @type {string} */ className,
+  /** @type {any} */ previewResolver
 ) {
   const iconFile = getItemIconFile(kind);
-  if (!iconFile) return;
-  parent.appendChild(
-    createGlyphElement(iconFile, {
-      className,
-      label,
-    })
-  );
+  if (!iconFile && !previewResolver) return;
+  const visual = document.createElement('span');
+  visual.className = 'craft-item-visual-host';
+  populateItemVisual(visual, {
+    item: { kind, name: label, count: 1 },
+    label,
+    glyphClassName: className,
+    thumbClassName: `craft-item-thumb ${className}`,
+    previewResolver,
+  });
+  if (!iconFile && visual.textContent) {
+    visual.classList.add('is-text');
+  }
+  parent.appendChild(visual);
 }
 
 function formatTrackLabel(/** @type {string | undefined} */ track) {
@@ -80,8 +88,9 @@ function hasNearbyStation(
  * @param {Array<{ kind?: string, count?: number } | null>} [opts.inventory]
  * @param {Recipe[]} [opts.recipes]
  * @param {(recipeId: string, count: number) => void} [opts.onCraft]
+ * @param {{ getCached?: (kind: string) => string | null | undefined, resolveItemPreviewKind?: (kind: string) => Promise<string | null> } | null} [opts.previewResolver]
  */
-export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIPES, onCraft }) {
+export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIPES, onCraft, previewResolver = null }) {
   let currentInventory = Array.isArray(inventory) ? inventory : [];
   let currentRecipes = Array.isArray(recipes) ? recipes : RECIPES;
   let currentContext = { playerPos: null, worldConfig: null };
@@ -104,7 +113,8 @@ export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIP
         header,
         recipe.output?.kind,
         outputName,
-        'ui-glyph ui-glyph-md craft-recipe-glyph'
+        'ui-glyph ui-glyph-md craft-recipe-glyph',
+        previewResolver
       );
       const headerText = document.createElement('span');
       headerText.textContent = `${outputName} × ${outputCount}`;
@@ -133,7 +143,8 @@ export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIP
           span,
           input.kind,
           inputName,
-          'ui-glyph ui-glyph-sm craft-ingredient-glyph'
+          'ui-glyph ui-glyph-sm craft-ingredient-glyph',
+          previewResolver
         );
         const ingredientText = document.createElement('span');
         ingredientText.textContent = `${inputName}: ${have}/${need}`;
@@ -173,7 +184,8 @@ export function createCraftingUI({ recipeListEl, inventory = [], recipes = RECIP
         output,
         recipe.output?.kind,
         outputName,
-        'ui-glyph ui-glyph-sm craft-output-glyph'
+        'ui-glyph ui-glyph-sm craft-output-glyph',
+        previewResolver
       );
       const outputText = document.createElement('span');
       outputText.textContent = `→ ${outputName} × ${outputCount}`;
