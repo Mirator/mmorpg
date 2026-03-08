@@ -2,6 +2,7 @@
 
 import { createDesignerStore } from './designer-store.js';
 import { createSessionShell } from './session-shell.js';
+import { escapeHtml } from './escapeHtml.js';
 
 const form = /** @type {HTMLFormElement | null} */ (document.getElementById('auth-form'));
 const passInput = /** @type {HTMLInputElement | null} */ (document.getElementById('admin-pass'));
@@ -166,15 +167,17 @@ function renderTable() {
       tr.style.background = 'rgba(200, 155, 60, 0.12)';
     }
 
+    const areaIdEsc = escapeHtml(area.id);
+    const tagsStr = Array.isArray(area.tags) ? area.tags.join(', ') : '';
     tr.innerHTML = [
-      `<td class="mono">${area.id}</td>`,
+      `<td class="mono">${areaIdEsc}</td>`,
       `<td>${Number(area.x ?? 0).toFixed(1)}</td>`,
       `<td>${Number(area.z ?? 0).toFixed(1)}</td>`,
-      `<td><input data-nav-id="${area.id}" data-field="radius" type="number" step="0.5" min="0.1" value="${Number(area.radius ?? 6)}" /></td>`,
-      `<td><input data-nav-id="${area.id}" data-field="walkCost" type="number" step="0.1" min="0" value="${Number(area.walkCost ?? 1)}" /></td>`,
-      `<td><input data-nav-id="${area.id}" data-field="runCost" type="number" step="0.1" min="0" value="${Number(area.runCost ?? 1)}" /></td>`,
-      `<td>${Array.isArray(area.tags) ? area.tags.join(', ') : ''}</td>`,
-      `<td><button type="button" data-select-id="${area.id}">Select</button></td>`,
+      `<td><input data-nav-id="${areaIdEsc}" data-field="radius" type="number" step="0.5" min="0.1" value="${escapeHtml(String(Number(area.radius ?? 6)))}" /></td>`,
+      `<td><input data-nav-id="${areaIdEsc}" data-field="walkCost" type="number" step="0.1" min="0" value="${escapeHtml(String(Number(area.walkCost ?? 1)))}" /></td>`,
+      `<td><input data-nav-id="${areaIdEsc}" data-field="runCost" type="number" step="0.1" min="0" value="${escapeHtml(String(Number(area.runCost ?? 1)))}" /></td>`,
+      `<td>${escapeHtml(tagsStr)}</td>`,
+      `<td><button type="button" data-select-id="${areaIdEsc}">Select</button></td>`,
     ].join('');
 
     tableBody.appendChild(tr);

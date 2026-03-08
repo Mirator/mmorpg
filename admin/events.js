@@ -3,6 +3,7 @@
 import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
 import { createDesignerStore } from './designer-store.js';
+import { escapeHtml } from './escapeHtml.js';
 
 const form = /** @type {HTMLFormElement} */ (document.getElementById('auth-form'));
 const passInput = /** @type {HTMLInputElement} */ (document.getElementById('admin-pass'));
@@ -191,9 +192,9 @@ function renderList() {
     }
 
     item.innerHTML = [
-      `<strong>${trigger.name || trigger.id}</strong>`,
-      `<div class="meta mono">${trigger.id}</div>`,
-      `<div class="meta">${trigger.shape} · ${trigger.enabled === false ? 'disabled' : 'enabled'}</div>`,
+      `<strong>${escapeHtml(trigger.name || trigger.id)}</strong>`,
+      `<div class="meta mono">${escapeHtml(trigger.id)}</div>`,
+      `<div class="meta">${escapeHtml(trigger.shape)} · ${trigger.enabled === false ? 'disabled' : 'enabled'}</div>`,
     ].join('');
 
     item.addEventListener('click', () => {

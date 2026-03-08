@@ -20,9 +20,32 @@ import { showEntryBanner, hideEntryBanner, showControlsCard, hideControlsCard } 
 import { createUiAudio } from './ui-audio.js';
 import { buildDebugTextState, installDebugSurface } from './debugSurface.js';
 import { createSocialUi } from './social-ui.js';
+import { logger } from './logger.js';
+import { createLoadingScreen } from './loading.js';
 
 // Ownership boundary: this file composes subsystems; domain logic should stay in focused modules
 // (connection/auth/ui-state/combat/input) rather than growing orchestration complexity here.
+
+function installGlobalErrorHandlers() {
+  window.onerror = (message, source, lineno, colno, error) => {
+    logger.error('Unhandled error:', message, source, lineno, colno, error);
+    showErrorOverlay({
+      title: 'Something went wrong',
+      message: typeof message === 'string' ? message : 'An unexpected error occurred. Try reloading.',
+      actions: [{ label: 'Reload', onClick: () => window.location.reload() }],
+    });
+    return true;
+  };
+  window.onunhandledrejection = (event) => {
+    logger.error('Unhandled promise rejection:', event.reason);
+    showErrorOverlay({
+      title: 'Something went wrong',
+      message: event.reason instanceof Error ? event.reason.message : String(event.reason),
+      actions: [{ label: 'Reload', onClick: () => window.location.reload() }],
+    });
+  };
+}
+installGlobalErrorHandlers();
 
 const app = document.getElementById('app');
 const fpsEl = document.getElementById('fps');
@@ -39,75 +62,14 @@ const loadingTipEl = document.getElementById('loading-tip');
 const loadingProgressBarEl = /** @type {HTMLElement | null} */ (document.querySelector('.loading-progress-bar'));
 const loadingProgressFillEl = /** @type {HTMLElement | null} */ (document.getElementById('loading-progress-fill'));
 
-const LOADING_TIPS = [
-  'Tip: Press K to open skills while in game.',
-  'Tip: Drag items onto equipment slots to equip them.',
-  'Tip: Press ESC to open the in-game pause menu.',
-  'Tip: Use TAB to cycle nearby targets quickly.',
-];
-let /** @type {ReturnType<typeof setInterval> | null} */ loadingTipInterval = null;
-let loadingTipIndex = 0;
-
-function startLoadingTips() {
-  if (!loadingTipEl) return;
-  loadingTipEl.textContent = LOADING_TIPS[loadingTipIndex % LOADING_TIPS.length];
-  if (loadingTipInterval) return;
-  loadingTipInterval = setInterval(() => {
-    loadingTipIndex = (loadingTipIndex + 1) % LOADING_TIPS.length;
-    if (loadingTipEl) loadingTipEl.textContent = LOADING_TIPS[loadingTipIndex];
-  }, 3500);
-}
-
-function stopLoadingTips() {
-  if (loadingTipInterval) {
-    clearInterval(loadingTipInterval);
-    loadingTipInterval = null;
-  }
-}
-
-/**
- * @typedef {{
- *   stage?: string;
- *   message?: string;
- *   progress?: number;
- *   indeterminate?: boolean;
- * }} LoadingState
- */
-
-function showLoadingScreen(/** @type {LoadingState | string} */ options = {}) {
-  const normalized = typeof options === 'string' ? { message: options } : options;
-  const {
-    stage = 'Preparing session',
-    message = 'Loading...',
-    progress = undefined,
-    indeterminate = false,
-  } = normalized;
-  if (loadingStageEl) loadingStageEl.textContent = stage;
-  if (loadingTextEl) loadingTextEl.textContent = message;
-  loadingScreenEl?.classList.add('visible');
-  startLoadingTips();
-  if (loadingProgressBarEl) {
-    const showBar = indeterminate || typeof progress === 'number';
-    loadingProgressBarEl.classList.toggle('hidden', !showBar);
-    loadingProgressBarEl.classList.toggle('indeterminate', !!indeterminate);
-    if (typeof progress === 'number') {
-      const clamped = Math.max(0, Math.min(100, progress));
-      loadingProgressBarEl.style.setProperty('--progress', String(clamped));
-      loadingProgressBarEl.classList.remove('hidden');
-      loadingProgressBarEl.setAttribute('aria-valuenow', String(Math.round(clamped)));
-    } else if (showBar) {
-      loadingProgressBarEl.removeAttribute('aria-valuenow');
-    }
-  }
-  if (loadingProgressFillEl) {
-    loadingProgressFillEl.classList.toggle('hidden', !!indeterminate);
-  }
-}
-
-function hideLoadingScreen() {
-  loadingScreenEl?.classList.remove('visible');
-  stopLoadingTips();
-}
+const { showLoadingScreen, hideLoadingScreen, updateLoadingFromNetworkStage } = createLoadingScreen({
+  loadingScreenEl,
+  loadingStageEl,
+  loadingTextEl,
+  loadingTipEl,
+  loadingProgressBarEl,
+  loadingProgressFillEl,
+});
 
 const INTERP_DELAY_MS = 100;
 const MAX_SNAPSHOT_AGE_MS = 2000;
@@ -303,32 +265,6 @@ const combat = createCombat({
   ctx,
 });
 combatRef.current = combat;
-
-function updateLoadingFromNetworkStage(/** @type {any} */ stage) {
-  if (stage === 'socket_open') {
-    showLoadingScreen({
-      stage: 'Connecting realm',
-      message: 'Realm link established. Handshaking...',
-      indeterminate: true,
-    });
-    return;
-  }
-  if (stage === 'awaiting_welcome') {
-    showLoadingScreen({
-      stage: 'Syncing world state',
-      message: 'Syncing character and world snapshot...',
-      indeterminate: true,
-    });
-    return;
-  }
-  if (stage === 'world_ready') {
-    showLoadingScreen({
-      stage: 'Syncing world state',
-      message: 'Finalizing entry...',
-      progress: 100,
-    });
-  }
-}
 
 const connection = createConnection({
   gameState,

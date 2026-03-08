@@ -2,6 +2,7 @@
 
 import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from './admin-alias.js';
 import { createDesignerApi } from './designer-api.js';
+import { escapeHtml } from './escapeHtml.js';
 
 const POLL_INTERVAL_MS = 1000;
 const MAP_REFRESH_EVERY_POLLS = 10;
@@ -149,10 +150,10 @@ function renderZoneList() {
   const tr = document.createElement('tr');
   tr.innerHTML = [
     '<td>world-map</td>',
-    `<td>${mapSize}</td>`,
-    `<td>${spawnCount}</td>`,
-    `<td>${summarizeProps(state.latestMapConfig)}</td>`,
-    `<td>${formatTime(state.latestAdminState?.t ?? Date.now())}</td>`,
+    `<td>${escapeHtml(String(mapSize))}</td>`,
+    `<td>${escapeHtml(String(spawnCount))}</td>`,
+    `<td>${escapeHtml(summarizeProps(state.latestMapConfig))}</td>`,
+    `<td>${escapeHtml(formatTime(state.latestAdminState?.t ?? Date.now()))}</td>`,
     '<td><a class="zone-open-link" href="/admin/map" id="open-zone-btn">Open Zone</a></td>',
   ].join('');
 

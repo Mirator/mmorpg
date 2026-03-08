@@ -46,6 +46,7 @@ import { hasSessionRestoreHint, setSessionRestoreHint } from './session.js';
 import { createDesignerApi } from '../designer-api.js';
 import { createDesignerStore } from '../designer-store.js';
 import { ensureAdminAlias, getStoredAdminAlias, renderAdminAlias } from '../admin-alias.js';
+import { escapeHtml } from '../escapeHtml.js';
 
 const {
   form, passInput, statusEl, aliasLabel, aliasBtn, lockBtn, workspacePanel, saveStatusEl, errorsEl,
@@ -584,8 +585,8 @@ function renderTemplates() {
     card.draggable = true;
     card.dataset.templateId = template.id;
     card.innerHTML = [
-      `<span class="asset-title">${template.label}</span>`,
-      `<span class="asset-tags">${template.tags.join(' · ')}</span>`,
+      `<span class="asset-title">${escapeHtml(template.label)}</span>`,
+      `<span class="asset-tags">${escapeHtml(template.tags.join(' · '))}</span>`,
     ].join('');
 
     card.addEventListener('click', () => {

@@ -33,6 +33,7 @@ import {
   safeSend,
   safeSendRaw,
 } from './ws/runtime.js';
+import { logger } from './logger.js';
 
 // Ownership boundary: this module owns WS connection lifecycle, auth gating, and AOI broadcasts.
 // Gameplay message behavior should stay in server/ws/handlers/* to keep this file transport-focused.
@@ -412,7 +413,7 @@ export function createWebSocketServer({
       cleanupConnection();
       if (isCurrent && player && !player.isGuest) {
         persistence.persistPlayer(player).catch((/** @type {unknown} */ err) => {
-          console.error('Failed to persist player on disconnect:', err);
+          logger.error('Failed to persist player on disconnect:', err);
         });
       }
     });
@@ -440,7 +441,7 @@ export function createWebSocketServer({
           try {
             stored = await loadPlayer(characterId);
           } catch (err) {
-            console.error('Failed to load player from DB:', err);
+            logger.error('Failed to load player from DB:', err);
             ws.close?.(1011, 'DB unavailable');
             cleanupConnection();
             return;
@@ -465,7 +466,7 @@ export function createWebSocketServer({
           try {
             session = await getSessionWithAccount(token);
           } catch (err) {
-            console.error('Failed to load session:', err);
+            logger.error('Failed to load session:', err);
             ws.close?.(1011, 'Auth unavailable');
             cleanupConnection();
             return;
@@ -488,7 +489,7 @@ export function createWebSocketServer({
           try {
             stored = await loadPlayer(characterId);
           } catch (err) {
-            console.error('Failed to load player from DB:', err);
+            logger.error('Failed to load player from DB:', err);
             ws.close?.(1011, 'DB unavailable');
             cleanupConnection();
             return;
@@ -535,7 +536,7 @@ export function createWebSocketServer({
         if (!guest && migrated.didUpgrade) {
           const upgradedState = serializePlayerState(basePlayer);
           savePlayer(basePlayer, upgradedState, new Date()).catch((/** @type {unknown} */ err) => {
-            console.error('Failed to persist migrated player state:', err);
+            logger.error('Failed to persist migrated player state:', err);
           });
         }
       } else {
@@ -651,13 +652,18 @@ export function createWebSocketServer({
         };
         for (const [match, handle] of msgHandlers) {
           if (match(msg)) {
-            handle(ctx);
+            try {
+              handle(ctx);
+            } catch (err) {
+              logger.error('WS handler error:', err);
+              safeSend(ws, { type: 'error', message: 'Action failed' });
+            }
             return;
           }
         }
       });
     })().catch((/** @type {unknown} */ err) => {
-      console.error('Failed to initialize connection:', err);
+      logger.error('Failed to initialize connection:', err);
       ws.close?.(1011, 'Server error');
       cleanupConnection();
     });

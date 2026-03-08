@@ -18,6 +18,7 @@ import { autoMigrateDev } from './devMigrate.js';
 import { loadMapConfigSync, resolveMapConfigPath } from './mapConfig.js';
 import { resolveDesignerStatePath } from './mapDesignerState.js';
 import { applyCollisions } from './logic/collision.js';
+import { logger } from './logger.js';
 
 export function createServer(/** @type {any} */ { env = process.env } = {}) {
   const config = getServerConfig(env);
@@ -178,6 +179,9 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
     onApplyMapConfig: applyLiveMapConfig,
   });
   const server = http.createServer(app);
+  server.requestTimeout = 30_000;
+  server.headersTimeout = 32_000;
+  server.keepAliveTimeout = 65_000;
 
   persistence = createPersistence({
     players,
@@ -310,7 +314,7 @@ export function createServer(/** @type {any} */ { env = process.env } = {}) {
   function start() {
     autoMigrateDev({ env, config });
     seedDevAccount({ env, config }).catch((/** @type {any} */ err) => {
-      console.warn('[dev] Failed to seed default account:', err);
+      logger.warn('[dev] Failed to seed default account:', err);
     });
     ws.startHeartbeat();
     ws.startBroadcast();

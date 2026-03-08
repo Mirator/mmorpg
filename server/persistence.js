@@ -1,4 +1,6 @@
 // @ts-check
+import { logger } from './logger.js';
+
 export function createPersistence(/** @type {any} */ {
   players,
   savePlayer,
@@ -54,7 +56,7 @@ export function createPersistence(/** @type {any} */ {
         if (!shouldPersistPlayer(player, now)) continue;
         pending.push(
           persistPlayer(player, now).catch((/** @type {any} */ err) => {
-            console.error('Failed to persist player:', err);
+            logger.error('Failed to persist player:', err);
             player.dirty = true;
           })
         );
@@ -78,7 +80,7 @@ export function createPersistence(/** @type {any} */ {
     for (const player of players.values()) {
       pending.push(
         persistPlayer(player, now).catch((/** @type {any} */ err) => {
-          console.error('Failed to persist player during shutdown:', err);
+          logger.error('Failed to persist player during shutdown:', err);
           player.dirty = true;
         })
       );

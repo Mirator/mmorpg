@@ -1,5 +1,6 @@
 // @ts-check
 import { applyCollisions } from './collision.js';
+import { logger } from '../logger.js';
 import { MOB_MAX_LEVEL, clampMobLevel } from '../../shared/progression.js';
 import { MOB_TYPES, getMobBehaviorType, getMobStats } from '../../shared/entityTypes.js';
 import { computeDerivedStats } from '../../shared/attributes.js';
@@ -108,7 +109,7 @@ export function createMobs(/** @type {any} */ count, /** @type {any} */ world, /
   }
 
   if (mobs.length < count) {
-    console.warn(
+    logger.warn(
       `Mob spawn: placed ${mobs.length}/${count} mobs without overlap; ` +
         'map may be too dense for requested count.'
     );

@@ -7,7 +7,7 @@ export const LANDING_STORAGE_KEYS = {
 
 export const MENU_DEFAULT_SETTINGS = {
   motionEnabled: true,
-  parallaxEnabled: true,
+  parallaxEnabled: false,
   lushFoliage: true,
 };
 

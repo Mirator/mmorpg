@@ -40,6 +40,7 @@ import { isValidClassId } from '../shared/classes.js';
 import { createTicket } from './wsTicket.js';
 import { getCookieValue, normalizeId } from './authParsing.js';
 import { createAdminSessionStore } from './adminSession.js';
+import { logger } from './logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = path.resolve(__dirname, '../client');
@@ -311,7 +312,7 @@ export function createHttpApp({
     /** @type {string} */ clientMessage
   ) => {
     if (sendDbError(res, err)) return;
-    console.error(logLabel, err);
+    logger.error(logLabel, err);
     sendError(res, 500, clientMessage);
   };
 
@@ -834,7 +835,7 @@ export function createHttpApp({
       ? sendDbError(res, /** @type {any} */ (err))
       : false;
     if (dbResponse) return;
-    console.error('Unhandled error:', err);
+    logger.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
   });
 

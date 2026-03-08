@@ -1,6 +1,7 @@
 // @ts-check
 
 import { createSessionShell } from './session-shell.js';
+import { escapeHtml } from './escapeHtml.js';
 
 /** @typedef {{ id: string, name: string, entityType: string, assetPath: string, tags: string[], defaults: Record<string, unknown>, version: number, createdAt: string, updatedAt: string }} PrefabRecord */
 
@@ -128,9 +129,9 @@ function renderList() {
     const tags = prefab.tags.length > 0 ? prefab.tags.join(', ') : 'no tags';
 
     item.innerHTML = [
-      `<strong>${prefab.name}</strong>`,
-      `<div class="meta mono">${prefab.id}</div>`,
-      `<div class="meta">${prefab.entityType} · ${tags}</div>`,
+      `<strong>${escapeHtml(prefab.name)}</strong>`,
+      `<div class="meta mono">${escapeHtml(prefab.id)}</div>`,
+      `<div class="meta">${escapeHtml(prefab.entityType)} · ${escapeHtml(tags)}</div>`,
     ].join('');
 
     item.addEventListener('click', () => {
