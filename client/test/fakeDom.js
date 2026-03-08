@@ -127,6 +127,15 @@ export class FakeElement {
     this.parentNode = null;
   }
 
+  contains(/** @type {any} */ target) {
+    if (target === this) return true;
+    for (const child of this.children) {
+      if (child === target) return true;
+      if (child?.contains?.(target)) return true;
+    }
+    return false;
+  }
+
   setAttribute(/** @type {string} */ name, /** @type {any} */ value) {
     const stringValue = String(value ?? '');
     this.attributes[name] = stringValue;

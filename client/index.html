@@ -9,101 +9,244 @@
   </head>
   <body>
     <div id="app"></div>
-    <div id="menu" class="menu open" data-step="auth" data-tab="signin" data-progress="account" aria-busy="false">
-      <div class="menu-hero">Rising Ages</div>
-      <div class="menu-progress" role="presentation">
-        <div class="menu-progress-step active" data-progress-step="account">Account</div>
-        <div class="menu-progress-step" data-progress-step="character">Character</div>
-        <div class="menu-progress-step" data-progress-step="enter">Enter World</div>
+    <div
+      id="menu"
+      class="menu open"
+      data-step="auth"
+      data-tab="signin"
+      data-progress="account"
+      data-overlay="none"
+      data-motion="on"
+      data-parallax="on"
+      data-foliage="lush"
+      aria-busy="false"
+    >
+      <div class="menu-scene" aria-hidden="true">
+        <div class="menu-scene-backdrop"></div>
+        <div class="menu-scene-mist"></div>
+        <div class="menu-scene-canopy"></div>
+        <div class="menu-scene-boughs"></div>
+        <div class="menu-scene-trunks"></div>
+        <div class="menu-scene-depth"></div>
+        <div class="menu-scene-shrine"></div>
+        <div class="menu-scene-roots"></div>
+        <div id="menu-pollen" class="menu-pollen"></div>
+        <div class="menu-scene-vignette"></div>
       </div>
-      <div id="menu-status" class="menu-status tone-neutral" aria-live="polite"></div>
-      <div class="menu-card menu-auth">
-        <div class="menu-brand">Rising Ages</div>
-        <div class="menu-subtitle">Sign in to continue your journey.</div>
-        <div class="menu-tabs">
-          <button class="menu-tab active" data-tab="signin">Sign In</button>
-          <button class="menu-tab" data-tab="signup">Create Account</button>
-        </div>
-        <form id="signin-form" class="menu-form">
-          <label class="menu-label" for="signin-username">Username</label>
-          <input id="signin-username" name="username" type="text" autocomplete="username" required />
-          <div id="signin-username-error" class="menu-field-error"></div>
-          <label class="menu-label" for="signin-password">Password</label>
-          <input
-            id="signin-password"
-            name="password"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
-          <div id="signin-password-error" class="menu-field-error"></div>
-          <button type="submit" class="menu-primary">Sign In</button>
-        </form>
-        <form id="signup-form" class="menu-form hidden">
-          <label class="menu-label" for="signup-username">Username</label>
-          <input id="signup-username" name="username" type="text" autocomplete="username" required />
-          <div id="signup-username-error" class="menu-field-error"></div>
-          <label class="menu-label" for="signup-password">Password</label>
-          <input
-            id="signup-password"
-            name="password"
-            type="password"
-            autocomplete="new-password"
-            required
-          />
-          <div id="signup-password-error" class="menu-field-error"></div>
-          <button type="submit" class="menu-primary">Create Account</button>
-        </form>
-        <div id="menu-auth-error" class="menu-error"></div>
-      </div>
-      <div class="menu-card menu-characters">
-        <div class="menu-brand small">Welcome back</div>
-        <div id="menu-account" class="menu-subtitle">Account: --</div>
-        <div id="menu-last-character" class="menu-subtitle">Last played: --</div>
-        <div class="menu-title">Choose Character</div>
-        <div id="menu-continue-panel" class="menu-continue hidden">
-          <div class="menu-continue-copy">
-            <div class="menu-continue-title">Continue Adventure</div>
-            <div id="menu-continue-name" class="menu-continue-name">--</div>
-            <div id="menu-continue-meta" class="menu-continue-meta">Choose a character from the list below.</div>
-          </div>
-          <button id="menu-continue-btn" class="menu-primary" type="button">Continue</button>
-        </div>
-        <div id="character-list" class="character-list"></div>
-        <div class="menu-actions">
-          <button id="character-create-open" class="menu-secondary">Create Character</button>
-          <button id="menu-signout" class="menu-ghost">Sign Out</button>
-        </div>
-        <div id="menu-characters-error" class="menu-error"></div>
-      </div>
-      <div class="menu-card menu-create">
-        <div class="menu-brand small">Create Character</div>
-        <form id="character-create-form" class="menu-form">
-          <label class="menu-label" for="character-name">Name</label>
-          <input id="character-name" name="name" type="text" required />
-          <div id="character-name-error" class="menu-field-error"></div>
-          <label class="menu-label" for="character-class">Class</label>
-          <select id="character-class" name="classId" required>
-            <option value="guardian">Guardian (Tank)</option>
-            <option value="fighter" selected>Fighter (Melee DPS)</option>
-            <option value="ranger">Ranger (Ranged DPS)</option>
-            <option value="priest">Priest (Healer)</option>
-            <option value="mage">Mage (Magic DPS)</option>
-          </select>
-          <div id="character-class-error" class="menu-field-error"></div>
-          <div id="character-class-preview" class="character-class-preview">
-            <div id="character-class-preview-name" class="class-preview-name">Fighter</div>
-            <div id="character-class-preview-role" class="class-preview-role">Melee DPS</div>
-            <div id="character-class-preview-blurb" class="class-preview-blurb">
-              Balanced frontline damage.
+
+      <div class="menu-shell">
+        <div class="menu-composition">
+          <header class="menu-header">
+            <div class="menu-title-plaque">
+              <div class="menu-hero">Rising Ages</div>
             </div>
-          </div>
-          <div class="menu-actions">
-            <button type="button" id="character-create-cancel" class="menu-ghost">Back</button>
-            <button type="submit" class="menu-primary">Create</button>
-          </div>
-        </form>
-        <div id="menu-create-error" class="menu-error"></div>
+          </header>
+
+          <aside class="menu-sidebar menu-sidebar-left">
+            <div class="menu-board menu-side-board">
+              <div class="menu-board-heading">Wayfinder</div>
+              <div class="menu-board-subtitle"></div>
+              <div id="menu-nav-list" class="menu-nav-list"></div>
+            </div>
+          </aside>
+
+          <main class="menu-main">
+            <div class="menu-main-panel">
+              <div class="menu-stage-shell">
+                <div class="menu-progress" role="presentation">
+                  <div class="menu-progress-step active" data-progress-step="account">Account</div>
+                  <div class="menu-progress-step" data-progress-step="character">Character</div>
+                  <div class="menu-progress-step" data-progress-step="enter">Enter World</div>
+                </div>
+                <div class="menu-stage-copy">
+                </div>
+                <div id="menu-status" class="menu-status tone-neutral" aria-live="polite"></div>
+
+                <div class="menu-card menu-auth">
+                  <div class="menu-brand">Rising Ages</div>
+                  <form id="signin-form" class="menu-form">
+                    <label class="menu-label" for="signin-username">Username</label>
+                    <input id="signin-username" name="username" type="text" autocomplete="username" required />
+                    <div id="signin-username-error" class="menu-field-error"></div>
+                    <label class="menu-label" for="signin-password">Password</label>
+                    <input
+                      id="signin-password"
+                      name="password"
+                      type="password"
+                      autocomplete="current-password"
+                      required
+                    />
+                    <div id="signin-password-error" class="menu-field-error"></div>
+                    <div class="menu-auth-tools">
+                      <label class="menu-checkbox" for="signin-remember">
+                        <input id="signin-remember" type="checkbox" checked />
+                        <span>Remember account</span>
+                      </label>
+                      <button type="button" class="menu-inline-link menu-forgot-link">Forgot password</button>
+                    </div>
+                    <div class="menu-auth-actions">
+                      <span class="menu-tooltip-anchor menu-realm-button-anchor">
+                        <button type="button" class="menu-secondary menu-realm-button">
+                          <span class="menu-realm-button-label">Switch Realm</span>
+                          <span class="menu-realm-button-text">Hearthlight Hollow</span>
+                        </button>
+                      </span>
+                      <button type="submit" class="menu-primary">Log In</button>
+                    </div>
+                  </form>
+                  <form id="signup-form" class="menu-form hidden">
+                    <label class="menu-label" for="signup-username">Username</label>
+                    <input id="signup-username" name="username" type="text" autocomplete="username" required />
+                    <div id="signup-username-error" class="menu-field-error"></div>
+                    <label class="menu-label" for="signup-password">Password</label>
+                    <input
+                      id="signup-password"
+                      name="password"
+                      type="password"
+                      autocomplete="new-password"
+                      required
+                    />
+                    <div id="signup-password-error" class="menu-field-error"></div>
+                    <div class="menu-auth-tools">
+                      <label class="menu-checkbox" for="signup-remember">
+                        <input id="signup-remember" type="checkbox" checked />
+                        <span>Remember account</span>
+                      </label>
+                      <button type="button" class="menu-inline-link menu-forgot-link">Forgot password</button>
+                    </div>
+                    <div class="menu-auth-actions">
+                      <span class="menu-tooltip-anchor menu-realm-button-anchor">
+                        <button type="button" class="menu-secondary menu-realm-button">
+                          <span class="menu-realm-button-label">Switch Realm</span>
+                          <span class="menu-realm-button-text">Hearthlight Hollow</span>
+                        </button>
+                      </span>
+                      <button type="submit" class="menu-primary">Create Account</button>
+                    </div>
+                  </form>
+                  <div id="menu-auth-error" class="menu-error"></div>
+                </div>
+
+                <div class="menu-card menu-characters">
+                  <div class="menu-brand small">Your lanterns are waiting</div>
+                  <div id="menu-continue-panel" class="menu-continue hidden">
+                    <div class="menu-continue-copy">
+                      <div class="menu-continue-title">Continue Adventure</div>
+                      <div id="menu-continue-name" class="menu-continue-name">--</div>
+                      <div id="menu-continue-meta" class="menu-continue-meta">Choose a character from the list below.</div>
+                    </div>
+                    <button id="menu-continue-btn" class="menu-primary" type="button">Continue</button>
+                  </div>
+                  <div id="character-list" class="character-list"></div>
+                  <div class="menu-actions">
+                    <button id="character-create-open" class="menu-secondary" type="button">Create Character</button>
+                    <button id="menu-signout" class="menu-ghost" type="button">Sign Out</button>
+                  </div>
+                  <div id="menu-characters-error" class="menu-error"></div>
+                </div>
+
+                <div class="menu-card menu-create">
+                  <div class="menu-brand small">Create Character</div>
+                  <form id="character-create-form" class="menu-form">
+                    <label class="menu-label" for="character-name">Name</label>
+                    <input id="character-name" name="name" type="text" required />
+                    <div id="character-name-error" class="menu-field-error"></div>
+                    <label class="menu-label" for="character-class">Class</label>
+                    <select id="character-class" name="classId" required>
+                      <option value="guardian">Guardian (Tank)</option>
+                      <option value="fighter" selected>Fighter (Melee DPS)</option>
+                      <option value="ranger">Ranger (Ranged DPS)</option>
+                      <option value="priest">Priest (Healer)</option>
+                      <option value="mage">Mage (Magic DPS)</option>
+                    </select>
+                    <div id="character-class-error" class="menu-field-error"></div>
+                    <div id="character-class-preview" class="character-class-preview">
+                      <div id="character-class-preview-name" class="class-preview-name">Fighter</div>
+                      <div id="character-class-preview-role" class="class-preview-role">Melee DPS</div>
+                      <div id="character-class-preview-blurb" class="class-preview-blurb">
+                        Balanced frontline damage.
+                      </div>
+                    </div>
+                    <div class="menu-actions">
+                      <button type="button" id="character-create-cancel" class="menu-ghost">Back</button>
+                      <button type="submit" class="menu-primary">Create</button>
+                    </div>
+                  </form>
+                  <div id="menu-create-error" class="menu-error"></div>
+                </div>
+              </div>
+            </div>
+          </main>
+
+          <aside class="menu-sidebar menu-sidebar-right">
+            <div class="menu-board menu-info-board">
+              <div class="menu-board-heading">News</div>
+              <div id="menu-news-featured" class="menu-news-featured"></div>
+              <div id="menu-news-list" class="menu-news-list"></div>
+            </div>
+            <div class="menu-board menu-info-board">
+              <div class="menu-board-heading">Community</div>
+              <div id="menu-community-list" class="menu-community-list"></div>
+            </div>
+          </aside>
+
+          <footer class="menu-footer">
+            <div class="menu-footer-realm">
+              <div class="menu-footer-label">Current Realm</div>
+              <div id="menu-footer-realm-name" class="menu-footer-realm-name">Hearthlight Hollow</div>
+              <div id="menu-footer-realm-region" class="menu-footer-realm-region">EU Story Realm</div>
+            </div>
+            <div class="menu-footer-network">
+              <div class="menu-footer-network-topline">
+                <span id="menu-footer-realm-status" class="menu-status-chip" data-state="online">Online</span>
+                <span id="menu-footer-realm-population" class="menu-footer-realm-population">Quiet embers</span>
+              </div>
+              <div id="menu-footer-network-summary" class="menu-footer-network-summary">Awaiting network whisper</div>
+              <button id="menu-network-refresh" class="menu-inline-link" type="button">Refresh network info</button>
+            </div>
+            <div class="menu-footer-meta">
+              <div id="menu-footer-privacy" class="menu-footer-privacy"></div>
+              <div class="menu-footer-copyright">Copyright 2026 Rising Ages. All rights reserved.</div>
+            </div>
+            <div id="menu-footer-version" class="menu-footer-version">Prototype 0.1.0</div>
+          </footer>
+        </div>
+      </div>
+
+      <div id="menu-overlay-backdrop" class="menu-overlay-backdrop hidden"></div>
+      <div id="menu-settings-overlay" class="menu-overlay-panel hidden" role="dialog" aria-modal="true">
+        <button class="menu-overlay-close" type="button" aria-label="Close settings">×</button>
+        <div class="menu-overlay-kicker">Shrine Settings</div>
+        <div class="menu-overlay-title">Atmosphere and comfort</div>
+        <label class="menu-setting-row" for="menu-settings-motion">
+          <span>Atmospheric motion</span>
+          <input id="menu-settings-motion" type="checkbox" checked />
+        </label>
+        <label class="menu-setting-row" for="menu-settings-parallax">
+          <span>Mouse parallax</span>
+          <input id="menu-settings-parallax" type="checkbox" />
+        </label>
+        <label class="menu-setting-row" for="menu-settings-foliage">
+          <span>Dense foreground foliage</span>
+          <input id="menu-settings-foliage" type="checkbox" checked />
+        </label>
+      </div>
+
+      <div id="menu-credits-overlay" class="menu-overlay-panel hidden" role="dialog" aria-modal="true">
+        <button class="menu-overlay-close" type="button" aria-label="Close credits">×</button>
+        <div class="menu-overlay-kicker">Credits</div>
+        <div class="menu-overlay-title">Forest shrine notes</div>
+        <p id="menu-credits-summary" class="menu-overlay-copy"></p>
+        <ul id="menu-credits-details" class="menu-overlay-list"></ul>
+        <div class="menu-overlay-subtitle">Gameplay icon attribution</div>
+        <ul id="menu-credits-icons" class="menu-overlay-list compact"></ul>
+      </div>
+
+      <div id="menu-realms-overlay" class="menu-overlay-panel hidden" role="dialog" aria-modal="true">
+        <button class="menu-overlay-close" type="button" aria-label="Close realm selector">×</button>
+        <div class="menu-overlay-kicker">Realm Selection</div>
+        <div class="menu-overlay-title">Choose your watchfire</div>
+        <div id="menu-realms-list" class="menu-realms-list"></div>
       </div>
     </div>
     <div id="error-overlay" class="error-overlay" role="alert" aria-live="assertive">

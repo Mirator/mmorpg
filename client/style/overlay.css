@@ -576,7 +576,10 @@ body.cast-bar-active #prompt {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(4, 8, 12, 0.85);
+  background:
+    radial-gradient(circle at 50% 30%, rgba(211, 183, 128, 0.14), transparent 26%),
+    radial-gradient(circle at 50% 44%, rgba(9, 12, 16, 0.74), transparent 40%),
+    rgba(8, 9, 8, 0.84);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -590,15 +593,20 @@ body.cast-bar-active #prompt {
 
 .loading-screen-content {
   width: min(420px, 90vw);
-  padding: 22px 24px;
-  border-radius: 16px;
-  border: 1px solid rgba(var(--accent-rgb), 0.32);
-  background: linear-gradient(180deg, rgba(36, 28, 20, 0.95), rgba(16, 12, 9, 0.98));
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  padding: 24px 26px;
+  border-radius: 24px 24px 20px 20px;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  background:
+    linear-gradient(180deg, rgba(58, 44, 31, 0.96), rgba(22, 16, 12, 0.98)),
+    url('/assets/ui/theme-pro/panel-grain.svg');
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 248, 224, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  text-align: center;
 }
 
 .loading-spinner {
@@ -661,19 +669,20 @@ body.cast-bar-active #prompt {
 .loading-stage {
   margin-top: 2px;
   font-size: 12px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #e8cf9c;
 }
 
 .loading-text {
-  font-size: 15px;
+  font-size: 20px;
+  font-family: 'Cormorant Garamond', serif;
   color: var(--text);
 }
 
 .loading-tip {
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 13px;
+  color: #c7bb9c;
   text-align: center;
   min-height: 16px;
 }
@@ -830,11 +839,15 @@ body.cast-bar-active #prompt {
   transform: translateX(-50%) translateY(-10px);
   min-width: min(420px, 92vw);
   max-width: 92vw;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(var(--accent-2-rgb), 0.35);
-  background: linear-gradient(180deg, rgba(33, 27, 19, 0.92), rgba(16, 12, 9, 0.96));
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5);
+  padding: 14px 20px;
+  border-radius: 18px 18px 14px 14px;
+  border: 1px solid rgba(var(--accent-2-rgb), 0.32);
+  background:
+    linear-gradient(180deg, rgba(54, 41, 30, 0.94), rgba(20, 15, 11, 0.97)),
+    url('/assets/ui/theme-pro/panel-grain.svg');
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 247, 226, 0.07);
   text-align: center;
   opacity: 0;
   pointer-events: none;
@@ -848,15 +861,15 @@ body.cast-bar-active #prompt {
 }
 
 .entry-banner-title {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #e5d2a2;
 }
 
 .entry-banner-subtitle {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: 15px;
+  font-family: 'Cormorant Garamond', serif;
   color: var(--text);
 }

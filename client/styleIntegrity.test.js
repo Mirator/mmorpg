@@ -73,7 +73,18 @@ describe('style scope integrity', () => {
 
   it('contains menu flow selectors for progress and smart continue', () => {
     const menuCss = read(MENU_CSS);
-    for (const selector of ['.menu-progress', '.menu-status', '.menu-continue', '.character-class-preview']) {
+    for (const selector of [
+      '.menu-shell',
+      '.menu-title-plaque',
+      '.menu-nav-list',
+      '.menu-progress',
+      '.menu-status',
+      '.menu-continue',
+      '.character-class-preview',
+      '.menu-info-board',
+      '.menu-footer',
+      '.menu-overlay-panel',
+    ]) {
       expect(menuCss).toContain(selector);
     }
   });

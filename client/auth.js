@@ -52,6 +52,7 @@ export function createAuth(/** @type {any} */ {
   let /** @type {any} */ currentAccount = null;
   let /** @type {any} */ currentCharacter = null;
   let /** @type {any} */ lastCharacterId = null;
+  let shouldPersistAccount = true;
 
   function saveAuthToken(/** @type {any} */ token) {
     authToken = token ?? null;
@@ -80,17 +81,24 @@ export function createAuth(/** @type {any} */ {
     localStorage.removeItem(ACCOUNT_KEY);
   }
 
+  function setShouldPersistAccount(/** @type {any} */ next) {
+    shouldPersistAccount = next !== false;
+    menu.setRememberAccount?.(shouldPersistAccount);
+  }
+
   function getLastCharacterKey() {
     return currentAccount?.id ? `${LAST_CHARACTER_PREFIX}${currentAccount.id}` : null;
   }
 
   function loadLastCharacterId() {
+    if (!shouldPersistAccount) return null;
     const key = getLastCharacterKey();
     if (!key) return null;
     return localStorage.getItem(key);
   }
 
   function saveLastCharacterId(/** @type {any} */ id) {
+    if (!shouldPersistAccount) return;
     const key = getLastCharacterKey();
     if (!key) return;
     if (id) {
@@ -162,7 +170,8 @@ export function createAuth(/** @type {any} */ {
     const data = await apiFetch('/api/characters');
     const characters = data.characters ?? [];
     menu.setCharacters(characters);
-    lastCharacterId = loadLastCharacterId();
+    lastCharacterId = shouldPersistAccount ? loadLastCharacterId() : null;
+    menu.setLastPlayedCharacterId?.(lastCharacterId);
     const preferred = characters.find((/** @type {any} */ c) => c.id === lastCharacterId) ?? characters[0] ?? null;
     menu.setSelectedCharacterId(lastCharacterId);
     menu.setPrimaryCharacter(preferred);
@@ -179,20 +188,26 @@ export function createAuth(/** @type {any} */ {
     updateOverlayLabels();
   }
 
-  async function signIn(/** @type {any} */ { username, password }) {
+  async function signIn(/** @type {any} */ { username, password, rememberAccount }) {
     menu.setLoading(true);
     menu.setError('auth', '');
     menu.setProgressStep('account');
     menu.setStatusMessage('Signing in...', 'neutral');
     uiAudio?.play?.('confirm');
     try {
+      setShouldPersistAccount(rememberAccount);
       const data = await apiFetch('/api/auth/login', {
         method: 'POST',
         body: { username, password },
       });
       saveAuthToken(data.token ?? null);
       currentAccount = data.account ?? null;
-      saveStoredAccount(currentAccount);
+      if (shouldPersistAccount) {
+        saveStoredAccount(currentAccount);
+      } else {
+        clearStoredAccount();
+        clearLastCharacterId();
+      }
       menu.setAccount(currentAccount);
       menu.setStatusMessage('Signed in successfully.', 'success');
       uiAudio?.play?.('success');
@@ -207,20 +222,26 @@ export function createAuth(/** @type {any} */ {
     }
   }
 
-  async function signUp(/** @type {any} */ { username, password }) {
+  async function signUp(/** @type {any} */ { username, password, rememberAccount }) {
     menu.setLoading(true);
     menu.setError('auth', '');
     menu.setProgressStep('account');
     menu.setStatusMessage('Creating account...', 'neutral');
     uiAudio?.play?.('confirm');
     try {
+      setShouldPersistAccount(rememberAccount);
       const data = await apiFetch('/api/auth/signup', {
         method: 'POST',
         body: { username, password },
       });
       saveAuthToken(data.token ?? null);
       currentAccount = data.account ?? null;
-      saveStoredAccount(currentAccount);
+      if (shouldPersistAccount) {
+        saveStoredAccount(currentAccount);
+      } else {
+        clearStoredAccount();
+        clearLastCharacterId();
+      }
       menu.setAccount(currentAccount);
       menu.setStatusMessage('Account created successfully.', 'success');
       uiAudio?.play?.('success');
@@ -296,8 +317,10 @@ export function createAuth(/** @type {any} */ {
       // ignore
     }
     saveAuthToken(null);
+    setShouldPersistAccount(true);
     clearStoredAccount();
     lastCharacterId = null;
+    menu.setLastPlayedCharacterId?.(null);
     clearSessionState();
     onDisconnect?.();
     menu.setAccount(null);
@@ -324,6 +347,7 @@ export function createAuth(/** @type {any} */ {
       if (lastCharacterId === character.id) {
         clearLastCharacterId();
         lastCharacterId = null;
+        menu.setLastPlayedCharacterId?.(null);
         menu.setSelectedCharacterId(null);
       }
       await loadCharacters();
@@ -349,6 +373,7 @@ export function createAuth(/** @type {any} */ {
       currentCharacter = character;
       saveLastCharacterId(character.id);
       lastCharacterId = character.id;
+      menu.setLastPlayedCharacterId?.(character.id);
       menu.setSelectedCharacterId(character.id);
       menu.setPrimaryCharacter(character);
       updateOverlayLabels();
@@ -370,9 +395,11 @@ export function createAuth(/** @type {any} */ {
 
   function initFromStorage() {
     currentAccount = loadStoredAccount();
+    setShouldPersistAccount(!!currentAccount || menu.getRememberAccount?.() !== false);
     menu.setAccount(currentAccount);
     menu.setPrimaryCharacter(null);
     lastCharacterId = currentAccount ? loadLastCharacterId() : null;
+    menu.setLastPlayedCharacterId?.(lastCharacterId);
     return currentAccount;
   }
 
