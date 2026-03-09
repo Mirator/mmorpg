@@ -4,6 +4,10 @@ import { RESOURCE_CONFIG, VENDOR_CONFIG } from './config.js';
 import { VALID_MOB_TYPES, VALID_RESOURCE_TYPES } from './entityTypes.js';
 import { VENDOR_BUY_ITEMS } from './economy.js';
 
+/**
+ * @typedef {import('./domainTypes.d.ts').MapConfig} MapConfig
+ */
+
 const VALID_VENDOR_BUY_KINDS = new Set(VENDOR_BUY_ITEMS.map((/** @type {any} */ e) => e.kind));
 const INTERACTABLE_PADDING = 0.5;
 const HOSTILE_MOB_SAFE_RADIUS = 4;
@@ -74,7 +78,12 @@ function normalizeStructure(/** @type {any} */ raw) {
   };
 }
 
-export function normalizeMapConfig(/** @type {any} */ raw) {
+/**
+ * Normalize arbitrary input into a well-formed MapConfig object.
+ * @param {any} raw
+ * @returns {MapConfig}
+ */
+export function normalizeMapConfig(raw) {
   const config = isObject(raw) ? raw : {};
   return {
     version: config.version ?? MAP_CONFIG_VERSION,
@@ -250,7 +259,12 @@ function validateProtectedVendorSpace(/** @type {any} */ errors, /** @type {any}
   }
 }
 
-export function validateMapConfig(/** @type {any} */ config) {
+/**
+ * Validate a MapConfig object and return human-readable error messages.
+ * @param {MapConfig | any} config
+ * @returns {string[]}
+ */
+export function validateMapConfig(config) {
   const /** @type {any} */ errors = [];
   if (!isFiniteNumber(config?.mapSize) || config.mapSize <= 0) {
     addError(errors, 'mapSize must be a positive number.');

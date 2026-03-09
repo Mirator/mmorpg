@@ -83,6 +83,15 @@ On admin E2E failure, `e2e/playwright-admin-map-v2.js` writes diagnostics to `ou
 4. If admin surfaces changed, run `npm run test:e2e:admin`.
 5. If E2E fails, inspect latest files in `output/e2e/` or `output/e2e-admin/` and patch deterministic causes before retrying.
 
+## CI Mapping
+
+- **CI workflow (`.github/workflows/ci.yml`)**
+  - Runs on `push` and `pull_request`.
+  - Provisions Postgres, resets the test database, and runs `npm test` (typecheck + unit tests).
+- **E2E workflow (`.github/workflows/e2e.yml`)**
+  - Triggered manually via `workflow_dispatch` from GitHub.
+  - Provisions Postgres, resets the E2E database, and runs `npm run test:e2e` and `npm run test:e2e:admin`.
+
 ## Stability Gate (No-Flake)
 
 Run both suites 10 times in a row with unique ports and no gameplay retries:

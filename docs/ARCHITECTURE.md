@@ -24,19 +24,41 @@ The server is composed in `server/createServer.js`:
 
 ### Server
 
-- `server/ws/handlers/*`: message-specific handlers (ability, movement/input, inventory/equipment, party, chat, vendor, craft, duel, trade, respawn).
-- `server/logic/*`: gameplay rules and tick-step logic (combat, loot, duel, trade, party, etc.).
-- `server/db/*`: repository layer and state migration/serialization.
-- `server/authParsing.js`: shared cookie/id parsing used by both HTTP and WS paths.
+- **Composition + config**
+  - `server/index.js`, `server/createServer.js`, `server/config.js`: process lifecycle, wiring of HTTP/WS/game loop/persistence, and environment-driven config.
+- **Core game runtime (authoritative world)**
+  - `server/gameLoop.js`, `server/gameLoopPhases.js`, `server/spawn.js`: tick orchestration and world bootstrap.
+  - `server/logic/*`: gameplay rules and tick-step logic (combat, loot, duel, trade, party, mobs, world, resources, progression, collisions, tutorial, etc.).
+- **Transport + boundary adapters**
+  - `server/http.js`: HTTP routes for auth, characters, admin, and WS ticket.
+  - `server/ws.js`, `server/ws/runtime.js`, `server/ws/stateView.js`: WebSocket server, connection lifecycle, and world → view projections.
+  - `server/ws/handlers/*`: message-specific handlers (ability, movement/input, inventory/equipment, party, chat, vendor, craft, duel, trade, interact, respawn).
+  - `server/httpErrors.js`, `server/sessionToken.js`, `server/csrfGuard.js`, `server/authParsing.js`: cross-cutting HTTP/WS boundary concerns.
+- **Persistence + database access**
+  - `server/persistence.js`: dirty-tracking and periodic flush of player state.
+  - `server/db/*`: repository layer and serialization/migration helpers around Prisma.
+  - `server/types/domain.d.ts`: server-side domain typing that mirrors `shared/` contracts.
+- **Admin + map designer**
+  - `server/admin.js`, `server/adminSession.js`: admin dashboard and session handling.
+  - `server/mapConfig.js`, `server/mapDesignerState.js`, `server/mapDesignerStore.js`, `server/mapDesignerHandlers.js`: map designer and live map-config application.
+  - `server/data/world-map*.json`: checked-in designer + runtime map snapshots.
 
 ### Client
 
-- `client/client.js`: composition root (menu/auth, connection, rendering, UI, input).
-- `client/connection.js`: WebSocket lifecycle, reconnect, and inbound message routing.
-- `client/ui-state.js`: inventory/character/vendor/death UI state and interactions.
-- `client/menu.js`: auth/character menu state machine (step, tab, progress, validation, smart-continue).
-- `client/ui.js`: HUD rendering helpers plus transient presentation layers (entry banner, toasts, prompts).
-- `client/style/*.css`: domain-scoped styling (`chat.css` for chat/party/duel/trade, `vendor.css` for vendor UI).
+- **Core runtime (game simulation on the client)**
+  - `client/client.js`: composition root (menu/auth, connection, rendering, UI, input).
+  - `client/frame-loop.js`: render/update loop timing and per-frame orchestration.
+  - `client/world.js`, `client/render.js`, `client/playerVisual.js`, `client/assets.js`: world scene graph, Three.js wiring, and asset lookup.
+  - `client/input.js`, `client/keybinds.js`: input capture and keybinding configuration.
+  - `client/connection.js`, `client/net.js`: WebSocket lifecycle, reconnect, and inbound message routing.
+- **Game UI shells (in-world HUD and panels)**
+  - `client/ui.js`, `client/ui-audio.js`, `client/minimap.js`: HUD elements, feedback, and overlays directly tied to gameplay.
+  - `client/equipment.js`, `client/trade.js`, `client/social-ui.js`, `client/journal.js`, `client/item-preview-renderer.js`: feature-specific panels layered on top of the core runtime.
+- **Meta/auth/menu shell**
+  - `client/menu.js`, `client/menuNetwork.js`, `client/landingContent.js`, `client/loading.js`, `client/overlays.js`, `client/pause-menu.js`: flows that wrap the game runtime (auth, character select, loading, pause/options, onboarding overlays).
+- **Styling and visual assets**
+  - `client/style/*.css`: domain-scoped styling (`chat.css` for chat/party/duel/trade, `menu.css` for auth/character flows, `overlay.css` for loading/onboarding, etc.).
+  - `client/assets/**`: all 2D/3D assets (models, textures, icons, UI chrome) consumed by the runtime and UI shells.
 
 ## UI Flow Lifecycle (Auth to In-Game)
 

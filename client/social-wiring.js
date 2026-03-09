@@ -42,7 +42,12 @@ export function setupSocialAndDebug({
     getConnection,
   });
 
-  function buildTextState() {
+  /**
+   * Build the current debug text overlay state for the HUD.
+   *
+   * @param {any} [keys]
+   */
+  function buildTextState(keys) {
     return buildDebugTextState({
       gameState,
       ui,
@@ -51,7 +56,8 @@ export function setupSocialAndDebug({
       ctx,
       combat,
       getInputKeys,
-      getMovementSpeed: (keys) => getPlayerSpeed(keys),
+      /** @param {any} movementKeys */
+      getMovementSpeed: (movementKeys) => getPlayerSpeed(movementKeys ?? keys),
     });
   }
 

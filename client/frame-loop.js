@@ -74,6 +74,12 @@ export function createFrameLoop({
   const pingEl = /** @type {HTMLElement | null} */ (document.getElementById('ping-ms'));
   const fpsEl = /** @type {HTMLElement | null} */ (document.getElementById('fps'));
 
+  /**
+   * Advance a single rendered frame.
+   *
+   * @param {number} dt - Delta time in seconds.
+   * @param {number} now - High-resolution timestamp in milliseconds.
+   */
   function updateFrame(dt, now) {
     const inputKeys = getInputKeys();
     const worldConfig = getWorldConfig();

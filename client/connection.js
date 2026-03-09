@@ -3,6 +3,10 @@ import { createNet } from './net.js';
 import { showErrorOverlay, hideErrorOverlay, updateErrorOverlayMessage } from './error-overlay.js';
 
 /**
+ * @typedef {import('../shared/protocol-server.d.ts').ServerToClientMessage} ServerToClientMessage
+ */
+
+/**
  * @typedef {{ id?: string }} CharacterRef
  * @typedef {{ character?: CharacterRef | null, guest?: boolean, ticket?: string | null }} WsUrlParams
  * @typedef {{
@@ -293,7 +297,7 @@ export function createConnection(/** @type {any} */ {
           if (ctx.closingNet === localNet) return;
           handleUnexpectedDisconnect();
         },
-        onMessage: (/** @type {any} */ msg) => {
+        onMessage: (/** @type {ServerToClientMessage | any} */ msg) => {
           const now = manualStepping ? virtualNow : performance.now();
           if (msg.type === 'welcome') {
             const id = msg.id;

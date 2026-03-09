@@ -1,7 +1,31 @@
 // @ts-check
 import { logger } from './logger.js';
 
-export function createPersistence(/** @type {any} */ {
+/**
+ * @typedef {import('./types/domain.d.ts').ServerPlayer} ServerPlayer
+ * @typedef {import('./types/domain.d.ts').WsPersistenceLike} WsPersistenceLike
+ *
+ * @typedef {WsPersistenceLike & {
+ *   startPersistenceLoop: () => void;
+ *   stopPersistenceLoop: () => void;
+ *   flushAll: () => Promise<void>;
+ *   shouldPersistPlayer: (player: ServerPlayer, now: number) => boolean;
+ * }} PersistenceAdapter
+ */
+
+/**
+ * Create the runtime persistence adapter used by the game loop and WS layer.
+ * @param {{
+ *   players: Map<string, ServerPlayer>,
+ *   savePlayer: (player: ServerPlayer, state: any, lastSeenAt: Date) => Promise<unknown>,
+ *   serializePlayerState: (player: ServerPlayer) => any,
+ *   persistIntervalMs: number,
+ *   persistForceMs: number,
+ *   persistPosEps: number,
+ * }} deps
+ * @returns {PersistenceAdapter}
+ */
+export function createPersistence({
   players,
   savePlayer,
   serializePlayerState,
