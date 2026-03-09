@@ -21,6 +21,8 @@ import { applyDurabilityLoss } from '../shared/equipment.js';
 /** @typedef {import('./types/domain.d.ts').ServerPlayer} ServerPlayer */
 /** @typedef {import('./types/domain.d.ts').SpawnerLike} SpawnerLike */
 
+const mobByIdBuffer = new Map();
+
 /**
  * @typedef {{
  *   dt: number,
@@ -125,11 +127,8 @@ export function buildGameLoopRuntime(config, onPlayerDamaged, onMobAttackTelegra
  */
 export function stepPlayerMovementPhase({ players, world, spawner, now, runtime, markDirty }) {
   for (const player of players.values()) {
-    const prevPos = {
-      x: player.pos?.x ?? 0,
-      y: player.pos?.y ?? 0,
-      z: player.pos?.z ?? 0,
-    };
+    const prevX = player.pos?.x ?? 0;
+    const prevZ = player.pos?.z ?? 0;
     let respawned = false;
 
     if (player.dead) {
@@ -159,13 +158,17 @@ export function stepPlayerMovementPhase({ players, world, spawner, now, runtime,
       player.target = result.target;
     }
 
-    const dx = (player.pos?.x ?? 0) - prevPos.x;
-    const dz = (player.pos?.z ?? 0) - prevPos.z;
+    const dx = (player.pos?.x ?? 0) - prevX;
+    const dz = (player.pos?.z ?? 0) - prevZ;
     const dist = Math.hypot(dx, dz);
     const moved = !player.dead && !respawned && dist > 0.001;
     player.movedThisTick = moved;
     if (moved) {
-      player.lastMoveDir = { x: dx / dist, z: dz / dist };
+      const lastMoveDir =
+        player.lastMoveDir ||
+        (player.lastMoveDir = /** @type {{ x: number, z: number }} */ ({ x: 0, z: 0 }));
+      lastMoveDir.x = dx / dist;
+      lastMoveDir.z = dz / dist;
     }
   }
 }
@@ -257,20 +260,35 @@ export function stepPlayerActionPhase({
   onPlayerDeath,
   onDuelEnded,
 }) {
+  const harvestConfig = {
+    ...runtime.harvestConfig,
+    stackMax: 0,
+  };
+
+  /** @type {Record<string, number>} */
+  const gatheringXpByType = {
+    crystal: 12,
+    ore: 15,
+    herb: 10,
+    tree: 14,
+    flower: 8,
+  };
+
+  mobByIdBuffer.clear();
+  for (const mob of mobs) {
+    if (mob && mob.id != null) {
+      mobByIdBuffer.set(mob.id, mob);
+    }
+  }
+
   for (const player of players.values()) {
+    harvestConfig.stackMax = player.invStackMax;
     const harvestResult = stepPlayerHarvest(resources, player, now, {
-      ...runtime.harvestConfig,
-      stackMax: player.invStackMax,
+      ...harvestConfig,
     });
     if (harvestResult?.status === 'completed') {
       const resourceType = harvestResult.harvested?.type ?? 'crystal';
-      const gatheringXp = /** @type {Record<string, number>} */ ({
-        crystal: 12,
-        ore: 15,
-        herb: 10,
-        tree: 14,
-        flower: 8,
-      })[resourceType] ?? 10;
+      const gatheringXp = gatheringXpByType[resourceType] ?? 10;
       applyProfessionReward(player, [{ track: 'gathering', xp: gatheringXp }]);
       applyContractProgress(player, {
         kind: 'gather',
@@ -320,7 +338,7 @@ export function stepPlayerActionPhase({
           player.targetKind = null;
         }
       } else {
-        const targetMob = mobs.find((mob) => mob.id === player.targetId);
+        const targetMob = mobByIdBuffer.get(player.targetId);
         if (!targetMob || targetMob.dead || targetMob.hp <= 0) {
           player.targetId = null;
           player.targetKind = null;

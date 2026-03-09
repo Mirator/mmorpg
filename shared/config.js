@@ -1,6 +1,9 @@
 // @ts-check
 
 import { PROTOCOL_VERSION } from './protocol.js';
+/**
+ * @typedef {import('./domainTypes').GameConfigSnapshot} GameConfigSnapshot
+ */
 import {
   CONTRACT_ROTATION_MS,
   MAX_ACTIVE_CONTRACTS,
@@ -65,6 +68,9 @@ export const CHAT_CONFIG = {
   rateLimitIntervalMs: 10_000,
 };
 
+/**
+ * @returns {GameConfigSnapshot}
+ */
 export function getConfigSnapshot() {
   const walkSpeed = PLAYER_CONFIG.speed * (PLAYER_CONFIG.walkSpeedMultiplier ?? 0.6);
   return {

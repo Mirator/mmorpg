@@ -447,15 +447,25 @@ export function createMenu(/** @type {any} */ {
 
   function renderPrimaryCharacter() {
     if (!continuePanelEl || !continueBtn) return;
+
+    // Ensure we always have a sensible primary character when characters exist.
+    if ((!primaryCharacter?.id || !characters.some((c) => c.id === primaryCharacter.id)) && characters.length > 0) {
+      const byLastPlayed =
+        characters.find((character) => character.id === lastPlayedCharacterId) ?? characters[0] ?? null;
+      primaryCharacter = byLastPlayed;
+    }
+
     const hasPrimary = !!primaryCharacter?.id;
-    continuePanelEl.classList.toggle('hidden', !hasPrimary);
+
+    // Always keep the continue panel visible; fall back to placeholder copy when no character.
+    continuePanelEl.classList.remove('hidden');
+    continueBtn.disabled = !hasPrimary;
     if (!hasPrimary) {
-      continueBtn.disabled = true;
       if (continueNameEl) continueNameEl.textContent = '--';
       if (continueMetaEl) continueMetaEl.textContent = 'Choose a character from the list below.';
       return;
     }
-    continueBtn.disabled = false;
+
     if (continueNameEl) continueNameEl.textContent = primaryCharacter.name ?? '--';
     if (continueMetaEl) {
       const klass = getClassById(primaryCharacter.classId);

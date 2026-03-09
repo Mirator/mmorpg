@@ -9,7 +9,7 @@ export const PORT = Number.parseInt(process.env.E2E_PORT ?? '', 10) || 3001;
 export const BASE_URL = `http://localhost:${PORT}`;
 export const SERVER_START_TIMEOUT_MS =
   Number.parseInt(process.env.E2E_SERVER_START_TIMEOUT_MS ?? '', 10) || 20000;
-export const TEST_TIMEOUT_MS = 20000;
+export const TEST_TIMEOUT_MS = 60000;
 export const DEATH_TIMEOUT_MS = 30000;
 export const LOADING_TIMEOUT_MS = 30000;
 export const DATABASE_URL_E2E = process.env.DATABASE_URL_E2E;

@@ -397,6 +397,8 @@ export interface HttpConfig {
   [key: string]: unknown;
 }
 
+import type { GameConfigSnapshot } from '../shared/domainTypes';
+
 export interface WsServerConfig {
   maxPayloadBytes: number;
   allowNoOrigin: boolean;
@@ -415,7 +417,7 @@ export interface WsServerConfig {
   heartbeatIntervalMs: number;
   broadcastHz: number;
   sessionCookieName: string;
-  configSnapshot: Record<string, unknown>;
+  configSnapshot: GameConfigSnapshot;
   [key: string]: unknown;
 }
 

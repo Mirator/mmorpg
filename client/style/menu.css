@@ -1587,8 +1587,7 @@
 
 #menu[data-step='characters'] .menu-characters .menu-brand,
 #menu[data-step='characters'] #menu-account,
-#menu[data-step='characters'] #menu-last-character,
-#menu[data-step='characters'] #menu-continue-panel {
+#menu[data-step='characters'] #menu-last-character {
   display: none !important;
 }
 
