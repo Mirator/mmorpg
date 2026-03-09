@@ -35,6 +35,7 @@ const mobByIdBuffer = new Map();
  *     harvestRadius: number,
  *     harvestDurationMs: number,
  *     respawnMs: number,
+ *     stackMax?: number,
  *   },
  *   mobStepConfig: {
  *     mobRadius: number,
@@ -282,7 +283,7 @@ export function stepPlayerActionPhase({
   }
 
   for (const player of players.values()) {
-    harvestConfig.stackMax = player.invStackMax;
+    harvestConfig.stackMax = player.invStackMax ?? 0;
     const harvestResult = stepPlayerHarvest(resources, player, now, {
       ...harvestConfig,
     });

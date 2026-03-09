@@ -2,7 +2,7 @@
 
 import { PROTOCOL_VERSION } from './protocol.js';
 /**
- * @typedef {import('./domainTypes').GameConfigSnapshot} GameConfigSnapshot
+ * @typedef {import('./domainTypes.js').GameConfigSnapshot} GameConfigSnapshot
  */
 import {
   CONTRACT_ROTATION_MS,
