@@ -12,10 +12,9 @@ import {
   transformPartPlacement,
 } from '../../../shared/medievalBuildings.js';
 import {
-  BASE_URL,
+  getBaseURL,
   DATABASE_URL_E2E,
   DEATH_TIMEOUT_MS,
-  PORT,
   TEST_TIMEOUT_MS,
   advance,
   distance,
@@ -1229,16 +1228,17 @@ export async function runMainFlow(/** @type {any} */ ctx) {
 
   let /** @type {any} */ state = null;
   let /** @type {any} */ vendor = null;
+  const baseURL = getBaseURL();
   const navigateToBaseUrl = async () => {
     let /** @type {unknown} */ lastError = null;
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       try {
-        const response = await page.goto(BASE_URL, {
-          waitUntil: 'domcontentloaded',
+        const response = await page.goto(baseURL, {
+          waitUntil: 'load',
           timeout: 30000,
         });
         if (response && typeof response.ok === 'function' && !response.ok()) {
-          throw new Error(`Navigation to ${BASE_URL} returned HTTP ${response.status()}`);
+          throw new Error(`Navigation to ${baseURL} returned HTTP ${response.status()}`);
         }
         return;
       } catch (error) {
@@ -1250,7 +1250,7 @@ export async function runMainFlow(/** @type {any} */ ctx) {
     }
     throw (lastError instanceof Error
       ? lastError
-      : new Error(`Failed to navigate to ${BASE_URL}`));
+      : new Error(`Failed to navigate to ${baseURL}`));
   };
 
   const runAuthFlowStage = async () => {
@@ -2822,7 +2822,9 @@ export async function runMainFlow(/** @type {any} */ ctx) {
   ];
 
   ctx.mainFlows = /** @type {any} */ (Object.fromEntries(mainFlows.map(([key, , runStage]) => [key, runStage])));
-  for (const [, stageName, , runModule] of mainFlows) {
+  const smoke = ctx.smoke === true;
+  const flowsToRun = smoke ? mainFlows.slice(0, 2) : mainFlows;
+  for (const [, stageName, , runModule] of flowsToRun) {
     setStage(stageName);
     await runModule(ctx);
   }
@@ -2830,4 +2832,12 @@ export async function runMainFlow(/** @type {any} */ ctx) {
   if (consoleErrors.length) {
     throw new Error(`Console errors: ${consoleErrors.join('\n')}`);
   }
+}
+
+/**
+ * Smoke version of main flow: auth + vendor-trade-desktop only.
+ * @param {any} ctx
+ */
+export async function runMainFlowSmoke(ctx) {
+  return runMainFlow({ ...ctx, smoke: true });
 }

@@ -15,13 +15,13 @@ import {
   waitForRestoredSession,
   writeFailureArtifacts,
 } from './admin-helpers.js';
-import { BASE_URL, PORT, sleep, waitForServer } from './helpers.js';
+import { getBaseURL, getPort, sleep, waitForServer } from './helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const HARD_TIMEOUT_MS = 180_000;
 const E2E_ADMIN_ARTIFACT_DIR = path.resolve(__dirname, '../output/e2e-admin');
 
-async function run() {
+export async function run() {
   let stage = 'init';
 
   const sourceMapPath = path.resolve(__dirname, '../server/data/world-map.json');
@@ -35,7 +35,7 @@ async function run() {
   const server = spawn('node', ['server/index.js'], {
     env: {
       ...process.env,
-      PORT: String(PORT),
+      PORT: String(getPort()),
       HOST: '127.0.0.1',
       E2E_TEST: 'true',
       ADMIN_PASSWORD: '1234',
@@ -80,13 +80,13 @@ async function run() {
       });
 
       stage = 'dashboard';
-      await page.goto(`${BASE_URL}/admin`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${getBaseURL()}/admin`, { waitUntil: 'domcontentloaded' });
       await setAlias(page, 'e2e-admin');
       await unlockPage(page);
       await page.waitForSelector('#zone-body tr');
 
       stage = 'assets-prefab-crud';
-      await page.goto(`${BASE_URL}/admin/assets`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${getBaseURL()}/admin/assets`, { waitUntil: 'domcontentloaded' });
       await waitForRestoredSession(page);
 
       await page.fill('#create-name', 'E2E Market Prefab');
@@ -110,7 +110,7 @@ async function run() {
       ensure(typeof prefabId === 'string' && prefabId.length > 0, 'Failed to create prefab in assets manager.');
 
       stage = 'map-basic-flow';
-      await page.goto(`${BASE_URL}/admin/map`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${getBaseURL()}/admin/map`, { waitUntil: 'domcontentloaded' });
       await waitForRestoredSession(page);
       await page.waitForFunction(() => Boolean(window.__MAP_EDITOR_V2__?.getState()?.mapConfig));
 
@@ -238,7 +238,7 @@ async function run() {
       });
 
       await setAlias(page, 'other-admin');
-      await page.goto(`${BASE_URL}/admin/nav`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${getBaseURL()}/admin/nav`, { waitUntil: 'domcontentloaded' });
       await waitForRestoredSession(page);
 
       const navCountBefore = Number(await page.locator('#nav-count').innerText());
@@ -256,7 +256,7 @@ async function run() {
 
       stage = 'patch-lifecycle';
       await setAlias(page, 'e2e-admin');
-      await page.goto(`${BASE_URL}/admin/patches`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${getBaseURL()}/admin/patches`, { waitUntil: 'domcontentloaded' });
       await waitForRestoredSession(page);
 
       const patchTitle = `E2E Patch ${Date.now()}`;
@@ -283,7 +283,7 @@ async function run() {
       await page.waitForFunction(() => document.querySelector('#detail-status')?.textContent?.includes('Rolled Back'));
 
       stage = 'collab-comments-audit';
-      await page.goto(`${BASE_URL}/admin/collab`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${getBaseURL()}/admin/collab`, { waitUntil: 'domcontentloaded' });
       await waitForRestoredSession(page);
 
       await page.fill('#comment-x', '12');
@@ -306,7 +306,7 @@ async function run() {
       ensure(auditContainsComment, 'Audit timeline did not include comment actions.');
 
       stage = 'playtest-preview';
-      await page.goto(`${BASE_URL}/admin/playtest`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${getBaseURL()}/admin/playtest`, { waitUntil: 'domcontentloaded' });
       await waitForRestoredSession(page);
 
       await page.click('#launch-preview-btn');
@@ -329,7 +329,7 @@ async function run() {
         return text.toLowerCase().includes('locked');
       });
 
-      await page.goto(`${BASE_URL}/admin/assets`, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${getBaseURL()}/admin/assets`, { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => {
         const text = document.querySelector('#status')?.textContent || '';
         return text.toLowerCase().includes('locked');
@@ -360,7 +360,108 @@ async function run() {
   }
 }
 
-run().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+/** Smoke: dashboard + map load + one drop + save. */
+export async function runSmoke() {
+  let stage = 'init';
+
+  const sourceMapPath = path.resolve(__dirname, '../server/data/world-map.json');
+  const sourceDesignerPath = path.resolve(__dirname, '../server/data/world-map.designer.json');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'admin-map-v2-smoke-'));
+  const tempMapPath = path.join(tmpDir, 'world-map.json');
+  const tempDesignerPath = path.join(tmpDir, 'world-map.designer.json');
+  fs.copyFileSync(sourceMapPath, tempMapPath);
+  fs.copyFileSync(sourceDesignerPath, tempDesignerPath);
+
+  const server = spawn('node', ['server/index.js'], {
+    env: {
+      ...process.env,
+      PORT: String(getPort()),
+      HOST: '127.0.0.1',
+      E2E_TEST: 'true',
+      ADMIN_PASSWORD: '1234',
+      MAP_CONFIG_PATH: tempMapPath,
+      MAP_DESIGNER_STATE_PATH: tempDesignerPath,
+      AUTO_MIGRATE_DEV: 'false',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+
+  let browser = /** @type {import('playwright').Browser | null} */ (null);
+  let context = /** @type {import('playwright').BrowserContext | null} */ (null);
+  let page = /** @type {import('playwright').Page | null} */ (null);
+
+  try {
+    stage = 'wait-server';
+    await waitForServer(server);
+
+    stage = 'launch-browser';
+    browser = await chromium.launch({
+      headless: true,
+      args: ['--use-gl=angle', '--use-angle=swiftshader'],
+    });
+    context = await browser.newContext({ viewport: { width: 1500, height: 960 } });
+    page = await context.newPage();
+    page.setDefaultTimeout(20_000);
+    page.on('dialog', async (dialog) => await dialog.accept('e2e-admin'));
+
+    stage = 'dashboard';
+    await page.goto(`${getBaseURL()}/admin`, { waitUntil: 'domcontentloaded' });
+    await setAlias(page, 'e2e-admin');
+    await unlockPage(page);
+    await page.waitForSelector('#zone-body tr');
+
+    stage = 'assets-prefab';
+    await page.goto(`${getBaseURL()}/admin/assets`, { waitUntil: 'domcontentloaded' });
+    await waitForRestoredSession(page);
+    await page.fill('#create-name', 'E2E Smoke Prefab');
+    await page.fill('#create-type', 'structures');
+    await page.fill('#create-path', '/assets/e2e-market.glb');
+    await page.fill('#create-tags', 'e2e,smoke');
+    await page.fill('#create-defaults', '{"kind":"market","colliderRadius":4}');
+    await page.click('#create-prefab-form button[type="submit"]');
+    await page.waitForFunction(() => {
+      const rows = [...document.querySelectorAll('#prefab-list .list-item')];
+      return rows.some((row) => row.textContent?.includes('E2E Smoke Prefab'));
+    });
+    const prefabId = await page.evaluate(() => {
+      const listItems = [...document.querySelectorAll('#prefab-list .list-item')];
+      const target = listItems.find((row) => row.textContent?.includes('E2E Smoke Prefab'));
+      if (!target) return null;
+      const idEl = target.querySelector('.mono');
+      return idEl?.textContent?.trim() ?? null;
+    });
+    ensure(typeof prefabId === 'string' && prefabId.length > 0, 'Failed to create prefab in smoke.');
+
+    stage = 'map-drop-save';
+    await page.goto(`${getBaseURL()}/admin/map`, { waitUntil: 'domcontentloaded' });
+    await waitForRestoredSession(page);
+    await page.waitForFunction(() => Boolean(window.__MAP_EDITOR_V2__?.getState()?.mapConfig));
+    const before = /** @type {any} */ (await page.evaluate(() => window.__MAP_EDITOR_V2__?.getState?.()));
+    const startStructureCount = before.mapConfig.structures.length;
+    await page.fill('#asset-search', 'prefab');
+    await dispatchTemplateDrop(page, `prefab:${prefabId}`, { x: 320, y: 260 });
+    await page.waitForFunction(
+      (expectedCount) => window.__MAP_EDITOR_V2__?.getState()?.mapConfig?.structures?.length === expectedCount,
+      startStructureCount + 1
+    );
+    await page.click('#save-btn');
+    await page.waitForSelector('#save-status.ok');
+  } catch (err) {
+    await writeFailureArtifacts({ artifactDir: E2E_ADMIN_ARTIFACT_DIR, page: page ?? null, stage, error: err });
+    throw err;
+  } finally {
+    if (context) await context.close().catch(() => {});
+    if (browser) await browser.close().catch(() => {});
+    server.kill('SIGTERM');
+    await sleep(200);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+const __filename = fileURLToPath(import.meta.url);
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  run().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

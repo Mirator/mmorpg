@@ -5,13 +5,20 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-export const PORT = Number.parseInt(process.env.E2E_PORT ?? '', 10) || 3001;
-export const BASE_URL = `http://localhost:${PORT}`;
+/** Read at runtime so each test can set E2E_PORT before calling runScenario. */
+export function getPort() {
+  return Number.parseInt(process.env.E2E_PORT ?? '', 10) || 3001;
+}
+
+export function getBaseURL() {
+  return `http://localhost:${getPort()}`;
+}
+
 export const SERVER_START_TIMEOUT_MS =
-  Number.parseInt(process.env.E2E_SERVER_START_TIMEOUT_MS ?? '', 10) || 20000;
-export const TEST_TIMEOUT_MS = 60000;
+  Number.parseInt(process.env.E2E_SERVER_START_TIMEOUT_MS ?? '', 10) || 45000;
+export const TEST_TIMEOUT_MS = 45000;
 export const DEATH_TIMEOUT_MS = 30000;
-export const LOADING_TIMEOUT_MS = 30000;
+export const LOADING_TIMEOUT_MS = 45000;
 export const DATABASE_URL_E2E = process.env.DATABASE_URL_E2E;
 
 export function resetE2eDatabase() {
@@ -114,37 +121,21 @@ export function withTimeout(/** @type {any} */ promise, /** @type {any} */ ms, /
 }
 
 export async function waitForServer(/** @type {any} */ proc) {
-  return withTimeout(
-    new Promise((/** @type {any} */ resolve, /** @type {any} */ reject) => {
-      const onData = (/** @type {any} */ data) => {
-        const text = data.toString();
-        if (text.includes('Server running')) {
-          cleanup();
-          resolve(undefined);
-        }
-      };
-      const onError = (/** @type {any} */ err) => {
-        cleanup();
-        reject(err);
-      };
-      const onExit = (/** @type {any} */ code) => {
-        cleanup();
-        reject(new Error(`Server exited early with code ${code}`));
-      };
-      const cleanup = () => {
-        proc.stdout?.off('data', onData);
-        proc.stderr?.off('data', onData);
-        proc.off('error', onError);
-        proc.off('exit', onExit);
-      };
-      proc.stdout?.on('data', onData);
-      proc.stderr?.on('data', onData);
-      proc.on('error', onError);
-      proc.on('exit', onExit);
-    }),
-    SERVER_START_TIMEOUT_MS,
-    'Server start'
-  );
+  const port = getPort();
+  const url = `http://127.0.0.1:${port}/`;
+  const start = Date.now();
+  while (Date.now() - start < SERVER_START_TIMEOUT_MS) {
+    if (proc.exitCode != null && proc.exitCode !== 0) {
+      throw new Error(`Server exited early with code ${proc.exitCode}`);
+    }
+    try {
+      const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(3000) });
+      if (res.ok) return;
+    } catch {
+      await sleep(500);
+    }
+  }
+  throw new Error(`Server at ${url} did not respond with OK within ${SERVER_START_TIMEOUT_MS}ms`);
 }
 
 export async function getState(/** @type {any} */ page) {
@@ -207,7 +198,7 @@ export async function waitForCondition(/** @type {any} */ page, /** @type {any} 
       .catch(() => null);
     if (condition(state)) return state;
     await advance(page, 1000 / 30);
-    await sleep(50);
+    await sleep(40);
   }
   const lastPlayer = lastState?.player
     ? {

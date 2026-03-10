@@ -29,6 +29,7 @@ out/
 
 # Playwright / E2E artifacts
 output/
+e2e/.e2e-shared-server-pid
 playwright-report/
 test-results/
 .playwright/

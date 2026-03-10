@@ -13,8 +13,9 @@
     "typecheck": "npm run typecheck:server && npm run typecheck:client && npm run typecheck:admin && npm run typecheck:tools",
     "test:unit": "vitest run",
     "test": "npm run check:tscheck:coverage && npm run typecheck && npm run test:unit",
-    "test:e2e": "node e2e/playwright-e2e.js",
+    "test:e2e": "playwright test",
     "test:E2E": "npm run test:e2e",
+    "test:e2e:legacy": "node e2e/playwright-e2e.js",
     "test:e2e:tutorial": "node e2e/playwright-e2e-tutorial.js",
     "test:e2e:trade": "node e2e/playwright-e2e-trade.js",
     "test:e2e:duel": "node e2e/playwright-e2e-duel.js",
@@ -33,6 +34,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.1",
     "@types/node": "^25.2.3",
     "playwright": "^1.50.1",
     "prisma": "^5.10.0",

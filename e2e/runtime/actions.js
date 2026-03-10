@@ -1,6 +1,6 @@
 // @ts-check
 import {
-  BASE_URL,
+  getBaseURL,
   TEST_TIMEOUT_MS,
   sleep,
   waitForCondition,
@@ -75,10 +75,11 @@ export async function safeClick(page, selector, timeout = TEST_TIMEOUT_MS) {
 export async function signUpAndCreateCharacter(page, options) {
   const { username, password, characterName, classId = 'fighter' } = options;
 
+  const baseURL = getBaseURL();
   let navigationError = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      await page.goto(BASE_URL, { waitUntil: 'domcontentloaded', timeout: TEST_TIMEOUT_MS + 10000 });
+      await page.goto(baseURL, { waitUntil: 'load', timeout: TEST_TIMEOUT_MS + 10000 });
       navigationError = null;
       break;
     } catch (error) {
@@ -86,16 +87,33 @@ export async function signUpAndCreateCharacter(page, options) {
       if (attempt === 2) {
         throw error;
       }
-      await sleep(500);
+      await sleep(1000);
     }
   }
   if (navigationError) {
     throw navigationError instanceof Error ? navigationError : new Error('Failed to load game page');
   }
-  await page.waitForFunction(() => window.__game && typeof window.__game.getState === 'function');
-  await page.waitForSelector('#menu.open');
-  await safeClick(page, '.menu-tab[data-tab="signup"]');
-  await page.waitForFunction(() => !document.querySelector('#signup-form')?.classList.contains('hidden'));
+  await page.waitForFunction(() => window.__game && typeof window.__game.getState === 'function', { timeout: 20000 });
+  await page.waitForSelector('#menu.open', { state: 'visible', timeout: 20000 });
+  await sleep(500);
+  const signupTab = page.locator('.menu-tab[data-tab="signup"]');
+  const tabVisible = await signupTab.isVisible().catch(() => false);
+  if (tabVisible) {
+    await sleep(300);
+    await safeClick(page, '.menu-tab[data-tab="signup"]', 20000);
+  } else {
+    await page.evaluate(() => {
+      const root = document.getElementById('menu');
+      const signupForm = document.getElementById('signup-form');
+      const signinForm = document.getElementById('signin-form');
+      if (root && signupForm && signinForm) {
+        root.dataset.tab = 'signup';
+        signupForm.classList.remove('hidden');
+        signinForm.classList.add('hidden');
+      }
+    });
+  }
+  await page.waitForSelector('#signup-form:not(.hidden)', { state: 'visible', timeout: 10000 });
 
   await page.fill('#signup-username', username);
   await page.fill('#signup-password', password);

@@ -132,6 +132,22 @@ export function createHttpApp({
 }) {
   const app = express();
   app.disable('x-powered-by');
+  const disableRateLimitsForE2E = process.env.E2E_TEST === 'true';
+
+  /**
+   * Keep shared-server E2E runs from throttling static assets or auth calls.
+   * @param {Parameters<typeof rateLimit>[0]} options
+   */
+  const createOptionalRateLimit = (options) => {
+    if (disableRateLimitsForE2E) {
+      return (
+        /** @type {HttpRequestLike} */ _req,
+        /** @type {HttpResponseLike} */ _res,
+        /** @type {NextFunctionLike} */ next
+      ) => next();
+    }
+    return rateLimit(options);
+  };
 
   if (config.trustProxy) {
     app.set('trust proxy', 1);
@@ -160,7 +176,7 @@ export function createHttpApp({
   // Apply 50% increase globally, then 100% increase on localhost
   const generalRateLimitMax = Math.round(120 * 1.5 * (config.isLocalhost ? 2 : 1));
   app.use(
-    rateLimit({
+    createOptionalRateLimit({
       windowMs: 60_000,
       max: generalRateLimitMax,
       standardHeaders: true,
@@ -182,7 +198,7 @@ export function createHttpApp({
 
   // Apply 50% increase globally, then 100% increase on localhost
   const authRateLimitMax = Math.round(20 * 1.5 * (config.isLocalhost ? 2 : 1));
-  const authLimiter = rateLimit({
+  const authLimiter = createOptionalRateLimit({
     windowMs: 5 * 60_000,
     max: authRateLimitMax,
     standardHeaders: true,
@@ -198,7 +214,7 @@ export function createHttpApp({
       return `${ip}:${username || 'unknown'}`;
     },
   });
-  const adminUnlockLimiter = rateLimit({
+  const adminUnlockLimiter = createOptionalRateLimit({
     windowMs: 5 * 60_000,
     max: config.isLocalhost ? 20 : 8,
     standardHeaders: true,

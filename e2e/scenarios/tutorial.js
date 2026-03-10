@@ -1,2 +1,2 @@
 // @ts-check
-export { scenario } from '../playwright-e2e-tutorial.js';
+export { scenario, scenarioSmoke } from '../playwright-e2e-tutorial.js';

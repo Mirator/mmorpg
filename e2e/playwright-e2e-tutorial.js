@@ -564,6 +564,43 @@ export const scenario = {
   },
 };
 
+/** Smoke: signup, enter world, one step (move -> harvest). */
+export const scenarioSmoke = {
+  name: 'tutorial-smoke',
+  async run(/** @type {any} */ ctx) {
+    const { createPage, setStage } = ctx;
+    setStage('open-page');
+    const { page } = await createPage();
+    const token = createUniqueToken('tutorial');
+
+    setStage('create-character');
+    let state = await signUpAndCreateCharacter(page, {
+      username: `${token}_u`,
+      password: 'e2e_password',
+      characterName: `Tutor ${token.slice(0, 6)}`,
+      classId: 'ranger',
+    });
+
+    if (state.player?.tutorial?.activeStepId !== 'move') {
+      throw new Error(`Expected tutorial to start at "move", got "${state.player?.tutorial?.activeStepId ?? 'none'}"`);
+    }
+
+    setStage('tutorial-move');
+    await page.evaluate((/** @type {{ x: number, z: number }} */ point) => {
+      window.__game?.moveTo(point.x, point.z);
+    }, {
+      x: Number(state.player?.x ?? 0) + 2,
+      z: Number(state.player?.z ?? 0),
+    });
+    await waitForCondition(
+      page,
+      (/** @type {any} */ nextState) => nextState.player?.tutorial?.activeStepId === 'harvest',
+      15000,
+      'tutorial move (smoke)'
+    );
+  },
+};
+
 if (isEntryPoint) {
   runScenario(scenario).catch((/** @type {any} */ error) => {
     console.error(error);

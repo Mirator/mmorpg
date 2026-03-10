@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
   DATABASE_URL_E2E,
-  PORT,
+  getPort,
   resetE2eDatabase,
   sleep,
   waitForServer,
@@ -14,6 +14,8 @@ import { writeFailureArtifacts } from './artifacts.js';
 
 const TEST_ADMIN_PASSWORD = '1234';
 
+const useSharedServer = () => process.env.E2E_USE_SHARED_SERVER === 'true';
+
 /**
  * @param {{ name?: string; run: (ctx: any) => Promise<unknown> }} scenario
  * @param {{ adminPassword?: string }} [options]
@@ -23,24 +25,28 @@ export async function runScenario(scenario, options = {}) {
   const runId = createRunId(scenario?.name ?? 'scenario');
   let stage = 'boot';
   let browser = /** @type {any} */ (null);
+  /** @type {ReturnType<typeof spawn> | null} */
+  let server = null;
 
   resetE2eDatabase();
-  const server = spawn('node', ['server/index.js'], {
-    env: {
-      ...process.env,
-      PORT: String(PORT),
-      HOST: '127.0.0.1',
-      ADMIN_PASSWORD: options.adminPassword ?? TEST_ADMIN_PASSWORD,
-      E2E_TEST: 'true',
-      DATABASE_URL: DATABASE_URL_E2E,
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
 
-  try {
+  if (!useSharedServer()) {
+    server = spawn('node', ['server/index.js'], {
+      env: {
+        ...process.env,
+        PORT: String(getPort()),
+        HOST: '127.0.0.1',
+        ADMIN_PASSWORD: options.adminPassword ?? TEST_ADMIN_PASSWORD,
+        E2E_TEST: 'true',
+        DATABASE_URL: DATABASE_URL_E2E,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     stage = 'wait-server';
     await waitForServer(server);
+  }
 
+  try {
     stage = 'launch-browser';
     browser = await createBrowser();
     const createPage = createPageFactory(browser, trackers);
@@ -80,13 +86,16 @@ export async function runScenario(scenario, options = {}) {
       await context.close().catch(() => {});
     }
     await browser?.close().catch(() => {});
-    server.kill('SIGTERM');
-    await Promise.race([
-      once(server, 'exit').catch(() => {}),
-      sleep(1000),
-    ]);
-    if (server.exitCode == null) {
-      server.kill('SIGKILL');
+    if (server) {
+      server.kill('SIGTERM');
+      await Promise.race([
+        once(server, 'exit').catch(() => {}),
+        sleep(1000),
+      ]);
+      if (server.exitCode == null) {
+        server.kill('SIGKILL');
+      }
+      await sleep(2000);
     }
   }
 }
