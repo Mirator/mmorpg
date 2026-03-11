@@ -117,6 +117,25 @@ describe('style scope integrity', () => {
     );
   });
 
+  it('keeps ability icons above cooldown overlays', () => {
+    const panelsCss = read(PANELS_CSS);
+    expect(panelsCss).toMatch(
+      /\.ability-slot::after\s*\{[\s\S]*z-index:\s*1;/
+    );
+    expect(panelsCss).toMatch(
+      /\.ability-slot\.unusable:not\(\.empty\)::before\s*\{[\s\S]*z-index:\s*1;/
+    );
+    expect(panelsCss).toMatch(
+      /\.ability-icon\s*\{[\s\S]*z-index:\s*2;/
+    );
+    expect(panelsCss).toMatch(
+      /\.ability-key\s*\{[\s\S]*z-index:\s*3;/
+    );
+    expect(panelsCss).toMatch(
+      /\.ability-cooldown-num\s*\{[\s\S]*z-index:\s*3;/
+    );
+  });
+
   it('keeps modal layout independent of body state panel-shift classes', () => {
     const layoutCss = read(LAYOUT_CSS);
     expect(layoutCss).not.toMatch(/body\.trade-open\s+#inventory-panel/);

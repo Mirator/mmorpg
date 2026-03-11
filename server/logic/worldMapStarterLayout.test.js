@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { normalizeMapConfig, validateMapConfig } from '../../shared/mapConfig.js';
-import { isMedievalBuildingKind } from '../../shared/medievalBuildings.js';
+import { isMedievalBuildingKind, pointInOrientedRect } from '../../shared/medievalBuildings.js';
+import { createWorldFromConfig } from './world.js';
 
 const MAP_PATH = path.resolve(process.cwd(), 'server', 'data', 'world-map.json');
 const TILE_SPLIT = 400 / 6; // 66.666...
@@ -19,6 +20,12 @@ const EXPECTED_TILE_BUDGETS = {
   SW: { resources: 6, mobs: 2, structures: 5, obstacles: 4, vendors: 1 },
   SE: { resources: 5, mobs: 6, structures: 4, obstacles: 4, vendors: 0 },
 };
+
+const EXPECTED_HUB_VENDORS = [
+  { id: 'vendor_c_01', x: 6, z: -8 },
+  { id: 'vendor_c_02', x: -6, z: 8 },
+  { id: 'vendor_c_03', x: 0, z: -6 },
+];
 
 function loadMap() {
   const raw = JSON.parse(fs.readFileSync(MAP_PATH, 'utf8'));
@@ -132,6 +139,28 @@ describe('starter world full-map layout', () => {
         const dist = distance2d({ x: mob.x, z: mob.z }, map.base);
         expect(dist).toBeGreaterThanOrEqual(28);
       }
+    }
+  });
+
+  it('keeps hub vendors at the curated non-blocking positions', () => {
+    const map = loadMap();
+    const world = createWorldFromConfig(map);
+    const hubVendors = map.vendors
+      .filter((vendor) => vendor.id.startsWith('vendor_c_'))
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((vendor) => ({ id: vendor.id, x: vendor.x, z: vendor.z }));
+
+    expect(hubVendors).toEqual(EXPECTED_HUB_VENDORS);
+
+    for (const vendor of hubVendors) {
+      const insideCircle = world.collisionObstacles.some((circle) =>
+        distance2d(vendor, circle) < (circle.r ?? 0)
+      );
+      const insideRect = world.collisionRects.some((rect) =>
+        pointInOrientedRect(vendor, rect)
+      );
+      expect(insideCircle).toBe(false);
+      expect(insideRect).toBe(false);
     }
   });
 });

@@ -1166,14 +1166,14 @@
       "name": "Hub General Vendor",
       "x": 6,
       "y": 0,
-      "z": 0
+      "z": -8
     },
     {
       "id": "vendor_c_02",
       "name": "Hub Weapons Vendor",
       "x": -6,
       "y": 0,
-      "z": 4
+      "z": 8
     },
     {
       "id": "vendor_c_03",

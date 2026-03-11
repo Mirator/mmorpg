@@ -21,6 +21,7 @@ const EXPECTED_PART_COUNTS = {
 };
 
 const ROOF_FRONT_PART_KEYS = new Set(['roofFrontBrick6', 'roofFrontBrick8']);
+const NON_TOWER_KINDS = MEDIEVAL_BUILDING_KIND_LIST.filter((kind) => kind !== 'bellTower');
 
 describe('medievalBuildings', () => {
   it('returns templates for all migrated building kinds', () => {
@@ -48,20 +49,21 @@ describe('medievalBuildings', () => {
       expect(layout).toBeTruthy();
       expect(layout?.parts).toHaveLength(EXPECTED_PART_COUNTS[kind]);
       const roofParts = layout?.parts.filter((part) => part.role === 'roof') ?? [];
-      expect(roofParts.length).toBe(1);
+      expect(roofParts.length).toBe(kind === 'bellTower' ? 1 : 3);
       expect(layout?.localCollisionRects.length).toBeGreaterThan(0);
       expect(layout?.interiorBounds.halfX).toBeGreaterThan(0);
       expect(layout?.interiorBounds.halfZ).toBeGreaterThan(0);
     }
   });
 
-  it('places exactly one roof part for each non-tower template', () => {
-    for (const kind of MEDIEVAL_BUILDING_KIND_LIST.filter((entry) => entry !== 'bellTower')) {
+  it('groups roof-end caps into the roof hide set for each non-tower template', () => {
+    for (const kind of NON_TOWER_KINDS) {
       const layout = buildMedievalStructureLayout({ id: `${kind}-roof`, kind, x: 0, y: 0, z: 0, rotation: 0 });
       const roofParts = layout?.parts.filter((part) => part.role === 'roof') ?? [];
-      expect(roofParts.length).toBe(1);
+      expect(roofParts.length).toBe(3);
       const roofFrontParts = layout?.parts.filter((part) => ROOF_FRONT_PART_KEYS.has(part.partKey)) ?? [];
       expect(roofFrontParts.length).toBe(2);
+      expect(roofFrontParts.every((part) => part.role === 'roof')).toBe(true);
     }
   });
 

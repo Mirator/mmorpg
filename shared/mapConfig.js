@@ -3,6 +3,11 @@
 import { RESOURCE_CONFIG, VENDOR_CONFIG } from './config.js';
 import { VALID_MOB_TYPES, VALID_RESOURCE_TYPES } from './entityTypes.js';
 import { VENDOR_BUY_ITEMS } from './economy.js';
+import {
+  buildStructureCollisionRects,
+  isMedievalBuildingKind,
+  pointInOrientedRect,
+} from './medievalBuildings.js';
 
 /**
  * @typedef {import('./domainTypes.d.ts').MapConfig} MapConfig
@@ -259,6 +264,105 @@ function validateProtectedVendorSpace(/** @type {any} */ errors, /** @type {any}
   }
 }
 
+function buildBlockingGeometry(/** @type {any} */ config) {
+  const circles = [];
+  const rects = [];
+
+  for (let obstacleIndex = 0; obstacleIndex < config.obstacles.length; obstacleIndex += 1) {
+    const obstacle = config.obstacles[obstacleIndex];
+    const radius = obstacle?.radius ?? obstacle?.r;
+    if (!Number.isFinite(obstacle?.x) || !Number.isFinite(obstacle?.z)) continue;
+    if (!Number.isFinite(radius) || radius <= 0) continue;
+    circles.push({
+      x: obstacle.x,
+      z: obstacle.z,
+      r: radius,
+      label: `obstacles[${obstacleIndex}]`,
+    });
+  }
+
+  for (let structureIndex = 0; structureIndex < config.structures.length; structureIndex += 1) {
+    const structure = config.structures[structureIndex];
+    if (structure?.collides === false) continue;
+    if (!Number.isFinite(structure?.x) || !Number.isFinite(structure?.z)) continue;
+
+    const kind = typeof structure?.kind === 'string'
+      ? structure.kind.trim()
+      : '';
+    if (isMedievalBuildingKind(kind)) {
+      const structureId = typeof structure?.id === 'string' && structure.id.trim()
+        ? structure.id.trim()
+        : `structure-${structureIndex}`;
+      const rotation = Number.isFinite(structure?.rotation) ? structure.rotation : 0;
+      rects.push(
+        ...buildStructureCollisionRects({
+          id: structureId,
+          kind,
+          x: structure.x,
+          y: structure.y ?? 0,
+          z: structure.z,
+          rotation,
+          colliderRadius: structure.colliderRadius,
+          collides: true,
+        }).map((rect) => ({
+          ...rect,
+          label: `structures[${structureIndex}]`,
+        }))
+      );
+      continue;
+    }
+
+    if (!Number.isFinite(structure?.colliderRadius) || structure.colliderRadius <= 0) continue;
+    circles.push({
+      x: structure.x,
+      z: structure.z,
+      r: structure.colliderRadius,
+      label: `structures[${structureIndex}]`,
+    });
+  }
+
+  return { circles, rects };
+}
+
+function findBlockingGeometryHit(/** @type {any} */ point, /** @type {any} */ blockers) {
+  for (const circle of blockers.circles) {
+    const distance = Math.hypot((point?.x ?? 0) - circle.x, (point?.z ?? 0) - circle.z);
+    if (distance < circle.r) {
+      return circle.label;
+    }
+  }
+
+  for (const rect of blockers.rects) {
+    if (pointInOrientedRect({ x: point?.x ?? 0, z: point?.z ?? 0 }, rect)) {
+      return rect.label;
+    }
+  }
+
+  return null;
+}
+
+function validateInteractablesAgainstBlockingGeometry(/** @type {any} */ errors, /** @type {any} */ config) {
+  const blockers = buildBlockingGeometry(config);
+  const lists = [
+    ['vendors', config.vendors],
+    ['resourceNodes', config.resourceNodes],
+  ];
+
+  for (const [label, entries] of lists) {
+    for (let index = 0; index < entries.length; index += 1) {
+      const entry = entries[index];
+      if (!Number.isFinite(entry?.x) || !Number.isFinite(entry?.z)) continue;
+      const hit = findBlockingGeometryHit(entry, blockers);
+      if (hit) {
+        addError(
+          errors,
+          `${label}[${index}] is inside blocking geometry from ${hit}; move it outside the collider.`
+        );
+      }
+    }
+  }
+}
+
 /**
  * Validate a MapConfig object and return human-readable error messages.
  * @param {MapConfig | any} config
@@ -408,6 +512,14 @@ export function validateMapConfig(config) {
     Array.isArray(config.mobSpawns)
   ) {
     validateProtectedVendorSpace(errors, config);
+  }
+  if (
+    Array.isArray(config.obstacles) &&
+    Array.isArray(config.structures) &&
+    Array.isArray(config.resourceNodes) &&
+    Array.isArray(config.vendors)
+  ) {
+    validateInteractablesAgainstBlockingGeometry(errors, config);
   }
 
   return errors;

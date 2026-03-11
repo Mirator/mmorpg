@@ -673,6 +673,7 @@
   transform-origin: bottom;
   transform: scaleY(var(--cooldown, 0));
   pointer-events: none;
+  z-index: 1;
 }
 
 .ability-slot.empty::after {
@@ -686,6 +687,7 @@
   border-radius: inherit;
   background: linear-gradient(180deg, rgba(255, 96, 96, 0.1), rgba(0, 0, 0, 0));
   pointer-events: none;
+  z-index: 1;
 }
 
 .ability-icon {
@@ -700,6 +702,7 @@
   width: 28px;
   height: 28px;
   pointer-events: none;
+  z-index: 2;
 }
 
 .ability-icon.is-text {
@@ -720,7 +723,7 @@
   left: 6px;
   font-size: 10px;
   color: rgba(var(--ability-secondary-rgb), 0.88);
-  z-index: 2;
+  z-index: 3;
 }
 
 .ability-name {
@@ -738,7 +741,7 @@
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
 }
 
 .ability-tooltip {

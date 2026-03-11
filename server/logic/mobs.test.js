@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createMobs, createMobsFromSpawns, stepMobs } from './mobs.js';
+import { createMobs, createMobsFromSpawns, getMobMaxHp, stepMobs } from './mobs.js';
 
 describe('mobs', () => {
   it('does not spawn mobs in invalid locations when space is blocked', () => {
@@ -180,5 +180,36 @@ describe('mobs', () => {
     expect(mobs[0].id).toBe('m1');
     expect(mobs[0].pos).toEqual({ x: 10, y: 0, z: -5 });
     expect(mobs[0].spawnPos).toEqual({ x: 10, y: 0, z: -5 });
+  });
+
+  it('gives training dummies 999,999 hp on spawn and respawn', () => {
+    const world = {
+      mapSize: 100,
+      base: { x: 0, z: 0 },
+      obstacles: [],
+    };
+    const [dummy] = createMobsFromSpawns([{ id: 'dummy-1', x: 4, z: 6, mobType: 'dummy' }], world, {
+      random: () => 0.5,
+    });
+
+    expect(dummy.maxHp).toBe(999_999);
+    expect(dummy.hp).toBe(999_999);
+    expect(getMobMaxHp(dummy.level, dummy.mobType)).toBe(999_999);
+
+    dummy.dead = true;
+    dummy.hp = 0;
+    dummy.maxHp = 1;
+    dummy.respawnAt = 1000;
+    dummy.state = 'dead';
+
+    stepMobs([dummy], [], world, 0.1, 1500, {
+      random: () => 0.5,
+      respawnMs: 1000,
+    });
+
+    expect(dummy.dead).toBe(false);
+    expect(dummy.maxHp).toBe(999_999);
+    expect(dummy.hp).toBe(999_999);
+    expect(dummy.state).toBe('idle');
   });
 });

@@ -84,7 +84,7 @@ The current contracts + professions slice does **not** add new world-schema obje
 | fox | `/assets/animals/Fox.gltf` | Ultimate Animated Animals |
 | bull | `/assets/animals/Bull.gltf` | Ultimate Animated Animals |
 | stag | `/assets/animals/Stag.gltf` | Ultimate Animated Animals |
-| dummy | `/assets/environment/Practice_Dummy.glb` | Training dummy (1 HP, 0 damage, stationary) |
+| dummy | `/assets/environment/Practice_Dummy.glb` | Training dummy (999,999 HP, 0 damage, stationary) |
 
 **Usage:**
 - Map config `mobSpawns[].mobType` selects which model spawns at each point
@@ -106,7 +106,7 @@ The current contracts + professions slice does **not** add new world-schema obje
 | stag | 5 | 2 | 2.4 | 1.5 | 9,000 |
 | dummy | 0 | 0 | 0 | 0 | 3,000 |
 
-Use `getMobStats(mobType)` to resolve stats. Dummy: 1 HP, no damage, no movement, no aggro.
+Use `getMobStats(mobType)` to resolve stats. Dummy: 999,999 HP, no damage, no movement, no aggro.
 
 **Behavior profiles** (`MOB_BEHAVIOR_TYPES` in [shared/entityTypes.js](../../shared/entityTypes.js)):
 

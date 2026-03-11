@@ -64,6 +64,31 @@ describe('map config validation', () => {
     expect(errors.some((e) => e.includes('safe interaction space'))).toBe(true);
   });
 
+  it('rejects vendors inside medieval structure blockers', () => {
+    const config = buildConfig({
+      structures: [{ id: 's1', kind: 'villageCenter', x: 0, z: 0, colliderRadius: 2.8, collides: true }],
+      vendors: [{ id: 'vendor-1', name: 'Vendor', x: 6, z: 0 }],
+    });
+    const errors = validateMapConfig(config);
+    expect(errors.some((e) => e.includes('vendors[0] is inside blocking geometry'))).toBe(true);
+  });
+
+  it('rejects vendors inside circular blockers', () => {
+    const config = buildConfig({
+      vendors: [{ id: 'vendor-1', name: 'Vendor', x: -10, z: 5 }],
+    });
+    const errors = validateMapConfig(config);
+    expect(errors.some((e) => e.includes('vendors[0] is inside blocking geometry'))).toBe(true);
+  });
+
+  it('rejects resources inside blocking geometry', () => {
+    const config = buildConfig({
+      resourceNodes: [{ id: 'r1', x: -10, z: 5 }],
+    });
+    const errors = validateMapConfig(config);
+    expect(errors.some((e) => e.includes('resourceNodes[0] is inside blocking geometry'))).toBe(true);
+  });
+
   it('normalizes missing arrays', () => {
     const normalized = normalizeMapConfig({
       version: MAP_CONFIG_VERSION,

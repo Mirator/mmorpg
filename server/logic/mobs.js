@@ -25,6 +25,8 @@ function clamp(/** @type {any} */ value, /** @type {any} */ min, /** @type {any}
 }
 
 const SPAWN_OFFSET_RADIUS = 0.5;
+const TRAINING_DUMMY_MAX_HP = 999_999;
+
 function getRespawnPos(/** @type {any} */ spawnPos, /** @type {any} */ rand) {
   const dx = (rand() * 2 - 1) * SPAWN_OFFSET_RADIUS;
   const dz = (rand() * 2 - 1) * SPAWN_OFFSET_RADIUS;
@@ -58,7 +60,7 @@ export function getMobLevelForPosition(/** @type {any} */ pos, /** @type {any} *
 
 export function getMobMaxHp(/** @type {any} */ level, /** @type {any} */ mobType) {
   const lvl = mobType === 'dummy' ? 1 : clampMobLevel(level);
-  return mobType === 'dummy' ? 1 : 20 + 8 * lvl;
+  return mobType === 'dummy' ? TRAINING_DUMMY_MAX_HP : 20 + 8 * lvl;
 }
 
 export function createMobs(/** @type {any} */ count, /** @type {any} */ world, /** @type {any} */ options = {}) {
@@ -201,6 +203,14 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
     const isDummy = mob.mobType === 'dummy';
     const isPassive = mob.aggressive === false;
     if (isDummy) {
+      const dummyMaxHp = getMobMaxHp(mob.level ?? 1, 'dummy');
+      if (mob.maxHp !== dummyMaxHp) {
+        const currentHp = Number.isFinite(mob.hp) ? mob.hp : dummyMaxHp;
+        const previousMaxHp = Number.isFinite(mob.maxHp) && mob.maxHp > 0 ? mob.maxHp : currentHp;
+        const hpRatio = previousMaxHp > 0 ? clamp(currentHp / previousMaxHp, 0, 1) : 1;
+        mob.maxHp = dummyMaxHp;
+        mob.hp = mob.dead ? 0 : Math.max(1, Math.round(dummyMaxHp * hpRatio));
+      }
       if (mob.dead) {
         const stats = getMobStats('dummy');
         const dummyRadius = config.mobRadius ?? stats.radius ?? 0;
@@ -208,8 +218,8 @@ export function stepMobs(/** @type {any} */ mobs, /** @type {any} */ players, /*
         if (!mob.respawnAt) mob.respawnAt = now + respawnMs;
         if (now >= mob.respawnAt) {
           mob.dead = false;
-          mob.hp = 1;
-          mob.maxHp = 1;
+          mob.hp = dummyMaxHp;
+          mob.maxHp = dummyMaxHp;
           mob.respawnAt = 0;
           mob.state = 'idle';
           mob.targetId = null;

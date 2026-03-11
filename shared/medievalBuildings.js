@@ -508,7 +508,7 @@ function buildLocalPartsAndRects(/** @type {TemplateSpec} */ template) {
       const backPoint = rotatePoint(0, gableOffsets.back, roofRotation);
       parts.push({
         partKey: roofFrontPartKey,
-        role: 'decor',
+        role: 'roof',
         x: roundTo(frontPoint.x),
         y: roundTo(roofY),
         z: roundTo(frontPoint.z),
@@ -516,7 +516,7 @@ function buildLocalPartsAndRects(/** @type {TemplateSpec} */ template) {
       });
       parts.push({
         partKey: roofFrontPartKey,
-        role: 'decor',
+        role: 'roof',
         x: roundTo(backPoint.x),
         y: roundTo(roofY),
         z: roundTo(backPoint.z),
