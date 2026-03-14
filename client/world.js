@@ -21,8 +21,15 @@ import {
   isMedievalBuildingKind,
   pointInOrientedRect,
 } from '../shared/medievalBuildings.js';
+import {
+  ESSENTIAL_ENVIRONMENT_RADIUS,
+  NEARBY_ENVIRONMENT_RADIUS,
+  distanceSquared2d,
+  getAllStreamableStructurePlacements,
+} from './sceneWarmup.js';
 
 const LOD_FAR_DISTANCE = 63; // 50 * 1.25
+const ENVIRONMENT_STREAM_REFRESH_DISTANCE = 6;
 
 const /** @type {any} */ COLORS = {
   ground: 0x1b2620,
@@ -66,6 +73,7 @@ const CORPSE_MARKER_HEIGHT = 1.2;
 const mobPrototypeCache = new Map();
 let /** @type {any} */ vendorPrototypePromise = null;
 let /** @type {any} */ vendorClipsPromise = null;
+let /** @type {Promise<any[]> | null} */ rockPrototypePromise = null;
 const environmentCache = new Map();
 const medievalPartCache = new Map();
 
@@ -703,6 +711,15 @@ export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
     vendorMeshes,
     vendorControllers: new Map(),
     medievalStructures: [],
+    environmentPlacements: getAllStreamableStructurePlacements(world).map((placement) => ({
+      ...placement,
+      category: getStructureCategory(placement.key),
+    })),
+    loadedEnvironmentIds: new Set(),
+    pendingEnvironmentIds: new Set(),
+    decoratedObstacleIds: new Set(),
+    pendingObstacleIds: new Set(),
+    lastEnvironmentFocus: null,
     environmentScaleDebug: new Map(),
     isActive: true,
     lastResources: [],
@@ -721,11 +738,15 @@ export function initWorld(/** @type {any} */ scene, /** @type {any} */ world) {
   group.add(ground, baseMesh, envGroup, ...obstacleMeshes);
   scene.add(group);
 
-  loadEnvironmentModels(worldState, envGroup).catch(
-    (/** @type {any} */ err) => {
-      console.warn('[world] Failed to load environment models:', err);
-    }
-  );
+  const initialFocus = { x: base.x ?? 0, z: base.z ?? 0 };
+  worldState.lastEnvironmentFocus = initialFocus;
+  if (
+    worldState.environmentPlacements.length === 0 &&
+    worldState.obstacleMeshes.length === 0
+  ) {
+    worldState.envReady = true;
+  }
+  ensureEnvironmentAroundFocus(worldState, initialFocus, ESSENTIAL_ENVIRONMENT_RADIUS);
 
   return worldState;
 }
@@ -1010,63 +1031,87 @@ function getStructureCategory(/** @type {any} */ kind) {
   return 'house';
 }
 
-async function loadObstacleRocks(/** @type {any} */ worldState) {
-  if (!worldState?.isActive || !ASSET_PATHS.rocks?.length) return;
-  const rockUrls = ASSET_PATHS.rocks;
-  const rockPrototypes = await Promise.all(rockUrls.map((/** @type {any} */ url) => loadGltf(url)));
-  if (!worldState.isActive) return;
+async function decorateObstacleWithRock(/** @type {any} */ worldState, /** @type {any} */ mesh, /** @type {any} */ obstacleId) {
+  if (!worldState?.isActive || !mesh || worldState.decoratedObstacleIds.has(obstacleId)) return;
+  const rockUrls = ASSET_PATHS.rocks ?? [];
+  if (!rockUrls.length) return;
 
-  for (const mesh of worldState.obstacleMeshes) {
-    const obstacle = mesh.userData?.obstacle;
-    if (!obstacle) continue;
-
-    const idx = Math.floor(Math.random() * rockPrototypes.length);
-    const gltf = rockPrototypes[idx];
-    if (!gltf?.scene) continue;
-
-    const model = cloneStatic(gltf.scene);
-    const box = new THREE.Box3().setFromObject(model);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    const targetSize = (obstacle.r ?? 1.5) * 2.5;
-    const scale = targetSize / Math.max(size.x, size.y, size.z);
-    model.scale.setScalar(scale);
-    model.position.y = -box.min.y * scale;
-    mesh.add(model);
-    mesh.rotation.y = Math.random() * Math.PI * 2;
+  if (!rockPrototypePromise) {
+    rockPrototypePromise = Promise.all(rockUrls.map((url) => loadGltf(url)));
   }
+  const rockPrototypes = await rockPrototypePromise;
+  if (!worldState.isActive || worldState.decoratedObstacleIds.has(obstacleId)) return;
+
+  const obstacle = mesh.userData?.obstacle;
+  if (!obstacle) return;
+
+  const idx = Math.floor(Math.random() * rockPrototypes.length);
+  const gltf = rockPrototypes[idx];
+  if (!gltf?.scene) return;
+
+  const model = cloneStatic(gltf.scene);
+  const box = new THREE.Box3().setFromObject(model);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const targetSize = (obstacle.r ?? 1.5) * 2.5;
+  const scale = targetSize / Math.max(size.x, size.y, size.z);
+  model.scale.setScalar(scale);
+  model.position.y = -box.min.y * scale;
+  mesh.add(model);
+  mesh.rotation.y = Math.random() * Math.PI * 2;
+  worldState.decoratedObstacleIds.add(obstacleId);
 }
 
-async function loadEnvironmentModels(/** @type {any} */ worldState, /** @type {any} */ envGroup) {
-  if (!worldState?.isActive) return;
-  const structures = Array.isArray(worldState.structures) ? worldState.structures : [];
-  const environmentPaths = /** @type {Record<string, string>} */ (ASSET_PATHS.environment ?? {});
-  const placements = structures
-    .filter((/** @type {any} */ structure) =>
-      structure?.kind &&
-      (
-        isMedievalBuildingKind(structure.kind) ||
-        typeof environmentPaths[structure.kind] === 'string'
-      )
-    )
-    .map((/** @type {any} */ structure) => ({
-      id: structure.id ?? structure.kind,
-      key: structure.kind,
-      category: getStructureCategory(structure.kind),
-      x: structure.x ?? 0,
-      y: structure.y ?? 0,
-      z: structure.z ?? 0,
-      rotation: structure.rotation ?? 0,
-    }));
+function ensureEnvironmentAroundFocus(/** @type {any} */ worldState, /** @type {any} */ focusPos, /** @type {number} */ radius) {
+  if (!worldState?.isActive || !focusPos) return;
+  const radiusSq = radius * radius;
 
-  await Promise.all([
-    ...placements.map((/** @type {any} */ placement) =>
-      addEnvironmentModel(worldState, envGroup, placement.key, placement)
-    ),
-    loadObstacleRocks(worldState),
-  ]);
+  for (const placement of worldState.environmentPlacements ?? []) {
+    if (!placement?.id) continue;
+    if (worldState.loadedEnvironmentIds.has(placement.id) || worldState.pendingEnvironmentIds.has(placement.id)) {
+      continue;
+    }
+    if (distanceSquared2d(placement, focusPos) > radiusSq) continue;
 
-  if (worldState.isActive) worldState.envReady = true;
+    worldState.pendingEnvironmentIds.add(placement.id);
+    addEnvironmentModel(worldState, worldState.envGroup, placement.key, placement)
+      .then(() => {
+        if (worldState.isActive) {
+          worldState.loadedEnvironmentIds.add(placement.id);
+        }
+      })
+      .catch((err) => {
+        console.warn('[world] Failed to stream environment model:', placement.id, err);
+      })
+      .finally(() => {
+        worldState.pendingEnvironmentIds.delete(placement.id);
+        if (
+          worldState.isActive &&
+          worldState.loadedEnvironmentIds.size >= (worldState.environmentPlacements?.length ?? 0)
+        ) {
+          worldState.envReady = true;
+        }
+      });
+  }
+
+  for (let index = 0; index < worldState.obstacleMeshes.length; index += 1) {
+    const mesh = worldState.obstacleMeshes[index];
+    const obstacle = mesh?.userData?.obstacle;
+    const obstacleId = obstacle?.id ?? index;
+    if (!obstacle || worldState.decoratedObstacleIds.has(obstacleId) || worldState.pendingObstacleIds.has(obstacleId)) {
+      continue;
+    }
+    if (distanceSquared2d(obstacle, focusPos) > radiusSq) continue;
+
+    worldState.pendingObstacleIds.add(obstacleId);
+    decorateObstacleWithRock(worldState, mesh, obstacleId)
+      .catch((err) => {
+        console.warn('[world] Failed to stream obstacle rock:', obstacleId, err);
+      })
+      .finally(() => {
+        worldState.pendingObstacleIds.delete(obstacleId);
+      });
+  }
 }
 
 export function animateWorld(
@@ -1077,6 +1122,20 @@ export function animateWorld(
   if (!worldState) return;
 
   const localViewPos = options.localViewPos ?? null;
+  const nextFocus = localViewPos ?? worldState.base ?? null;
+
+  if (nextFocus) {
+    const lastFocus = worldState.lastEnvironmentFocus;
+    const shouldRefresh =
+      !lastFocus ||
+      distanceSquared2d(lastFocus, nextFocus) >=
+        ENVIRONMENT_STREAM_REFRESH_DISTANCE * ENVIRONMENT_STREAM_REFRESH_DISTANCE;
+    if (shouldRefresh) {
+      worldState.lastEnvironmentFocus = { x: nextFocus.x ?? 0, z: nextFocus.z ?? 0 };
+      ensureEnvironmentAroundFocus(worldState, worldState.lastEnvironmentFocus, NEARBY_ENVIRONMENT_RADIUS);
+    }
+  }
+
   const structures = Array.isArray(worldState.medievalStructures)
     ? worldState.medievalStructures
     : [];

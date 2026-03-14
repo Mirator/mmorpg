@@ -2,6 +2,7 @@
 import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createAdminStateHandler } from './admin.js';
@@ -46,6 +47,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = path.resolve(__dirname, '../client');
 const ADMIN_DIR = path.resolve(__dirname, '../admin');
 const SHARED_DIR = path.resolve(__dirname, '../shared');
+const PACKAGE_JSON_PATH = path.resolve(__dirname, '../package.json');
+
+let clientAssetVersion = 'dev';
+try {
+  const packageJson = JSON.parse(fs.readFileSync(PACKAGE_JSON_PATH, 'utf8'));
+  if (typeof packageJson?.version === 'string' && packageJson.version.trim()) {
+    clientAssetVersion = packageJson.version.trim();
+  }
+} catch {
+  clientAssetVersion = 'dev';
+}
 
 /** @typedef {import('./types/domain.d.ts').AuthAccount} AuthAccount */
 /** @typedef {import('./types/domain.d.ts').HttpConfig} HttpConfig */
@@ -348,6 +360,17 @@ export function createHttpApp({
     res.redirect(302, '/favicon.svg');
   });
 
+  app.get('/client-config.js', (/** @type {HttpRequestLike} */ _req, /** @type {HttpResponseLike} */ res) => {
+    const response = /** @type {HttpResponseLike & { type?: (value: string) => HttpResponseLike, setHeader?: (name: string, value: string) => void }} */ (res);
+    response.type?.('application/javascript');
+    response.setHeader?.('Cache-Control', 'public, max-age=0');
+    res.send(
+      `window.__MMORPG_CLIENT_CONFIG__ = Object.assign({}, window.__MMORPG_CLIENT_CONFIG__, ${JSON.stringify({
+        assetVersion: clientAssetVersion,
+      })});\n`
+    );
+  });
+
   const adminPageSpecs = [['/admin', 'index.html'], ['/admin/map', 'map.html'], ['/admin/assets', 'assets.html'], ['/admin/events', 'events.html'], ['/admin/nav', 'nav.html'], ['/admin/collab', 'collab.html'], ['/admin/playtest', 'playtest.html']];
   for (const [routePath, fileName] of adminPageSpecs) {
     app.get(routePath, sendAdminPage(fileName));
@@ -366,6 +389,17 @@ export function createHttpApp({
   );
   app.use('/admin', express.static(ADMIN_DIR));
   app.use('/shared', express.static(SHARED_DIR));
+  app.use(
+    '/assets',
+    express.static(path.join(CLIENT_DIR, 'assets'), {
+      setHeaders: (/** @type {any} */ res, /** @type {any} */ _filePath) => {
+        const requestUrl = String(res.req?.originalUrl ?? res.req?.url ?? '');
+        if (requestUrl.includes('?v=')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    })
+  );
   app.use(express.static(CLIENT_DIR));
 
   app.post(
