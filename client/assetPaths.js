@@ -94,6 +94,9 @@ export const ASSET_PATHS = {
   consumables: {
     healthPotion: assetUrl('/assets/consumables/Bottle1.glb'),
     manaPotion: assetUrl('/assets/consumables/Bottle2.glb'),
+    strongHealthPotion: assetUrl('/assets/consumables/StrongHealthPotion.glb'),
+    strongManaPotion: assetUrl('/assets/consumables/StrongManaPotion.glb'),
+    cleansingTonic: assetUrl('/assets/consumables/CleansingTonic.glb'),
   },
   weapons: {
     sword: assetPath(WEAPONS_ROOT, 'Sword.glb'),
@@ -157,6 +160,9 @@ export const EQUIPMENT_MODEL_PATHS = {
 export const CONSUMABLE_MODEL_PATHS = {
   consumable_minor_health_potion: ASSET_PATHS.consumables.healthPotion,
   consumable_minor_mana_potion: ASSET_PATHS.consumables.manaPotion,
+  consumable_strong_health_potion: ASSET_PATHS.consumables.strongHealthPotion,
+  consumable_strong_mana_potion: ASSET_PATHS.consumables.strongManaPotion,
+  consumable_cleansing_tonic: ASSET_PATHS.consumables.cleansingTonic,
 };
 
 /**
