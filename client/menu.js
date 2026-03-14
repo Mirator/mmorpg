@@ -457,8 +457,8 @@ export function createMenu(/** @type {any} */ {
 
     const hasPrimary = !!primaryCharacter?.id;
 
-    // Always keep the continue panel visible; fall back to placeholder copy when no character.
-    continuePanelEl.classList.remove('hidden');
+    // Hide the continue panel when there is no character to resume.
+    continuePanelEl.classList.toggle('hidden', !hasPrimary);
     continueBtn.disabled = !hasPrimary;
     if (!hasPrimary) {
       if (continueNameEl) continueNameEl.textContent = '--';

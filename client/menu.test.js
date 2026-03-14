@@ -333,6 +333,22 @@ describe('storybook menu state', () => {
     expect(rows[1].querySelector('.character-tag')).toBeNull();
   });
 
+  it('hides continue adventure until at least one character exists', () => {
+    const menu = createMenu({
+      networkProbe: async () => ({ state: 'online', label: 'Reachable', latencyMs: 12, checkedAt: 1000 }),
+    });
+
+    const continuePanel = harness.elements['menu-continue-panel'];
+
+    menu.setCharacters([]);
+    expect(continuePanel.classList.contains('hidden')).toBe(true);
+    expect(harness.elements['menu-continue-btn'].disabled).toBe(true);
+
+    menu.setCharacters([{ id: 'a', name: 'Miratorek', classId: 'fighter', level: 12 }]);
+    expect(continuePanel.classList.contains('hidden')).toBe(false);
+    expect(harness.elements['menu-continue-btn'].disabled).toBe(false);
+  });
+
   it('renders left-rail fallback behavior for language and exit actions', () => {
     const menu = createMenu({
       networkProbe: async () => ({ state: 'online', label: 'Reachable', latencyMs: 12, checkedAt: 1000 }),
